@@ -1,3 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* App-Feeling erzwingen */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Verhindert Scrollen des "Rahmens" */
+  background-color: #09090b;
+  
+  /* Verhindert "Pull-to-Refresh" im Browser */
+  overscroll-behavior-y: none;
+  
+  /* Verhindert Text-Markierung (wie bei Apps) */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scrollbars verstecken für cleanen Look */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Erlaubt Text-Markierung in Eingabefeldern wieder */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
