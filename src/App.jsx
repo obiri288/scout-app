@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
@@ -16,10 +16,50 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 // --- 2. HELFER & STYLES ---
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)]" : "border-zinc-700";
 
-// --- 3. MODALS ---
+// --- 3. MODALS & COMPONENTS ---
+
+// COOKIE BANNER (NEU)
+const CookieBanner = () => {
+    const [accepted, setAccepted] = useState(false);
+    
+    useEffect(() => {
+        // Prüfen ob schon akzeptiert wurde
+        const consent = localStorage.getItem('cookie_consent');
+        if (consent === 'true') setAccepted(true);
+    }, []);
+
+    const handleAccept = () => {
+        localStorage.setItem('cookie_consent', 'true');
+        setAccepted(true);
+    };
+
+    if (accepted) return null;
+
+    return (
+        <div className="fixed bottom-20 left-4 right-4 md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-[100] animate-in slide-in-from-bottom-10 fade-in duration-500">
+            <div className="bg-zinc-900/95 backdrop-blur-md border border-zinc-800 p-4 rounded-2xl shadow-2xl flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                    <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 flex-shrink-0">
+                        <Cookie size={24} />
+                    </div>
+                    <div className="text-xs text-zinc-300">
+                        <span className="font-bold text-white block mb-1 text-sm">Cookies & Datenschutz</span>
+                        Wir nutzen technisch notwendige Cookies, um deinen Login-Status zu speichern. Ohne diese funktioniert die App nicht. Wir tracken dich nicht zu Werbezwecken.
+                    </div>
+                </div>
+                <button 
+                    onClick={handleAccept}
+                    className="w-full bg-white text-black font-bold py-3 rounded-xl text-sm hover:bg-zinc-200 transition"
+                >
+                    Alles klar, verstanden
+                </button>
+            </div>
+        </div>
+    );
+};
 
 // SETTINGS / LEGAL MODAL
-const SettingsModal = ({ onClose, onLogout }) => {
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp }) => {
     const [view, setView] = useState('menu'); // menu, impressum, privacy
 
     const LegalText = ({ title, content }) => (
@@ -42,6 +82,21 @@ const SettingsModal = ({ onClose, onLogout }) => {
                 {view === 'menu' && (
                     <div className="space-y-4 mt-6">
                         <h2 className="text-xl font-bold text-white mb-6 text-center">Einstellungen</h2>
+                        
+                        {/* PWA INSTALL BUTTON */}
+                        {installPrompt && (
+                            <button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-4 border border-indigo-400/30 shadow-lg shadow-indigo-500/20">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div>
+                                    <div className="text-left">
+                                        <span className="text-white font-bold block text-sm">App installieren</span>
+                                        <span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span>
+                                    </div>
+                                </div>
+                                <ChevronRight size={16} className="text-white" />
+                            </button>
+                        )}
+
                         <button onClick={() => setView('impressum')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition">
                             <div className="flex items-center gap-3"><FileText size={20} className="text-zinc-400" /><span className="text-white">Impressum</span></div>
                             <ChevronRight size={16} className="text-zinc-600" />
@@ -54,7 +109,7 @@ const SettingsModal = ({ onClose, onLogout }) => {
                         <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition">
                             <LogOut size={20} /> Abmelden
                         </button>
-                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.0.0 (Beta)</p>
+                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.1.0 (PWA Ready)</p>
                     </div>
                 )}
 
@@ -328,7 +383,7 @@ const SearchScreen = ({ onUserClick }) => {
     <div className="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen">
       <h2 className="text-2xl font-bold text-white mb-4">Scouting</h2>
       <div className="relative mb-4"><div className="absolute left-3 top-3 text-zinc-400"><Search size={20}/></div><input placeholder="Suchen..." value={query} onChange={e=>setQuery(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-indigo-500" /></div>
-      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2"><select onChange={e=>setStatus(e.target.value)} className={`text-xs px-3 py-2 rounded-full font-bold outline-none border ${status!=='Alle' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-800 text-white border-zinc-800'}`}><option value="Alle">Status: Alle</option><option value="Suche Verein">🟢 Suche Verein</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Gebunden">🔴 Gebunden</option></select><select onChange={e=>setPos(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Pos: Alle</option>{['ST','ZOM','ZM','IV','TW'].map(p=><option key={p}>{p}</option>)}</select><select onChange={e=>setFoot(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Fuß: Alle</option><option>Rechts</option><option>Links</option></select></div>
+      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2"><select onChange={e=>setStatus(e.target.value)} className={`text-xs px-3 py-2 rounded-full font-bold outline-none border ${status!=='Alle' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-800 text-white border-zinc-800'}`}><option value="Alle">Status: Alle</option><option value="Suche Verein">🟢 Suche neuen Verein</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Gebunden">🔴 Gebunden</option></select><select onChange={e=>setPos(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Pos: Alle</option>{['ST','ZOM','ZM','IV','TW'].map(p=><option key={p}>{p}</option>)}</select><select onChange={e=>setFoot(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Fuß: Alle</option><option>Rechts</option><option>Links</option></select></div>
       <div className="space-y-3">{res.map(p => (<div key={p.id} onClick={()=>onUserClick(p)} className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex items-center gap-4 cursor-pointer hover:bg-zinc-800 transition relative overflow-hidden"><div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(p.transfer_status)}`}></div><div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 ml-2">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<span className="font-bold text-zinc-500">{p.full_name?.charAt(0)}</span>}</div><div className="flex-1"><div className="flex justify-between items-center"><h3 className="font-bold text-white text-sm flex items-center gap-2">{p.full_name}{p.transfer_status === 'Suche Verein' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}</h3><span className="text-xs bg-zinc-950 px-1.5 py-0.5 rounded text-zinc-500 font-bold">{p.position_primary}</span></div><div className="flex justify-between mt-1"><p className="text-xs text-zinc-400">{p.clubs?.name || "Vereinslos"}</p><p className="text-[10px] text-zinc-500 uppercase">{p.transfer_status || 'Gebunden'}</p></div></div></div>))}{res.length === 0 && <div className="text-center py-10 text-zinc-500 text-sm">Keine Spieler gefunden.</div>}</div>
     </div>
   );
@@ -370,7 +425,7 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
              <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 pb-6 pt-10 px-6 border-b border-zinc-800 text-center relative">
                  {!isOwnProfile && <button onClick={onBack} className="absolute left-4 top-4 p-2 bg-white/10 rounded-full text-white"><ArrowLeft size={20}/></button>}
                  
-                 {/* SETTINGS BUTTON (ZAHNRAD) - Führt jetzt zum SettingsModal */}
+                 {/* SETTINGS BUTTON (ZAHNRAD) */}
                  {isOwnProfile && <button onClick={onSettingsReq} className="absolute right-4 top-4 p-2 bg-white/10 rounded-full text-white"><Settings size={20}/></button>}
                  
                  <div className={`w-24 h-24 rounded-full bg-zinc-800 border-4 flex items-center justify-center overflow-hidden relative mx-auto mb-3 ${getClubStyle(player.clubs?.is_icon_league)}`}>
@@ -415,10 +470,29 @@ const App = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
 
+  // PWA STATE
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) fetchMyProfile(session.user.id); });
     supabase.auth.onAuthStateChange((_event, session) => { setSession(session); if (session) fetchMyProfile(session.user.id); else setCurrentUserProfile(null); });
+    
+    // PWA INSTALL LISTENER
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
   }, []);
+
+  const handleInstallApp = () => {
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+              setDeferredPrompt(null);
+          }
+      });
+  };
 
   const fetchMyProfile = async (userId) => { const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).single(); if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') setShowOnboarding(true); } };
   const loadProfile = async (player) => { setViewedProfile(player); const { data } = await supabase.from('media_highlights').select('*').eq('player_id', player.id).order('created_at', { ascending: false }); setProfileHighlights(data || []); setActiveTab('profile'); };
@@ -454,10 +528,12 @@ const App = () => {
       
       <div className="fixed bottom-0 w-full bg-zinc-950/90 border-t border-zinc-800 px-6 py-3 flex justify-between items-center z-40 pb-6 sm:pb-3"><button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-white' : 'text-zinc-600'}`}><Home size={24} /><span className="text-[10px] font-medium">Home</span></button><button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'search' ? 'text-white' : 'text-zinc-600'}`}><Search size={24} /><span className="text-[10px] font-medium">Suche</span></button><div className="relative -top-5"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-indigo-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg"><Plus size={24} text-white strokeWidth={3} /></button></div><button onClick={() => setActiveTab('inbox')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'inbox' ? 'text-white' : 'text-zinc-600'}`}><Mail size={24} /><span className="text-[10px] font-medium">Inbox</span></button><button onClick={handleProfileTabClick} className={`flex flex-col items-center gap-1 transition ${activeTab === 'profile' ? 'text-white' : 'text-zinc-600'}`}><User size={24} /><span className="text-[10px] font-medium">Profil</span></button></div>
       
-      {/* MODALS */}
+      {/* GLOBAL COMPONENTS: Cookie Banner, Modals */}
+      <CookieBanner />
+      
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4"><button onClick={() => setActiveVideo(null)} className="absolute top-4 right-4 z-10 p-2 bg-white/10 rounded-full"><X size={24}/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} />}
       
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} />}

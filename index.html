@@ -1,23 +1,33 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- Viewport optimiert für Mobile: Verhindert Zoom beim Tippen -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- DER WICHTIGE TEIL FÜR MOBILE APPS -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ScoutVision</title>
+    <meta name="description" content="Die Scouting App für den Amateurfußball">
+
+    <!-- --- PWA KONFIGURATION (NEU) --- -->
     
-    <!-- PWA Settings -->
+    <!-- Verweis auf die Manifest-Datei -->
     <link rel="manifest" href="/manifest.json">
+    
+    <!-- Farbe der Browser-Leiste (passend zum Dark Mode) -->
     <meta name="theme-color" content="#09090b">
+    
+    <!-- iOS Spezifische Einstellungen (Apple Support) -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/33/33736.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ScoutVision">
 
-    <title>ScoutVision</title>
+    <!-- Favicon (Fallback) -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/33/33736.png" />
   </head>
-  <body>
+  <body style="background-color: #09090b; margin: 0;">
     <div id="root"></div>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
