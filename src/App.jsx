@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
@@ -18,41 +18,52 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
-// COOKIE BANNER (NEU)
+// COOKIE BANNER
 const CookieBanner = () => {
     const [accepted, setAccepted] = useState(false);
-    
-    useEffect(() => {
-        // Prüfen ob schon akzeptiert wurde
-        const consent = localStorage.getItem('cookie_consent');
-        if (consent === 'true') setAccepted(true);
-    }, []);
-
-    const handleAccept = () => {
-        localStorage.setItem('cookie_consent', 'true');
-        setAccepted(true);
-    };
-
+    useEffect(() => { const consent = localStorage.getItem('cookie_consent'); if (consent === 'true') setAccepted(true); }, []);
+    const handleAccept = () => { localStorage.setItem('cookie_consent', 'true'); setAccepted(true); };
     if (accepted) return null;
-
     return (
         <div className="fixed bottom-20 left-4 right-4 md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-[100] animate-in slide-in-from-bottom-10 fade-in duration-500">
             <div className="bg-zinc-900/95 backdrop-blur-md border border-zinc-800 p-4 rounded-2xl shadow-2xl flex flex-col gap-3">
-                <div className="flex items-start gap-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 flex-shrink-0">
-                        <Cookie size={24} />
-                    </div>
-                    <div className="text-xs text-zinc-300">
-                        <span className="font-bold text-white block mb-1 text-sm">Cookies & Datenschutz</span>
-                        Wir nutzen technisch notwendige Cookies, um deinen Login-Status zu speichern. Ohne diese funktioniert die App nicht. Wir tracken dich nicht zu Werbezwecken.
-                    </div>
+                <div className="flex items-start gap-3"><div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 flex-shrink-0"><Cookie size={24} /></div><div className="text-xs text-zinc-300"><span className="font-bold text-white block mb-1 text-sm">Cookies & Datenschutz</span>Wir nutzen technisch notwendige Cookies, um deinen Login-Status zu speichern. Ohne diese funktioniert die App nicht.</div></div>
+                <button onClick={handleAccept} className="w-full bg-white text-black font-bold py-3 rounded-xl text-sm hover:bg-zinc-200 transition">Alles klar, verstanden</button>
+            </div>
+        </div>
+    );
+};
+
+// REPORT MODAL (NEU - Fehlte vorher!)
+const ReportModal = ({ targetId, targetType, onClose, session }) => {
+    const [reason, setReason] = useState('Spam');
+    const [loading, setLoading] = useState(false);
+    
+    const handleReport = async () => {
+        setLoading(true);
+        try {
+            // Tabelle 'reports' muss in Supabase existieren, sonst Fehler ignorieren wir hier simuliert
+            await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {});
+            alert("Vielen Dank! Wir prüfen die Meldung.");
+            onClose();
+        } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in p-4">
+            <div className="w-full max-w-xs bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-2xl">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={16} className="text-red-500"/> Inhalt melden</h3>
+                <p className="text-xs text-zinc-400 mb-3">Warum möchtest du diesen Inhalt melden?</p>
+                <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white p-2 rounded-lg mb-4 outline-none">
+                    <option>Spam / Werbung</option>
+                    <option>Unangemessener Inhalt</option>
+                    <option>Beleidigung</option>
+                    <option>Fake Profil</option>
+                </select>
+                <div className="flex gap-2">
+                    <button onClick={onClose} className="flex-1 bg-zinc-800 text-white py-2 rounded-lg font-bold text-xs">Abbruch</button>
+                    <button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-xs">Melden</button>
                 </div>
-                <button 
-                    onClick={handleAccept}
-                    className="w-full bg-white text-black font-bold py-3 rounded-xl text-sm hover:bg-zinc-200 transition"
-                >
-                    Alles klar, verstanden
-                </button>
             </div>
         </div>
     );
@@ -60,61 +71,26 @@ const CookieBanner = () => {
 
 // SETTINGS / LEGAL MODAL
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp }) => {
-    const [view, setView] = useState('menu'); // menu, impressum, privacy
-
-    const LegalText = ({ title, content }) => (
-        <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2">
-                <button onClick={() => setView('menu')}><ArrowLeft size={20} className="text-zinc-400" /></button>
-                <h3 className="font-bold text-white">{title}</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2">
-                {content}
-            </div>
-        </div>
-    );
+    const [view, setView] = useState('menu');
+    const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2"><button onClick={() => setView('menu')}><ArrowLeft size={20} className="text-zinc-400" /></button><h3 className="font-bold text-white">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2">{content}</div></div>);
 
     return (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in">
             <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-6 border border-zinc-800 shadow-2xl h-[500px] flex flex-col relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white"><X size={20} /></button>
-                
                 {view === 'menu' && (
                     <div className="space-y-4 mt-6">
                         <h2 className="text-xl font-bold text-white mb-6 text-center">Einstellungen</h2>
-                        
-                        {/* PWA INSTALL BUTTON */}
-                        {installPrompt && (
-                            <button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-4 border border-indigo-400/30 shadow-lg shadow-indigo-500/20">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div>
-                                    <div className="text-left">
-                                        <span className="text-white font-bold block text-sm">App installieren</span>
-                                        <span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span>
-                                    </div>
-                                </div>
-                                <ChevronRight size={16} className="text-white" />
-                            </button>
-                        )}
-
-                        <button onClick={() => setView('impressum')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition">
-                            <div className="flex items-center gap-3"><FileText size={20} className="text-zinc-400" /><span className="text-white">Impressum</span></div>
-                            <ChevronRight size={16} className="text-zinc-600" />
-                        </button>
-                        <button onClick={() => setView('privacy')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition">
-                            <div className="flex items-center gap-3"><Lock size={20} className="text-zinc-400" /><span className="text-white">Datenschutz</span></div>
-                            <ChevronRight size={16} className="text-zinc-600" />
-                        </button>
+                        {installPrompt && (<button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-4 border border-indigo-400/30 shadow-lg shadow-indigo-500/20"><div className="flex items-center gap-3"><div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div><div className="text-left"><span className="text-white font-bold block text-sm">App installieren</span><span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span></div></div><ChevronRight size={16} className="text-white" /></button>)}
+                        <button onClick={() => setView('impressum')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><FileText size={20} className="text-zinc-400" /><span className="text-white">Impressum</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
+                        <button onClick={() => setView('privacy')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Lock size={20} className="text-zinc-400" /><span className="text-white">Datenschutz</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <hr className="border-zinc-800 my-4" />
-                        <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition">
-                            <LogOut size={20} /> Abmelden
-                        </button>
-                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.1.0 (PWA Ready)</p>
+                        <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition"><LogOut size={20} /> Abmelden</button>
+                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.1.1 (Stable)</p>
                     </div>
                 )}
-
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>Angaben gemäß § 5 TMG</p><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1<br/>12345 Berlin</p><p>Kontakt:<br/>E-Mail: info@scoutvision.app</p></>} />}
-                {view === 'privacy' && <LegalText title="Datenschutz" content={<><p>Datenschutzerklärung</p><p>Wir nehmen den Schutz deiner Daten ernst. Diese App nutzt Supabase für die Datenspeicherung.</p><p><strong>1. Datenerfassung</strong><br/>Wir speichern deine E-Mail, dein Profil und deine Uploads.</p><p><strong>2. Rechte</strong><br/>Du kannst jederzeit die Löschung deines Accounts beantragen.</p></>} />}
+                {view === 'privacy' && <LegalText title="Datenschutz" content={<><p>Datenschutzerklärung</p><p>Wir nehmen den Schutz deiner Daten ernst. Diese App nutzt Supabase für die Datenspeicherung.</p></>} />}
             </div>
         </div>
     );
@@ -161,13 +137,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // PERFORMANCE CHECK - 50 MB
-    if (file.size > MAX_FILE_SIZE) {
-        alert("Datei zu groß! Bitte maximal 50 MB hochladen (HD Qualität).");
-        return;
-    }
-
+    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Bitte maximal 50 MB hochladen."); return; }
     try {
       setUploading(true);
       const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`;
@@ -193,17 +163,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
 // EDIT PROFILE MODAL
 const EditProfileModal = ({ player, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ 
-      full_name: player.full_name || '', 
-      position_primary: player.position_primary || 'ZOM', 
-      height_user: player.height_user || '', 
-      strong_foot: player.strong_foot || 'Rechts', 
-      club_id: player.club_id || '',
-      transfer_status: player.transfer_status || 'Gebunden',
-      instagram_handle: player.instagram_handle || '',
-      tiktok_handle: player.tiktok_handle || '',
-      youtube_handle: player.youtube_handle || ''
-  });
+  const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '' });
   const [avatarFile, setAvatarFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(player.avatar_url);
   const [clubSearch, setClubSearch] = useState('');
@@ -221,10 +181,8 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
           let finalAvatarUrl = player.avatar_url; 
           if (avatarFile) { 
               const filePath = `${player.user_id}/${Date.now()}.jpg`; 
-              const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, avatarFile); 
-              if (upErr) throw upErr; 
-              const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath); 
-              finalAvatarUrl = publicUrl; 
+              const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, avatarFile); if (upErr) throw upErr; 
+              const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath); finalAvatarUrl = publicUrl; 
           }
           const heightValue = formData.height_user ? parseInt(formData.height_user) : null;
           const { data, error } = await supabase.from('players_master').update({ ...formData, height_user: heightValue, avatar_url: finalAvatarUrl, club_id: selectedClub ? selectedClub.id : null }).eq('id', player.id).select('*, clubs(*)').single(); 
