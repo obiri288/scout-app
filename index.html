@@ -25,26 +25,38 @@
     <!-- Favicon (Fallback) -->
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/33/33736.png" />
 
-    <!-- CSS FIX FÜR SCROLLING -->
+    <!-- CSS FIX FÜR SCROLLING & KLICKS -->
     <style>
+      /* Zurücksetzen auf Standard-Browser-Verhalten für robustes Scrollen */
       html {
-        height: 100%;
-        /* Verhindert das 'Gummiband'-Wackeln der ganzen Seite auf iOS */
-        overscroll-behavior-y: none; 
+        box-sizing: border-box;
       }
+      *, *:before, *:after {
+        box-sizing: inherit;
+      }
+      
       body {
         margin: 0;
         padding: 0;
-        min-height: 100%;
+        width: 100%;
         background-color: #09090b;
-        /* WICHTIG: Erlaubt vertikales Scrollen explizit */
-        overflow-y: auto; 
-        /* Sorgt für weiches Scrollen auf iOS */
-        -webkit-overflow-scrolling: touch;
+        
+        /* WICHTIG: Verbessert die Klick-Reaktion auf Touchscreens */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
+
       #root {
-        /* Stellt sicher, dass die App mindestens so hoch wie der Screen ist */
+        /* Stellt sicher, dass die App den ganzen Screen füllt */
         min-height: 100vh;
+        
+        /* SAFE AREA SUPPORT:
+           Verhindert, dass Buttons unter der iPhone-Notch oder dem Home-Balken verschwinden 
+           und nicht klickbar sind. */
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
       }
     </style>
   </head>
