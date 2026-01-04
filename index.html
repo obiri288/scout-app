@@ -25,32 +25,36 @@
     <!-- Favicon (Fallback) -->
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/33/33736.png" />
 
-    <!-- CSS FIX FÜR SCROLLING & KLICKS -->
+    <!-- CSS FIX: BACK TO BASICS (Standard Scrollen wiederhergestellt) -->
     <style>
-      /* FIX 1: HTML/BODY auf 100% fixieren und Scrollen verbieten (verhindert "Bounce") */
-      html, body {
-        height: 100%;
-        width: 100%;
+      /* Grundeinstellungen */
+      html {
+        box-sizing: border-box;
+      }
+      *, *:before, *:after {
+        box-sizing: inherit;
+      }
+      
+      body {
         margin: 0;
         padding: 0;
         background-color: #09090b;
-        overflow: hidden; /* WICHTIG: Scrollen hier deaktivieren */
         
-        /* Verbessert Klicks */
+        /* WICHTIG: Wir erzwingen hier KEINE feste Höhe mehr.
+           Dadurch kann der Browser natürlich wachsen und scrollen. */
+        min-height: 100vh;
+        
+        /* Verbessert Klicks auf Touchscreens */
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
-        -webkit-font-smoothing: antialiased;
       }
 
-      /* FIX 2: Scrollen auf das Root-Element verlagern (Native App Feeling) */
       #root {
-        height: 100%;
-        width: 100%;
-        overflow-y: auto; /* Hier Scrollen erlauben */
-        -webkit-overflow-scrolling: touch; /* Weiches Scrollen für iOS */
-        position: relative;
+        /* Nimmt mindestens den ganzen Bildschirm ein */
+        min-height: 100vh;
         
-        /* SAFE AREA SUPPORT */
+        /* SAFE AREA SUPPORT:
+           Verhindert, dass Buttons unter der iPhone-Notch verschwinden */
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
