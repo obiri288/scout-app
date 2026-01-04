@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
@@ -18,6 +18,21 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
+// TOAST NOTIFICATIONS (NEU: Realtime Popups)
+const ToastContainer = ({ toasts, removeToast }) => (
+  <div className="fixed top-4 left-0 right-0 z-[110] flex flex-col items-center gap-2 pointer-events-none px-4">
+    {toasts.map(t => (
+      <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full" onClick={() => removeToast(t.id)}>
+        <div className={`p-2 rounded-full ${t.type === 'message' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'}`}>
+            {t.type === 'message' ? <MessageCircle size={16} /> : <Heart size={16} />}
+        </div>
+        <div className="flex-1 text-sm font-medium">{t.content}</div>
+        <button onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}><X size={14} className="text-zinc-500" /></button>
+      </div>
+    ))}
+  </div>
+);
+
 // COOKIE BANNER
 const CookieBanner = () => {
     const [accepted, setAccepted] = useState(false);
@@ -34,7 +49,7 @@ const CookieBanner = () => {
     );
 };
 
-// REPORT MODAL (NEU - Fehlte vorher!)
+// REPORT MODAL
 const ReportModal = ({ targetId, targetType, onClose, session }) => {
     const [reason, setReason] = useState('Spam');
     const [loading, setLoading] = useState(false);
@@ -42,7 +57,6 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     const handleReport = async () => {
         setLoading(true);
         try {
-            // Tabelle 'reports' muss in Supabase existieren, sonst Fehler ignorieren wir hier simuliert
             await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {});
             alert("Vielen Dank! Wir prüfen die Meldung.");
             onClose();
@@ -69,8 +83,8 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS / LEGAL MODAL
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp }) => {
+// SETTINGS / LEGAL MODAL (NEU: Push Button)
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2"><button onClick={() => setView('menu')}><ArrowLeft size={20} className="text-zinc-400" /></button><h3 className="font-bold text-white">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2">{content}</div></div>);
 
@@ -81,12 +95,18 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp }) => {
                 {view === 'menu' && (
                     <div className="space-y-4 mt-6">
                         <h2 className="text-xl font-bold text-white mb-6 text-center">Einstellungen</h2>
-                        {installPrompt && (<button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-4 border border-indigo-400/30 shadow-lg shadow-indigo-500/20"><div className="flex items-center gap-3"><div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div><div className="text-left"><span className="text-white font-bold block text-sm">App installieren</span><span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span></div></div><ChevronRight size={16} className="text-white" /></button>)}
+                        
+                        {/* PWA INSTALL BUTTON */}
+                        {installPrompt && (<button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-2 border border-indigo-400/30 shadow-lg shadow-indigo-500/20"><div className="flex items-center gap-3"><div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div><div className="text-left"><span className="text-white font-bold block text-sm">App installieren</span><span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span></div></div><ChevronRight size={16} className="text-white" /></button>)}
+                        
+                        {/* PUSH BUTTON */}
+                        <button onClick={onRequestPush} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Bell size={20} className="text-zinc-400" /><span className="text-white">Benachrichtigungen</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
+
                         <button onClick={() => setView('impressum')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><FileText size={20} className="text-zinc-400" /><span className="text-white">Impressum</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <button onClick={() => setView('privacy')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Lock size={20} className="text-zinc-400" /><span className="text-white">Datenschutz</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <hr className="border-zinc-800 my-4" />
                         <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition"><LogOut size={20} /> Abmelden</button>
-                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.1.1 (Stable)</p>
+                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.2.0 (Realtime)</p>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>Angaben gemäß § 5 TMG</p><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1<br/>12345 Berlin</p><p>Kontakt:<br/>E-Mail: info@scoutvision.app</p></>} />}
@@ -428,6 +448,10 @@ const App = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
 
+  // REALTIME STATE
+  const [toasts, setToasts] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   // PWA STATE
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -442,6 +466,45 @@ const App = () => {
     });
   }, []);
 
+  // REALTIME LISTENER
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const channel = supabase.channel('realtime:public')
+        // Lausche auf neue Notifications (Likes, Follows)
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'notifications', 
+            filter: `receiver_id=eq.${session.user.id}` 
+        }, (payload) => {
+            setUnreadCount(prev => prev + 1);
+            addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
+        })
+        // Lausche auf neue Nachrichten (Chat)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'direct_messages',
+            filter: `receiver_id=eq.${session.user.id}`
+        }, (payload) => {
+            if (activeChatPartner?.user_id !== payload.new.sender_id) { 
+                setUnreadCount(prev => prev + 1);
+                addToast("Neue Nachricht erhalten", "message");
+            }
+        })
+        .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [session, activeChatPartner]);
+
+  // TOAST HELPER
+  const addToast = (content, type = 'info') => {
+      const id = Date.now();
+      setToasts(prev => [...prev, { id, content, type }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
+
   const handleInstallApp = () => {
       if(!deferredPrompt) return;
       deferredPrompt.prompt();
@@ -450,6 +513,13 @@ const App = () => {
               setDeferredPrompt(null);
           }
       });
+  };
+
+  const handlePushRequest = async () => {
+      if (!("Notification" in window)) return alert("Dieser Browser unterstützt keine Benachrichtigungen.");
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") addToast("Benachrichtigungen aktiviert!", "info");
+      else alert("Benachrichtigungen wurden verweigert.");
   };
 
   const fetchMyProfile = async (userId) => { const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).single(); if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') setShowOnboarding(true); } };
@@ -484,14 +554,27 @@ const App = () => {
       {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
       {activeTab === 'admin' && <AdminDashboard session={session} />}
       
-      <div className="fixed bottom-0 w-full bg-zinc-950/90 border-t border-zinc-800 px-6 py-3 flex justify-between items-center z-40 pb-6 sm:pb-3"><button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-white' : 'text-zinc-600'}`}><Home size={24} /><span className="text-[10px] font-medium">Home</span></button><button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'search' ? 'text-white' : 'text-zinc-600'}`}><Search size={24} /><span className="text-[10px] font-medium">Suche</span></button><div className="relative -top-5"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-indigo-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg"><Plus size={24} text-white strokeWidth={3} /></button></div><button onClick={() => setActiveTab('inbox')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'inbox' ? 'text-white' : 'text-zinc-600'}`}><Mail size={24} /><span className="text-[10px] font-medium">Inbox</span></button><button onClick={handleProfileTabClick} className={`flex flex-col items-center gap-1 transition ${activeTab === 'profile' ? 'text-white' : 'text-zinc-600'}`}><User size={24} /><span className="text-[10px] font-medium">Profil</span></button></div>
+      <div className="fixed bottom-0 w-full bg-zinc-950/90 border-t border-zinc-800 px-6 py-3 flex justify-between items-center z-40 pb-6 sm:pb-3">
+          <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-white' : 'text-zinc-600'}`}><Home size={24} /><span className="text-[10px] font-medium">Home</span></button>
+          <button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'search' ? 'text-white' : 'text-zinc-600'}`}><Search size={24} /><span className="text-[10px] font-medium">Suche</span></button>
+          <div className="relative -top-5"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-indigo-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg"><Plus size={24} text-white strokeWidth={3} /></button></div>
+          <button onClick={() => { setActiveTab('inbox'); setUnreadCount(0); }} className={`flex flex-col items-center gap-1 transition relative ${activeTab === 'inbox' ? 'text-white' : 'text-zinc-600'}`}>
+              <div className="relative">
+                  <Mail size={24} />
+                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce">{unreadCount}</span>}
+              </div>
+              <span className="text-[10px] font-medium">Inbox</span>
+          </button>
+          <button onClick={handleProfileTabClick} className={`flex flex-col items-center gap-1 transition ${activeTab === 'profile' ? 'text-white' : 'text-zinc-600'}`}><User size={24} /><span className="text-[10px] font-medium">Profil</span></button>
+      </div>
       
-      {/* GLOBAL COMPONENTS: Cookie Banner, Modals */}
+      {/* GLOBAL COMPONENTS */}
       <CookieBanner />
+      <ToastContainer toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4"><button onClick={() => setActiveVideo(null)} className="absolute top-4 right-4 z-10 p-2 bg-white/10 rounded-full"><X size={24}/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
       
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} />}
