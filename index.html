@@ -2,67 +2,27 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <!-- Viewport optimiert für Mobile: Verhindert Zoom beim Tippen -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- Standard Viewport ohne "cover" Experimente -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
     <title>ScoutVision</title>
     <meta name="description" content="Die Scouting App für den Amateurfußball">
 
-    <!-- --- PWA KONFIGURATION (NEU) --- -->
-    
-    <!-- Verweis auf die Manifest-Datei -->
+    <!-- --- PWA KONFIGURATION --- -->
     <link rel="manifest" href="/manifest.json">
-    
-    <!-- Farbe der Browser-Leiste (passend zum Dark Mode) -->
     <meta name="theme-color" content="#09090b">
     
-    <!-- iOS Spezifische Einstellungen (Apple Support) -->
+    <!-- iOS Einstellungen (Safe Mode) -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/33/33736.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- WICHTIG: 'default' statt 'black-translucent' verhindert, dass die App unter die Statusleiste rutscht -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="ScoutVision">
 
-    <!-- Favicon (Fallback) -->
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/33/33736.png" />
-
-    <!-- CSS FIX: BACK TO BASICS (Standard Scrollen wiederhergestellt) -->
-    <style>
-      /* Grundeinstellungen */
-      html {
-        box-sizing: border-box;
-      }
-      *, *:before, *:after {
-        box-sizing: inherit;
-      }
-      
-      body {
-        margin: 0;
-        padding: 0;
-        background-color: #09090b;
-        
-        /* WICHTIG: Wir erzwingen hier KEINE feste Höhe mehr.
-           Dadurch kann der Browser natürlich wachsen und scrollen. */
-        min-height: 100vh;
-        
-        /* Verbessert Klicks auf Touchscreens */
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-      }
-
-      #root {
-        /* Nimmt mindestens den ganzen Bildschirm ein */
-        min-height: 100vh;
-        
-        /* SAFE AREA SUPPORT:
-           Verhindert, dass Buttons unter der iPhone-Notch verschwinden */
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-      }
-    </style>
   </head>
-  <body>
+  <!-- Minimales Styling nur für den Hintergrund -->
+  <body style="background-color: #09090b; margin: 0;">
     <div id="root"></div>
     
     <script type="module" src="/src/main.jsx"></script>
