@@ -106,7 +106,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                         <button onClick={() => setView('privacy')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Lock size={20} className="text-zinc-400" /><span className="text-white">Datenschutz</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <hr className="border-zinc-800 my-4" />
                         <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition"><LogOut size={20} /> Abmelden</button>
-                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.2.0 (Realtime)</p>
+                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.2.1 (Realtime Fix)</p>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>Angaben gemäß § 5 TMG</p><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1<br/>12345 Berlin</p><p>Kontakt:<br/>E-Mail: info@scoutvision.app</p></>} />}
@@ -466,11 +466,12 @@ const App = () => {
     });
   }, []);
 
-  // REALTIME LISTENER
+  // REALTIME LISTENER (DEBUGGING VERSION)
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    const channel = supabase.channel('realtime:public')
+    // Verwende einen benutzerspezifischen Channel-Namen
+    const channel = supabase.channel(`realtime:user:${session.user.id}`)
         // Lausche auf neue Notifications (Likes, Follows)
         .on('postgres_changes', { 
             event: 'INSERT', 
@@ -478,6 +479,7 @@ const App = () => {
             table: 'notifications', 
             filter: `receiver_id=eq.${session.user.id}` 
         }, (payload) => {
+            console.log("🔔 Neue Notification empfangen:", payload);
             setUnreadCount(prev => prev + 1);
             addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
         })
@@ -488,12 +490,22 @@ const App = () => {
             table: 'direct_messages',
             filter: `receiver_id=eq.${session.user.id}`
         }, (payload) => {
+            console.log("💬 Neue Nachricht empfangen:", payload);
+            // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
             if (activeChatPartner?.user_id !== payload.new.sender_id) { 
                 setUnreadCount(prev => prev + 1);
                 addToast("Neue Nachricht erhalten", "message");
             }
         })
-        .subscribe();
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`🟢 Realtime verbunden! Channel: realtime:user:${session.user.id}`);
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error(`🔴 Realtime Fehler!`);
+            } else if (status === 'TIMED_OUT') {
+                console.error(`🔴 Realtime Timeout!`);
+            }
+        });
 
     return () => { supabase.removeChannel(channel); };
   }, [session, activeChatPartner]);
