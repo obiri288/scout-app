@@ -18,6 +18,63 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
+// FOLLOWER LIST MODAL (NEU)
+const FollowerListModal = ({ userId, onClose, onUserClick }) => {
+    const [followers, setFollowers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchFollowers = async () => {
+            try {
+                // 1. Hole alle Follower-IDs
+                const { data: followData } = await supabase.from('follows').select('follower_id').eq('following_id', userId);
+                
+                if (followData && followData.length > 0) {
+                    const ids = followData.map(f => f.follower_id);
+                    // 2. Hole die Profile dazu
+                    const { data: users } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids);
+                    setFollowers(users || []);
+                } else {
+                    setFollowers([]);
+                }
+            } catch (e) {
+                console.error("Fehler beim Laden der Follower", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchFollowers();
+    }, [userId]);
+
+    return (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className="w-full sm:max-w-md bg-zinc-900 sm:rounded-xl rounded-t-2xl border-t sm:border border-zinc-800 p-6 shadow-2xl h-[70vh] flex flex-col">
+                <div className="flex justify-between items-center mb-6 border-b border-zinc-800 pb-4">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2"><Users size={20}/> Follower</h2>
+                    <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-2">
+                    {loading ? <div className="text-center py-10"><Loader2 className="animate-spin text-indigo-500 mx-auto"/></div> : 
+                     followers.length === 0 ? <p className="text-zinc-500 text-center py-10">Noch keine Follower.</p> :
+                     followers.map(p => (
+                        <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex items-center gap-3 p-3 hover:bg-zinc-800 rounded-xl cursor-pointer transition">
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
+                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-2"/>}
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
+                                <span className="text-xs text-zinc-500">{p.clubs?.name || "Vereinslos"}</span>
+                            </div>
+                            <ChevronRight size={16} className="text-zinc-600"/>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // TOAST NOTIFICATIONS
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed top-4 left-0 right-0 z-[110] flex flex-col items-center gap-2 pointer-events-none px-4">
@@ -471,7 +528,7 @@ const AdminDashboard = ({ session }) => {
 };
 
 // PROFILE SCREEN (MIT ICON LEAGUE STYLING)
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onClubClick, onAdminReq, onSettingsReq, onFollow }) => {
+const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onClubClick, onAdminReq, onSettingsReq, onFollow, onShowFollowers }) => {
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Lädt...</div>;
     const statusColors = { 'Gebunden': 'bg-red-500', 'Vertrag läuft aus': 'bg-amber-500', 'Suche Verein': 'bg-emerald-500' };
     const statusColor = statusColors[player.transfer_status] || 'bg-zinc-500';
@@ -498,7 +555,18 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
                  <div className="flex justify-center gap-4 mb-4">{player.instagram_handle && <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-pink-500 transition"><Instagram size={20}/></a>}{player.tiktok_handle && <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition"><Video size={20}/></a>}{player.youtube_handle && <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-red-500 transition"><Youtube size={20}/></a>}</div>
                  <p className="text-zinc-400 text-sm mb-4 cursor-pointer hover:text-white transition" onClick={()=>player.clubs && onClubClick(player.clubs)}>{player.clubs ? (<span className="flex items-center gap-1 justify-center">{player.clubs.is_verified ? <img src={player.clubs.logo_url} className="w-4 h-4 object-contain"/> : <Shield size={12} />} {player.clubs.name}</span>) : "Vereinslos"} • {player.position_primary}</p>
                  <div className="flex justify-center gap-4 text-xs text-zinc-500 mb-6 bg-zinc-900/50 p-2 rounded-lg inline-flex mx-auto border border-zinc-800/50"><div><span className="block text-white font-bold">{player.height_user ? `${player.height_user} cm` : '-'}</span> Größe</div><div className="w-px bg-zinc-800"></div><div><span className="block text-white font-bold">{player.strong_foot || '-'}</span> Fuß</div></div>
-                 <div className="flex justify-center gap-6 text-sm mb-6 border-t border-b border-zinc-800 py-4"><div className="flex flex-col"><span className="font-bold text-white text-lg">{player.followers_count || 0}</span><span className="text-zinc-500 text-xs uppercase">Follower</span></div><div className="flex flex-col"><span className="font-bold text-white text-lg">{highlights.length}</span><span className="text-zinc-500 text-xs uppercase">Clips</span></div></div>
+                 
+                 <div className="flex justify-center gap-6 text-sm mb-6 border-t border-b border-zinc-800 py-4">
+                    <button onClick={onShowFollowers} className="flex flex-col items-center hover:bg-zinc-800 rounded-lg px-4 py-1 transition">
+                        <span className="font-bold text-white text-lg">{player.followers_count || 0}</span>
+                        <span className="text-zinc-500 text-xs uppercase">Follower</span>
+                    </button>
+                    <div className="flex flex-col items-center px-4 py-1">
+                        <span className="font-bold text-white text-lg">{highlights.length}</span>
+                        <span className="text-zinc-500 text-xs uppercase">Clips</span>
+                    </div>
+                 </div>
+
                  {isOwnProfile ? (<div className="space-y-2"><button onClick={onEditReq} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700 transition">Profil bearbeiten</button>{player.is_admin && <button onClick={onAdminReq} className="w-full bg-indigo-900/20 hover:bg-indigo-900/40 text-indigo-400 border border-indigo-500/30 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2"><Database size={16}/> Admin Dashboard</button>}</div>) : (
                     <div className="flex gap-2">
                         <button onClick={onFollow} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition ${player.isFollowing ? 'bg-zinc-800 text-white border border-zinc-700' : 'bg-indigo-600 text-white'}`}>
@@ -532,6 +600,9 @@ const App = () => {
   const [activeChatPartner, setActiveChatPartner] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
+  
+  // NEW: Follower Modal State
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
 
   // REALTIME STATE
   const [toasts, setToasts] = useState([]);
@@ -683,6 +754,10 @@ const App = () => {
           p.isFollowing = !!data;
       }
 
+      // **FIX: Echte Follower-Zahl holen (statt Cache)**
+      const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
+      p.followers_count = count || 0;
+
       setViewedProfile(p); 
       const { data } = await supabase.from('media_highlights').select('*').eq('player_id', p.id).order('created_at', { ascending: false }); 
       setProfileHighlights(data || []); 
@@ -714,6 +789,7 @@ const App = () => {
             onClubClick={loadClub}
             onAdminReq={()=>setActiveTab('admin')}
             onFollow={toggleFollow}
+            onShowFollowers={() => setShowFollowersModal(true)}
           />
       )}
       
@@ -741,6 +817,7 @@ const App = () => {
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4"><button onClick={() => setActiveVideo(null)} className="absolute top-4 right-4 z-10 p-2 bg-white/10 rounded-full"><X size={24}/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} onTestToast={handleTestToast} realtimeStatus={realtimeStatus} />}
+      {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
       
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} />}
