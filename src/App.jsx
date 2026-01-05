@@ -4,11 +4,13 @@ import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search,
 
 // --- 2. KONFIGURATION ---
 
+// Deine Supabase URL und Key (Hardcoded für direkten Start)
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Konstante für Upload-Limit (50 MB für ~30-60sek HD Material in guter Qualität)
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HELFER & STYLES ---
@@ -372,14 +374,85 @@ const SearchScreen = ({ onUserClick }) => {
   );
 };
 
-const InboxScreen = ({ session }) => {
-    const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]);
-    useEffect(() => { if(subTab==='notifications') supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[])); }, [subTab]);
+// UPDATED INBOX SCREEN (JETZT MIT ECHTEN CHATS)
+const InboxScreen = ({ session, onSelectChat }) => {
+    const [subTab, setSubTab] = useState('notifications'); 
+    const [notis, setNotis] = useState([]);
+    const [chats, setChats] = useState([]);
+
+    useEffect(() => { 
+        if(subTab==='notifications') {
+            supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[])); 
+        } else if (subTab === 'messages' && session?.user?.id) {
+            (async () => {
+                // Lade Nachrichten, an denen der User beteiligt ist
+                const { data: msgs } = await supabase.from('direct_messages')
+                    .select('*')
+                    .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
+                    .order('created_at', { ascending: false });
+                
+                const partnerMap = new Map();
+                
+                // Gruppiere Nachrichten nach Chatpartnern
+                for (const m of (msgs || [])) {
+                    const partnerId = m.sender_id === session.user.id ? m.receiver_id : m.sender_id;
+                    if (!partnerMap.has(partnerId)) {
+                        partnerMap.set(partnerId, { lastMsg: m.content, time: m.created_at, partnerId });
+                    }
+                }
+                
+                if (partnerMap.size > 0) {
+                    // Lade Details zu den Partnern
+                    const { data: profiles } = await supabase.from('players_master').select('*').in('user_id', Array.from(partnerMap.keys()));
+                    const chatList = profiles.map(p => {
+                        const info = partnerMap.get(p.user_id);
+                        return { ...p, lastMsg: info.lastMsg, time: info.time };
+                    }).sort((a,b) => new Date(b.time) - new Date(a.time));
+                    setChats(chatList);
+                }
+            })();
+        }
+    }, [subTab, session]);
+
     return (
         <div className="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen">
             <h2 className="text-2xl font-bold text-white mb-4">Posteingang</h2>
-            <div className="flex gap-6 border-b border-zinc-800 mb-6"><button onClick={()=>setSubTab('notifications')} className={`pb-2 text-sm font-bold ${subTab==='notifications'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Mitteilungen</button><button onClick={()=>setSubTab('messages')} className={`pb-2 text-sm font-bold ${subTab==='messages'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Nachrichten</button></div>
-            <div className="space-y-4">{subTab === 'notifications' && (notis.length > 0 ? notis.map(n => (<div key={n.id} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50"><div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">{n.actor?.avatar_url?<img src={n.actor.avatar_url} className="w-full h-full object-cover"/>:<User size={16} className="text-zinc-500"/>}</div><div className="flex-1 text-sm text-white"><span className="font-bold">{n.actor?.full_name||"Jemand"}</span> <span className="text-zinc-400">{n.type==='like'?'hat dein Video geliked.':n.type==='follow'?'folgt dir jetzt.':'hat kommentiert.'}</span></div></div>)) : <div className="text-center text-zinc-500 py-10">Keine neuen Mitteilungen.</div>)}{subTab === 'messages' && (<div className="text-center text-zinc-500 py-10"><Mail size={48} className="mx-auto mb-3 opacity-20" /><p>Chats erscheinen hier.</p></div>)}</div>
+            <div className="flex gap-6 border-b border-zinc-800 mb-6">
+                <button onClick={()=>setSubTab('notifications')} className={`pb-2 text-sm font-bold ${subTab==='notifications'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Mitteilungen</button>
+                <button onClick={()=>setSubTab('messages')} className={`pb-2 text-sm font-bold ${subTab==='messages'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Nachrichten</button>
+            </div>
+            
+            <div className="space-y-4">
+                {subTab === 'notifications' && (
+                    notis.length > 0 ? notis.map(n => (
+                        <div key={n.id} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {n.actor?.avatar_url?<img src={n.actor.avatar_url} className="w-full h-full object-cover"/>:<User size={16} className="text-zinc-500"/>}
+                            </div>
+                            <div className="flex-1 text-sm text-white">
+                                <span className="font-bold">{n.actor?.full_name||"Jemand"}</span> <span className="text-zinc-400">{n.type==='like'?'hat dein Video geliked.':n.type==='follow'?'folgt dir jetzt.':'hat kommentiert.'}</span>
+                            </div>
+                        </div>
+                    )) : <div className="text-center text-zinc-500 py-10">Keine neuen Mitteilungen.</div>
+                )}
+                
+                {subTab === 'messages' && (
+                    chats.length > 0 ? chats.map(c => (
+                        <div key={c.id} onClick={() => onSelectChat(c)} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50 cursor-pointer hover:bg-zinc-800 transition">
+                            <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500"/>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-baseline mb-1">
+                                    <h4 className="text-sm font-bold text-white truncate">{c.full_name}</h4>
+                                    <span className="text-[10px] text-zinc-500">{new Date(c.time).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-xs text-zinc-400 truncate">{c.lastMsg}</p>
+                            </div>
+                        </div>
+                    )) : <div className="text-center text-zinc-500 py-10"><Mail size={48} className="mx-auto mb-3 opacity-20" /><p>Keine Chats vorhanden.</p></div>
+                )}
+            </div>
         </div>
     );
 };
@@ -575,7 +648,7 @@ const App = () => {
       
       {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onClubClick={loadClub} onReportReq={(id, type) => setReportTarget({id, type})} />}
       {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
-      {activeTab === 'inbox' && <InboxScreen session={session} />}
+      {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} />}
       
       {activeTab === 'profile' && (
           <ProfileScreen 
