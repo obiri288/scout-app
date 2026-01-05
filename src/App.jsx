@@ -136,7 +136,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS / LEGAL MODAL (Mit Statusanzeige)
+// SETTINGS / LEGAL MODAL
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, onTestToast, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2"><button onClick={() => setView('menu')}><ArrowLeft size={20} className="text-zinc-400" /></button><h3 className="font-bold text-white">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2">{content}</div></div>);
@@ -720,9 +720,10 @@ const App = () => {
       if(!session) { setShowLogin(true); return; }
       if(!viewedProfile) return;
       
-      const newStatus = !viewedProfile.isFollowing;
+      const oldStatus = viewedProfile.isFollowing;
+      const newStatus = !oldStatus;
       
-      // Optimistic update
+      // 1. Optimistic Update (Sofortiges Feedback)
       setViewedProfile(prev => ({ 
           ...prev, 
           isFollowing: newStatus,
@@ -730,21 +731,34 @@ const App = () => {
       }));
 
       try {
+          // 2. DB Operation
           if (newStatus) {
-              await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
-              await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id });
+              const { error } = await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+              if(error) throw error;
+              
+              // Notification senden (Fehler hier ignorieren wir, damit der Follow bleibt)
+              await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id }).catch(console.error);
           } else {
-              await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+              const { error } = await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+              if(error) throw error;
           }
           
-          // Re-Fetch Count to be safe
-          const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
-          setViewedProfile(prev => ({ ...prev, followers_count: count }));
+          // 3. Optional: Echte Zahl nachladen (nur wenn wir sicher sind, dass es geklappt hat)
+          // Wir warten kurz, damit DB Konsistenz hat, oder lassen es weg und vertrauen dem Optimistic Update für UI Stabilität
+          // setTimeout(async () => {
+          //    const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
+          //    if(count !== null) setViewedProfile(prev => ({ ...prev, followers_count: count }));
+          // }, 500);
 
       } catch (e) {
-          alert("Fehler beim Folgen");
-          // Rollback bei Fehler
-          loadProfile(viewedProfile);
+          console.error("Follow Error:", e);
+          alert("Fehler beim Folgen. Bitte prüfen Sie Ihre Verbindung.");
+          // Rollback UI
+          setViewedProfile(prev => ({ 
+              ...prev, 
+              isFollowing: oldStatus,
+              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1) // revert
+          }));
       }
   };
 
