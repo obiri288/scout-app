@@ -758,7 +758,7 @@ const App = () => {
 
       } catch (e) {
           console.error("Follow Error:", e);
-          alert("Fehler beim Folgen. Bitte prüfen Sie Ihre Verbindung.");
+          alert("Fehler beim Folgen: " + e.message);
           // Rollback UI
           setViewedProfile(prev => ({ 
               ...prev, 
