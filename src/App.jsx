@@ -1,16 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, Beaker, Wifi, WifiOff } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
-// Deine Supabase URL und Key (Hardcoded für direkten Start)
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Konstante für Upload-Limit (50 MB für ~30-60sek HD Material in guter Qualität)
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HELFER & STYLES ---
@@ -18,11 +16,11 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
-// TOAST NOTIFICATIONS (NEU: Realtime Popups)
+// TOAST NOTIFICATIONS
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed top-4 left-0 right-0 z-[110] flex flex-col items-center gap-2 pointer-events-none px-4">
     {toasts.map(t => (
-      <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full" onClick={() => removeToast(t.id)}>
+      <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full cursor-pointer" onClick={() => removeToast(t.id)}>
         <div className={`p-2 rounded-full ${t.type === 'message' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'}`}>
             {t.type === 'message' ? <MessageCircle size={16} /> : <Heart size={16} />}
         </div>
@@ -83,8 +81,8 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS / LEGAL MODAL (NEU: Push Button)
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
+// SETTINGS / LEGAL MODAL (Mit Statusanzeige)
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, onTestToast, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2"><button onClick={() => setView('menu')}><ArrowLeft size={20} className="text-zinc-400" /></button><h3 className="font-bold text-white">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2">{content}</div></div>);
 
@@ -96,17 +94,24 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                     <div className="space-y-4 mt-6">
                         <h2 className="text-xl font-bold text-white mb-6 text-center">Einstellungen</h2>
                         
-                        {/* PWA INSTALL BUTTON */}
                         {installPrompt && (<button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-2 border border-indigo-400/30 shadow-lg shadow-indigo-500/20"><div className="flex items-center gap-3"><div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div><div className="text-left"><span className="text-white font-bold block text-sm">App installieren</span><span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span></div></div><ChevronRight size={16} className="text-white" /></button>)}
                         
-                        {/* PUSH BUTTON */}
                         <button onClick={onRequestPush} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Bell size={20} className="text-zinc-400" /><span className="text-white">Benachrichtigungen</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
-
                         <button onClick={() => setView('impressum')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><FileText size={20} className="text-zinc-400" /><span className="text-white">Impressum</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <button onClick={() => setView('privacy')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Lock size={20} className="text-zinc-400" /><span className="text-white">Datenschutz</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
+                        
+                        <button onClick={onTestToast} className="w-full border border-zinc-700 p-2 rounded-xl flex items-center justify-center gap-2 text-xs text-zinc-500 hover:text-white hover:bg-zinc-800 transition mt-2"><Beaker size={14} /> Test-Benachrichtigung senden</button>
+
                         <hr className="border-zinc-800 my-4" />
                         <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition"><LogOut size={20} /> Abmelden</button>
-                        <p className="text-center text-xs text-zinc-600 mt-4">Version 1.2.1 (Realtime Fix)</p>
+                        
+                        {/* Status Anzeige */}
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={14} className="text-green-500"/> : <WifiOff size={14} className="text-red-500"/>}
+                            <span className={`text-xs font-bold ${realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}`}>
+                                {realtimeStatus === 'SUBSCRIBED' ? 'Online & Verbunden' : 'Verbindung getrennt'}
+                            </span>
+                        </div>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>Angaben gemäß § 5 TMG</p><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1<br/>12345 Berlin</p><p>Kontakt:<br/>E-Mail: info@scoutvision.app</p></>} />}
@@ -451,9 +456,18 @@ const App = () => {
   // REALTIME STATE
   const [toasts, setToasts] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING');
 
   // PWA STATE
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  // REF für activeChatPartner (verhindert useEffect Neustart)
+  const activeChatPartnerRef = useRef(activeChatPartner);
+
+  // Sync Ref mit State
+  useEffect(() => {
+    activeChatPartnerRef.current = activeChatPartner;
+  }, [activeChatPartner]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) fetchMyProfile(session.user.id); });
@@ -466,55 +480,71 @@ const App = () => {
     });
   }, []);
 
-  // REALTIME LISTENER (DEBUGGING VERSION)
+  // REALTIME LISTENER (STABILISIERT)
   useEffect(() => {
     if (!session?.user?.id) return;
 
     // Verwende einen benutzerspezifischen Channel-Namen
-    const channel = supabase.channel(`realtime:user:${session.user.id}`)
+    const channel = supabase.channel(`realtime:global:${session.user.id}`)
         // Lausche auf neue Notifications (Likes, Follows)
         .on('postgres_changes', { 
             event: 'INSERT', 
             schema: 'public', 
-            table: 'notifications', 
-            filter: `receiver_id=eq.${session.user.id}` 
+            table: 'notifications'
         }, (payload) => {
-            console.log("🔔 Neue Notification empfangen:", payload);
-            setUnreadCount(prev => prev + 1);
-            addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
+            console.log("📥 Raw Notification:", payload);
+            // Client-Side Filter
+            if (payload.new.receiver_id === session.user.id) {
+                console.log("🔔 Notification akzeptiert!");
+                setUnreadCount(prev => prev + 1);
+                addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
+            }
         })
         // Lausche auf neue Nachrichten (Chat)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
-            table: 'direct_messages',
-            filter: `receiver_id=eq.${session.user.id}`
+            table: 'direct_messages'
         }, (payload) => {
-            console.log("💬 Neue Nachricht empfangen:", payload);
-            // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
-            if (activeChatPartner?.user_id !== payload.new.sender_id) { 
-                setUnreadCount(prev => prev + 1);
-                addToast("Neue Nachricht erhalten", "message");
+            console.log("📥 Raw Message:", payload);
+            
+            // Aktuellen Chat-Partner aus der Ref holen (statt State)
+            const currentPartnerId = activeChatPartnerRef.current?.user_id;
+
+            // Client-Side Filter
+            if (payload.new.receiver_id === session.user.id) {
+                console.log("💬 Message akzeptiert!");
+                // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
+                if (currentPartnerId !== payload.new.sender_id) { 
+                    setUnreadCount(prev => prev + 1);
+                    addToast("Neue Nachricht erhalten", "message");
+                } else {
+                    console.log("ℹ️ Chat offen, Benachrichtigung unterdrückt.");
+                }
             }
         })
-        .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-                console.log(`🟢 Realtime verbunden! Channel: realtime:user:${session.user.id}`);
-            } else if (status === 'CHANNEL_ERROR') {
-                console.error(`🔴 Realtime Fehler!`);
-            } else if (status === 'TIMED_OUT') {
-                console.error(`🔴 Realtime Timeout!`);
-            }
+        .subscribe((status, err) => {
+            console.log(`📡 Realtime Status: ${status}`);
+            setRealtimeStatus(status);
+            if (status === 'CHANNEL_ERROR') console.error("Realtime Fehler:", err);
         });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [session, activeChatPartner]);
+    return () => { 
+        console.log("🔌 Realtime Trennung...");
+        supabase.removeChannel(channel); 
+    };
+  }, [session]); // WICHTIG: activeChatPartner entfernt!
 
   // TOAST HELPER
   const addToast = (content, type = 'info') => {
       const id = Date.now();
       setToasts(prev => [...prev, { id, content, type }]);
       setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
+
+  // TEST TOAST FUNKTION (für manuelles Testen)
+  const handleTestToast = () => {
+      addToast("Dies ist eine Test-Benachrichtigung!", "message");
   };
 
   const handleInstallApp = () => {
@@ -586,7 +616,7 @@ const App = () => {
       
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4"><button onClick={() => setActiveVideo(null)} className="absolute top-4 right-4 z-10 p-2 bg-white/10 rounded-full"><X size={24}/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} onTestToast={handleTestToast} realtimeStatus={realtimeStatus} />}
       
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} />}
