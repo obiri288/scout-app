@@ -4,13 +4,12 @@ import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search,
 
 // --- 2. KONFIGURATION ---
 
-// Deine Supabase URL und Key (Hardcoded für direkten Start)
+// Deine Supabase URL und Key
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Konstante für Upload-Limit (50 MB für ~30-60sek HD Material in guter Qualität)
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HELFER & STYLES ---
