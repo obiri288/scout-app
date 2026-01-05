@@ -743,12 +743,19 @@ const App = () => {
               if(error) throw error;
           }
           
-          // 3. Optional: Echte Zahl nachladen (nur wenn wir sicher sind, dass es geklappt hat)
-          // Wir warten kurz, damit DB Konsistenz hat, oder lassen es weg und vertrauen dem Optimistic Update für UI Stabilität
-          // setTimeout(async () => {
-          //    const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
-          //    if(count !== null) setViewedProfile(prev => ({ ...prev, followers_count: count }));
-          // }, 500);
+          // 3. Echte Zahl nachladen (Sicherheits-Check nach kurzer Verzögerung)
+          setTimeout(async () => {
+             const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
+             if(count !== null) {
+                 setViewedProfile(prev => {
+                     // Nur updaten, wenn wir noch auf dem gleichen Profil sind
+                     if(prev && prev.user_id === viewedProfile.user_id) {
+                         return { ...prev, followers_count: count };
+                     }
+                     return prev;
+                 });
+             }
+          }, 100);
 
       } catch (e) {
           console.error("Follow Error:", e);
