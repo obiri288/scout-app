@@ -471,7 +471,7 @@ const AdminDashboard = ({ session }) => {
 };
 
 // PROFILE SCREEN (MIT ICON LEAGUE STYLING)
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onClubClick, onAdminReq, onSettingsReq }) => {
+const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onClubClick, onAdminReq, onSettingsReq, onFollow }) => {
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Lädt...</div>;
     const statusColors = { 'Gebunden': 'bg-red-500', 'Vertrag läuft aus': 'bg-amber-500', 'Suche Verein': 'bg-emerald-500' };
     const statusColor = statusColors[player.transfer_status] || 'bg-zinc-500';
@@ -499,7 +499,14 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
                  <p className="text-zinc-400 text-sm mb-4 cursor-pointer hover:text-white transition" onClick={()=>player.clubs && onClubClick(player.clubs)}>{player.clubs ? (<span className="flex items-center gap-1 justify-center">{player.clubs.is_verified ? <img src={player.clubs.logo_url} className="w-4 h-4 object-contain"/> : <Shield size={12} />} {player.clubs.name}</span>) : "Vereinslos"} • {player.position_primary}</p>
                  <div className="flex justify-center gap-4 text-xs text-zinc-500 mb-6 bg-zinc-900/50 p-2 rounded-lg inline-flex mx-auto border border-zinc-800/50"><div><span className="block text-white font-bold">{player.height_user ? `${player.height_user} cm` : '-'}</span> Größe</div><div className="w-px bg-zinc-800"></div><div><span className="block text-white font-bold">{player.strong_foot || '-'}</span> Fuß</div></div>
                  <div className="flex justify-center gap-6 text-sm mb-6 border-t border-b border-zinc-800 py-4"><div className="flex flex-col"><span className="font-bold text-white text-lg">{player.followers_count || 0}</span><span className="text-zinc-500 text-xs uppercase">Follower</span></div><div className="flex flex-col"><span className="font-bold text-white text-lg">{highlights.length}</span><span className="text-zinc-500 text-xs uppercase">Clips</span></div></div>
-                 {isOwnProfile ? (<div className="space-y-2"><button onClick={onEditReq} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700 transition">Profil bearbeiten</button>{player.is_admin && <button onClick={onAdminReq} className="w-full bg-indigo-900/20 hover:bg-indigo-900/40 text-indigo-400 border border-indigo-500/30 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2"><Database size={16}/> Admin Dashboard</button>}</div>) : (<div className="flex gap-2"><button className="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-semibold text-sm">Folgen</button><button onClick={onChatReq} className="flex-1 bg-zinc-800 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700">Nachricht</button></div>)}
+                 {isOwnProfile ? (<div className="space-y-2"><button onClick={onEditReq} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700 transition">Profil bearbeiten</button>{player.is_admin && <button onClick={onAdminReq} className="w-full bg-indigo-900/20 hover:bg-indigo-900/40 text-indigo-400 border border-indigo-500/30 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2"><Database size={16}/> Admin Dashboard</button>}</div>) : (
+                    <div className="flex gap-2">
+                        <button onClick={onFollow} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition ${player.isFollowing ? 'bg-zinc-800 text-white border border-zinc-700' : 'bg-indigo-600 text-white'}`}>
+                            {player.isFollowing ? 'Gefolgt' : 'Folgen'}
+                        </button>
+                        <button onClick={onChatReq} className="flex-1 bg-zinc-800 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700">Nachricht</button>
+                    </div>
+                 )}
              </div>
              <div className="grid grid-cols-3 gap-0.5 bg-black">{highlights.map(v => (<div key={v.id} onClick={() => onVideoClick(v)} className="aspect-[3/4] bg-zinc-900 relative cursor-pointer"><video src={v.video_url} className="w-full h-full object-cover opacity-80" /></div>))}</div>
         </div>
@@ -637,8 +644,51 @@ const App = () => {
       else alert("Benachrichtigungen wurden verweigert.");
   };
 
+  const toggleFollow = async () => {
+      if(!session) { setShowLogin(true); return; }
+      if(!viewedProfile) return;
+      
+      const newStatus = !viewedProfile.isFollowing;
+      
+      // Optimistic update
+      setViewedProfile(prev => ({ 
+          ...prev, 
+          isFollowing: newStatus,
+          followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1)
+      }));
+
+      try {
+          if (newStatus) {
+              await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+              await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id });
+          } else {
+              await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+          }
+      } catch (e) {
+          alert("Fehler beim Folgen");
+          // Rollback bei Fehler (optional, hier einfach neu laden)
+          loadProfile(viewedProfile);
+      }
+  };
+
   const fetchMyProfile = async (userId) => { const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).single(); if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') setShowOnboarding(true); } };
-  const loadProfile = async (player) => { setViewedProfile(player); const { data } = await supabase.from('media_highlights').select('*').eq('player_id', player.id).order('created_at', { ascending: false }); setProfileHighlights(data || []); setActiveTab('profile'); };
+  
+  const loadProfile = async (targetPlayer) => { 
+      // Clone um keine Referenzprobleme zu bekommen
+      let p = { ...targetPlayer };
+      
+      // Check ob wir diesem User folgen
+      if (session) {
+          const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle();
+          p.isFollowing = !!data;
+      }
+
+      setViewedProfile(p); 
+      const { data } = await supabase.from('media_highlights').select('*').eq('player_id', p.id).order('created_at', { ascending: false }); 
+      setProfileHighlights(data || []); 
+      setActiveTab('profile'); 
+  };
+  
   const loadClub = (club) => { setViewedClub(club); setActiveTab('club'); };
   const handleProfileTabClick = () => { if (session && currentUserProfile) loadProfile(currentUserProfile); else setShowLogin(true); };
 
@@ -663,6 +713,7 @@ const App = () => {
             onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
             onClubClick={loadClub}
             onAdminReq={()=>setActiveTab('admin')}
+            onFollow={toggleFollow}
           />
       )}
       
