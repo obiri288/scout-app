@@ -18,7 +18,7 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
-// FOLLOWER LIST MODAL (NEU)
+// FOLLOWER LIST MODAL
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -26,12 +26,9 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     useEffect(() => {
         const fetchFollowers = async () => {
             try {
-                // 1. Hole alle Follower-IDs
                 const { data: followData } = await supabase.from('follows').select('follower_id').eq('following_id', userId);
-                
                 if (followData && followData.length > 0) {
                     const ids = followData.map(f => f.follower_id);
-                    // 2. Hole die Profile dazu
                     const { data: users } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids);
                     setFollowers(users || []);
                 } else {
@@ -53,7 +50,6 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><Users size={20}/> Follower</h2>
                     <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto space-y-2">
                     {loading ? <div className="text-center py-10"><Loader2 className="animate-spin text-indigo-500 mx-auto"/></div> : 
                      followers.length === 0 ? <p className="text-zinc-500 text-center py-10">Noch keine Follower.</p> :
@@ -298,8 +294,8 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
   );
 };
 
-// CHAT WINDOW
-const ChatWindow = ({ partner, session, onClose }) => {
+// CHAT WINDOW (Mit klickbarem Profil im Header)
+const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
@@ -308,7 +304,13 @@ const ChatWindow = ({ partner, session, onClose }) => {
   const handleSend = async (e) => { e.preventDefault(); if(!newMessage.trim()) return; const msg = { sender_id: session.user.id, receiver_id: partner.user_id, content: newMessage }; setMessages([...messages, { ...msg, id: Date.now() }]); setNewMessage(''); scrollToBottom(); await supabase.from('direct_messages').insert(msg); };
   return (
     <div className="fixed inset-0 z-[90] bg-zinc-950 flex flex-col animate-in slide-in-from-right">
-      <div className="flex items-center gap-3 p-4 border-b border-zinc-800 bg-zinc-900"><button onClick={onClose}><ArrowLeft className="text-zinc-400" /></button><div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-1.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div>
+      <div className="flex items-center gap-3 p-4 border-b border-zinc-800 bg-zinc-900">
+          <button onClick={onClose}><ArrowLeft className="text-zinc-400" /></button>
+          <div onClick={() => { onClose(); onUserClick(partner); }} className="flex items-center gap-3 cursor-pointer">
+            <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-1.5 text-zinc-500"/>}</div>
+            <div className="font-bold text-white">{partner.full_name}</div>
+          </div>
+      </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">{messages.map(m => (<div key={m.id} className={`flex ${m.sender_id === session.user.id ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.sender_id === session.user.id ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>{m.content}</div></div>))}<div ref={messagesEndRef} /></div>
       <form onSubmit={handleSend} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input value={newMessage} onChange={e=>setNewMessage(e.target.value)} placeholder="Nachricht..." className="flex-1 bg-zinc-800 text-white rounded-full px-4 py-3 outline-none" /><button type="submit" className="bg-indigo-600 p-3 rounded-full text-white"><Send size={20} /></button></form>
     </div>
@@ -431,8 +433,8 @@ const SearchScreen = ({ onUserClick }) => {
   );
 };
 
-// UPDATED INBOX SCREEN (JETZT MIT ECHTEN CHATS)
-const InboxScreen = ({ session, onSelectChat }) => {
+// UPDATED INBOX SCREEN (JETZT MIT ECHTEN CHATS UND KLICKBAREN PROFILEN)
+const InboxScreen = ({ session, onSelectChat, onUserClick }) => {
     const [subTab, setSubTab] = useState('notifications'); 
     const [notis, setNotis] = useState([]);
     const [chats, setChats] = useState([]);
@@ -442,15 +444,12 @@ const InboxScreen = ({ session, onSelectChat }) => {
             supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[])); 
         } else if (subTab === 'messages' && session?.user?.id) {
             (async () => {
-                // Lade Nachrichten, an denen der User beteiligt ist
                 const { data: msgs } = await supabase.from('direct_messages')
                     .select('*')
                     .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
                     .order('created_at', { ascending: false });
                 
                 const partnerMap = new Map();
-                
-                // Gruppiere Nachrichten nach Chatpartnern
                 for (const m of (msgs || [])) {
                     const partnerId = m.sender_id === session.user.id ? m.receiver_id : m.sender_id;
                     if (!partnerMap.has(partnerId)) {
@@ -459,7 +458,6 @@ const InboxScreen = ({ session, onSelectChat }) => {
                 }
                 
                 if (partnerMap.size > 0) {
-                    // Lade Details zu den Partnern
                     const { data: profiles } = await supabase.from('players_master').select('*').in('user_id', Array.from(partnerMap.keys()));
                     const chatList = profiles.map(p => {
                         const info = partnerMap.get(p.user_id);
@@ -496,7 +494,10 @@ const InboxScreen = ({ session, onSelectChat }) => {
                 {subTab === 'messages' && (
                     chats.length > 0 ? chats.map(c => (
                         <div key={c.id} onClick={() => onSelectChat(c)} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50 cursor-pointer hover:bg-zinc-800 transition">
-                            <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); onUserClick(c); }} 
+                                className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition"
+                            >
                                 {c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500"/>}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -735,9 +736,14 @@ const App = () => {
           } else {
               await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
           }
+          
+          // Re-Fetch Count to be safe
+          const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
+          setViewedProfile(prev => ({ ...prev, followers_count: count }));
+
       } catch (e) {
           alert("Fehler beim Folgen");
-          // Rollback bei Fehler (optional, hier einfach neu laden)
+          // Rollback bei Fehler
           loadProfile(viewedProfile);
       }
   };
@@ -773,7 +779,7 @@ const App = () => {
       
       {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onClubClick={loadClub} onReportReq={(id, type) => setReportTarget({id, type})} />}
       {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
-      {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} />}
+      {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} />}
       
       {activeTab === 'profile' && (
           <ProfileScreen 
@@ -820,7 +826,7 @@ const App = () => {
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
       
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
-      {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} />}
+      {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showOnboarding && session && <OnboardingWizard session={session} onComplete={() => { setShowOnboarding(false); fetchMyProfile(session.user.id); }} />}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={() => setShowLogin(false)} />}
       {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
