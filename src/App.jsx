@@ -84,6 +84,9 @@ const ToastContainer = ({ toasts, removeToast }) => (
       } else if (t.type === 'error') {
           icon = <AlertCircle size={16} />;
           bgClass = 'bg-red-500/20 text-red-400';
+      } else if (t.type === 'info') {
+          icon = <Bell size={16} />;
+          bgClass = 'bg-blue-500/20 text-blue-400';
       }
 
       return (
@@ -189,19 +192,32 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL
+// LOGIN MODAL (OPTIMIERT: Besseres Feedback)
 const LoginModal = ({ onClose, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState(''); // NEU
 
   const handleAuth = async (e) => {
-    e.preventDefault(); setLoading(true); setMsg('');
+    e.preventDefault(); setLoading(true); setMsg(''); setSuccessMsg('');
     try {
-      const { error } = isSignUp ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error; onSuccess();
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        
+        // Prüfen ob Session da ist. Wenn nicht -> Email Confirmation nötig
+        if (data.user && !data.session) {
+             setSuccessMsg('✅ Registrierung erfolgreich! Wir haben dir eine Bestätigungs-E-Mail gesendet. Bitte klicke auf den Link darin.');
+             return;
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+      onSuccess();
     } catch (error) { setMsg(error.message); } finally { setLoading(false); }
   };
 
@@ -210,13 +226,26 @@ const LoginModal = ({ onClose, onSuccess }) => {
       <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 border border-zinc-800 shadow-2xl relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white"><X size={20} /></button>
         <div className="text-center mb-6"><div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-3"><User size={24} /></div><h2 className="text-2xl font-bold text-white">{isSignUp ? 'Account erstellen' : 'Willkommen zurück'}</h2></div>
-        <form onSubmit={handleAuth} className="space-y-4">
-          <input type="email" placeholder="Email" required className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" placeholder="Passwort" required className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {msg && <p className="text-amber-400 text-xs text-center">{msg}</p>}
-          <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg flex justify-center gap-2">{loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Registrieren' : 'Einloggen'}</button>
-        </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center mt-4 text-indigo-400 text-sm hover:underline">{isSignUp ? 'Zum Login' : 'Neu registrieren'}</button>
+        
+        {successMsg ? (
+            <div className="text-center space-y-4 animate-in fade-in">
+                <div className="bg-green-900/30 text-green-400 p-4 rounded-xl border border-green-800 text-sm">
+                    {successMsg}
+                </div>
+                <button onClick={() => { setIsSignUp(false); setSuccessMsg(''); }} className="text-indigo-400 hover:text-white text-sm font-bold underline">Zum Login wechseln</button>
+            </div>
+        ) : (
+            <form onSubmit={handleAuth} className="space-y-4">
+            <input type="email" placeholder="Email" required className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input type="password" placeholder="Passwort" required className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500" value={password} onChange={(e) => setPassword(e.target.value)} />
+            {msg && <p className="text-red-400 text-xs text-center">{msg}</p>}
+            <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg flex justify-center gap-2">{loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Registrieren' : 'Einloggen'}</button>
+            </form>
+        )}
+        
+        {!successMsg && (
+            <button onClick={() => { setIsSignUp(!isSignUp); setMsg(''); }} className="w-full text-center mt-4 text-indigo-400 text-sm hover:underline">{isSignUp ? 'Zum Login' : 'Neu registrieren'}</button>
+        )}
       </div>
     </div>
   );
