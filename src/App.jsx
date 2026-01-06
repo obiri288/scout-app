@@ -766,8 +766,8 @@ const App = () => {
           console.error("Follow Error:", e);
           
           // Specific error handling for ghost profiles
-          if (e.message?.includes("foreign key constraint")) {
-              alert("Fehler: Dieser Nutzer existiert technisch nicht mehr (Datenbank-Inkonsistenz). Bitte Profil ignorieren.");
+          if (e.message?.includes("follows_following_id_fkey") || e.message?.includes("foreign key constraint")) {
+              alert("Fehler: Dieser Nutzer existiert nicht mehr in der Datenbank (Geister-Profil). Bitte ignorieren.");
           } else {
               alert("Fehler beim Folgen: " + e.message);
           }
