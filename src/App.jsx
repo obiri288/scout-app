@@ -4,19 +4,75 @@ import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search,
 
 // --- 2. KONFIGURATION ---
 
-// Deine Supabase URL und Key (Hardcoded für direkten Start)
+// Deine Supabase URL und Key
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Konstante für Upload-Limit (50 MB für ~30-60sek HD Material in guter Qualität)
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HELFER & STYLES ---
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)]" : "border-zinc-700";
 
 // --- 3. MODALS & COMPONENTS ---
+
+// ONBOARDING WIZARD (NEU EINGEFÜGT: Fix für Black Screen)
+const OnboardingWizard = ({ session, onComplete }) => {
+    const [name, setName] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        setLoading(true);
+        try {
+            // Wir erstellen oder updaten das Profil
+            const { error } = await supabase.from('players_master').upsert({ 
+                user_id: session.user.id, 
+                full_name: name,
+                // Default Werte für neue User
+                position_primary: 'ZM',
+                transfer_status: 'Gebunden',
+                updated_at: new Date()
+            });
+            
+            if (error) throw error;
+            onComplete();
+        } catch (error) {
+            alert("Fehler beim Speichern: " + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-zinc-950 flex items-center justify-center p-6 animate-in fade-in">
+            <div className="w-full max-w-md space-y-6">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+                        <User size={32} className="text-white" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-white mb-2">Willkommen! 👋</h1>
+                    <p className="text-zinc-400">Verrate uns deinen Namen, damit Scouts dich finden können.</p>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input 
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        placeholder="Dein Spielername (z.B. Max Mustermann)"
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white p-4 rounded-xl outline-none focus:border-indigo-500 text-lg placeholder:text-zinc-600 transition focus:ring-2 focus:ring-indigo-500/20"
+                        required
+                        autoFocus
+                    />
+                    <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl text-lg flex justify-center items-center gap-2 transition transform active:scale-95">
+                        {loading ? <Loader2 className="animate-spin" /> : "Los geht's"}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 // FOLLOWER LIST MODAL
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
@@ -71,7 +127,7 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     );
 };
 
-// TOAST NOTIFICATIONS (Updated: Supports 'error' type)
+// TOAST NOTIFICATIONS
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed top-4 left-0 right-0 z-[110] flex flex-col items-center gap-2 pointer-events-none px-4">
     {toasts.map(t => {
@@ -199,7 +255,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState(''); // NEU
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleAuth = async (e) => {
     e.preventDefault(); setLoading(true); setMsg(''); setSuccessMsg('');
@@ -260,6 +316,13 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Bitte maximal 50 MB hochladen."); return; }
+    
+    // SICHERHEITS-CHECK VOR UPLOAD
+    if (!player || !player.user_id) {
+        alert("Bitte vervollständige erst dein Profil (Namen eingeben) bevor du etwas hochlädst!");
+        return;
+    }
+
     try {
       setUploading(true);
       const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`;
@@ -823,7 +886,21 @@ const App = () => {
       }
   };
 
-  const fetchMyProfile = async (userId) => { const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).single(); if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') setShowOnboarding(true); } };
+  const fetchMyProfile = async (userId) => { 
+      // Prüfen, ob das Profil existiert, wenn nicht -> Erstellen/Onboarding
+      const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
+      
+      if (data) { 
+          setCurrentUserProfile(data); 
+          // Falls Name leer oder Standard -> Onboarding zeigen
+          if(!data.full_name || data.full_name === 'Neuer Spieler') {
+              setShowOnboarding(true); 
+          }
+      } else {
+          // Kein Profil gefunden -> Onboarding starten
+          setShowOnboarding(true);
+      }
+  };
   
   const loadProfile = async (targetPlayer) => { 
       // Clone um keine Referenzprobleme zu bekommen
