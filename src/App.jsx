@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, Beaker, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, Beaker, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
@@ -71,18 +71,31 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     );
 };
 
-// TOAST NOTIFICATIONS
+// TOAST NOTIFICATIONS (Updated: Supports 'error' type)
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed top-4 left-0 right-0 z-[110] flex flex-col items-center gap-2 pointer-events-none px-4">
-    {toasts.map(t => (
-      <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full cursor-pointer" onClick={() => removeToast(t.id)}>
-        <div className={`p-2 rounded-full ${t.type === 'message' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-pink-500/20 text-pink-400'}`}>
-            {t.type === 'message' ? <MessageCircle size={16} /> : <Heart size={16} />}
+    {toasts.map(t => {
+      let icon = <Heart size={16} />;
+      let bgClass = 'bg-pink-500/20 text-pink-400';
+      
+      if (t.type === 'message') {
+          icon = <MessageCircle size={16} />;
+          bgClass = 'bg-indigo-500/20 text-indigo-400';
+      } else if (t.type === 'error') {
+          icon = <AlertCircle size={16} />;
+          bgClass = 'bg-red-500/20 text-red-400';
+      }
+
+      return (
+        <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full cursor-pointer" onClick={() => removeToast(t.id)}>
+          <div className={`p-2 rounded-full ${bgClass}`}>
+              {icon}
+          </div>
+          <div className="flex-1 text-sm font-medium">{t.content}</div>
+          <button onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}><X size={14} className="text-zinc-500" /></button>
         </div>
-        <div className="flex-1 text-sm font-medium">{t.content}</div>
-        <button onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}><X size={14} className="text-zinc-500" /></button>
-      </div>
-    ))}
+      );
+    })}
   </div>
 );
 
@@ -722,7 +735,7 @@ const App = () => {
       
       // SICHERHEITS-CHECK: Hat der Spieler überhaupt eine ID?
       if (!viewedProfile.user_id) {
-          alert("Diesem Profil kann nicht gefolgt werden (Ungültige Daten).");
+          addToast("Nutzerdaten unvollständig.", "error");
           return;
       }
       
@@ -767,9 +780,9 @@ const App = () => {
           
           // Specific error handling for ghost profiles
           if (e.message?.includes("follows_following_id_fkey") || e.message?.includes("foreign key constraint")) {
-              alert("Fehler: Dieser Nutzer existiert nicht mehr in der Datenbank (Geister-Profil). Bitte ignorieren.");
+              addToast("Nutzer existiert nicht mehr.", "error");
           } else {
-              alert("Fehler beim Folgen: " + e.message);
+              addToast("Fehler beim Folgen.", "error");
           }
           
           // Rollback UI
