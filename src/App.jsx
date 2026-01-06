@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, AlertCircle } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, Beaker, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
+// Deine Supabase URL und Key (Hardcoded für direkten Start)
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Konstante für Upload-Limit (50 MB für ~30-60sek HD Material in guter Qualität)
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HELFER & STYLES ---
@@ -16,7 +18,7 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
-// ONBOARDING WIZARD
+// ONBOARDING WIZARD (WICHTIG: Verhindert Black Screen bei neuen Usern)
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -95,7 +97,7 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
                 <div className="flex justify-between items-center mb-4 border-b border-zinc-800 pb-4"><h2 className="text-lg font-bold text-white flex items-center gap-2"><Users size={20}/> Follower</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
                 <div className="flex-1 overflow-y-auto space-y-2">
                     {loading ? <Loader2 className="animate-spin text-indigo-500 mx-auto"/> : followers.length === 0 ? <p className="text-zinc-500 text-center text-sm py-10">Noch keine Follower.</p> : followers.map(p => (
-                        <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex items-center gap-3 p-3 hover:bg-zinc-800 rounded-xl cursor-pointer transition">
+                        <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex items-center gap-3 p-2 hover:bg-zinc-800 rounded-lg cursor-pointer transition">
                             <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={16} className="text-zinc-500 m-2"/>}</div>
                             <div className="flex-1"><h4 className="font-bold text-white text-sm">{p.full_name}</h4><span className="text-xs text-zinc-500">{p.clubs?.name || "Vereinslos"}</span></div>
                             <ChevronRight size={16} className="text-zinc-600"/>
@@ -110,15 +112,31 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
 // TOAST NOTIFICATIONS
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed top-4 left-0 right-0 z-[110] flex flex-col items-center gap-2 pointer-events-none px-4">
-    {toasts.map(t => (
-      <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full cursor-pointer" onClick={() => removeToast(t.id)}>
-        <div className={`p-2 rounded-full ${t.type === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
-            {t.type === 'error' ? <AlertCircle size={16} /> : <Bell size={16} />}
+    {toasts.map(t => {
+      let icon = <Heart size={16} />;
+      let bgClass = 'bg-pink-500/20 text-pink-400';
+      
+      if (t.type === 'message') {
+          icon = <MessageCircle size={16} />;
+          bgClass = 'bg-indigo-500/20 text-indigo-400';
+      } else if (t.type === 'error') {
+          icon = <AlertCircle size={16} />;
+          bgClass = 'bg-red-500/20 text-red-400';
+      } else if (t.type === 'info') {
+          icon = <Bell size={16} />;
+          bgClass = 'bg-blue-500/20 text-blue-400';
+      }
+
+      return (
+        <div key={t.id} className="bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 fade-in duration-300 pointer-events-auto max-w-sm w-full cursor-pointer" onClick={() => removeToast(t.id)}>
+          <div className={`p-2 rounded-full ${bgClass}`}>
+              {icon}
+          </div>
+          <div className="flex-1 text-sm font-medium">{t.content}</div>
+          <button onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}><X size={14} className="text-zinc-500" /></button>
         </div>
-        <div className="flex-1 text-sm font-medium">{t.content}</div>
-        <button onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}><X size={14} className="text-zinc-500" /></button>
-      </div>
-    ))}
+      );
+    })}
   </div>
 );
 
@@ -141,23 +159,37 @@ const CookieBanner = () => {
 const ReportModal = ({ targetId, targetType, onClose, session }) => {
     const [reason, setReason] = useState('Spam');
     const [loading, setLoading] = useState(false);
+    
     const handleReport = async () => {
         setLoading(true);
-        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Gemeldet. Danke!"); onClose(); } catch (e) { alert("Fehler."); } finally { setLoading(false); }
+        try {
+            await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {});
+            alert("Vielen Dank! Wir prüfen die Meldung.");
+            onClose();
+        } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in p-4">
             <div className="w-full max-w-xs bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-2xl">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={16} className="text-red-500"/> Melden</h3>
-                <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white p-2 rounded-lg mb-4 outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select>
-                <div className="flex gap-2"><button onClick={onClose} className="flex-1 bg-zinc-800 text-white py-2 rounded-lg font-bold text-xs">Abbruch</button><button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-xs">Senden</button></div>
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={16} className="text-red-500"/> Inhalt melden</h3>
+                <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white p-2 rounded-lg mb-4 outline-none">
+                    <option>Spam / Werbung</option>
+                    <option>Unangemessener Inhalt</option>
+                    <option>Beleidigung</option>
+                    <option>Fake Profil</option>
+                </select>
+                <div className="flex gap-2">
+                    <button onClick={onClose} className="flex-1 bg-zinc-800 text-white py-2 rounded-lg font-bold text-xs">Abbruch</button>
+                    <button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-xs">Melden</button>
+                </div>
             </div>
         </div>
     );
 };
 
-// SETTINGS MODAL
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
+// SETTINGS / LEGAL MODAL (Mit Statusanzeige & Test-Button)
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, onTestToast, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-2 mb-4 border-b border-zinc-800 pb-2"><button onClick={() => setView('menu')}><ArrowLeft size={20} className="text-zinc-400" /></button><h3 className="font-bold text-white">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2">{content}</div></div>);
 
@@ -168,12 +200,25 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                 {view === 'menu' && (
                     <div className="space-y-4 mt-6">
                         <h2 className="text-xl font-bold text-white mb-6 text-center">Einstellungen</h2>
+                        
                         {installPrompt && (<button onClick={onInstallApp} className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-xl flex items-center justify-between hover:opacity-90 transition mb-2 border border-indigo-400/30 shadow-lg shadow-indigo-500/20"><div className="flex items-center gap-3"><div className="bg-white/20 p-1.5 rounded-lg"><Download size={20} className="text-white" /></div><div className="text-left"><span className="text-white font-bold block text-sm">App installieren</span><span className="text-indigo-200 text-xs">Zum Home-Bildschirm</span></div></div><ChevronRight size={16} className="text-white" /></button>)}
+                        
                         <button onClick={onRequestPush} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Bell size={20} className="text-zinc-400" /><span className="text-white">Benachrichtigungen</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <button onClick={() => setView('impressum')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><FileText size={20} className="text-zinc-400" /><span className="text-white">Impressum</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
                         <button onClick={() => setView('privacy')} className="w-full bg-zinc-800 p-4 rounded-xl flex items-center justify-between hover:bg-zinc-700 transition"><div className="flex items-center gap-3"><Lock size={20} className="text-zinc-400" /><span className="text-white">Datenschutz</span></div><ChevronRight size={16} className="text-zinc-600" /></button>
+                        
+                        <button onClick={onTestToast} className="w-full border border-zinc-700 p-2 rounded-xl flex items-center justify-center gap-2 text-xs text-zinc-500 hover:text-white hover:bg-zinc-800 transition mt-2"><Beaker size={14} /> Test-Benachrichtigung senden</button>
+
                         <hr className="border-zinc-800 my-4" />
                         <button onClick={onLogout} className="w-full bg-red-500/10 p-4 rounded-xl flex items-center justify-center gap-2 text-red-500 font-bold hover:bg-red-500/20 transition"><LogOut size={20} /> Abmelden</button>
+                        
+                        {/* Status Anzeige */}
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={14} className="text-green-500"/> : <WifiOff size={14} className="text-red-500"/>}
+                            <span className={`text-xs font-bold ${realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}`}>
+                                {realtimeStatus === 'SUBSCRIBED' ? 'Online & Verbunden' : 'Verbindung getrennt'}
+                            </span>
+                        </div>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>Angaben gemäß § 5 TMG</p><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1<br/>12345 Berlin</p><p>Kontakt:<br/>E-Mail: info@scoutvision.app</p></>} />}
@@ -183,7 +228,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL
+// LOGIN MODAL (Mit Feedback für E-Mail Bestätigung)
 const LoginModal = ({ onClose, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -198,8 +243,10 @@ const LoginModal = ({ onClose, onSuccess }) => {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+        
+        // Prüfen ob Session da ist. Wenn nicht -> Email Confirmation nötig
         if (data.user && !data.session) {
-             setSuccessMsg('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.');
+             setSuccessMsg('✅ Registrierung erfolgreich! Bitte bestätige deine E-Mail (Link im Postfach).');
              return;
         }
       } else {
@@ -238,28 +285,32 @@ const LoginModal = ({ onClose, onSuccess }) => {
   );
 };
 
-// UPLOAD MODAL
+// UPLOAD MODAL (MIT 50MB LIMIT)
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const [uploading, setUploading] = useState(false);
   const [category, setCategory] = useState("Training");
+
   const handleFileChange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
-    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Bitte maximal 50 MB hochladen."); return; }
     try {
       setUploading(true);
       const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`;
-      const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr;
+      const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file);
+      if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath);
-      const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr;
+      const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category });
+      if (dbErr) throw dbErr;
       onUploadComplete(); onClose();
     } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
   };
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className="w-full sm:max-w-md bg-zinc-900 rounded-t-2xl sm:rounded-xl p-6 border-t sm:border border-zinc-800 shadow-2xl">
         <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400" /></button></div>
-        {uploading ? <div className="text-center py-10"><Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400">Upload läuft...</p></div> : <div className="space-y-4"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-3 rounded-lg outline-none"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select><label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-700 rounded-xl cursor-pointer hover:bg-zinc-800/50 transition"><UploadCloud className="w-8 h-8 text-zinc-400 mb-2" /><p className="text-sm text-zinc-400">Video auswählen (Max 50MB)</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} /></label></div>}
+        {uploading ? <div className="text-center py-10"><Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400">Video wird verarbeitet...</p></div> : <div className="space-y-4"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-3 rounded-lg outline-none"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select><label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-700 rounded-xl cursor-pointer hover:bg-zinc-800/50 transition"><UploadCloud className="w-8 h-8 text-zinc-400 mb-2" /><p className="text-sm text-zinc-400">Video auswählen (Max 50MB)</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} /></label></div>}
       </div>
     </div>
   );
@@ -269,15 +320,37 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
 const EditProfileModal = ({ player, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '' });
-  const [avatarFile, setAvatarFile] = useState(null); const [previewUrl, setPreviewUrl] = useState(player.avatar_url); const [clubSearch, setClubSearch] = useState(''); const [clubResults, setClubResults] = useState([]); const [selectedClub, setSelectedClub] = useState(player.clubs || null); const [showCreateClub, setShowCreateClub] = useState(false); const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
-  useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
-  const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
-  const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(player.avatar_url);
+  const [clubSearch, setClubSearch] = useState('');
+  const [clubResults, setClubResults] = useState([]);
+  const [selectedClub, setSelectedClub] = useState(player.clubs || null);
+  const [showCreateClub, setShowCreateClub] = useState(false);
+  const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
+
+  useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const timer = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(timer); }, [clubSearch]);
+  const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data, error } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); if(error) throw error; setSelectedClub(data); setShowCreateClub(false); } catch(e) { alert("Fehler: " + e.message); } finally { setLoading(false); } }
+  
+  const handleSave = async (e) => { 
+      e.preventDefault(); setLoading(true); 
+      try { 
+          let finalAvatarUrl = player.avatar_url; 
+          if (avatarFile) { 
+              const filePath = `${player.user_id}/${Date.now()}.jpg`; 
+              const { error: upErr } = await supabase.storage.from('avatars').upload(filePath, avatarFile); if (upErr) throw upErr; 
+              const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath); finalAvatarUrl = publicUrl; 
+          }
+          const heightValue = formData.height_user ? parseInt(formData.height_user) : null;
+          const { data, error } = await supabase.from('players_master').update({ ...formData, height_user: heightValue, avatar_url: finalAvatarUrl, club_id: selectedClub ? selectedClub.id : null }).eq('id', player.id).select('*, clubs(*)').single(); 
+          if (error) throw error; onUpdate(data); onClose(); 
+      } catch (err) { alert('Fehler: ' + err.message); } finally { setLoading(false); } 
+  };
+
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full sm:max-w-md bg-zinc-900 rounded-t-2xl sm:rounded-xl border-t sm:border border-zinc-800 p-6 shadow-2xl h-[90vh] overflow-y-auto">
+      <div className="w-full sm:max-w-md bg-zinc-900 sm:rounded-xl rounded-t-2xl border-t sm:border border-zinc-800 p-6 shadow-2xl animate-in slide-in-from-bottom-10 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
-        <form onSubmit={handleSave} className="space-y-4">
+        <form onSubmit={handleSave} className="space-y-5">
           <div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-24 h-24 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-600 flex items-center justify-center overflow-hidden">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={32} className="text-zinc-500" />}</div><div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><Camera size={24} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div>
           <div className="grid grid-cols-2 gap-4">
              <div className="col-span-2"><label className="text-xs text-zinc-500 font-bold uppercase">Name</label><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className="w-full bg-zinc-800 text-white p-3 rounded-lg mt-1" /></div>
@@ -297,11 +370,14 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
   );
 };
 
-// CHAT WINDOW
+// CHAT WINDOW (Mit klickbarem Profil im Header)
 const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
-  const [messages, setMessages] = useState([]); const [txt, setTxt] = useState(''); const endRef = useRef(null);
-  useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
-  const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef(null);
+  useEffect(() => { const fetchMsgs = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at', { ascending: true }); const chat = (data || []).filter(m => (m.sender_id === session.user.id && m.receiver_id === partner.user_id) || (m.sender_id === partner.user_id && m.receiver_id === session.user.id)); setMessages(chat); scrollToBottom(); }; fetchMsgs(); const interval = setInterval(fetchMsgs, 3000); return () => clearInterval(interval); }, [partner]);
+  const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+  const handleSend = async (e) => { e.preventDefault(); if(!newMessage.trim()) return; const msg = { sender_id: session.user.id, receiver_id: partner.user_id, content: newMessage }; setMessages([...messages, { ...msg, id: Date.now() }]); setNewMessage(''); scrollToBottom(); await supabase.from('direct_messages').insert(msg); };
   return (
     <div className="fixed inset-0 z-[90] bg-zinc-950 flex flex-col animate-in slide-in-from-right">
       <div className="flex items-center gap-3 p-4 border-b border-zinc-800 bg-zinc-900">
@@ -311,81 +387,273 @@ const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
             <div className="font-bold text-white">{partner.full_name}</div>
           </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-4 py-2 rounded-2xl text-sm ${m.sender_id===session.user.id?'bg-indigo-600 text-white':'bg-zinc-800 text-zinc-200'}`}>{m.content}</div></div>)}<div ref={endRef}/></div>
-      <form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Nachricht..." className="flex-1 bg-zinc-800 text-white rounded-full px-4 outline-none"/><button className="bg-indigo-600 p-2 rounded-full text-white"><Send size={18}/></button></form>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">{messages.map(m => (<div key={m.id} className={`flex ${m.sender_id === session.user.id ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.sender_id === session.user.id ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-200'}`}>{m.content}</div></div>))}<div ref={messagesEndRef} /></div>
+      <form onSubmit={handleSend} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-2"><input value={newMessage} onChange={e=>setNewMessage(e.target.value)} placeholder="Nachricht..." className="flex-1 bg-zinc-800 text-white rounded-full px-4 py-3 outline-none" /><button type="submit" className="bg-indigo-600 p-3 rounded-full text-white"><Send size={20} /></button></form>
+    </div>
+  );
+};
+
+// COMMENTS MODAL
+const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  useEffect(() => { supabase.from('media_comments').select('*').eq('video_id', video.id).order('created_at', {ascending:false}).then(({data}) => setComments(data||[])) }, [video]);
+  const handleSend = async (e) => { e.preventDefault(); if (!newComment.trim() || !session) { if(!session) onLoginReq(); return; } const { data } = await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: newComment }).select().single(); if(data) { setComments([data, ...comments]); setNewComment(''); } };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+      <div className="w-full max-w-md bg-zinc-900 rounded-t-2xl h-[60vh] flex flex-col shadow-2xl border-t border-zinc-800 animate-in slide-in-from-bottom-10">
+        <div className="flex justify-between items-center p-4 border-b border-zinc-800"><div className="text-sm font-bold text-white w-full text-center">{comments.length} Kommentare</div><button onClick={onClose}><X size={16} className="text-zinc-400" /></button></div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">{comments.map(c => (<div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0"><User size={14} className="text-zinc-400"/></div><div><div className="text-xs text-zinc-500 font-bold mb-0.5">User {c.user_id.slice(0,4)}</div><p className="text-sm text-zinc-200">{c.content}</p></div></div>))}</div>
+        <form onSubmit={handleSend} className="p-4 border-t border-zinc-800 flex gap-2 bg-zinc-900"><input value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="Kommentieren..." className="flex-1 bg-zinc-800 text-white rounded-full px-4 py-2 text-sm outline-none" /><button type="submit" className="p-2 bg-indigo-600 rounded-full text-white"><Send size={16} /></button></form>
+      </div>
     </div>
   );
 };
 
 // FEED ITEM
-const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick }) => {
-    const [likes, setLikes] = useState(video.likes_count || 0); const [liked, setLiked] = useState(false);
-    const like = async (e) => { e.stopPropagation(); if(!session){onLikeReq(); return;} setLiked(!liked); setLikes(l=>liked?l-1:l+1); if(!liked) { await supabase.from('media_likes').insert({user_id:session.user.id, video_id:video.id}); } };
-    return (
-        <div className="bg-zinc-900 border-b border-zinc-800 pb-4 mb-4">
-            <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={()=>onUserClick(video.players_master)}>
-                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-2"/>}</div>
-                <div><div className="font-bold text-white text-sm">{video.players_master?.full_name}</div><div className="text-xs text-zinc-400">{video.category_tag}</div></div>
-            </div>
-            <div onClick={()=>onClick(video)} className="aspect-[4/5] bg-black relative"><video src={video.video_url} className="w-full h-full object-cover"/></div>
-            <div className="px-4 py-3 flex gap-6">
-                <button onClick={like} className={`flex items-center gap-2 ${liked?'text-red-500':'text-white'}`}><Heart size={24} className={liked?'fill-red-500':''}/> {likes}</button>
-                <button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white"><MessageCircle size={24}/> Chat</button>
-            </div>
+const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onClubClick, onReportReq }) => {
+  const player = video.players_master;
+  const club = player?.clubs;
+  const [likes, setLikes] = useState(video.likes_count || 0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [animateHeart, setAnimateHeart] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const handleLike = async (e) => { e.stopPropagation(); if (!session) { onLikeReq(); return; } const newStatus = !isLiked; setIsLiked(newStatus); setLikes(p => newStatus ? p+1 : p-1); if(newStatus){ setAnimateHeart(true); setTimeout(()=>setAnimateHeart(false), 800); } try { if(newStatus) { await supabase.from('media_likes').insert({user_id:session.user.id, video_id:video.id}); await supabase.rpc('increment_likes',{row_id:video.id}); } else { await supabase.from('media_likes').delete().match({user_id:session.user.id, video_id:video.id}); } } catch(e){} };
+  
+  return (
+    <div className="bg-zinc-900 border-b border-zinc-800 pb-6 mb-6 last:border-0 relative">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="relative cursor-pointer" onClick={()=>onUserClick(player)}>
+             <div className={`w-10 h-10 rounded-full bg-zinc-800 border flex items-center justify-center overflow-hidden ${getClubStyle(club?.is_icon_league)}`}>
+               {player?.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <span className="font-bold text-zinc-500">{player?.full_name?.charAt(0)}</span>}
+             </div>
+             {club && <div onClick={(e)=>{e.stopPropagation(); onClubClick(club)}} className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-black p-0.5 cursor-pointer hover:scale-110 transition flex items-center justify-center">{club.is_verified ? <img src={club.logo_url} className="w-full h-full object-contain" /> : <Shield size={10} className="text-zinc-500 fill-zinc-200" />}</div>}
+          </div>
+          <div><h3 className="text-sm font-bold text-white flex items-center gap-1 cursor-pointer" onClick={()=>onUserClick(player)}>{player?.full_name} {player?.is_verified && <CheckCircle size={12} className="text-blue-500" />}</h3><p className="text-xs text-zinc-400 cursor-pointer hover:text-white" onClick={()=>club && onClubClick(club)}>{club?.name || "Vereinslos"}</p></div>
         </div>
-    )
+        <div className="relative"><button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-zinc-500 hover:text-white p-2"><MoreHorizontal size={20}/></button>{showMenu && (<div className="absolute right-0 top-full bg-black border border-zinc-800 rounded-lg shadow-xl z-20 w-32 overflow-hidden animate-in fade-in"><button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-900 flex items-center gap-2"><Flag size={14}/> Melden</button></div>)}</div>
+      </div>
+      <div onClick={()=>onClick(video)} className="aspect-[4/5] bg-black relative cursor-pointer overflow-hidden group">
+         <video src={video.video_url} className="w-full h-full object-cover" muted loop playsInline onMouseOver={e=>e.target.play()} onMouseOut={e=>e.target.pause()} />
+         {animateHeart && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><Heart size={80} className="text-white fill-white animate-ping" /></div>}
+         <div className="absolute top-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10 text-xs font-bold text-white">{video.category_tag}</div>
+      </div>
+      <div className="px-4 py-3 flex items-center gap-6"><button onClick={handleLike} className={`flex items-center gap-2 transition ${isLiked?'text-red-500':'text-white'}`}><Heart size={26} className={isLiked?"fill-red-500":""}/><span className="font-bold text-sm">{likes}</span></button><button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white"><MessageCircle size={26} /><span className="font-bold text-sm">Chat</span></button><div className="ml-auto text-zinc-400 flex items-center gap-1"><Activity size={18} /><span className="text-xs">{video.views_count}</span></div></div>
+    </div>
+  );
 };
 
 // --- SCREENS ---
-const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick }) => {
-    const [feed, setFeed] = useState([]);
-    useEffect(() => { supabase.from('media_highlights').select('*, players_master(*)').order('created_at', {ascending:false}).limit(20).then(({data}) => setFeed(data||[])) }, []);
-    return <div className="pb-20 pt-16 md:pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} />)}</div>;
+const ClubScreen = ({ club, onBack, onUserClick }) => {
+    const [squad, setSquad] = useState([]);
+    useEffect(() => { supabase.from('players_master').select('*, clubs(*)').eq('club_id', club.id).then(({data}) => setSquad(data||[])); }, [club]);
+    const handleInvite = async () => { const text = `Komm zu ${club.name}!`; const url = window.location.href; if (navigator.share) { try { await navigator.share({ title: club.name, text, url }); } catch(e) {} } else { alert("Link kopiert!"); } };
+    const memberCount = squad.length; const needed = 11; const progress = Math.min((memberCount / needed) * 100, 100);
+
+    return (
+        <div className="pb-24 animate-in fade-in min-h-screen">
+             <div className="bg-zinc-900 pb-8 pt-10 px-6 border-b border-zinc-800 text-center relative">
+                 <button onClick={onBack} className="absolute left-4 top-4 p-2 bg-white/10 rounded-full text-white"><ArrowLeft size={20}/></button>
+                 <div className={`w-24 h-24 mx-auto mb-4 bg-white rounded-full p-4 shadow-lg flex items-center justify-center ${club.is_icon_league ? 'shadow-[0_0_30px_rgba(251,191,36,0.5)] border-2 border-amber-400' : ''}`}>
+                     {club.is_verified ? <img src={club.logo_url} className="w-full h-full object-contain"/> : <Shield size={64} className="text-zinc-400" />}
+                 </div>
+                 <h1 className="text-2xl font-bold text-white flex items-center justify-center gap-2">{club.name} {club.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500/20"/>} {club.is_icon_league && <Trophy size={20} className="text-amber-400 fill-amber-400/20"/>}</h1>
+                 <p className="text-zinc-400 text-sm mb-6">{club.league || "Amateur"}</p>
+                 {!club.is_verified && (<div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50 mb-6"><div className="flex justify-between items-end mb-2"><span className="text-xs font-bold text-zinc-400 uppercase">Status</span><span className="text-sm font-bold text-white">{memberCount} / {needed} Spieler</span></div><div className="w-full h-2 bg-zinc-700 rounded-full overflow-hidden"><div className="h-full bg-indigo-500" style={{width: `${progress}%`}}></div></div><button onClick={handleInvite} className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 animate-pulse"><Share2 size={18} /> Einladen</button></div>)}
+                 {club.is_verified && (<div className="flex justify-center gap-4 text-sm font-bold text-zinc-300"><div className="bg-zinc-800 px-4 py-2 rounded-lg">{squad.length} Spieler</div></div>)}
+             </div>
+             <div className="p-4"><h3 className="text-zinc-500 text-xs font-bold uppercase mb-3 ml-1">Kader</h3><div className="space-y-2">{squad.map(p => (<div key={p.id} onClick={()=>onUserClick(p)} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50 cursor-pointer hover:bg-zinc-800 transition"><div className={`w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden ${getClubStyle(club.is_icon_league)}`}>{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<span className="font-bold text-zinc-500">{p.full_name?.charAt(0)}</span>}</div><div className="flex-1"><h4 className="text-white font-bold text-sm">{p.full_name}</h4><span className="text-xs text-zinc-500 bg-zinc-950 px-1.5 py-0.5 rounded">{p.position_primary}</span></div><ChevronRight size={16} className="text-zinc-600"/></div>))}</div></div>
+        </div>
+    );
 };
 
+const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onClubClick, onReportReq }) => {
+  const [feed, setFeed] = useState([]);
+  const [tab, setTab] = useState('for_you'); // 'for_you' | 'following'
+  
+  useEffect(() => {
+      const fetchFeed = async () => {
+          let query = supabase.from('media_highlights').select(`*, players_master (id, full_name, user_id, position_primary, avatar_url, is_verified, clubs (*))`).order('created_at', {ascending:false});
+          if(tab === 'following' && session) {
+              const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', session.user.id);
+              const followingIds = follows?.map(f => f.following_id) || [];
+              if(followingIds.length > 0) { const { data: players } = await supabase.from('players_master').select('id').in('user_id', followingIds); const playerIds = players?.map(p => p.id) || []; if(playerIds.length > 0) query = query.in('player_id', playerIds); else { setFeed([]); return; } } else { setFeed([]); return; }
+          }
+          const { data } = await query.limit(50); setFeed(data||[]);
+      };
+      fetchFeed();
+  }, [tab, session]);
+
+  return (
+      <div className="pb-24 pt-4 md:pt-0 max-w-md mx-auto">
+          <div className="fixed top-0 left-0 w-full z-30 flex justify-center pt-4 pb-4 bg-gradient-to-b from-black/80 to-transparent pointer-events-none"><div className="flex gap-4 pointer-events-auto"><button onClick={()=>setTab('for_you')} className={`text-sm font-bold drop-shadow-md ${tab==='for_you'?'text-white scale-110':'text-zinc-400'}`}>Für dich</button><div className="w-px h-4 bg-zinc-500/50 self-center"></div><button onClick={()=>{ if(!session) onLikeReq(); else setTab('following'); }} className={`text-sm font-bold drop-shadow-md ${tab==='following'?'text-white scale-110':'text-zinc-400'}`}>Gefolgt</button></div></div>
+          <div className="pt-0">{feed.length > 0 ? feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onClubClick={onClubClick} onReportReq={onReportReq} />) : (<div className="min-h-screen flex flex-col items-center justify-center text-zinc-500 pb-20"><p>Keine Videos gefunden.</p></div>)}</div>
+      </div>
+  );
+};
+
+// SEARCH SCREEN
+const SearchScreen = ({ onUserClick }) => {
+  const [query, setQuery] = useState(''); const [res, setRes] = useState([]); const [pos, setPos] = useState('Alle'); const [foot, setFoot] = useState('Alle'); const [status, setStatus] = useState('Alle');
+  useEffect(() => { const t = setTimeout(async () => { let q = supabase.from('players_master').select('*, clubs(*)'); if(query) q = q.ilike('full_name', `%${query}%`); if(pos !== 'Alle') q = q.eq('position_primary', pos); if(foot !== 'Alle') q = q.eq('strong_foot', foot); if(status !== 'Alle') q = q.eq('transfer_status', status); const { data } = await q.limit(20); setRes(data||[]); }, 300); return () => clearTimeout(t); }, [query, pos, foot, status]);
+  const getStatusColor = (s) => { if(s === 'Suche Verein') return 'bg-emerald-500'; if(s === 'Vertrag läuft aus') return 'bg-amber-500'; return 'bg-red-500'; };
+
+  return (
+    <div className="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen">
+      <h2 className="text-2xl font-bold text-white mb-4">Scouting</h2>
+      <div className="relative mb-4"><div className="absolute left-3 top-3 text-zinc-400"><Search size={20}/></div><input placeholder="Suchen..." value={query} onChange={e=>setQuery(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-indigo-500" /></div>
+      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2"><select onChange={e=>setStatus(e.target.value)} className={`text-xs px-3 py-2 rounded-full font-bold outline-none border ${status!=='Alle' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-800 text-white border-zinc-800'}`}><option value="Alle">Status: Alle</option><option value="Suche Verein">🟢 Suche neuen Verein</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Gebunden">🔴 Gebunden</option></select><select onChange={e=>setPos(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Pos: Alle</option>{['ST','ZOM','ZM','IV','TW'].map(p=><option key={p}>{p}</option>)}</select><select onChange={e=>setFoot(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Fuß: Alle</option><option>Rechts</option><option>Links</option></select></div>
+      <div className="space-y-3">{res.map(p => (<div key={p.id} onClick={()=>onUserClick(p)} className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex items-center gap-4 cursor-pointer hover:bg-zinc-800 transition relative overflow-hidden"><div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(p.transfer_status)}`}></div><div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 ml-2">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<span className="font-bold text-zinc-500">{p.full_name?.charAt(0)}</span>}</div><div className="flex-1"><div className="flex justify-between items-center"><h3 className="font-bold text-white text-sm flex items-center gap-2">{p.full_name}{p.transfer_status === 'Suche Verein' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}</h3><span className="text-xs bg-zinc-950 px-1.5 py-0.5 rounded text-zinc-500 font-bold">{p.position_primary}</span></div><div className="flex justify-between mt-1"><p className="text-xs text-zinc-400">{p.clubs?.name || "Vereinslos"}</p><p className="text-[10px] text-zinc-500 uppercase">{p.transfer_status || 'Gebunden'}</p></div></div></div>))}{res.length === 0 && <div className="text-center py-10 text-zinc-500 text-sm">Keine Spieler gefunden.</div>}</div>
+    </div>
+  );
+};
+
+// UPDATED INBOX SCREEN (JETZT MIT ECHTEN CHATS UND KLICKBAREN PROFILEN)
 const InboxScreen = ({ session, onSelectChat, onUserClick }) => {
+    const [subTab, setSubTab] = useState('notifications'); 
+    const [notis, setNotis] = useState([]);
     const [chats, setChats] = useState([]);
-    useEffect(() => {
-        if(!session?.user) return;
-        const load = async () => {
-            const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).order('created_at',{ascending:false});
-            const map = new Map();
-            (data||[]).forEach(m => { const pid = m.sender_id===session.user.id?m.receiver_id:m.sender_id; if(!map.has(pid)) map.set(pid, m); });
-            if(map.size>0) { const {data:users} = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]); setChats(users.map(u=>({...u, lastMsg: map.get(u.user_id).content}))); }
-        }; load();
-    }, [session]);
+
+    useEffect(() => { 
+        if(subTab==='notifications') {
+            supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[])); 
+        } else if (subTab === 'messages' && session?.user?.id) {
+            (async () => {
+                const { data: msgs } = await supabase.from('direct_messages')
+                    .select('*')
+                    .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
+                    .order('created_at', { ascending: false });
+                
+                const partnerMap = new Map();
+                for (const m of (msgs || [])) {
+                    const partnerId = m.sender_id === session.user.id ? m.receiver_id : m.sender_id;
+                    if (!partnerMap.has(partnerId)) {
+                        partnerMap.set(partnerId, { lastMsg: m.content, time: m.created_at, partnerId });
+                    }
+                }
+                
+                if (partnerMap.size > 0) {
+                    const { data: profiles } = await supabase.from('players_master').select('*').in('user_id', Array.from(partnerMap.keys()));
+                    const chatList = profiles.map(p => {
+                        const info = partnerMap.get(p.user_id);
+                        return { ...p, lastMsg: info.lastMsg, time: info.time };
+                    }).sort((a,b) => new Date(b.time) - new Date(a.time));
+                    setChats(chatList);
+                }
+            })();
+        }
+    }, [subTab, session]);
+
     return (
         <div className="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen">
-            <h2 className="text-2xl font-bold text-white mb-4">Inbox</h2>
-            <div className="space-y-2">{chats.map(c=><div key={c.id} onClick={()=>onSelectChat(c)} className="flex items-center gap-3 bg-zinc-900 p-3 rounded-xl cursor-pointer"><div onClick={(e)=>{e.stopPropagation(); onUserClick(c)}} className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden">{c.avatar_url?<img src={c.avatar_url} className="w-full h-full object-cover"/>:<User className="m-3 text-zinc-500"/>}</div><div className="flex-1"><div className="font-bold text-white">{c.full_name}</div><div className="text-xs text-zinc-400 truncate">{c.lastMsg}</div></div></div>)}</div>
+            <h2 className="text-2xl font-bold text-white mb-4">Posteingang</h2>
+            <div className="flex gap-6 border-b border-zinc-800 mb-6">
+                <button onClick={()=>setSubTab('notifications')} className={`pb-2 text-sm font-bold ${subTab==='notifications'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Mitteilungen</button>
+                <button onClick={()=>setSubTab('messages')} className={`pb-2 text-sm font-bold ${subTab==='messages'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Nachrichten</button>
+            </div>
+            
+            <div className="space-y-4">
+                {subTab === 'notifications' && (
+                    notis.length > 0 ? notis.map(n => (
+                        <div key={n.id} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {n.actor?.avatar_url?<img src={n.actor.avatar_url} className="w-full h-full object-cover"/>:<User size={16} className="text-zinc-500"/>}
+                            </div>
+                            <div className="flex-1 text-sm text-white">
+                                <span className="font-bold">{n.actor?.full_name||"Jemand"}</span> <span className="text-zinc-400">{n.type==='like'?'hat dein Video geliked.':n.type==='follow'?'folgt dir jetzt.':'hat kommentiert.'}</span>
+                            </div>
+                        </div>
+                    )) : <div className="text-center text-zinc-500 py-10">Keine neuen Mitteilungen.</div>
+                )}
+                
+                {subTab === 'messages' && (
+                    chats.length > 0 ? chats.map(c => (
+                        <div key={c.id} onClick={() => onSelectChat(c)} className="flex items-center gap-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50 cursor-pointer hover:bg-zinc-800 transition">
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); onUserClick(c); }} 
+                                className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition"
+                            >
+                                {c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500"/>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-baseline mb-1">
+                                    <h4 className="text-sm font-bold text-white truncate">{c.full_name}</h4>
+                                    <span className="text-[10px] text-zinc-500">{new Date(c.time).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-xs text-zinc-400 truncate">{c.lastMsg}</p>
+                            </div>
+                        </div>
+                    )) : <div className="text-center text-zinc-500 py-10"><Mail size={48} className="mx-auto mb-3 opacity-20" /><p>Keine Chats vorhanden.</p></div>
+                )}
+            </div>
         </div>
-    )
+    );
 };
 
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers }) => {
+// ADMIN DASHBOARD
+const AdminDashboard = ({ session }) => {
+    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
+    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
+    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
+    useEffect(() => { fetchPending(); fetchReports(); }, []);
+    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
+    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
+    return (
+        <div className="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><Database className="text-indigo-500"/> Admin Dashboard</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 ${tab==='clubs'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 ${tab==='reports'?'text-white border-b-2 border-indigo-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500">ID: {c.id}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL (Wikimedia...)" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className="w-full bg-black border border-zinc-700 p-2 rounded text-xs text-white"/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className="w-full bg-black border border-zinc-700 p-2 rounded text-xs text-white"><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-2 rounded flex-1 flex items-center justify-center gap-1"><Check size={14}/> Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-2 rounded">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/50 text-red-500 text-xs font-bold px-3 py-2 rounded"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className="bg-zinc-900 border border-red-900/30 p-4 rounded-xl"><div className="flex justify-between items-start mb-2"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-2 rounded hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>
+    );
+};
+
+// PROFILE SCREEN (MIT ICON LEAGUE STYLING)
+const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onClubClick, onAdminReq, onSettingsReq, onFollow, onShowFollowers }) => {
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Lädt...</div>;
+    const statusColors = { 'Gebunden': 'bg-red-500', 'Vertrag läuft aus': 'bg-amber-500', 'Suche Verein': 'bg-emerald-500' };
+    const statusColor = statusColors[player.transfer_status] || 'bg-zinc-500';
+
     return (
         <div className="pb-24 animate-in fade-in">
-             <div className="bg-zinc-900 pb-6 pt-10 px-6 border-b border-zinc-800 text-center relative">
-                 {!isOwnProfile && <button onClick={onBack} className="absolute left-4 top-4 text-white"><ArrowLeft size={24}/></button>}
-                 {isOwnProfile && <button onClick={onSettingsReq} className="absolute right-4 top-4 text-white"><Settings size={24}/></button>}
-                 <div className="w-24 h-24 rounded-full bg-zinc-800 mx-auto mb-3 overflow-hidden border-4 border-zinc-700">{player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={40} className="m-6 text-zinc-500"/>}</div>
-                 <h1 className="text-2xl font-bold text-white flex justify-center gap-2 items-center">{player.full_name} {player.is_verified && <CheckCircle size={18} className="text-blue-500"/>}</h1>
-                 <p className="text-zinc-400 text-sm mb-4">{player.clubs?.name || "Vereinslos"} • {player.position_primary}</p>
+             <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 pb-6 pt-10 px-6 border-b border-zinc-800 text-center relative">
+                 {!isOwnProfile && <button onClick={onBack} className="absolute left-4 top-4 p-2 bg-white/10 rounded-full text-white"><ArrowLeft size={20}/></button>}
                  
-                 <div className="flex justify-center gap-8 text-sm mb-6 border-y border-zinc-800 py-3">
-                    <div onClick={onShowFollowers} className="cursor-pointer hover:opacity-70"><span className="font-bold text-white block text-lg">{player.followers_count||0}</span><span className="text-zinc-500 text-xs">Follower</span></div>
-                    <div><span className="font-bold text-white block text-lg">{highlights.length}</span><span className="text-zinc-500 text-xs">Clips</span></div>
+                 {/* SETTINGS BUTTON (ZAHNRAD) */}
+                 {isOwnProfile && <button onClick={onSettingsReq} className="absolute right-4 top-4 p-2 bg-white/10 rounded-full text-white"><Settings size={20}/></button>}
+                 
+                 <div className={`w-24 h-24 rounded-full bg-zinc-800 border-4 flex items-center justify-center overflow-hidden relative mx-auto mb-3 ${getClubStyle(player.clubs?.is_icon_league)}`}>
+                     {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <span className="text-3xl font-bold text-zinc-600">{player.full_name?.charAt(0)}</span>}
                  </div>
 
-                 {isOwnProfile ? (<button onClick={onEditReq} className="w-full bg-zinc-800 text-white py-2 rounded-lg font-bold text-sm">Profil bearbeiten</button>) : (
+                 <h1 className="text-2xl font-bold text-white mb-1 flex items-center justify-center gap-2">
+                     {player.full_name} 
+                     {player.is_verified && <CheckCircle size={18} className="text-blue-500 fill-blue-500/20"/>}
+                     {player.clubs?.is_icon_league && <Crown size={18} className="text-amber-400 fill-amber-400"/>}
+                 </h1>
+                 
+                 <div className="flex justify-center mb-3"><div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1"><div className={`w-2 h-2 rounded-full ${statusColor} animate-pulse`}></div><span className="text-xs font-bold text-zinc-300">{player.transfer_status || 'Gebunden'}</span></div></div>
+                 <div className="flex justify-center gap-4 mb-4">{player.instagram_handle && <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-pink-500 transition"><Instagram size={20}/></a>}{player.tiktok_handle && <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition"><Video size={20}/></a>}{player.youtube_handle && <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-red-500 transition"><Youtube size={20}/></a>}</div>
+                 <p className="text-zinc-400 text-sm mb-4 cursor-pointer hover:text-white transition" onClick={()=>player.clubs && onClubClick(player.clubs)}>{player.clubs ? (<span className="flex items-center gap-1 justify-center">{player.clubs.is_verified ? <img src={player.clubs.logo_url} className="w-4 h-4 object-contain"/> : <Shield size={12} />} {player.clubs.name}</span>) : "Vereinslos"} • {player.position_primary}</p>
+                 <div className="flex justify-center gap-4 text-xs text-zinc-500 mb-6 bg-zinc-900/50 p-2 rounded-lg inline-flex mx-auto border border-zinc-800/50"><div><span className="block text-white font-bold">{player.height_user ? `${player.height_user} cm` : '-'}</span> Größe</div><div className="w-px bg-zinc-800"></div><div><span className="block text-white font-bold">{player.strong_foot || '-'}</span> Fuß</div></div>
+                 
+                 <div className="flex justify-center gap-6 text-sm mb-6 border-t border-b border-zinc-800 py-4">
+                    <button onClick={onShowFollowers} className="flex flex-col items-center hover:bg-zinc-800 rounded-lg px-4 py-1 transition">
+                        <span className="font-bold text-white text-lg">{player.followers_count || 0}</span>
+                        <span className="text-zinc-500 text-xs uppercase">Follower</span>
+                    </button>
+                    <div className="flex flex-col items-center px-4 py-1">
+                        <span className="font-bold text-white text-lg">{highlights.length}</span>
+                        <span className="text-zinc-500 text-xs uppercase">Clips</span>
+                    </div>
+                 </div>
+
+                 {isOwnProfile ? (<div className="space-y-2"><button onClick={onEditReq} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700 transition">Profil bearbeiten</button>{player.is_admin && <button onClick={onAdminReq} className="w-full bg-indigo-900/20 hover:bg-indigo-900/40 text-indigo-400 border border-indigo-500/30 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2"><Database size={16}/> Admin Dashboard</button>}</div>) : (
                     <div className="flex gap-2">
-                        <button onClick={onFollow} className={`flex-1 py-2 rounded-lg font-bold text-sm ${player.isFollowing ? 'bg-zinc-800 text-white' : 'bg-indigo-600 text-white'}`}>{player.isFollowing ? 'Gefolgt' : 'Folgen'}</button>
-                        <button onClick={onChatReq} className="flex-1 bg-zinc-800 text-white py-2 rounded-lg font-bold text-sm">Nachricht</button>
+                        <button onClick={onFollow} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition ${player.isFollowing ? 'bg-zinc-800 text-white border border-zinc-700' : 'bg-indigo-600 text-white'}`}>
+                            {player.isFollowing ? 'Gefolgt' : 'Folgen'}
+                        </button>
+                        <button onClick={onChatReq} className="flex-1 bg-zinc-800 text-white py-2.5 rounded-lg font-semibold text-sm border border-zinc-700">Nachricht</button>
                     </div>
                  )}
              </div>
-             <div className="grid grid-cols-3 gap-0.5">{highlights.map(v => (<div key={v.id} onClick={() => onVideoClick(v)} className="aspect-[3/4] bg-zinc-800 relative cursor-pointer"><video src={v.video_url} className="w-full h-full object-cover opacity-80" /></div>))}</div>
+             <div className="grid grid-cols-3 gap-0.5 bg-black">{highlights.map(v => (<div key={v.id} onClick={() => onVideoClick(v)} className="aspect-[3/4] bg-zinc-900 relative cursor-pointer"><video src={v.video_url} className="w-full h-full object-cover opacity-80" /></div>))}</div>
         </div>
     )
 }
@@ -395,116 +663,291 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [session, setSession] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  
   const [viewedProfile, setViewedProfile] = useState(null);
+  const [viewedClub, setViewedClub] = useState(null);
   const [profileHighlights, setProfileHighlights] = useState([]);
+  
   const [activeVideo, setActiveVideo] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [activeCommentsVideo, setActiveCommentsVideo] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false); // Settings State
   const [activeChatPartner, setActiveChatPartner] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+  
+  // NEW: Follower Modal State
   const [showFollowersModal, setShowFollowersModal] = useState(false);
+
+  // REALTIME STATE
   const [toasts, setToasts] = useState([]);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [realtimeStatus, setRealtimeStatus] = useState('CONNECTING');
+
+  // PWA STATE
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   // REF für activeChatPartner (verhindert useEffect Neustart)
   const activeChatPartnerRef = useRef(activeChatPartner);
-  useEffect(() => { activeChatPartnerRef.current = activeChatPartner; }, [activeChatPartner]);
+
+  // Sync Ref mit State
+  useEffect(() => {
+    activeChatPartnerRef.current = activeChatPartner;
+  }, [activeChatPartner]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) fetchMyProfile(session.user.id); });
     supabase.auth.onAuthStateChange((_event, session) => { setSession(session); if (session) fetchMyProfile(session.user.id); else setCurrentUserProfile(null); });
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
+    
+    // PWA INSTALL LISTENER
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
   }, []);
 
-  // REALTIME
+  // REALTIME LISTENER (STABILISIERT)
   useEffect(() => {
-      if(!session?.user) return;
-      const c = supabase.channel('global_user').on('postgres_changes', {event:'INSERT', schema:'public', table:'notifications'}, p => {
-          if(p.new.receiver_id === session.user.id) addToast(p.new.type === 'like' ? 'Neuer Like!' : 'Neuer Follower!', 'info');
-      }).on('postgres_changes', {event:'INSERT', schema:'public', table:'direct_messages'}, p => {
-          if(p.new.receiver_id === session.user.id && activeChatPartnerRef.current?.user_id !== p.new.sender_id) {
-              setUnreadCount(prev => prev + 1); addToast('Neue Nachricht', 'message');
-          }
-      }).subscribe();
-      return () => { supabase.removeChannel(c); }
-  }, [session]);
+    if (!session?.user?.id) return;
 
-  const addToast = (content, type = 'info') => { const id = Date.now(); setToasts(p => [...p, { id, content, type }]); setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4000); };
-  
-  const fetchMyProfile = async (userId) => { const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') setShowOnboarding(true); } else setShowOnboarding(true); };
-  
-  const loadProfile = async (p) => { 
-      let prof = { ...p };
-      if(session) {
-          const { data } = await supabase.from('follows').select('*').match({follower_id: session.user.id, following_id: p.user_id}).maybeSingle();
-          prof.isFollowing = !!data;
-          const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
-          prof.followers_count = count || 0;
+    // Verwende einen benutzerspezifischen Channel-Namen
+    const channel = supabase.channel(`realtime:global:${session.user.id}`)
+        // Lausche auf neue Notifications (Likes, Follows)
+        .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'notifications'
+        }, (payload) => {
+            console.log("📥 Raw Notification:", payload);
+            // Client-Side Filter
+            if (payload.new.receiver_id === session.user.id) {
+                console.log("🔔 Notification akzeptiert!");
+                setUnreadCount(prev => prev + 1);
+                addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
+            }
+        })
+        // Lausche auf neue Nachrichten (Chat)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'direct_messages'
+        }, (payload) => {
+            console.log("📥 Raw Message:", payload);
+            
+            // Aktuellen Chat-Partner aus der Ref holen (statt State)
+            const currentPartnerId = activeChatPartnerRef.current?.user_id;
+
+            // Client-Side Filter
+            if (payload.new.receiver_id === session.user.id) {
+                console.log("💬 Message akzeptiert!");
+                // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
+                if (currentPartnerId !== payload.new.sender_id) { 
+                    setUnreadCount(prev => prev + 1);
+                    addToast("Neue Nachricht erhalten", "message");
+                } else {
+                    console.log("ℹ️ Chat offen, Benachrichtigung unterdrückt.");
+                }
+            }
+        })
+        .subscribe((status, err) => {
+            console.log(`📡 Realtime Status: ${status}`);
+            setRealtimeStatus(status);
+            if (status === 'CHANNEL_ERROR') console.error("Realtime Fehler:", err);
+        });
+
+    return () => { 
+        console.log("🔌 Realtime Trennung...");
+        supabase.removeChannel(channel); 
+    };
+  }, [session]); // WICHTIG: activeChatPartner entfernt!
+
+  // TOAST HELPER
+  const addToast = (content, type = 'info') => {
+      const id = Date.now();
+      setToasts(prev => [...prev, { id, content, type }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  };
+
+  // TEST TOAST FUNKTION (für manuelles Testen)
+  const handleTestToast = () => {
+      addToast("Dies ist eine Test-Benachrichtigung!", "message");
+  };
+
+  const handleInstallApp = () => {
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+              setDeferredPrompt(null);
+          }
+      });
+  };
+
+  const handlePushRequest = async () => {
+      if (!("Notification" in window)) return alert("Dieser Browser unterstützt keine Benachrichtigungen.");
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") addToast("Benachrichtigungen aktiviert!", "info");
+      else alert("Benachrichtigungen wurden verweigert.");
+  };
+
+  const toggleFollow = async () => {
+      if(!session) { setShowLogin(true); return; }
+      if(!viewedProfile) return;
+      
+      // SICHERHEITS-CHECK: Hat der Spieler überhaupt eine ID?
+      if (!viewedProfile.user_id) {
+          addToast("Nutzerdaten unvollständig.", "error");
+          return;
       }
-      setViewedProfile(prof); 
+      
+      const oldStatus = viewedProfile.isFollowing;
+      const newStatus = !oldStatus;
+      
+      // 1. Optimistic Update (Sofortiges Feedback)
+      setViewedProfile(prev => ({ 
+          ...prev, 
+          isFollowing: newStatus,
+          followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1)
+      }));
+
+      try {
+          // 2. DB Operation
+          if (newStatus) {
+              const { error } = await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+              if(error) throw error;
+              
+              // Notification senden
+              await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id }).catch(console.error);
+          } else {
+              const { error } = await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
+              if(error) throw error;
+          }
+          
+          // 3. Echte Zahl nachladen
+          setTimeout(async () => {
+             const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
+             if(count !== null) {
+                 setViewedProfile(prev => {
+                     if(prev && prev.user_id === viewedProfile.user_id) {
+                         return { ...prev, followers_count: count };
+                     }
+                     return prev;
+                 });
+             }
+          }, 100);
+
+      } catch (e) {
+          console.error("Follow Error:", e);
+          
+          // Specific error handling for ghost profiles
+          if (e.message?.includes("follows_following_id_fkey") || e.message?.includes("foreign key constraint")) {
+              addToast("Nutzer existiert nicht mehr.", "error");
+          } else {
+              addToast("Fehler beim Folgen.", "error");
+          }
+          
+          // Rollback UI
+          setViewedProfile(prev => ({ 
+              ...prev, 
+              isFollowing: oldStatus,
+              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1)
+          }));
+      }
+  };
+
+  const fetchMyProfile = async (userId) => { 
+      // Prüfen, ob das Profil existiert, wenn nicht -> Erstellen/Onboarding
+      const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
+      
+      if (data) { 
+          setCurrentUserProfile(data); 
+          // Falls Name leer oder Standard -> Onboarding zeigen
+          if(!data.full_name || data.full_name === 'Neuer Spieler') {
+              setShowOnboarding(true); 
+          }
+      } else {
+          // Kein Profil gefunden -> Onboarding starten
+          setShowOnboarding(true);
+      }
+  };
+  
+  const loadProfile = async (targetPlayer) => { 
+      // Clone um keine Referenzprobleme zu bekommen
+      let p = { ...targetPlayer };
+      
+      // Check ob wir diesem User folgen
+      if (session) {
+          const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle();
+          p.isFollowing = !!data;
+      }
+
+      // **FIX: Echte Follower-Zahl holen (statt Cache)**
+      const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
+      p.followers_count = count || 0;
+
+      setViewedProfile(p); 
       const { data } = await supabase.from('media_highlights').select('*').eq('player_id', p.id).order('created_at', { ascending: false }); 
       setProfileHighlights(data || []); 
       setActiveTab('profile'); 
   };
-
-  const toggleFollow = async () => {
-      if(!session) return setShowLogin(true);
-      if(!viewedProfile?.user_id) return addToast("Profil fehlerhaft.", "error");
-      
-      const old = viewedProfile.isFollowing;
-      setViewedProfile(p => ({ ...p, isFollowing: !old, followers_count: (p.followers_count||0) + (!old?1:-1) }));
-
-      try {
-          if(!old) {
-              const { error } = await supabase.from('follows').insert({follower_id: session.user.id, following_id: viewedProfile.user_id});
-              if(error) throw error;
-              await supabase.from('notifications').insert({receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id}).catch(console.error);
-          } else {
-              const { error } = await supabase.from('follows').delete().match({follower_id: session.user.id, following_id: viewedProfile.user_id});
-              if(error) throw error;
-          }
-      } catch(e) {
-          if (e.message?.includes("foreign key") || e.message?.includes("fkey")) {
-             addToast("Nutzer existiert nicht mehr.", "error");
-          } else {
-             addToast("Fehler beim Folgen.", "error");
-          }
-          loadProfile(viewedProfile); // Rollback
-      }
-  };
+  
+  const loadClub = (club) => { setViewedClub(club); setActiveTab('club'); };
+  const handleProfileTabClick = () => { if (session && currentUserProfile) loadProfile(currentUserProfile); else setShowLogin(true); };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white font-sans selection:bg-indigo-500/30">
-      {!session && <button onClick={() => setShowLogin(true)} className="fixed top-4 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg"><LogIn size={14} /> Login</button>}
+      {!session && <button onClick={() => setShowLogin(true)} className="fixed top-4 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-1 hover:bg-indigo-700 transition"><LogIn size={14} /> Login</button>}
       
       {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} />}
       {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
       {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} />}
       
-      {activeTab === 'profile' && <ProfileScreen player={viewedProfile} highlights={profileHighlights} onVideoClick={setActiveVideo} isOwnProfile={session && viewedProfile?.user_id === session.user.id} onBack={() => setActiveTab('home')} onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))} onEditReq={() => setShowEditProfile(true)} onSettingsReq={() => setShowSettings(true)} onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }} onClubClick={()=>{}} onAdminReq={()=>setActiveTab('admin')} onFollow={toggleFollow} onShowFollowers={() => setShowFollowersModal(true)} />}
+      {activeTab === 'profile' && (
+          <ProfileScreen 
+            player={viewedProfile} 
+            highlights={profileHighlights} 
+            onVideoClick={setActiveVideo}
+            isOwnProfile={session && viewedProfile?.user_id === session.user.id}
+            onBack={() => setActiveTab('home')}
+            onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))}
+            onEditReq={() => setShowEditProfile(true)}
+            onSettingsReq={() => setShowSettings(true)}
+            onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
+            onClubClick={loadClub}
+            onAdminReq={()=>setActiveTab('admin')}
+            onFollow={toggleFollow}
+            onShowFollowers={() => setShowFollowersModal(true)}
+          />
+      )}
       
       {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
       {activeTab === 'admin' && <AdminDashboard session={session} />}
       
       <div className="fixed bottom-0 w-full bg-zinc-950/90 border-t border-zinc-800 px-6 py-3 flex justify-between items-center z-40 pb-6 sm:pb-3">
-          <button onClick={() => setActiveTab('home')} className={activeTab === 'home' ? 'text-white' : 'text-zinc-600'}><Home size={24} /></button>
-          <button onClick={() => setActiveTab('search')} className={activeTab === 'search' ? 'text-white' : 'text-zinc-600'}><Search size={24} /></button>
+          <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-white' : 'text-zinc-600'}`}><Home size={24} /><span className="text-[10px] font-medium">Home</span></button>
+          <button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'search' ? 'text-white' : 'text-zinc-600'}`}><Search size={24} /><span className="text-[10px] font-medium">Suche</span></button>
           <div className="relative -top-5"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-indigo-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg"><Plus size={24} text-white strokeWidth={3} /></button></div>
-          <button onClick={() => { setActiveTab('inbox'); setUnreadCount(0); }} className={`relative ${activeTab === 'inbox' ? 'text-white' : 'text-zinc-600'}`}><Mail size={24} />{unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full"></span>}</button>
-          <button onClick={handleProfileTabClick} className={activeTab === 'profile' ? 'text-white' : 'text-zinc-600'}><User size={24} /></button>
+          <button onClick={() => { setActiveTab('inbox'); setUnreadCount(0); }} className={`flex flex-col items-center gap-1 transition relative ${activeTab === 'inbox' ? 'text-white' : 'text-zinc-600'}`}>
+              <div className="relative">
+                  <Mail size={24} />
+                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce">{unreadCount}</span>}
+              </div>
+              <span className="text-[10px] font-medium">Inbox</span>
+          </button>
+          <button onClick={handleProfileTabClick} className={`flex flex-col items-center gap-1 transition ${activeTab === 'profile' ? 'text-white' : 'text-zinc-600'}`}><User size={24} /><span className="text-[10px] font-medium">Profil</span></button>
       </div>
       
+      {/* GLOBAL COMPONENTS */}
       <CookieBanner />
       <ToastContainer toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4"><button onClick={() => setActiveVideo(null)} className="absolute top-4 right-4 z-10 p-2 bg-white/10 rounded-full"><X size={24}/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} onTestToast={handleTestToast} realtimeStatus={realtimeStatus} />}
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
+      
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showOnboarding && session && <OnboardingWizard session={session} onComplete={() => { setShowOnboarding(false); fetchMyProfile(session.user.id); }} />}
