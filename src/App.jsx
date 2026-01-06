@@ -720,6 +720,12 @@ const App = () => {
       if(!session) { setShowLogin(true); return; }
       if(!viewedProfile) return;
       
+      // SICHERHEITS-CHECK: Hat der Spieler überhaupt eine ID?
+      if (!viewedProfile.user_id) {
+          alert("Diesem Profil kann nicht gefolgt werden (Ungültige Daten).");
+          return;
+      }
+      
       const oldStatus = viewedProfile.isFollowing;
       const newStatus = !oldStatus;
       
@@ -736,19 +742,18 @@ const App = () => {
               const { error } = await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
               if(error) throw error;
               
-              // Notification senden (Fehler hier ignorieren wir, damit der Follow bleibt)
+              // Notification senden
               await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id }).catch(console.error);
           } else {
               const { error } = await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
               if(error) throw error;
           }
           
-          // 3. Echte Zahl nachladen (Sicherheits-Check nach kurzer Verzögerung)
+          // 3. Echte Zahl nachladen
           setTimeout(async () => {
              const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
              if(count !== null) {
                  setViewedProfile(prev => {
-                     // Nur updaten, wenn wir noch auf dem gleichen Profil sind
                      if(prev && prev.user_id === viewedProfile.user_id) {
                          return { ...prev, followers_count: count };
                      }
@@ -759,12 +764,19 @@ const App = () => {
 
       } catch (e) {
           console.error("Follow Error:", e);
-          alert("Fehler beim Folgen: " + e.message);
+          
+          // Specific error handling for ghost profiles
+          if (e.message?.includes("foreign key constraint")) {
+              alert("Fehler: Dieser Nutzer existiert technisch nicht mehr (Datenbank-Inkonsistenz). Bitte Profil ignorieren.");
+          } else {
+              alert("Fehler beim Folgen: " + e.message);
+          }
+          
           // Rollback UI
           setViewedProfile(prev => ({ 
               ...prev, 
               isFollowing: oldStatus,
-              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1) // revert
+              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1)
           }));
       }
   };
