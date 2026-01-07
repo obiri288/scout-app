@@ -16,7 +16,7 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
-// ONBOARDING WIZARD (Repariert: 'updated_at' entfernt)
+// ONBOARDING WIZARD
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,7 +26,6 @@ const OnboardingWizard = ({ session, onComplete }) => {
         if (!name.trim()) return;
         setLoading(true);
         try {
-            // FIX: 'updated_at' wurde entfernt, da die Spalte in der DB fehlt
             const { error } = await supabase.from('players_master').upsert({ 
                 user_id: session.user.id, 
                 full_name: name,
@@ -114,6 +113,7 @@ const ToastContainer = ({ toasts, removeToast }) => (
             {t.type === 'error' ? <AlertCircle size={16} /> : <Bell size={16} />}
         </div>
         <div className="flex-1 text-sm font-medium">{t.content}</div>
+        <button onClick={(e) => { e.stopPropagation(); removeToast(t.id); }}><X size={14} className="text-zinc-500" /></button>
       </div>
     ))}
   </div>
@@ -190,7 +190,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL (ZURÜCKGESETZT AUF DEN ALTEN, EINFACHEN STAND)
+// LOGIN MODAL
 const LoginModal = ({ onClose, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -201,8 +201,14 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const handleAuth = async (e) => {
     e.preventDefault(); setLoading(true); setMsg('');
     try {
-      const { error } = isSignUp ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error; onSuccess();
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+      onSuccess();
     } catch (error) { setMsg(error.message); } finally { setLoading(false); }
   };
 
