@@ -36,7 +36,8 @@ const OnboardingWizard = ({ session, onComplete }) => {
                 user_id: session.user.id, 
                 full_name: name,
                 position_primary: 'ZM',
-                transfer_status: 'Gebunden'
+                transfer_status: 'Gebunden',
+                updated_at: new Date()
             });
             if (error) throw error;
             onComplete();
@@ -168,8 +169,8 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS MODAL
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
+// SETTINGS MODAL (Fixed: removed realtimeStatus to prevent crash if not passed)
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
     const MenuItem = ({ icon: Icon, label, onClick, highlight }) => (
@@ -184,18 +185,13 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                 <button onClick={onClose} className="absolute top-5 right-5 p-2 hover:bg-white/10 rounded-full transition text-zinc-500 hover:text-white"><X size={20} /></button>
                 {view === 'menu' && (
                     <div className="space-y-4 mt-8">
-                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.0 (Glass UI)</p></div>
+                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.1 (Stable)</p></div>
                         {installPrompt && <MenuItem icon={Download} label="App installieren" onClick={onInstallApp} highlight />}
                         <MenuItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                         <div className="h-px bg-white/5 my-2"></div>
                         <MenuItem icon={FileText} label="Impressum" onClick={() => setView('impressum')} />
                         <MenuItem icon={Lock} label="Datenschutz" onClick={() => setView('privacy')} />
                         <div className="pt-4"><button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button></div>
-                        {/* Status Anzeige */}
-                        <div className="flex items-center justify-center gap-2 mt-4 text-xs">
-                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={12} className="text-green-500"/> : <WifiOff size={12} className="text-red-500"/>}
-                            <span className={realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}>{realtimeStatus === 'SUBSCRIBED' ? 'Verbunden' : 'Getrennt'}</span>
-                        </div>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1, 12345 Berlin</p></>} />}
@@ -216,8 +212,13 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const handleAuth = async (e) => {
     e.preventDefault(); setLoading(true); setMsg('');
     try {
-      if (isSignUp) { const { error } = await supabase.auth.signUp({ email, password }); if (error) throw error; }
-      else { const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) throw error; }
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
       onSuccess();
     } catch (error) { setMsg(error.message); } finally { setLoading(false); }
   };
@@ -373,8 +374,8 @@ const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
 };
 
 // FEED ITEM
-const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick }) => {
-    const [likes, setLikes] = useState(video.likes_count || 0); const [liked, setLiked] = useState(false);
+const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
+    const [likes, setLikes] = useState(video.likes_count || 0); const [liked, setLiked] = useState(false); const [showMenu, setShowMenu] = useState(false);
     const like = async (e) => { e.stopPropagation(); if(!session){onLikeReq(); return;} setLiked(!liked); setLikes(l=>liked?l-1:l+1); if(!liked) { await supabase.from('media_likes').insert({user_id:session.user.id, video_id:video.id}); } };
     return (
         <div className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20">
@@ -390,7 +391,15 @@ const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserCl
                         <div className="text-xs text-zinc-500">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                     </div>
                 </div>
-                <div className="bg-zinc-900/50 px-3 py-1 rounded-full text-[10px] font-bold text-zinc-400 border border-white/5">{video.category_tag}</div>
+                
+                <div className="relative">
+                    <button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-zinc-500 hover:text-white p-2"><MoreHorizontal size={20}/></button>
+                    {showMenu && (
+                        <div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 w-32 overflow-hidden animate-in fade-in">
+                            <button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2"><Flag size={14}/> Melden</button>
+                        </div>
+                    )}
+                </div>
             </div>
             
             <div onClick={()=>onClick(video)} className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer">
@@ -409,10 +418,10 @@ const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserCl
 };
 
 // --- SCREENS ---
-const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick }) => {
+const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [feed, setFeed] = useState([]);
     useEffect(() => { supabase.from('media_highlights').select('*, players_master(*, clubs(*))').order('created_at', {ascending:false}).limit(20).then(({data}) => setFeed(data||[])) }, []);
-    return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} />)}</div>;
+    return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
 const InboxScreen = ({ session, onSelectChat, onUserClick }) => {
@@ -577,6 +586,7 @@ const App = () => {
 
   // REF für activeChatPartner (verhindert useEffect Neustart)
   const activeChatPartnerRef = useRef(activeChatPartner);
+  const [reportTarget, setReportTarget] = useState(null); // Report State hinzugefügt
 
   // Sync Ref mit State
   useEffect(() => {
@@ -765,7 +775,7 @@ const App = () => {
       {/* Floating Login Button */}
       {!session && <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 hover:bg-white/20 transition hover:scale-105 active:scale-95"><LogIn size={14} /> Login</button>}
       
-      {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} />}
+      {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({id, type})} />}
       {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
       {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} />}
       

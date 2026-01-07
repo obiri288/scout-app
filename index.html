@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <!-- Viewport: user-scalable=yes erlaubt im Notfall Zoomen, falls Klicks nicht gehen -->
+    <!-- Viewport optimiert für Modern Glass UI: Cover sorgt dafür, dass der Hintergrund bis in die Notch reicht -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     
     <title>ScoutVision</title>
@@ -10,49 +10,52 @@
 
     <!-- --- PWA KONFIGURATION --- -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#09090b">
+    
+    <!-- Theme Color auf Schwarz gesetzt für nahtlosen Look -->
+    <meta name="theme-color" content="#000000">
     
     <!-- iOS Einstellungen -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/33/33736.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- 'black' ist der sicherste Wert für Dark Mode Apps -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ScoutVision">
 
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/33/33736.png" />
 
-    <!-- CSS NOTFALL-FIX: Erzwingt Scrollen um jeden Preis -->
+    <!-- CSS SETUP -->
     <style>
       html {
-        /* Erzwingt vertikale Scrollbalken, egal was passiert */
+        /* Erzwingt vertikale Scrollbalken für natives Feeling */
         overflow-y: scroll !important;
-        height: auto !important;
-        min-height: 100% !important;
+        height: 100% !important;
+        background-color: #000000;
       }
 
       body {
-        /* Verhindert, dass der Body "eingefroren" (fixed) wird */
+        /* WICHTIG: Erlaubt Scrolling, verhindert "Gummiband"-Effekt am Body */
         position: relative !important;
-        overflow-y: visible !important;
+        overflow-y: auto !important;
         overflow-x: hidden !important;
-        height: auto !important;
         min-height: 100vh !important;
         margin: 0 !important;
         padding: 0 !important;
-        background-color: #09090b;
+        background-color: #000000; /* Deep Black für Glassmorphism */
+        color: #ffffff;
         
         /* Verbessert Klicks auf Mobile */
         touch-action: manipulation;
-        -webkit-overflow-scrolling: touch;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-font-smoothing: antialiased;
       }
 
       #root {
-        /* Stellt sicher, dass die App wachsen kann */
+        /* Stellt sicher, dass die App den ganzen Screen füllt */
         min-height: 100vh;
         display: flex;
         flex-direction: column;
         
-        /* Schiebt Inhalte unter der iPhone-Notch hervor */
+        /* WICHTIG FÜR IPHONE X/11/12+ NOTCH */
+        /* Damit die schwebende Navigation nicht vom Home-Balken verdeckt wird */
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
         padding-left: env(safe-area-inset-left);
