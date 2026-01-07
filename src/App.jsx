@@ -36,7 +36,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     </div>
 );
 
-// ONBOARDING WIZARD
+// ONBOARDING WIZARD (FIX: onConflict hinzugefügt)
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -46,13 +46,15 @@ const OnboardingWizard = ({ session, onComplete }) => {
         if (!name.trim()) return;
         setLoading(true);
         try {
+            // FIX: Wir nutzen { onConflict: 'user_id' }, damit bestehende Einträge geupdated werden
+            // statt einen Fehler zu werfen.
             const { error } = await supabase.from('players_master').upsert({ 
                 user_id: session.user.id, 
                 full_name: name,
                 position_primary: 'ZM',
-                transfer_status: 'Gebunden',
-                updated_at: new Date()
-            });
+                transfer_status: 'Gebunden'
+            }, { onConflict: 'user_id' });
+            
             if (error) throw error;
             onComplete();
         } catch (error) {
@@ -84,7 +86,6 @@ const OnboardingWizard = ({ session, onComplete }) => {
                     />
                     <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading ? <Loader2 className="animate-spin" /> : "Profil erstellen"}</button>
                 </form>
-                {/* Notausgang falls Session klemmt */}
                 <button onClick={() => supabase.auth.signOut()} className="text-zinc-500 text-xs hover:text-white underline relative z-10">Abbrechen & Ausloggen</button>
             </div>
         </div>
