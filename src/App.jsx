@@ -131,7 +131,7 @@ const CookieBanner = () => {
             <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl flex flex-col gap-4">
                 <div className="flex items-start gap-4">
                     <div className="p-2.5 bg-white/10 rounded-xl text-white"><Cookie size={24} /></div>
-                    <div className="text-xs text-zinc-400 leading-relaxed"><span className="font-bold text-white block mb-1 text-sm">Privatsphäre</span>Wir nutzen technisch notwendige Cookies für den Login.</div>
+                    <div className="text-xs text-zinc-400 leading-relaxed"><span className="font-bold text-white block mb-1 text-sm">Privatsphäre</span>Wir nutzen technisch notwendige Cookies für den Login-Status. Keine Werbung, kein Tracking.</div>
                 </div>
                 <button onClick={() => { localStorage.setItem('cookie_consent', 'true'); setAccepted(true); }} className="w-full bg-white text-black font-bold py-3 rounded-xl text-sm hover:bg-zinc-200 transition">Alles klar</button>
             </div>
@@ -168,7 +168,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS MODAL (REPARIERT)
+// SETTINGS MODAL
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
@@ -226,14 +226,24 @@ const LoginModal = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
-        <div className="text-center mb-8"><div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20"><User size={28} className="text-white" /></div><h2 className="text-2xl font-bold text-white">{isSignUp ? 'Konto erstellen' : 'Willkommen zurück'}</h2><p className="text-zinc-400 text-sm mt-1">Deine Karriere startet hier.</p></div>
+        <div className="text-center mb-8">
+            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+                <User size={28} className="text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">{isSignUp ? 'Konto erstellen' : 'Willkommen zurück'}</h2>
+            <p className="text-zinc-400 text-sm mt-1">Deine Karriere startet hier.</p>
+        </div>
         <form onSubmit={handleAuth} className="space-y-4">
           <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
           <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
           {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
-          <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Jetzt registrieren' : 'Einloggen'}</button>
+          <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
+              {loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Jetzt registrieren' : 'Einloggen'}
+          </button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center mt-6 text-zinc-400 text-sm hover:text-white transition">{isSignUp ? 'Schon dabei? ' : 'Neu hier? '}<span className="text-blue-400 font-bold underline">{isSignUp ? 'Login' : 'Registrieren'}</span></button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center mt-6 text-zinc-400 text-sm hover:text-white transition">
+            {isSignUp ? 'Schon dabei? ' : 'Neu hier? '}<span className="text-blue-400 font-bold underline">{isSignUp ? 'Login' : 'Registrieren'}</span>
+        </button>
       </div>
     </div>
   );
@@ -288,6 +298,7 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
         <div className="flex-1 overflow-y-auto p-6">
             <form onSubmit={handleSave} className="space-y-6">
             <div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div>
+            
             <div className="space-y-4">
                 <div className="space-y-1"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Spielerinfo</label><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Vollständiger Name" /></div>
                 <div className="grid grid-cols-2 gap-4">
@@ -295,12 +306,14 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
                     <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Starker Fuß</label><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div>
                 </div>
                 <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Status</label><select value={formData.transfer_status} onChange={e=>setFormData({...formData, transfer_status: e.target.value})} className={inputStyle}><option value="Gebunden">🔴 Vertraglich gebunden</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Suche Verein">🟢 Suche neuen Verein</option></select></div>
+                
                 <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Verein</label>
                     {selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : 
                     <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>
                     {clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}
                     {showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><h4 className="text-sm font-bold text-white">Neuen Verein erstellen</h4><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}
                 </div>
+
                 <div className="pt-4 border-t border-white/5"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Social Media (Usernames)</label>
                     <div className="grid grid-cols-1 gap-3 mt-2">
                         <div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
