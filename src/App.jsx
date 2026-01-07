@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, AlertCircle } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
@@ -12,10 +12,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HELFER & STYLES ---
-// Neuer Style: Leuchtenderer Gold-Effekt für Icon-League
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 
-// Gemeinsame Button-Klasse für Konsistenz
+// Gemeinsame Button-Klassen
 const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100";
 const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95";
 const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
@@ -51,29 +50,17 @@ const OnboardingWizard = ({ session, onComplete }) => {
     return (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-500">
             <div className="w-full max-w-md space-y-8 text-center relative">
-                {/* Dekorativer Hintergrund-Glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/20 rounded-full blur-[100px] pointer-events-none"></div>
-                
                 <div className="relative">
                     <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/20 rotate-3">
                         <User size={40} className="text-white" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Willkommen an Bord! ⚽️</h1>
+                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Willkommen! ⚽️</h1>
                     <p className="text-zinc-400">Wie sollen dich Scouts und Vereine nennen?</p>
                 </div>
-                
                 <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-                    <input 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        placeholder="Dein Spielername" 
-                        className={inputStyle}
-                        required 
-                        autoFocus 
-                    />
-                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
-                        {loading ? <Loader2 className="animate-spin" /> : "Profil erstellen"}
-                    </button>
+                    <input value={name} onChange={e => setName(e.target.value)} placeholder="Dein Spielername" className={inputStyle} required autoFocus />
+                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading ? <Loader2 className="animate-spin" /> : "Profil erstellen"}</button>
                 </form>
             </div>
         </div>
@@ -110,10 +97,7 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
                     {loading ? <div className="py-10 text-center"><Loader2 className="animate-spin text-blue-500 mx-auto"/></div> : followers.length === 0 ? <p className="text-zinc-500 text-center text-sm py-10">Noch keine Follower.</p> : followers.map(p => (
                         <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex items-center gap-4 p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors">
                             <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-3"/>}</div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
-                                <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">{p.clubs?.name || "Vereinslos"}</span>
-                            </div>
+                            <div className="flex-1"><h4 className="font-bold text-white text-sm">{p.full_name}</h4><span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">{p.clubs?.name || "Vereinslos"}</span></div>
                             <ChevronRight size={16} className="text-zinc-600"/>
                         </div>
                     ))}
@@ -123,7 +107,7 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     );
 };
 
-// TOAST NOTIFICATIONS (Modernisiert)
+// TOAST NOTIFICATIONS
 const ToastContainer = ({ toasts, removeToast }) => (
   <div className="fixed top-6 left-0 right-0 z-[120] flex flex-col items-center gap-3 pointer-events-none px-4">
     {toasts.map(t => (
@@ -137,7 +121,7 @@ const ToastContainer = ({ toasts, removeToast }) => (
   </div>
 );
 
-// COOKIE BANNER (Glassmorphism)
+// COOKIE BANNER
 const CookieBanner = () => {
     const [accepted, setAccepted] = useState(false);
     useEffect(() => { if (localStorage.getItem('cookie_consent') === 'true') setAccepted(true); }, []);
@@ -147,7 +131,7 @@ const CookieBanner = () => {
             <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl flex flex-col gap-4">
                 <div className="flex items-start gap-4">
                     <div className="p-2.5 bg-white/10 rounded-xl text-white"><Cookie size={24} /></div>
-                    <div className="text-xs text-zinc-400 leading-relaxed"><span className="font-bold text-white block mb-1 text-sm">Privatsphäre</span>Wir nutzen technisch notwendige Cookies für den Login-Status. Keine Werbung, kein Tracking.</div>
+                    <div className="text-xs text-zinc-400 leading-relaxed"><span className="font-bold text-white block mb-1 text-sm">Privatsphäre</span>Wir nutzen technisch notwendige Cookies für den Login.</div>
                 </div>
                 <button onClick={() => { localStorage.setItem('cookie_consent', 'true'); setAccepted(true); }} className="w-full bg-white text-black font-bold py-3 rounded-xl text-sm hover:bg-zinc-200 transition">Alles klar</button>
             </div>
@@ -184,18 +168,13 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS MODAL
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
+// SETTINGS MODAL (REPARIERT)
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
-
     const MenuItem = ({ icon: Icon, label, onClick, highlight }) => (
         <button onClick={onClick} className={`w-full p-4 rounded-2xl flex items-center justify-between transition-all group ${highlight ? 'bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30' : 'bg-white/5 hover:bg-white/10 border border-transparent'}`}>
-            <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-xl ${highlight ? 'bg-blue-500 text-white' : 'bg-black/30 text-zinc-400 group-hover:text-white'}`}><Icon size={20} /></div>
-                <span className={`font-semibold ${highlight ? 'text-blue-200' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
-            </div>
-            <ChevronRight size={18} className={highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
+            <div className="flex items-center gap-4"><div className={`p-2 rounded-xl ${highlight ? 'bg-blue-500 text-white' : 'bg-black/30 text-zinc-400 group-hover:text-white'}`}><Icon size={20} /></div><span className={`font-semibold ${highlight ? 'text-blue-200' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div><ChevronRight size={18} className={highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
 
@@ -205,24 +184,21 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                 <button onClick={onClose} className="absolute top-5 right-5 p-2 hover:bg-white/10 rounded-full transition text-zinc-500 hover:text-white"><X size={20} /></button>
                 {view === 'menu' && (
                     <div className="space-y-4 mt-8">
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div>
-                            <h2 className="text-xl font-bold text-white">Einstellungen</h2>
-                            <p className="text-zinc-500 text-xs mt-1">Version 2.0.0 (Glass UI)</p>
-                        </div>
-                        
+                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.0 (Glass UI)</p></div>
                         {installPrompt && <MenuItem icon={Download} label="App installieren" onClick={onInstallApp} highlight />}
                         <MenuItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                         <div className="h-px bg-white/5 my-2"></div>
                         <MenuItem icon={FileText} label="Impressum" onClick={() => setView('impressum')} />
                         <MenuItem icon={Lock} label="Datenschutz" onClick={() => setView('privacy')} />
-                        
-                        <div className="pt-4">
-                            <button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button>
+                        <div className="pt-4"><button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button></div>
+                        {/* Status Anzeige */}
+                        <div className="flex items-center justify-center gap-2 mt-4 text-xs">
+                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={12} className="text-green-500"/> : <WifiOff size={12} className="text-red-500"/>}
+                            <span className={realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}>{realtimeStatus === 'SUBSCRIBED' ? 'Verbunden' : 'Getrennt'}</span>
                         </div>
                     </div>
                 )}
-                {view === 'impressum' && <LegalText title="Impressum" content={<><p className="mb-4">Angaben gemäß § 5 TMG</p><div className="bg-white/5 p-4 rounded-xl space-y-2"><p className="font-bold text-white">ScoutVision GmbH (i.G.)</p><p>Musterstraße 1<br/>12345 Berlin</p><p className="pt-2 text-white">Kontakt:</p><p>info@scoutvision.app</p></div></>} />}
+                {view === 'impressum' && <LegalText title="Impressum" content={<><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1, 12345 Berlin</p></>} />}
                 {view === 'privacy' && <LegalText title="Datenschutz" content={<p>Datenschutzerklärung...</p>} />}
             </div>
         </div>
@@ -240,13 +216,8 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const handleAuth = async (e) => {
     e.preventDefault(); setLoading(true); setMsg('');
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
+      if (isSignUp) { const { error } = await supabase.auth.signUp({ email, password }); if (error) throw error; }
+      else { const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) throw error; }
       onSuccess();
     } catch (error) { setMsg(error.message); } finally { setLoading(false); }
   };
@@ -255,24 +226,14 @@ const LoginModal = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
-        <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-                <User size={28} className="text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">{isSignUp ? 'Konto erstellen' : 'Willkommen zurück'}</h2>
-            <p className="text-zinc-400 text-sm mt-1">Deine Karriere startet hier.</p>
-        </div>
+        <div className="text-center mb-8"><div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20"><User size={28} className="text-white" /></div><h2 className="text-2xl font-bold text-white">{isSignUp ? 'Konto erstellen' : 'Willkommen zurück'}</h2><p className="text-zinc-400 text-sm mt-1">Deine Karriere startet hier.</p></div>
         <form onSubmit={handleAuth} className="space-y-4">
           <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
           <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
           {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
-          <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
-              {loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Jetzt registrieren' : 'Einloggen'}
-          </button>
+          <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Jetzt registrieren' : 'Einloggen'}</button>
         </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center mt-6 text-zinc-400 text-sm hover:text-white transition">
-            {isSignUp ? 'Schon dabei? ' : 'Neu hier? '}<span className="text-blue-400 font-bold underline">{isSignUp ? 'Login' : 'Registrieren'}</span>
-        </button>
+        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center mt-6 text-zinc-400 text-sm hover:text-white transition">{isSignUp ? 'Schon dabei? ' : 'Neu hier? '}<span className="text-blue-400 font-bold underline">{isSignUp ? 'Login' : 'Registrieren'}</span></button>
       </div>
     </div>
   );
@@ -301,14 +262,9 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
         <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
         {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
         <div className="space-y-4">
-            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5">
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select>
-            </div>
+            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
             <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div>
-                <p className="text-sm text-zinc-300 font-medium">Video auswählen</p>
-                <p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p>
-                <input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
             </label>
         </div>
         )}
@@ -332,7 +288,6 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
         <div className="flex-1 overflow-y-auto p-6">
             <form onSubmit={handleSave} className="space-y-6">
             <div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div>
-            
             <div className="space-y-4">
                 <div className="space-y-1"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Spielerinfo</label><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Vollständiger Name" /></div>
                 <div className="grid grid-cols-2 gap-4">
@@ -340,14 +295,12 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
                     <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Starker Fuß</label><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div>
                 </div>
                 <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Status</label><select value={formData.transfer_status} onChange={e=>setFormData({...formData, transfer_status: e.target.value})} className={inputStyle}><option value="Gebunden">🔴 Vertraglich gebunden</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Suche Verein">🟢 Suche neuen Verein</option></select></div>
-                
                 <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Verein</label>
                     {selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : 
                     <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>
                     {clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}
                     {showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><h4 className="text-sm font-bold text-white">Neuen Verein erstellen</h4><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}
                 </div>
-
                 <div className="pt-4 border-t border-white/5"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Social Media (Usernames)</label>
                     <div className="grid grid-cols-1 gap-3 mt-2">
                         <div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
