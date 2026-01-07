@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus } from 'lucide-react';
 
 // --- 2. KONFIGURATION ---
 
@@ -22,7 +22,7 @@ const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded
 
 // --- 3. MODALS & COMPONENTS ---
 
-// GAST HINWEIS-KARTE (Modern Dark Glass)
+// GAST HINWEIS-KARTE
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
         <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10">
@@ -36,7 +36,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     </div>
 );
 
-// ONBOARDING WIZARD (FIX: onConflict hinzugefügt)
+// ONBOARDING WIZARD
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -46,15 +46,12 @@ const OnboardingWizard = ({ session, onComplete }) => {
         if (!name.trim()) return;
         setLoading(true);
         try {
-            // FIX: Wir nutzen { onConflict: 'user_id' }, damit bestehende Einträge geupdated werden
-            // statt einen Fehler zu werfen.
             const { error } = await supabase.from('players_master').upsert({ 
                 user_id: session.user.id, 
                 full_name: name,
                 position_primary: 'ZM',
                 transfer_status: 'Gebunden'
             }, { onConflict: 'user_id' });
-            
             if (error) throw error;
             onComplete();
         } catch (error) {
@@ -76,14 +73,7 @@ const OnboardingWizard = ({ session, onComplete }) => {
                     <p className="text-zinc-400">Wie sollen dich Scouts und Vereine nennen?</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-                    <input 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        placeholder="Dein Spielername" 
-                        className={inputStyle}
-                        required 
-                        autoFocus 
-                    />
+                    <input value={name} onChange={e => setName(e.target.value)} placeholder="Dein Spielername" className={inputStyle} required autoFocus />
                     <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading ? <Loader2 className="animate-spin" /> : "Profil erstellen"}</button>
                 </form>
                 <button onClick={() => supabase.auth.signOut()} className="text-zinc-500 text-xs hover:text-white underline relative z-10">Abbrechen & Ausloggen</button>
@@ -194,7 +184,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
 };
 
 // SETTINGS MODAL
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
     const MenuItem = ({ icon: Icon, label, onClick, highlight }) => (
@@ -216,11 +206,6 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                         <MenuItem icon={FileText} label="Impressum" onClick={() => setView('impressum')} />
                         <MenuItem icon={Lock} label="Datenschutz" onClick={() => setView('privacy')} />
                         <div className="pt-4"><button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button></div>
-                        {/* Status Anzeige */}
-                        <div className="flex items-center justify-center gap-2 mt-4 text-xs">
-                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={12} className="text-green-500"/> : <WifiOff size={12} className="text-red-500"/>}
-                            <span className={realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}>{realtimeStatus === 'SUBSCRIBED' ? 'Verbunden' : 'Getrennt'}</span>
-                        </div>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1, 12345 Berlin</p></>} />}
@@ -230,45 +215,82 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL
+// LOGIN MODAL (NEU: Split Design mit Gast-Option)
 const LoginModal = ({ onClose, onSuccess }) => {
+  const [view, setView] = useState('start'); // 'start', 'login', 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleAuth = async (e) => {
-    e.preventDefault(); setLoading(true); setMsg('');
+    e.preventDefault(); setLoading(true); setMsg(''); setSuccessMsg('');
+    const isSignUp = view === 'register';
     try {
-      if (isSignUp) { const { error } = await supabase.auth.signUp({ email, password }); if (error) throw error; }
-      else { const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) throw error; }
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.user && !data.session) {
+             setSuccessMsg('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.');
+             return;
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
       onSuccess();
     } catch (error) { setMsg(error.message); } finally { setLoading(false); }
   };
 
+  const renderStart = () => (
+      <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-5">
+          <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+                 <User size={32} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Willkommen</h2>
+              <p className="text-zinc-400 text-sm mt-2">Werde Teil der größten Amateurfußball-Community.</p>
+          </div>
+          <button onClick={() => setView('login')} className="w-full bg-white text-black font-bold py-3.5 rounded-xl hover:bg-zinc-200 transition">Einloggen</button>
+          <button onClick={() => setView('register')} className="w-full bg-zinc-800 text-white font-bold py-3.5 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition">Registrieren</button>
+          <div className="my-2 border-t border-white/5"></div>
+          <button onClick={onClose} className="text-zinc-500 text-sm hover:text-white transition py-2">Erstmal nur umschauen</button>
+      </div>
+  );
+
+  const renderForm = () => (
+    <div className="animate-in fade-in slide-in-from-right-5">
+        <div className="flex items-center gap-3 mb-6">
+            <button onClick={() => setView('start')} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-zinc-400"/></button>
+            <h2 className="text-xl font-bold text-white">{view === 'register' ? 'Account erstellen' : 'Einloggen'}</h2>
+        </div>
+
+        {successMsg ? (
+            <div className="text-center space-y-4">
+                <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
+                <button onClick={() => { setView('login'); setSuccessMsg(''); }} className="text-blue-400 hover:text-white text-sm font-bold underline">Zum Login wechseln</button>
+            </div>
+        ) : (
+            <form onSubmit={handleAuth} className="space-y-4">
+                <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
+                {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
+                <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
+                    {loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}
+                </button>
+            </form>
+        )}
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
-        <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
-        <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
-                <User size={28} className="text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">{isSignUp ? 'Konto erstellen' : 'Willkommen zurück'}</h2>
-            <p className="text-zinc-400 text-sm mt-1">Deine Karriere startet hier.</p>
-        </div>
-        <form onSubmit={handleAuth} className="space-y-4">
-          <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-          {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
-          <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
-              {loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Jetzt registrieren' : 'Einloggen'}
-          </button>
-        </form>
-        <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center mt-6 text-zinc-400 text-sm hover:text-white transition">
-            {isSignUp ? 'Schon dabei? ' : 'Neu hier? '}<span className="text-blue-400 font-bold underline">{isSignUp ? 'Login' : 'Registrieren'}</span>
-        </button>
+        {/* Schließen Button nur im Start-Screen sichtbar, da wir im Formular einen Zurück-Button haben */}
+        {view === 'start' && <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>}
+        
+        {view === 'start' ? renderStart() : renderForm()}
       </div>
     </div>
   );
