@@ -13,11 +13,10 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 // --- 3. HELFER & STYLES ---
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
-const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100";
-const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95";
+const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
+const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
 const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
 const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
-// Header schwebt jetzt leicht über dem Inhalt mit Blur
 const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
 
 // --- 4. KOMPONENTEN & MODALS ---
@@ -164,7 +163,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                 <button onClick={onClose} className="absolute top-5 right-5 p-2 hover:bg-white/10 rounded-full transition text-zinc-500 hover:text-white"><X size={20} /></button>
                 {view === 'menu' && (
                     <div className="space-y-4 mt-8">
-                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.3 (Glass)</p></div>
+                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.4 (Glass Stable)</p></div>
                         {installPrompt && <MenuItem icon={Download} label="App installieren" onClick={onInstallApp} highlight />}
                         <MenuItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                         <div className="h-px bg-white/5 my-2"></div>
@@ -184,9 +183,9 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL (NEU: Split Design mit Gast-Option)
+// LOGIN MODAL
 const LoginModal = ({ onClose, onSuccess }) => {
-  const [view, setView] = useState('start'); // 'start', 'login', 'register'
+  const [view, setView] = useState('start');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -502,7 +501,7 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
                             </div>
                          ) : (
                             <>
-                                <button onClick={onFollow} className={`flex-1 ${player.isFollowing ? btnSecondary : btnPrimary} py-2.5 rounded-xl font-bold text-sm transition-all`}>
+                                <button onClick={onFollow} disabled={!player.user_id} className={`flex-1 ${player.isFollowing ? btnSecondary : btnPrimary} py-2.5 rounded-xl font-bold text-sm transition-all`}>
                                     {player.isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </button>
                                 <button onClick={onChatReq} className={`flex-1 ${btnSecondary} py-2.5`}>Nachricht</button>
@@ -771,7 +770,7 @@ const App = () => {
       )}
       
       {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
-      {activeTab === 'admin' && <AdminDashboardComponent session={session} />}
+      {activeTab === 'admin' && <AdminDashboard session={session} />}
       
       {/* MODERN FLOATING NAVIGATION */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-40 rounded-3xl shadow-2xl shadow-black/50">
@@ -798,15 +797,15 @@ const App = () => {
       <ToastContainer toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4 animate-in fade-in duration-300"><button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/10 rounded-full hover:bg-white/20 backdrop-blur-md transition"><X size={24} className="text-white"/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl" /></div>}
-      {showEditProfile && currentUserProfile && <EditProfileModalComponent player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      {showSettings && <SettingsModalComponent onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
+      {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
       
-      {activeCommentsVideo && <CommentsModalComponent video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
-      {activeChatPartner && <ChatWindowComponent partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
+      {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
+      {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showOnboarding && session && <OnboardingWizard session={session} onComplete={() => { setShowOnboarding(false); fetchMyProfile(session.user.id); }} />}
-      {showLogin && <LoginModalComponent onClose={() => setShowLogin(false)} onSuccess={() => setShowLogin(false)} />}
-      {showUpload && <UploadModalComponent player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={() => setShowLogin(false)} />}
+      {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
     </div>
   );
