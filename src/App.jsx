@@ -16,7 +16,7 @@ const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_15px_rgb
 
 // --- 3. MODALS & COMPONENTS ---
 
-// ONBOARDING WIZARD (Verhindert Black Screen bei neuen Usern)
+// ONBOARDING WIZARD (WICHTIG: Verhindert Black Screen bei neuen Usern)
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,12 +26,12 @@ const OnboardingWizard = ({ session, onComplete }) => {
         if (!name.trim()) return;
         setLoading(true);
         try {
+            // FIX: 'updated_at' entfernt, da die Spalte in der DB fehlt
             const { error } = await supabase.from('players_master').upsert({ 
                 user_id: session.user.id, 
                 full_name: name,
                 position_primary: 'ZM',
-                transfer_status: 'Gebunden',
-                updated_at: new Date()
+                transfer_status: 'Gebunden'
             });
             if (error) throw error;
             onComplete();
@@ -55,7 +55,7 @@ const OnboardingWizard = ({ session, onComplete }) => {
                         value={name} 
                         onChange={e => setName(e.target.value)} 
                         placeholder="Dein Name" 
-                        className="w-full bg-zinc-900 border border-zinc-800 text-white p-4 rounded-xl outline-none focus:border-indigo-500 transition" 
+                        className="w-full bg-zinc-900 border border-zinc-800 text-white p-4 rounded-xl outline-none focus:border-indigo-500 transition focus:ring-2 focus:ring-indigo-500/20" 
                         required 
                         autoFocus 
                     />
@@ -190,59 +190,123 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL
+// LOGIN MODAL (NEU & ÜBERARBEITET)
 const LoginModal = ({ onClose, onSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+    const [mode, setMode] = useState('login'); // 'login' oder 'register'
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [info, setInfo] = useState('');
 
-  const handleAuth = async (e) => {
-    e.preventDefault(); setLoading(true); setMsg(''); setSuccessMsg('');
-    try {
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        if (data.user && !data.session) {
-             setSuccessMsg('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.');
-             return;
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setInfo('');
+        setLoading(true);
+
+        try {
+            if (mode === 'register') {
+                const { data, error } = await supabase.auth.signUp({ email, password });
+                if (error) throw error;
+                
+                if (data.user && !data.session) {
+                    setInfo('Registrierung erfolgreich! Bitte überprüfe deine E-Mails, um den Account zu bestätigen.');
+                } else {
+                    onSuccess();
+                }
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                onSuccess();
+            }
+        } catch (err) {
+            let msg = err.message;
+            // Übersetzung gängiger Fehler
+            if (msg.includes("Invalid login credentials")) msg = "Falsche E-Mail oder Passwort.";
+            if (msg.includes("User already registered")) msg = "Diese E-Mail ist bereits registriert.";
+            if (msg.includes("weak_password")) msg = "Das Passwort muss mindestens 6 Zeichen lang sein.";
+            setError(msg);
+        } finally {
+            setLoading(false);
         }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
-      onSuccess();
-    } catch (error) { setMsg(error.message); } finally { setLoading(false); }
-  };
+    };
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
-      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 border border-zinc-800 shadow-2xl relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white"><X size={20} /></button>
-        <div className="text-center mb-6"><div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-3"><User size={24} /></div><h2 className="text-2xl font-bold text-white">{isSignUp ? 'Account erstellen' : 'Willkommen zurück'}</h2></div>
-        
-        {successMsg ? (
-            <div className="text-center space-y-4 animate-in fade-in">
-                <div className="bg-green-900/30 text-green-400 p-4 rounded-xl border border-green-800 text-sm">{successMsg}</div>
-                <button onClick={() => { setIsSignUp(false); setSuccessMsg(''); }} className="text-indigo-400 hover:text-white text-sm font-bold underline">Zum Login wechseln</button>
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-8 relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition"><X size={20} /></button>
+                
+                <div className="text-center mb-8">
+                    <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/20">
+                        <User size={24} className="text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-1">
+                        {mode === 'login' ? 'Willkommen zurück' : 'Konto erstellen'}
+                    </h2>
+                    <p className="text-zinc-400 text-sm">
+                        {mode === 'login' ? 'Logge dich ein, um fortzufahren.' : 'Werde Teil der Community.'}
+                    </p>
+                </div>
+
+                {info ? (
+                    <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-xl text-center text-sm mb-6">
+                        {info}
+                        <button onClick={() => setMode('login')} className="block w-full mt-3 text-white font-bold underline hover:text-green-300">Zum Login</button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                            <input 
+                                type="email" 
+                                placeholder="E-Mail Adresse" 
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 text-white rounded-xl p-3.5 outline-none transition placeholder:text-zinc-600"
+                                required 
+                            />
+                            <input 
+                                type="password" 
+                                placeholder="Passwort" 
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500 text-white rounded-xl p-3.5 outline-none transition placeholder:text-zinc-600"
+                                required 
+                                minLength={6}
+                            />
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-xs text-center flex items-center justify-center gap-2">
+                                <AlertCircle size={14}/> {error}
+                            </div>
+                        )}
+
+                        <button 
+                            disabled={loading}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+                        >
+                            {loading ? <Loader2 className="animate-spin" size={20} /> : (mode === 'login' ? 'Einloggen' : 'Registrieren')}
+                        </button>
+                    </form>
+                )}
+
+                {!info && (
+                    <div className="mt-6 text-center text-sm">
+                        <span className="text-zinc-500">
+                            {mode === 'login' ? 'Noch kein Account?' : 'Bereits registriert?'}
+                        </span>
+                        <button 
+                            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
+                            className="text-indigo-400 hover:text-indigo-300 font-bold ml-1.5 transition"
+                        >
+                            {mode === 'login' ? 'Jetzt registrieren' : 'Hier einloggen'}
+                        </button>
+                    </div>
+                )}
             </div>
-        ) : (
-            <form onSubmit={handleAuth} className="space-y-4">
-            <input type="email" placeholder="Email" required className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input type="password" placeholder="Passwort" required className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-3 outline-none focus:border-indigo-500" value={password} onChange={(e) => setPassword(e.target.value)} />
-            {msg && <p className="text-red-400 text-xs text-center">{msg}</p>}
-            <button disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg flex justify-center gap-2">{loading && <Loader2 className="animate-spin" size={18} />} {isSignUp ? 'Registrieren' : 'Einloggen'}</button>
-            </form>
-        )}
-        
-        {!successMsg && (
-            <button onClick={() => { setIsSignUp(!isSignUp); setMsg(''); }} className="w-full text-center mt-4 text-indigo-400 text-sm hover:underline">{isSignUp ? 'Zum Login' : 'Neu registrieren'}</button>
-        )}
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 // UPLOAD MODAL
@@ -310,10 +374,8 @@ const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
   const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
   return (
-    <div className="fixed inset-0 z-[90] bg-zinc-950 flex flex-col animate-in slide-in-from-right">
-      <div className="flex items-center gap-3 p-4 border-b border-zinc-800 bg-zinc-900">
-          <button onClick={onClose}><ArrowLeft className="text-zinc-400"/></button>
-          <div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer">
+    <div className="fixed inset-0 z-[90] bg-zinc-950 flex flex-col">
+      <div className="flex items-center gap-3 p-4 border-b border-zinc-800 bg-zinc-900"><button onClick={onClose}><ArrowLeft className="text-zinc-400"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer">
               <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-1.5 text-zinc-500"/>}</div>
               <div className="font-bold text-white">{partner.full_name}</div>
           </div>
@@ -457,17 +519,10 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [activeChatPartner, setActiveChatPartner] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [reportTarget, setReportTarget] = useState(null);
-  
-  // NEW: Follower Modal State
   const [showFollowersModal, setShowFollowersModal] = useState(false);
-
-  // REALTIME STATE
   const [toasts, setToasts] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // PWA STATE
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // REF für activeChatPartner (verhindert useEffect Neustart)
   const activeChatPartnerRef = useRef(activeChatPartner);
@@ -480,12 +535,7 @@ const App = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) fetchMyProfile(session.user.id); });
     supabase.auth.onAuthStateChange((_event, session) => { setSession(session); if (session) fetchMyProfile(session.user.id); else setCurrentUserProfile(null); });
-    
-    // PWA INSTALL LISTENER
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
   }, []);
 
   // REALTIME LISTENER
@@ -663,7 +713,7 @@ const App = () => {
     <div className="min-h-screen bg-zinc-950 text-white font-sans selection:bg-indigo-500/30">
       {!session && <button onClick={() => setShowLogin(true)} className="fixed top-4 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-1 hover:bg-indigo-700 transition"><LogIn size={14} /> Login</button>}
       
-      {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onClubClick={loadClub} onReportReq={(id, type) => setReportTarget({id, type})} />}
+      {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} />}
       {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
       {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} />}
       
