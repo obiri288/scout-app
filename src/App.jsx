@@ -22,14 +22,14 @@ const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded
 
 // --- 3. MODALS & COMPONENTS ---
 
-// GAST HINWEIS-KARTE (NEU)
+// GAST HINWEIS-KARTE (Modern Dark Glass)
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
-    <div className="flex flex-col items-center justify-center h-[60vh] text-center px-6">
-        <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-zinc-800 shadow-xl">
-            <Icon size={40} className="text-zinc-600" />
+    <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
+        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10">
+            <Icon size={40} className="text-zinc-500" />
         </div>
-        <h3 className="text-2xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-zinc-400 mb-8 max-w-xs">{text}</p>
+        <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
+        <p className="text-zinc-400 mb-8 max-w-xs leading-relaxed">{text}</p>
         <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>
             Jetzt anmelden / registrieren
         </button>
@@ -50,7 +50,8 @@ const OnboardingWizard = ({ session, onComplete }) => {
                 user_id: session.user.id, 
                 full_name: name,
                 position_primary: 'ZM',
-                transfer_status: 'Gebunden'
+                transfer_status: 'Gebunden',
+                updated_at: new Date()
             });
             if (error) throw error;
             onComplete();
@@ -69,13 +70,22 @@ const OnboardingWizard = ({ session, onComplete }) => {
                     <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/20 rotate-3">
                         <User size={40} className="text-white" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Willkommen! ⚽️</h1>
+                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Willkommen! 👋</h1>
                     <p className="text-zinc-400">Wie sollen dich Scouts und Vereine nennen?</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-                    <input value={name} onChange={e => setName(e.target.value)} placeholder="Dein Spielername" className={inputStyle} required autoFocus />
+                    <input 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        placeholder="Dein Spielername" 
+                        className={inputStyle}
+                        required 
+                        autoFocus 
+                    />
                     <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading ? <Loader2 className="animate-spin" /> : "Profil erstellen"}</button>
                 </form>
+                {/* Notausgang falls Session klemmt */}
+                <button onClick={() => supabase.auth.signOut()} className="text-zinc-500 text-xs hover:text-white underline relative z-10">Abbrechen & Ausloggen</button>
             </div>
         </div>
     );
@@ -198,7 +208,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                 <button onClick={onClose} className="absolute top-5 right-5 p-2 hover:bg-white/10 rounded-full transition text-zinc-500 hover:text-white"><X size={20} /></button>
                 {view === 'menu' && (
                     <div className="space-y-4 mt-8">
-                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.2 (Stable)</p></div>
+                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.2 (Glass UI)</p></div>
                         {installPrompt && <MenuItem icon={Download} label="App installieren" onClick={onInstallApp} highlight />}
                         <MenuItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                         <div className="h-px bg-white/5 my-2"></div>
@@ -493,6 +503,7 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
     return (
         <div className="pb-24 animate-in fade-in">
              <div className="relative">
+                 {/* Header Background Gradient */}
                  <div className="absolute inset-0 h-48 bg-gradient-to-b from-blue-900/20 to-black pointer-events-none"></div>
                  
                  <div className="pt-8 px-6 text-center relative z-10">
@@ -620,24 +631,32 @@ const App = () => {
   useEffect(() => {
     if (!session?.user?.id) return;
 
+    // Verwende einen benutzerspezifischen Channel-Namen
     const channel = supabase.channel(`realtime:global:${session.user.id}`)
+        // Lausche auf neue Notifications (Likes, Follows)
         .on('postgres_changes', { 
             event: 'INSERT', 
             schema: 'public', 
             table: 'notifications'
         }, (payload) => {
+            // Client-Side Filter
             if (payload.new.receiver_id === session.user.id) {
                 setUnreadCount(prev => prev + 1);
                 addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
             }
         })
+        // Lausche auf neue Nachrichten (Chat)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'direct_messages'
         }, (payload) => {
+            // Aktuellen Chat-Partner aus der Ref holen (statt State)
             const currentPartnerId = activeChatPartnerRef.current?.user_id;
+
+            // Client-Side Filter
             if (payload.new.receiver_id === session.user.id) {
+                // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
                 if (currentPartnerId !== payload.new.sender_id) { 
                     setUnreadCount(prev => prev + 1);
                     addToast("Neue Nachricht erhalten", "message");
@@ -649,8 +668,9 @@ const App = () => {
     return () => { 
         supabase.removeChannel(channel); 
     };
-  }, [session]);
+  }, [session]); // WICHTIG: activeChatPartner entfernt!
 
+  // TOAST HELPER
   const addToast = (content, type = 'info') => {
       const id = Date.now();
       setToasts(prev => [...prev, { id, content, type }]);
@@ -661,7 +681,9 @@ const App = () => {
       if(!deferredPrompt) return;
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') { setDeferredPrompt(null); }
+          if (choiceResult.outcome === 'accepted') {
+              setDeferredPrompt(null);
+          }
       });
   };
 
@@ -675,28 +697,44 @@ const App = () => {
   const toggleFollow = async () => {
       if(!session) { setShowLogin(true); return; }
       if(!viewedProfile) return;
-      if (!viewedProfile.user_id) { addToast("Nutzerdaten unvollständig.", "error"); return; }
+      
+      // SICHERHEITS-CHECK: Hat der Spieler überhaupt eine ID?
+      if (!viewedProfile.user_id) {
+          addToast("Nutzerdaten unvollständig.", "error");
+          return;
+      }
       
       const oldStatus = viewedProfile.isFollowing;
       const newStatus = !oldStatus;
       
-      setViewedProfile(prev => ({ ...prev, isFollowing: newStatus, followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1) }));
+      // 1. Optimistic Update (Sofortiges Feedback)
+      setViewedProfile(prev => ({ 
+          ...prev, 
+          isFollowing: newStatus,
+          followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1)
+      }));
 
       try {
+          // 2. DB Operation
           if (newStatus) {
               const { error } = await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
               if(error) throw error;
+              
+              // Notification senden
               await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id }).catch(console.error);
           } else {
               const { error } = await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
               if(error) throw error;
           }
           
+          // 3. Echte Zahl nachladen
           setTimeout(async () => {
              const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
              if(count !== null) {
                  setViewedProfile(prev => {
-                     if(prev && prev.user_id === viewedProfile.user_id) return { ...prev, followers_count: count };
+                     if(prev && prev.user_id === viewedProfile.user_id) {
+                         return { ...prev, followers_count: count };
+                     }
                      return prev;
                  });
              }
@@ -704,26 +742,50 @@ const App = () => {
 
       } catch (e) {
           console.error("Follow Error:", e);
+          
+          // Specific error handling for ghost profiles
           if (e.message?.includes("follows_following_id_fkey") || e.message?.includes("foreign key constraint")) {
               addToast("Nutzer existiert nicht mehr.", "error");
           } else {
               addToast("Fehler beim Folgen.", "error");
           }
-          setViewedProfile(prev => ({ ...prev, isFollowing: oldStatus, followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1) }));
+          
+          // Rollback UI
+          setViewedProfile(prev => ({ 
+              ...prev, 
+              isFollowing: oldStatus,
+              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1)
+          }));
       }
   };
 
   const fetchMyProfile = async (userId) => { 
+      // Prüfen, ob das Profil existiert, wenn nicht -> Erstellen/Onboarding
       const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
-      if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') { setShowOnboarding(true); } } else { setShowOnboarding(true); }
+      
+      if (data) { 
+          setCurrentUserProfile(data); 
+          // Falls Name leer oder Standard -> Onboarding zeigen
+          if(!data.full_name || data.full_name === 'Neuer Spieler') {
+              setShowOnboarding(true); 
+          }
+      } else {
+          // Kein Profil gefunden -> Onboarding starten
+          setShowOnboarding(true);
+      }
   };
   
   const loadProfile = async (targetPlayer) => { 
+      // Clone um keine Referenzprobleme zu bekommen
       let p = { ...targetPlayer };
+      
+      // Check ob wir diesem User folgen
       if (session) {
           const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle();
           p.isFollowing = !!data;
       }
+
+      // **FIX: Echte Follower-Zahl holen (statt Cache)**
       const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
       p.followers_count = count || 0;
 
