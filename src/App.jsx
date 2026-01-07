@@ -184,7 +184,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
 };
 
 // SETTINGS MODAL
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
     const MenuItem = ({ icon: Icon, label, onClick, highlight }) => (
@@ -206,6 +206,11 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                         <MenuItem icon={FileText} label="Impressum" onClick={() => setView('impressum')} />
                         <MenuItem icon={Lock} label="Datenschutz" onClick={() => setView('privacy')} />
                         <div className="pt-4"><button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button></div>
+                        {/* Status Anzeige */}
+                        <div className="flex items-center justify-center gap-2 mt-4 text-xs">
+                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={12} className="text-green-500"/> : <WifiOff size={12} className="text-red-500"/>}
+                            <span className={realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}>{realtimeStatus === 'SUBSCRIBED' ? 'Verbunden' : 'Getrennt'}</span>
+                        </div>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1, 12345 Berlin</p></>} />}
@@ -215,7 +220,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// LOGIN MODAL (NEU: Split Design mit Gast-Option)
+// LOGIN MODAL
 const LoginModal = ({ onClose, onSuccess }) => {
   const [view, setView] = useState('start'); // 'start', 'login', 'register'
   const [email, setEmail] = useState('');
@@ -287,9 +292,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
-        {/* Schließen Button nur im Start-Screen sichtbar, da wir im Formular einen Zurück-Button haben */}
         {view === 'start' && <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>}
-        
         {view === 'start' ? renderStart() : renderForm()}
       </div>
     </div>
@@ -467,7 +470,23 @@ const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserCl
     return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
-// GAST-HINWEIS FÜR INBOX & PROFIL (NEU)
+// SEARCH SCREEN (Wiederhergestellt: Fehlte in der letzten Version, verursachte Crash!)
+const SearchScreen = ({ onUserClick }) => {
+  const [query, setQuery] = useState(''); const [res, setRes] = useState([]); const [pos, setPos] = useState('Alle'); const [foot, setFoot] = useState('Alle'); const [status, setStatus] = useState('Alle');
+  useEffect(() => { const t = setTimeout(async () => { let q = supabase.from('players_master').select('*, clubs(*)'); if(query) q = q.ilike('full_name', `%${query}%`); if(pos !== 'Alle') q = q.eq('position_primary', pos); if(foot !== 'Alle') q = q.eq('strong_foot', foot); if(status !== 'Alle') q = q.eq('transfer_status', status); const { data } = await q.limit(20); setRes(data||[]); }, 300); return () => clearTimeout(t); }, [query, pos, foot, status]);
+  const getStatusColor = (s) => { if(s === 'Suche Verein') return 'bg-emerald-500'; if(s === 'Vertrag läuft aus') return 'bg-amber-500'; return 'bg-red-500'; };
+
+  return (
+    <div className="pb-24 pt-4 px-4 max-w-md mx-auto min-h-screen">
+      <h2 className="text-2xl font-bold text-white mb-4">Scouting</h2>
+      <div className="relative mb-4"><div className="absolute left-3 top-3 text-zinc-400"><Search size={20}/></div><input placeholder="Suchen..." value={query} onChange={e=>setQuery(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-indigo-500" /></div>
+      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2"><select onChange={e=>setStatus(e.target.value)} className={`text-xs px-3 py-2 rounded-full font-bold outline-none border ${status!=='Alle' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-zinc-800 text-white border-zinc-800'}`}><option value="Alle">Status: Alle</option><option value="Suche Verein">🟢 Suche neuen Verein</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Gebunden">🔴 Gebunden</option></select><select onChange={e=>setPos(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Pos: Alle</option>{['ST','ZOM','ZM','IV','TW'].map(p=><option key={p}>{p}</option>)}</select><select onChange={e=>setFoot(e.target.value)} className="bg-zinc-800 text-white text-xs px-3 py-2 rounded-full outline-none"><option value="Alle">Fuß: Alle</option><option>Rechts</option><option>Links</option></select></div>
+      <div className="space-y-3">{res.map(p => (<div key={p.id} onClick={()=>onUserClick(p)} className="bg-zinc-900 p-3 rounded-xl border border-zinc-800 flex items-center gap-4 cursor-pointer hover:bg-zinc-800 transition relative overflow-hidden"><div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(p.transfer_status)}`}></div><div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 ml-2">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<span className="font-bold text-zinc-500">{p.full_name?.charAt(0)}</span>}</div><div className="flex-1"><div className="flex justify-between items-center"><h3 className="font-bold text-white text-sm flex items-center gap-2">{p.full_name}{p.transfer_status === 'Suche Verein' && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}</h3><span className="text-xs bg-zinc-950 px-1.5 py-0.5 rounded text-zinc-500 font-bold">{p.position_primary}</span></div><div className="flex justify-between mt-1"><p className="text-xs text-zinc-400">{p.clubs?.name || "Vereinslos"}</p><p className="text-[10px] text-zinc-500 uppercase">{p.transfer_status || 'Gebunden'}</p></div></div></div>))}{res.length === 0 && <div className="text-center py-10 text-zinc-500 text-sm">Keine Spieler gefunden.</div>}</div>
+    </div>
+  );
+};
+
+// INBOX SCREEN
 const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
     const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]); const [chats, setChats] = useState([]);
     
