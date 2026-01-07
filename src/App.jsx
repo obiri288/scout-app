@@ -22,6 +22,20 @@ const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded
 
 // --- 3. MODALS & COMPONENTS ---
 
+// GAST HINWEIS-KARTE (NEU)
+const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
+    <div className="flex flex-col items-center justify-center h-[60vh] text-center px-6">
+        <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 border border-zinc-800 shadow-xl">
+            <Icon size={40} className="text-zinc-600" />
+        </div>
+        <h3 className="text-2xl font-bold text-white mb-2">{title}</h3>
+        <p className="text-zinc-400 mb-8 max-w-xs">{text}</p>
+        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>
+            Jetzt anmelden / registrieren
+        </button>
+    </div>
+);
+
 // ONBOARDING WIZARD
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
@@ -36,8 +50,7 @@ const OnboardingWizard = ({ session, onComplete }) => {
                 user_id: session.user.id, 
                 full_name: name,
                 position_primary: 'ZM',
-                transfer_status: 'Gebunden',
-                updated_at: new Date()
+                transfer_status: 'Gebunden'
             });
             if (error) throw error;
             onComplete();
@@ -169,8 +182,8 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// SETTINGS MODAL (Fixed: removed realtimeStatus to prevent crash if not passed)
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush }) => {
+// SETTINGS MODAL
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
     const [view, setView] = useState('menu');
     const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
     const MenuItem = ({ icon: Icon, label, onClick, highlight }) => (
@@ -185,13 +198,18 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                 <button onClick={onClose} className="absolute top-5 right-5 p-2 hover:bg-white/10 rounded-full transition text-zinc-500 hover:text-white"><X size={20} /></button>
                 {view === 'menu' && (
                     <div className="space-y-4 mt-8">
-                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.1 (Stable)</p></div>
+                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.2 (Stable)</p></div>
                         {installPrompt && <MenuItem icon={Download} label="App installieren" onClick={onInstallApp} highlight />}
                         <MenuItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                         <div className="h-px bg-white/5 my-2"></div>
                         <MenuItem icon={FileText} label="Impressum" onClick={() => setView('impressum')} />
                         <MenuItem icon={Lock} label="Datenschutz" onClick={() => setView('privacy')} />
                         <div className="pt-4"><button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button></div>
+                        {/* Status Anzeige */}
+                        <div className="flex items-center justify-center gap-2 mt-4 text-xs">
+                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={12} className="text-green-500"/> : <WifiOff size={12} className="text-red-500"/>}
+                            <span className={realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}>{realtimeStatus === 'SUBSCRIBED' ? 'Verbunden' : 'Getrennt'}</span>
+                        </div>
                     </div>
                 )}
                 {view === 'impressum' && <LegalText title="Impressum" content={<><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1, 12345 Berlin</p></>} />}
@@ -212,13 +230,8 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const handleAuth = async (e) => {
     e.preventDefault(); setLoading(true); setMsg('');
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      }
+      if (isSignUp) { const { error } = await supabase.auth.signUp({ email, password }); if (error) throw error; }
+      else { const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) throw error; }
       onSuccess();
     } catch (error) { setMsg(error.message); } finally { setLoading(false); }
   };
@@ -299,7 +312,6 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
         <div className="flex-1 overflow-y-auto p-6">
             <form onSubmit={handleSave} className="space-y-6">
             <div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div>
-            
             <div className="space-y-4">
                 <div className="space-y-1"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Spielerinfo</label><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Vollständiger Name" /></div>
                 <div className="grid grid-cols-2 gap-4">
@@ -307,14 +319,12 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
                     <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Starker Fuß</label><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div>
                 </div>
                 <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Status</label><select value={formData.transfer_status} onChange={e=>setFormData({...formData, transfer_status: e.target.value})} className={inputStyle}><option value="Gebunden">🔴 Vertraglich gebunden</option><option value="Vertrag läuft aus">🟡 Vertrag läuft aus</option><option value="Suche Verein">🟢 Suche neuen Verein</option></select></div>
-                
                 <div><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Verein</label>
                     {selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : 
                     <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>
                     {clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}
                     {showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><h4 className="text-sm font-bold text-white">Neuen Verein erstellen</h4><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}
                 </div>
-
                 <div className="pt-4 border-t border-white/5"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Social Media (Usernames)</label>
                     <div className="grid grid-cols-1 gap-3 mt-2">
                         <div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
@@ -424,8 +434,13 @@ const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserCl
     return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
-const InboxScreen = ({ session, onSelectChat, onUserClick }) => {
+// GAST-HINWEIS FÜR INBOX & PROFIL (NEU)
+const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
     const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]); const [chats, setChats] = useState([]);
+    
+    // GAST-CHECK: Wenn kein Nutzer eingeloggt ist, zeige Fallback
+    if (!session) return <GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} />;
+
     useEffect(() => {
         if(subTab==='notifications') supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[]));
         else if (subTab === 'messages' && session?.user?.id) {
@@ -467,7 +482,10 @@ const AdminDashboard = ({ session }) => {
 };
 
 // PROFILE SCREEN
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers }) => {
+const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq }) => {
+    // GAST-CHECK: Eigenes Profil erfordert Login
+    if (isOwnProfile && !player) return <GuestFallback icon={User} title="Dein Profil" text="Erstelle dein Spielerprofil, um von Scouts entdeckt zu werden." onLogin={onLoginReq} />;
+    
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Lädt...</div>;
     const statusColors = { 'Gebunden': 'bg-red-500 shadow-red-500/50', 'Vertrag läuft aus': 'bg-amber-500 shadow-amber-500/50', 'Suche Verein': 'bg-emerald-500 shadow-emerald-500/50' };
     const statusColor = statusColors[player.transfer_status] || 'bg-zinc-500';
@@ -475,7 +493,6 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
     return (
         <div className="pb-24 animate-in fade-in">
              <div className="relative">
-                 {/* Header Background Gradient */}
                  <div className="absolute inset-0 h-48 bg-gradient-to-b from-blue-900/20 to-black pointer-events-none"></div>
                  
                  <div className="pt-8 px-6 text-center relative z-10">
@@ -586,7 +603,7 @@ const App = () => {
 
   // REF für activeChatPartner (verhindert useEffect Neustart)
   const activeChatPartnerRef = useRef(activeChatPartner);
-  const [reportTarget, setReportTarget] = useState(null); // Report State hinzugefügt
+  const [reportTarget, setReportTarget] = useState(null); // Report State
 
   // Sync Ref mit State
   useEffect(() => {
@@ -603,32 +620,24 @@ const App = () => {
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    // Verwende einen benutzerspezifischen Channel-Namen
     const channel = supabase.channel(`realtime:global:${session.user.id}`)
-        // Lausche auf neue Notifications (Likes, Follows)
         .on('postgres_changes', { 
             event: 'INSERT', 
             schema: 'public', 
             table: 'notifications'
         }, (payload) => {
-            // Client-Side Filter
             if (payload.new.receiver_id === session.user.id) {
                 setUnreadCount(prev => prev + 1);
                 addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
             }
         })
-        // Lausche auf neue Nachrichten (Chat)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'direct_messages'
         }, (payload) => {
-            // Aktuellen Chat-Partner aus der Ref holen (statt State)
             const currentPartnerId = activeChatPartnerRef.current?.user_id;
-
-            // Client-Side Filter
             if (payload.new.receiver_id === session.user.id) {
-                // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
                 if (currentPartnerId !== payload.new.sender_id) { 
                     setUnreadCount(prev => prev + 1);
                     addToast("Neue Nachricht erhalten", "message");
@@ -640,9 +649,8 @@ const App = () => {
     return () => { 
         supabase.removeChannel(channel); 
     };
-  }, [session]); // WICHTIG: activeChatPartner entfernt!
+  }, [session]);
 
-  // TOAST HELPER
   const addToast = (content, type = 'info') => {
       const id = Date.now();
       setToasts(prev => [...prev, { id, content, type }]);
@@ -653,9 +661,7 @@ const App = () => {
       if(!deferredPrompt) return;
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-              setDeferredPrompt(null);
-          }
+          if (choiceResult.outcome === 'accepted') { setDeferredPrompt(null); }
       });
   };
 
@@ -669,44 +675,28 @@ const App = () => {
   const toggleFollow = async () => {
       if(!session) { setShowLogin(true); return; }
       if(!viewedProfile) return;
-      
-      // SICHERHEITS-CHECK: Hat der Spieler überhaupt eine ID?
-      if (!viewedProfile.user_id) {
-          addToast("Nutzerdaten unvollständig.", "error");
-          return;
-      }
+      if (!viewedProfile.user_id) { addToast("Nutzerdaten unvollständig.", "error"); return; }
       
       const oldStatus = viewedProfile.isFollowing;
       const newStatus = !oldStatus;
       
-      // 1. Optimistic Update (Sofortiges Feedback)
-      setViewedProfile(prev => ({ 
-          ...prev, 
-          isFollowing: newStatus,
-          followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1)
-      }));
+      setViewedProfile(prev => ({ ...prev, isFollowing: newStatus, followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1) }));
 
       try {
-          // 2. DB Operation
           if (newStatus) {
               const { error } = await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
               if(error) throw error;
-              
-              // Notification senden
               await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id }).catch(console.error);
           } else {
               const { error } = await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
               if(error) throw error;
           }
           
-          // 3. Echte Zahl nachladen
           setTimeout(async () => {
              const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
              if(count !== null) {
                  setViewedProfile(prev => {
-                     if(prev && prev.user_id === viewedProfile.user_id) {
-                         return { ...prev, followers_count: count };
-                     }
+                     if(prev && prev.user_id === viewedProfile.user_id) return { ...prev, followers_count: count };
                      return prev;
                  });
              }
@@ -714,50 +704,26 @@ const App = () => {
 
       } catch (e) {
           console.error("Follow Error:", e);
-          
-          // Specific error handling for ghost profiles
           if (e.message?.includes("follows_following_id_fkey") || e.message?.includes("foreign key constraint")) {
               addToast("Nutzer existiert nicht mehr.", "error");
           } else {
               addToast("Fehler beim Folgen.", "error");
           }
-          
-          // Rollback UI
-          setViewedProfile(prev => ({ 
-              ...prev, 
-              isFollowing: oldStatus,
-              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1)
-          }));
+          setViewedProfile(prev => ({ ...prev, isFollowing: oldStatus, followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1) }));
       }
   };
 
   const fetchMyProfile = async (userId) => { 
-      // Prüfen, ob das Profil existiert, wenn nicht -> Erstellen/Onboarding
       const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
-      
-      if (data) { 
-          setCurrentUserProfile(data); 
-          // Falls Name leer oder Standard -> Onboarding zeigen
-          if(!data.full_name || data.full_name === 'Neuer Spieler') {
-              setShowOnboarding(true); 
-          }
-      } else {
-          // Kein Profil gefunden -> Onboarding starten
-          setShowOnboarding(true);
-      }
+      if (data) { setCurrentUserProfile(data); if(!data.full_name || data.full_name === 'Neuer Spieler') { setShowOnboarding(true); } } else { setShowOnboarding(true); }
   };
   
   const loadProfile = async (targetPlayer) => { 
-      // Clone um keine Referenzprobleme zu bekommen
       let p = { ...targetPlayer };
-      
-      // Check ob wir diesem User folgen
       if (session) {
           const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle();
           p.isFollowing = !!data;
       }
-
-      // **FIX: Echte Follower-Zahl holen (statt Cache)**
       const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
       p.followers_count = count || 0;
 
@@ -768,7 +734,15 @@ const App = () => {
   };
   
   const loadClub = (club) => { setViewedClub(club); setActiveTab('club'); };
-  const handleProfileTabClick = () => { if (session && currentUserProfile) loadProfile(currentUserProfile); else setShowLogin(true); };
+  
+  // GAST-MODUS SUPPORT: Tabs wechseln auch ohne Login
+  const handleProfileTabClick = () => { 
+      if (session && currentUserProfile) {
+          loadProfile(currentUserProfile); 
+      } else {
+          setActiveTab('profile'); // Erlaubt Wechsel zum Profil-Tab (dort wird GuestFallback gezeigt)
+      }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 pb-20">
@@ -777,7 +751,7 @@ const App = () => {
       
       {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({id, type})} />}
       {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
-      {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} />}
+      {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} onLoginReq={() => setShowLogin(true)} />}
       
       {activeTab === 'profile' && (
           <ProfileScreen 
@@ -794,6 +768,7 @@ const App = () => {
             onAdminReq={()=>setActiveTab('admin')}
             onFollow={toggleFollow}
             onShowFollowers={() => setShowFollowersModal(true)}
+            onLoginReq={() => setShowLogin(true)}
           />
       )}
       
