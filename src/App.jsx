@@ -160,30 +160,6 @@ const EmptyProfileState = ({ onCreate }) => (
     </div>
 );
 
-const OnboardingWizard = ({ session, onComplete }) => {
-    const [name, setName] = useState('');
-    const [loading, setLoading] = useState(false);
-    const handleSubmit = async (e) => {
-        e.preventDefault(); if (!name.trim()) return;
-        setLoading(true);
-        try {
-            const { error } = await supabase.from('players_master').upsert({ user_id: session.user.id, full_name: name, position_primary: 'ZM', transfer_status: 'Gebunden' }, { onConflict: 'user_id' });
-            if (error) throw error; onComplete();
-        } catch (error) { alert("Fehler: " + error.message); } finally { setLoading(false); }
-    };
-    return (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
-            <div className="w-full max-w-md space-y-8 text-center animate-in zoom-in-95">
-                <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl"><User size={40} className="text-white" /></div>
-                <h1 className="text-3xl font-bold text-white mb-2">Willkommen! 👋</h1>
-                <p className="text-zinc-400">Wie sollen dich Scouts nennen?</p>
-                <form onSubmit={handleSubmit} className="space-y-4"><input value={name} onChange={e => setName(e.target.value)} placeholder="Dein Spielername" className={inputStyle} required autoFocus /><button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>{loading ? <Loader2 className="animate-spin" /> : "Profil erstellen"}</button></form>
-                <button onClick={() => supabase.auth.signOut()} className="text-zinc-500 text-xs hover:text-white underline">Abbrechen</button>
-            </div>
-        </div>
-    );
-};
-
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -664,7 +640,6 @@ const App = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [activeChatPartner, setActiveChatPartner] = useState(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -696,8 +671,26 @@ const App = () => {
   const fetchMyProfile = async (userId) => { 
       const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
       if (data) setCurrentUserProfile(data); 
-      // WICHTIG: Wenn KEIN Profil gefunden wird, machen wir hier NICHTS automatisches (kein showOnboarding),
-      // damit der EmptyState im ProfileScreen angezeigt werden kann.
+      // HINWEIS: Wir zeigen kein automatisches Onboarding mehr an.
+      // Der "Empty State" im ProfileScreen übernimmt die Aufforderung.
+  };
+
+  const handleCreateProfile = async () => {
+    if(!session) return;
+    // Erstelle leeres Profil mit Default-Werten
+    const { error } = await supabase.from('players_master').upsert({ 
+        user_id: session.user.id, 
+        full_name: 'Neuer Spieler', 
+        position_primary: 'ZM', 
+        transfer_status: 'Gebunden' 
+    });
+    
+    if (!error) {
+        // Profil neu laden damit der Screen umschaltet
+        fetchMyProfile(session.user.id);
+    } else {
+        alert("Fehler beim Erstellen: " + error.message);
+    }
   };
   
   const loadProfile = async (targetPlayer) => { 
@@ -759,7 +752,7 @@ const App = () => {
             onFollow={() => {}}
             onShowFollowers={() => setShowFollowersModal(true)}
             onLoginReq={() => setShowLogin(true)}
-            onCreateProfile={() => setShowOnboarding(true)} // Öffnet den Wizard
+            onCreateProfile={handleCreateProfile} // Direkte Erstellung statt Wizard
           />
       )}
       
@@ -782,7 +775,6 @@ const App = () => {
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
-      {showOnboarding && session && <OnboardingWizard session={session} onComplete={() => { setShowOnboarding(false); fetchMyProfile(session.user.id); }} />}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={() => setShowLogin(false)} />}
       {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
