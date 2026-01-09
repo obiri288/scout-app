@@ -1,14 +1,94 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List } from 'lucide-react';
+// import { createClient } from '@supabase/supabase-js'; // Für Preview deaktiviert, Mock unten aktiv
+import { 
+  Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
+  Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
+  Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, 
+  Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
+  Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, 
+  Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck
+} from 'lucide-react';
 
-// --- 2. KONFIGURATION ---
+// --- MOCK DATABASE & CLIENT (Simulation für Preview) ---
+const MOCK_USER_ID = "user-123";
 
-const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
+// HINWEIS: Um den "Empty State" (leeres Profil) zu testen, kommentiere den ersten Eintrag aus.
+const MOCK_DB = {
+    players_master: [
+        // { id: 1, user_id: MOCK_USER_ID, full_name: "Max Mustermann", position_primary: "ZOM", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=400&h=400&fit=crop", clubs: { id: 101, name: "FC Berlin", league: "Regionalliga", is_icon_league: true }, followers_count: 120, is_verified: true },
+        { id: 2, user_id: "user-456", full_name: "Leon Goretzka", position_primary: "ZM", transfer_status: "Vertrag läuft aus", avatar_url: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop", clubs: { id: 102, name: "Bayern M.", league: "Bundesliga", is_icon_league: true }, followers_count: 5000, is_verified: true },
+    ],
+    clubs: [
+        { id: 101, name: "FC Berlin", league: "Regionalliga", logo_url: "https://placehold.co/100x100/1e293b/ffffff?text=FCB", is_verified: true },
+        { id: 102, name: "Bayern M.", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true }
+    ],
+    media_highlights: [
+        { id: 1001, player_id: 2, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 45, created_at: new Date().toISOString() },
+    ],
+    follows: [],
+    direct_messages: [],
+    notifications: []
+};
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+// Simulation des Supabase Clients
+const createMockClient = () => {
+    return {
+        auth: {
+            getSession: async () => ({ data: { session: { user: { id: MOCK_USER_ID, email: "test@example.com" } } } }),
+            onAuthStateChange: (cb) => { cb('SIGNED_IN', { user: { id: MOCK_USER_ID } }); return { data: { subscription: { unsubscribe: () => {} } } }; },
+            signInWithPassword: async () => ({ data: { user: { id: MOCK_USER_ID }, session: {} }, error: null }),
+            signUp: async () => ({ data: { user: { id: MOCK_USER_ID }, session: null }, error: null }),
+            signOut: async () => ({ error: null })
+        },
+        from: (table) => {
+            const data = MOCK_DB[table] || [];
+            let filtered = [...data];
+            return {
+                select: (query) => {
+                    if (table === 'media_highlights' && query.includes('players_master')) {
+                        filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
+                    }
+                    if (table === 'players_master') {
+                        // Simuliere Join mit Clubs (vereinfacht)
+                        filtered = filtered.map(p => {
+                            if (p.clubs && typeof p.clubs === 'object') return p; // Schon gejoint
+                            // Hier müsste eigentlich echte Join Logik stehen, aber für Mock reicht es oft so
+                            return p; 
+                        });
+                    }
+                    return helper(filtered);
+                },
+                insert: async (obj) => { 
+                    const newItem = { ...obj, id: Date.now() }; 
+                    if(MOCK_DB[table]) MOCK_DB[table].push(newItem); 
+                    return { select: () => ({ single: () => ({ data: newItem }) }), catch: ()=>{} }; 
+                },
+                update: (obj) => ({ eq: (col, val) => { 
+                    const idx = MOCK_DB[table].findIndex(r => r[col] == val);
+                    if(idx >= 0) MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
+                    return { select: () => ({ single: () => ({ data: MOCK_DB[table][idx] }) }) }; 
+                }}),
+                delete: () => ({ match: () => ({ error: null }) }),
+                upsert: (obj) => ({ error: null })
+            };
+            function helper(d) { return { 
+                eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
+                ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))),
+                in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
+                or: () => helper(d),
+                order: () => helper(d), 
+                limit: () => helper(d), 
+                maybeSingle: () => ({ data: d[0]||null }), 
+                single: () => ({ data: d[0]||null }),
+                then: (cb) => cb({ data: d }) 
+            };}
+        },
+        storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "https://placehold.co/600" } }) }) },
+        channel: () => ({ on: () => ({ subscribe: () => {} }) }),
+        removeChannel: () => {}
+    };
+};
+const supabase = createMockClient();
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 3. HELFER & STYLES ---
@@ -35,6 +115,27 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     </div>
 );
 
+// NEU: Empty State für fehlendes Profil
+const EmptyProfileState = ({ onCreate }) => (
+    <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
+        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10 relative overflow-hidden group cursor-pointer" onClick={onCreate}>
+             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent"></div>
+             <div className="absolute inset-0 flex items-center justify-center bg-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Plus size={32} className="text-white"/>
+             </div>
+             <UserPlus size={40} className="text-zinc-500 relative z-10 group-hover:opacity-0 transition-opacity" />
+        </div>
+        <h3 className="text-2xl font-bold text-white mb-3">Werde zum Profi</h3>
+        <p className="text-zinc-400 mb-8 max-w-xs leading-relaxed text-sm">
+            Dein Spielerpass ist noch leer. Erstelle jetzt dein Profil, um von Scouts gefunden zu werden.
+        </p>
+        <button onClick={onCreate} className={`${btnPrimary} w-full max-w-xs flex items-center justify-center gap-2`}>
+            <UserCheck size={18} />
+            Profil erstellen
+        </button>
+    </div>
+);
+
 const OnboardingWizard = ({ session, onComplete }) => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -47,8 +148,8 @@ const OnboardingWizard = ({ session, onComplete }) => {
         } catch (error) { alert("Fehler: " + error.message); } finally { setLoading(false); }
     };
     return (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
-            <div className="w-full max-w-md space-y-8 text-center">
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
+            <div className="w-full max-w-md space-y-8 text-center animate-in zoom-in-95">
                 <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl"><User size={40} className="text-white" /></div>
                 <h1 className="text-3xl font-bold text-white mb-2">Willkommen! 👋</h1>
                 <p className="text-zinc-400">Wie sollen dich Scouts nennen?</p>
@@ -425,10 +526,12 @@ const AdminDashboard = ({ session }) => {
     return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
 };
 
-// 4. PROFILE SCREEN (MODERNISIERT: Schritt 1)
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq }) => {
+// 4. PROFILE SCREEN (MODERNISIERT mit EMPTY STATE)
+const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq }) => {
     // GAST-CHECK: Eigenes Profil erfordert Login
-    if (isOwnProfile && !player) return <div className="pt-20"><GuestFallback icon={User} title="Dein Profil" text="Erstelle dein Spielerprofil, um von Scouts entdeckt zu werden." onLogin={onLoginReq} /></div>;
+    if (isOwnProfile && !player) {
+        return <EmptyProfileState onCreate={onCreateProfile} />;
+    }
     
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Lädt...</div>;
     const statusColors = { 'Gebunden': 'bg-red-500 shadow-red-500/50', 'Vertrag läuft aus': 'bg-amber-500 shadow-amber-500/50', 'Suche Verein': 'bg-emerald-500 shadow-emerald-500/50' };
@@ -437,35 +540,28 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
     return (
         <div className="pb-24 animate-in fade-in">
              <div className="relative">
-                 {/* Header Background Gradient */}
                  <div className="absolute inset-0 h-48 bg-gradient-to-b from-blue-900/20 to-black pointer-events-none"></div>
-                 
                  <div className="pt-8 px-6 text-center relative z-10">
                      <div className="flex justify-between items-center mb-6">
                         {!isOwnProfile ? <button onClick={onBack} className="p-2 bg-zinc-900/50 rounded-full text-white backdrop-blur-md border border-white/10"><ArrowLeft size={20}/></button> : <div></div>}
                         {isOwnProfile && <button onClick={onSettingsReq} className="p-2 bg-zinc-900/50 rounded-full text-white backdrop-blur-md border border-white/10"><Settings size={20}/></button>}
                      </div>
-                     
                      <div className={`relative mb-4 group inline-block`}>
                         <div className={`absolute -inset-0.5 rounded-full blur opacity-50 bg-blue-600`}></div>
                         <div className={`relative w-28 h-28 rounded-full bg-zinc-900 overflow-hidden border-2 border-black ${getClubStyle(player.clubs?.is_icon_league)}`}>
                             {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={48} className="text-zinc-600 m-8"/>}
                         </div>
-                        {/* Status Badge am Bild */}
                         <div className={`absolute bottom-1 right-1 w-6 h-6 rounded-full border-4 border-black ${statusColor} flex items-center justify-center`} title={player.transfer_status}></div>
                      </div>
-                     
                      <h1 className="text-2xl font-black text-white flex items-center justify-center gap-2 mb-1">
                          {player.full_name} 
                          {player.is_verified && <CheckCircle size={18} className="text-blue-500 fill-blue-500/10"/>}
                          {player.clubs?.is_icon_league && <Crown size={18} className="text-amber-400 fill-amber-400/20"/>}
                      </h1>
-                     
-                     <p className="text-zinc-400 text-sm mb-6 font-medium">
+                     <p onClick={() => player.clubs && onClubClick(player.clubs)} className="text-zinc-400 text-sm mb-6 font-medium cursor-pointer hover:text-white transition">
                         {player.clubs?.name || "Vereinslos"} <span className="mx-1 text-zinc-600">•</span> <span className="text-zinc-300">{player.position_primary}</span>
                      </p>
-
-                     {/* NEUE STATS LEISTE (Kompakt) */}
+                     
                      <div className="flex items-center justify-center gap-6 text-sm mb-6 bg-white/5 px-6 py-3 rounded-2xl border border-white/5 backdrop-blur-sm mx-auto max-w-sm">
                         <div className="text-center cursor-pointer hover:opacity-80 transition" onClick={onShowFollowers}>
                             <span className="block font-bold text-white text-lg">{player.followers_count || 0}</span>
@@ -510,8 +606,6 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
                      </div>
                  </div>
              </div>
-             
-             {/* Video Grid mit neuem Look */}
              <div className="grid grid-cols-3 gap-0.5 mt-6 border-t border-white/10">
                 {highlights.map(v => (
                     <div key={v.id} onClick={() => onVideoClick(v)} className="aspect-[3/4] bg-zinc-900 relative cursor-pointer group overflow-hidden">
@@ -526,7 +620,53 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
     )
 }
 
-// --- 4. MAIN APP ---
+// 5. CLUB SCREEN
+const ClubScreen = ({ club, onBack, onUserClick }) => {
+    const [players, setPlayers] = useState([]);
+    useEffect(() => {
+        const fetchPlayers = async () => {
+            const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id);
+            setPlayers(data || []);
+        };
+        fetchPlayers();
+    }, [club]);
+
+    return (
+        <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
+             <div className="relative h-40 bg-zinc-900 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
+                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30 blur-sm"/>}
+                <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
+             </div>
+             <div className="px-6 -mt-12 relative z-10">
+                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
+                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
+                 </div>
+                 <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
+                 <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
+
+                 <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
+                 <div className="space-y-3">
+                     {players.map(p => (
+                         <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
+                             <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
+                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-3"/>}
+                             </div>
+                             <div>
+                                 <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
+                                 <span className="text-xs text-zinc-500 bg-white/10 px-2 py-0.5 rounded">{p.position_primary}</span>
+                             </div>
+                             <ChevronRight size={16} className="ml-auto text-zinc-600"/>
+                         </div>
+                     ))}
+                     {players.length === 0 && <p className="text-zinc-500 text-sm">Keine Spieler gefunden.</p>}
+                 </div>
+             </div>
+        </div>
+    );
+};
+
+// --- 6. MAIN APP ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [session, setSession] = useState(null);
@@ -547,14 +687,10 @@ const App = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // REF für activeChatPartner (verhindert useEffect Neustart)
   const activeChatPartnerRef = useRef(activeChatPartner);
-  const [reportTarget, setReportTarget] = useState(null); // Report State
+  const [reportTarget, setReportTarget] = useState(null);
 
-  // Sync Ref mit State
-  useEffect(() => {
-    activeChatPartnerRef.current = activeChatPartner;
-  }, [activeChatPartner]);
+  useEffect(() => { activeChatPartnerRef.current = activeChatPartner; }, [activeChatPartner]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) fetchMyProfile(session.user.id); });
@@ -562,165 +698,17 @@ const App = () => {
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
   }, []);
 
-  // REALTIME LISTENER
-  useEffect(() => {
-    if (!session?.user?.id) return;
-
-    // Verwende einen benutzerspezifischen Channel-Namen
-    const channel = supabase.channel(`realtime:global:${session.user.id}`)
-        // Lausche auf neue Notifications (Likes, Follows)
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'notifications'
-        }, (payload) => {
-            // Client-Side Filter
-            if (payload.new.receiver_id === session.user.id) {
-                setUnreadCount(prev => prev + 1);
-                addToast("Neue Mitteilung: " + (payload.new.type === 'like' ? 'Dein Video wurde geliked!' : 'Neuer Follower!'), 'info');
-            }
-        })
-        // Lausche auf neue Nachrichten (Chat)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages'
-        }, (payload) => {
-            // Aktuellen Chat-Partner aus der Ref holen (statt State)
-            const currentPartnerId = activeChatPartnerRef.current?.user_id;
-
-            // Client-Side Filter
-            if (payload.new.receiver_id === session.user.id) {
-                // Nur benachrichtigen, wenn wir nicht gerade mit dieser Person chatten
-                if (currentPartnerId !== payload.new.sender_id) { 
-                    setUnreadCount(prev => prev + 1);
-                    addToast("Neue Nachricht erhalten", "message");
-                }
-            }
-        })
-        .subscribe();
-
-    return () => { 
-        supabase.removeChannel(channel); 
-    };
-  }, [session]); // WICHTIG: activeChatPartner entfernt!
-
-  // TOAST HELPER
-  const addToast = (content, type = 'info') => {
-      const id = Date.now();
-      setToasts(prev => [...prev, { id, content, type }]);
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
-  };
-
-  const handleInstallApp = () => {
-      if(!deferredPrompt) return;
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-              setDeferredPrompt(null);
-          }
-      });
-  };
-
-  const handlePushRequest = async () => {
-      if (!("Notification" in window)) return alert("Dieser Browser unterstützt keine Benachrichtigungen.");
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") addToast("Benachrichtigungen aktiviert!", "info");
-      else alert("Benachrichtigungen wurden verweigert.");
-  };
-
-  const toggleFollow = async () => {
-      if(!session) { setShowLogin(true); return; }
-      if(!viewedProfile) return;
-      
-      // SICHERHEITS-CHECK: Hat der Spieler überhaupt eine ID?
-      if (!viewedProfile.user_id) {
-          addToast("Nutzerdaten unvollständig.", "error");
-          return;
-      }
-      
-      const oldStatus = viewedProfile.isFollowing;
-      const newStatus = !oldStatus;
-      
-      // 1. Optimistic Update (Sofortiges Feedback)
-      setViewedProfile(prev => ({ 
-          ...prev, 
-          isFollowing: newStatus,
-          followers_count: (prev.followers_count || 0) + (newStatus ? 1 : -1)
-      }));
-
-      try {
-          // 2. DB Operation
-          if (newStatus) {
-              const { error } = await supabase.from('follows').insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
-              if(error) throw error;
-              
-              // Notification senden
-              await supabase.from('notifications').insert({ receiver_id: viewedProfile.user_id, type: 'follow', actor_id: session.user.id }).catch(console.error);
-          } else {
-              const { error } = await supabase.from('follows').delete().match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
-              if(error) throw error;
-          }
-          
-          // 3. Echte Zahl nachladen
-          setTimeout(async () => {
-             const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewedProfile.user_id);
-             if(count !== null) {
-                 setViewedProfile(prev => {
-                     if(prev && prev.user_id === viewedProfile.user_id) {
-                         return { ...prev, followers_count: count };
-                     }
-                     return prev;
-                 });
-             }
-          }, 100);
-
-      } catch (e) {
-          console.error("Follow Error:", e);
-          
-          // Specific error handling for ghost profiles
-          if (e.message?.includes("follows_following_id_fkey") || e.message?.includes("foreign key constraint")) {
-              addToast("Nutzer existiert nicht mehr.", "error");
-          } else {
-              addToast("Fehler beim Folgen.", "error");
-          }
-          
-          // Rollback UI
-          setViewedProfile(prev => ({ 
-              ...prev, 
-              isFollowing: oldStatus,
-              followers_count: (prev.followers_count || 0) + (oldStatus ? 1 : -1)
-          }));
-      }
-  };
-
   const fetchMyProfile = async (userId) => { 
-      // Prüfen, ob das Profil existiert, wenn nicht -> Erstellen/Onboarding
       const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
-      
-      if (data) { 
-          setCurrentUserProfile(data); 
-          // Falls Name leer oder Standard -> Onboarding zeigen
-          if(!data.full_name || data.full_name === 'Neuer Spieler') {
-              setShowOnboarding(true); 
-          }
-      } else {
-          // Kein Profil gefunden -> Onboarding starten
-          setShowOnboarding(true);
-      }
+      if (data) setCurrentUserProfile(data); 
+      // WICHTIG: Wenn KEIN Profil gefunden wird, machen wir hier NICHTS automatisches (kein showOnboarding),
+      // damit der EmptyState im ProfileScreen angezeigt werden kann.
   };
   
   const loadProfile = async (targetPlayer) => { 
-      // Clone um keine Referenzprobleme zu bekommen
       let p = { ...targetPlayer };
-      
-      // Check ob wir diesem User folgen
-      if (session) {
-          const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle();
-          p.isFollowing = !!data;
-      }
-
-      // **FIX: Echte Follower-Zahl holen (statt Cache)**
+      if (session) { const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle(); p.isFollowing = !!data; }
+      // Echte Follower-Zahl holen
       const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
       p.followers_count = count || 0;
 
@@ -730,20 +718,20 @@ const App = () => {
       setActiveTab('profile'); 
   };
   
-  const loadClub = (club) => { setViewedClub(club); setActiveTab('club'); };
-  
-  // GAST-MODUS SUPPORT: Tabs wechseln auch ohne Login
+  // Tab-Logik angepasst für Empty State Support
   const handleProfileTabClick = () => { 
       if (session && currentUserProfile) {
           loadProfile(currentUserProfile); 
       } else {
-          setActiveTab('profile'); // Erlaubt Wechsel zum Profil-Tab (dort wird GuestFallback gezeigt)
+          // Auch wenn kein Profil da ist, wechseln wir zum Tab.
+          // Der ProfileScreen kümmert sich um die Anzeige (EmptyState oder GuestFallback).
+          setViewedProfile(null); // Reset, damit wir wissen "es ist kein fremdes Profil"
+          setActiveTab('profile'); 
       }
   };
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 pb-20">
-      {/* Floating Login Button */}
       {!session && <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 hover:bg-white/20 transition hover:scale-105 active:scale-95"><LogIn size={14} /> Login</button>}
       
       {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({id, type})} />}
@@ -755,52 +743,42 @@ const App = () => {
             player={viewedProfile} 
             highlights={profileHighlights} 
             onVideoClick={setActiveVideo}
-            isOwnProfile={session && viewedProfile?.user_id === session.user.id}
+            // Hier ist die Logik für "Ist das mein Tab?":
+            // 1. Session existiert
+            // 2. UND (entweder viewedProfile ist null [d.h. ich habe auf den Tab geklickt] ODER die ID passt)
+            isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)}
+            
             onBack={() => setActiveTab('home')}
             onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))}
             onEditReq={() => setShowEditProfile(true)}
             onSettingsReq={() => setShowSettings(true)}
             onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
-            onClubClick={loadClub}
+            onClubClick={(c) => { setViewedClub(c); setActiveTab('club'); }}
             onAdminReq={()=>setActiveTab('admin')}
-            onFollow={toggleFollow}
+            onFollow={() => {}} // Eigene Profile kann man nicht folgen
             onShowFollowers={() => setShowFollowersModal(true)}
             onLoginReq={() => setShowLogin(true)}
+            onCreateProfile={() => setShowOnboarding(true)} // Öffnet den Wizard
           />
       )}
       
       {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
       {activeTab === 'admin' && <AdminDashboard session={session} />}
       
-      {/* MODERN FLOATING NAVIGATION */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-40 rounded-3xl shadow-2xl shadow-black/50">
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'home' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Home size={24} /></button>
           <button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'search' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Search size={24} /></button>
-          
-          <div className="relative -top-8">
-            <button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40 border-4 border-black transition-transform hover:scale-105 active:scale-95">
-                <Plus size={28} className="text-white" strokeWidth={3} />
-            </button>
-          </div>
-
-          <button onClick={() => { setActiveTab('inbox'); setUnreadCount(0); }} className={`flex flex-col items-center gap-1 transition duration-300 relative ${activeTab === 'inbox' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              <div className="relative">
-                  <Mail size={24} />
-                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-black">{unreadCount}</span>}
-              </div>
-          </button>
+          <div className="relative -top-8"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40 border-4 border-black transition-transform hover:scale-105 active:scale-95"><Plus size={28} className="text-white" strokeWidth={3} /></button></div>
+          <button onClick={() => { setActiveTab('inbox'); setUnreadCount(0); }} className={`flex flex-col items-center gap-1 transition duration-300 relative ${activeTab === 'inbox' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><div className="relative"><Mail size={24} />{unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-black">{unreadCount}</span>}</div></button>
           <button onClick={handleProfileTabClick} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'profile' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><User size={24} /></button>
       </div>
       
-      {/* GLOBAL COMPONENTS */}
       <CookieBanner />
       <ToastContainer toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
-      
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4 animate-in fade-in duration-300"><button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/10 rounded-full hover:bg-white/20 backdrop-blur-md transition"><X size={24} className="text-white"/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
-      
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showOnboarding && session && <OnboardingWizard session={session} onComplete={() => { setShowOnboarding(false); fetchMyProfile(session.user.id); }} />}
@@ -810,14 +788,5 @@ const App = () => {
     </div>
   );
 };
-
-// HELPER: Alias für Komponenten (Vermeidung von ReferenceErrors bei Copy/Paste)
-const CommentsModalComponent = CommentsModal;
-const ChatWindowComponent = ChatWindow;
-const EditProfileModalComponent = EditProfileModal;
-const SettingsModalComponent = SettingsModal;
-const UploadModalComponent = UploadModal;
-const LoginModalComponent = LoginModal;
-const AdminDashboardComponent = AdminDashboard;
 
 export default App;
