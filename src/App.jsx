@@ -15,15 +15,16 @@ const MOCK_USER_ID = "user-123";
 
 const MOCK_DB = {
     players_master: [
-        // Leon Goretzka entfernt. Neutraler Demo-User hinzugefügt.
+        // Wir lassen die DB initial leer für den Test-User, damit das Auto-Create greift.
+        { id: 2, user_id: "user-456", full_name: "Leon Goretzka", position_primary: "ZM", transfer_status: "Vertrag läuft aus", avatar_url: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop", clubs: { id: 102, name: "Bayern M.", league: "Bundesliga", is_icon_league: true }, followers_count: 5000, is_verified: true },
         { id: 99, user_id: "user-demo", full_name: "Nico Schlotterbeck", position_primary: "IV", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", clubs: { id: 103, name: "BVB 09", league: "Bundesliga", is_icon_league: true }, followers_count: 850, is_verified: true },
     ],
     clubs: [
         { id: 101, name: "FC Berlin", league: "Regionalliga", logo_url: "https://placehold.co/100x100/1e293b/ffffff?text=FCB", is_verified: true },
+        { id: 102, name: "Bayern M.", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true },
         { id: 103, name: "BVB 09", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true }
     ],
     media_highlights: [
-        // Video angepasst auf Demo-User
         { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
@@ -31,7 +32,7 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Simulation des Supabase Clients (Bugfix: Session-Handling)
+// Simulation des Supabase Clients (Mock)
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
@@ -93,7 +94,20 @@ const createMockClient = () => {
                     return { select: () => ({ single: () => ({ data: MOCK_DB[table][idx] }) }) }; 
                 }}),
                 delete: () => ({ match: () => ({ error: null }) }),
-                upsert: (obj) => ({ error: null })
+                upsert: async (obj) => { 
+                    // Verbesserter Mock Upsert für Auto-Create
+                    if (!MOCK_DB[table]) MOCK_DB[table] = [];
+                    const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
+                    let result;
+                    if (existingIdx >= 0) {
+                         MOCK_DB[table][existingIdx] = { ...MOCK_DB[table][existingIdx], ...obj };
+                         result = MOCK_DB[table][existingIdx];
+                    } else {
+                         result = { ...obj, id: Date.now(), followers_count: 0 };
+                         MOCK_DB[table].push(result);
+                    }
+                    return { data: result, error: null };
+                }
             };
             function helper(d) { return { 
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
@@ -139,26 +153,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     </div>
 );
 
-// Empty State für fehlendes Profil
-const EmptyProfileState = ({ onCreate }) => (
-    <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
-        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10 relative overflow-hidden group cursor-pointer" onClick={onCreate}>
-             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent"></div>
-             <div className="absolute inset-0 flex items-center justify-center bg-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Plus size={32} className="text-white"/>
-             </div>
-             <UserPlus size={40} className="text-zinc-500 relative z-10 group-hover:opacity-0 transition-opacity" />
-        </div>
-        <h3 className="text-2xl font-bold text-white mb-3">Werde zum Profi</h3>
-        <p className="text-zinc-400 mb-8 max-w-xs leading-relaxed text-sm">
-            Dein Spielerpass ist noch leer. Erstelle jetzt dein Profil, um von Scouts gefunden zu werden.
-        </p>
-        <button onClick={onCreate} className={`${btnPrimary} w-full max-w-xs flex items-center justify-center gap-2`}>
-            <UserCheck size={18} />
-            Profil erstellen
-        </button>
-    </div>
-);
+// HIER WURDE DIE "EmptyProfileState" KOMPONENTE ENTFERNT.
 
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
@@ -228,7 +223,6 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     );
 };
 
-// --- OPTIMIERTE LOGIN MODAL KOMPONENTE ---
 const LoginModal = ({ onClose, onSuccess }) => {
   const [view, setView] = useState('login'); // Standard: 'login' (Kein Start-Screen mehr)
   const [email, setEmail] = useState('');
@@ -476,14 +470,12 @@ const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
     );
 };
 
-// 4. PROFILE SCREEN
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq }) => {
-    // GAST-CHECK: Eigenes Profil erfordert Login
-    if (isOwnProfile && !player) {
-        return <EmptyProfileState onCreate={onCreateProfile} />;
-    }
+// 4. PROFILE SCREEN (Komplett ohne Empty State)
+const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onClubClick, onAdminReq }) => {
+    // Falls ein User eingeloggt ist, aber noch kein Profil hat (wird im Hintergrund erstellt),
+    // zeigen wir kurz einen Lade-Indikator, bis das Profil da ist.
+    if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500"><Loader2 className="animate-spin mr-2"/> Profil wird geladen...</div>;
     
-    if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Lädt...</div>;
     const statusColors = { 'Gebunden': 'bg-red-500 shadow-red-500/50', 'Vertrag läuft aus': 'bg-amber-500 shadow-amber-500/50', 'Suche Verein': 'bg-emerald-500 shadow-emerald-500/50' };
     const statusColor = statusColors[player.transfer_status] || 'bg-zinc-500';
 
@@ -653,14 +645,12 @@ const App = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { 
         setSession(session); 
-        // WICHTIGER FIX: Prüfen, ob session UND session.user existieren
         if (session?.user) fetchMyProfile(session.user.id); 
     });
     
     // Auth Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { 
         setSession(session); 
-        // WICHTIGER FIX: Prüfen, ob session UND session.user existieren
         if (session?.user) fetchMyProfile(session.user.id); 
         else setCurrentUserProfile(null); 
     });
@@ -669,28 +659,21 @@ const App = () => {
   }, []);
 
   const fetchMyProfile = async (userId) => { 
-      const { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
-      if (data) setCurrentUserProfile(data); 
-      // HINWEIS: Wir zeigen kein automatisches Onboarding mehr an.
-      // Der "Empty State" im ProfileScreen übernimmt die Aufforderung.
-  };
-
-  const handleCreateProfile = async () => {
-    if(!session) return;
-    // Erstelle leeres Profil mit Default-Werten
-    const { error } = await supabase.from('players_master').upsert({ 
-        user_id: session.user.id, 
-        full_name: 'Neuer Spieler', 
-        position_primary: 'ZM', 
-        transfer_status: 'Gebunden' 
-    });
-    
-    if (!error) {
-        // Profil neu laden damit der Screen umschaltet
-        fetchMyProfile(session.user.id);
-    } else {
-        alert("Fehler beim Erstellen: " + error.message);
-    }
+      let { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
+      
+      if (!data) {
+          // AUTO-CREATE PROFILE if not exists
+          const newProfile = { 
+            user_id: userId, 
+            full_name: 'Neuer Spieler', 
+            position_primary: 'ZM', 
+            transfer_status: 'Gebunden',
+            followers_count: 0
+          };
+          await supabase.from('players_master').upsert(newProfile);
+          data = newProfile; // Setze Daten direkt für State
+      }
+      setCurrentUserProfile(data); 
   };
   
   const loadProfile = async (targetPlayer) => { 
@@ -706,9 +689,9 @@ const App = () => {
       setActiveTab('profile'); 
   };
   
-  // Tab-Logik angepasst für Empty State Support
+  // Tab-Logik angepasst
   const handleProfileTabClick = () => { 
-      // ÄNDERUNG: Wenn nicht eingeloggt, direkt Login-Modal öffnen statt Tab zu wechseln
+      // Wenn nicht eingeloggt, direkt Login-Modal öffnen statt Tab zu wechseln
       if (!session) {
           setShowLogin(true);
           return;
@@ -717,9 +700,8 @@ const App = () => {
       if (session && currentUserProfile) {
           loadProfile(currentUserProfile); 
       } else {
-          // Auch wenn kein Profil da ist, wechseln wir zum Tab.
-          // Der ProfileScreen kümmert sich um die Anzeige (EmptyState oder GuestFallback).
-          setViewedProfile(null); // Reset, damit wir wissen "es ist kein fremdes Profil"
+          // Fallback, sollte eigentlich durch Auto-Create nicht passieren
+          setViewedProfile(null); 
           setActiveTab('profile'); 
       }
   };
@@ -737,11 +719,7 @@ const App = () => {
             player={viewedProfile} 
             highlights={profileHighlights} 
             onVideoClick={setActiveVideo}
-            // Hier ist die Logik für "Ist das mein Tab?":
-            // 1. Session existiert
-            // 2. UND (entweder viewedProfile ist null [d.h. ich habe auf den Tab geklickt] ODER die ID passt)
             isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)}
-            
             onBack={() => setActiveTab('home')}
             onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))}
             onEditReq={() => setShowEditProfile(true)}
@@ -752,7 +730,7 @@ const App = () => {
             onFollow={() => {}}
             onShowFollowers={() => setShowFollowersModal(true)}
             onLoginReq={() => setShowLogin(true)}
-            onCreateProfile={handleCreateProfile} // Direkte Erstellung statt Wizard
+            onCreateProfile={() => {}} // Nicht mehr nötig dank Auto-Create
           />
       )}
       
