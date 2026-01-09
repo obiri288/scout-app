@@ -50,22 +50,14 @@ const createMockClient = () => {
             },
             signInWithPassword: async ({ email, password }) => {
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
-                
-                // Login erfolgreich simulieren
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                
-                // WICHTIG: Session wird hier korrekt gesetzt
                 notify('SIGNED_IN', currentSession);
-                
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signUp: async ({ email, password }) => {
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
-                
-                // Registrierung erfolgreich -> direkt einloggen
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 notify('SIGNED_IN', currentSession);
-                
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signOut: async () => {
@@ -723,6 +715,12 @@ const App = () => {
   
   // Tab-Logik angepasst für Empty State Support
   const handleProfileTabClick = () => { 
+      // ÄNDERUNG: Wenn nicht eingeloggt, direkt Login-Modal öffnen statt Tab zu wechseln
+      if (!session) {
+          setShowLogin(true);
+          return;
+      }
+
       if (session && currentUserProfile) {
           loadProfile(currentUserProfile); 
       } else {
