@@ -13,29 +13,25 @@ import {
 // --- MOCK DATABASE & CLIENT (Simulation) ---
 const MOCK_USER_ID = "user-123";
 
-// HINWEIS: Um den "Empty State" (leeres Profil) nach dem Login zu testen, 
-// ist der erste Eintrag auskommentiert.
 const MOCK_DB = {
     players_master: [
         // { id: 1, user_id: MOCK_USER_ID, full_name: "Max Mustermann", position_primary: "ZOM", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=400&h=400&fit=crop", clubs: { id: 101, name: "FC Berlin", league: "Regionalliga", is_icon_league: true }, followers_count: 120, is_verified: true },
-        // Leon Goretzka entfernt
+        { id: 2, user_id: "user-456", full_name: "Leon Goretzka", position_primary: "ZM", transfer_status: "Vertrag läuft aus", avatar_url: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop", clubs: { id: 102, name: "Bayern M.", league: "Bundesliga", is_icon_league: true }, followers_count: 5000, is_verified: true },
     ],
     clubs: [
         { id: 101, name: "FC Berlin", league: "Regionalliga", logo_url: "https://placehold.co/100x100/1e293b/ffffff?text=FCB", is_verified: true },
         { id: 102, name: "Bayern M.", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true }
     ],
     media_highlights: [
-        // Highlight von Leon Goretzka entfernt. Ein Beispiel-Video bleibt für das Layout.
-        { id: 1003, player_id: 99, full_name: "Demo User", video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 5, created_at: new Date().toISOString() },
+        { id: 1001, player_id: 2, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 45, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
     notifications: []
 };
 
-// Simulation des Supabase Clients (Stateful für Login/Logout Simulation)
+// Simulation des Supabase Clients (Bugfix: Session-Handling)
 const createMockClient = () => {
-    // Startet jetzt AUSGELOGGT (null), damit der Login-Button sichtbar ist
     let currentSession = null; 
     let authListener = null;
 
@@ -48,25 +44,30 @@ const createMockClient = () => {
             getSession: async () => ({ data: { session: currentSession } }),
             onAuthStateChange: (cb) => { 
                 authListener = cb; 
+                // Initial call to update state immediately if needed
+                if (currentSession) cb('SIGNED_IN', currentSession);
                 return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
             },
             signInWithPassword: async ({ email, password }) => {
-                // Simulierter Login
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
-                // Erfolgreicher Login
+                
+                // Login erfolgreich simulieren
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                notify('SIGNED_IN', { session: currentSession });
+                
+                // WICHTIGER FIX: Session direkt übergeben, nicht verschachtelt als { session: ... }
+                notify('SIGNED_IN', currentSession);
+                
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signUp: async ({ email, password }) => {
-                // Simulierte Registrierung
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
                 
-                // Erfolgreiche Registrierung -> Loggt direkt ein
+                // Registrierung erfolgreich -> direkt einloggen
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                notify('SIGNED_IN', { session: currentSession });
                 
-                // Wir geben user UND session zurück, damit die App weiß, dass es geklappt hat
+                // WICHTIGER FIX: Session direkt übergeben
+                notify('SIGNED_IN', currentSession);
+                
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signOut: async () => {
@@ -81,16 +82,7 @@ const createMockClient = () => {
             return {
                 select: (query) => {
                     if (table === 'media_highlights' && query.includes('players_master')) {
-                        // Dummy Join für Mock-Daten
-                        filtered = filtered.map(item => {
-                            // Fallback für Demo-Daten, die nicht in players_master sind
-                            const player = MOCK_DB.players_master.find(p => p.id === item.player_id) || {
-                                full_name: "Unbekannter Spieler",
-                                avatar_url: null,
-                                clubs: { name: "Vereinslos" }
-                            };
-                            return {...item, players_master: player};
-                        });
+                        filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
                     }
                     if (table === 'players_master') {
                         filtered = filtered.map(p => {
@@ -299,10 +291,9 @@ const LoginModal = ({ onClose, onSuccess }) => {
             throw error; 
         }
         if (data.user) { 
-            // In der Simulation loggen wir direkt ein, wenn User da ist.
-            // In echter App prüfen wir auf session.
-            setSuccessMsg('✅ Registrierung erfolgreich!');
-            setTimeout(() => onSuccess(), 1500); // Kurz warten dann schließen
+            setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
+            // In Mock simulieren wir direkten Success
+            setTimeout(() => onSuccess(), 1000); 
             return; 
         }
       } else {
