@@ -14,18 +14,19 @@ import {
 const MOCK_USER_ID = "user-123";
 
 // HINWEIS: Um den "Empty State" (leeres Profil) nach dem Login zu testen, 
-// kommentiere das Objekt im Array aus.
+// ist der erste Eintrag auskommentiert.
 const MOCK_DB = {
     players_master: [
         // { id: 1, user_id: MOCK_USER_ID, full_name: "Max Mustermann", position_primary: "ZOM", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=400&h=400&fit=crop", clubs: { id: 101, name: "FC Berlin", league: "Regionalliga", is_icon_league: true }, followers_count: 120, is_verified: true },
-        { id: 2, user_id: "user-456", full_name: "Leon Goretzka", position_primary: "ZM", transfer_status: "Vertrag läuft aus", avatar_url: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop", clubs: { id: 102, name: "Bayern M.", league: "Bundesliga", is_icon_league: true }, followers_count: 5000, is_verified: true },
+        // Leon Goretzka entfernt
     ],
     clubs: [
         { id: 101, name: "FC Berlin", league: "Regionalliga", logo_url: "https://placehold.co/100x100/1e293b/ffffff?text=FCB", is_verified: true },
         { id: 102, name: "Bayern M.", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true }
     ],
     media_highlights: [
-        { id: 1001, player_id: 2, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 45, created_at: new Date().toISOString() },
+        // Highlight von Leon Goretzka entfernt. Ein Beispiel-Video bleibt für das Layout.
+        { id: 1003, player_id: 99, full_name: "Demo User", video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 5, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
@@ -52,15 +53,20 @@ const createMockClient = () => {
             signInWithPassword: async ({ email, password }) => {
                 // Simulierter Login
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
+                // Erfolgreicher Login
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 notify('SIGNED_IN', { session: currentSession });
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signUp: async ({ email, password }) => {
-                // Simulierte Registrierung (Loggt direkt ein)
+                // Simulierte Registrierung
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
+                
+                // Erfolgreiche Registrierung -> Loggt direkt ein
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 notify('SIGNED_IN', { session: currentSession });
+                
+                // Wir geben user UND session zurück, damit die App weiß, dass es geklappt hat
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signOut: async () => {
@@ -75,7 +81,16 @@ const createMockClient = () => {
             return {
                 select: (query) => {
                     if (table === 'media_highlights' && query.includes('players_master')) {
-                        filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
+                        // Dummy Join für Mock-Daten
+                        filtered = filtered.map(item => {
+                            // Fallback für Demo-Daten, die nicht in players_master sind
+                            const player = MOCK_DB.players_master.find(p => p.id === item.player_id) || {
+                                full_name: "Unbekannter Spieler",
+                                avatar_url: null,
+                                clubs: { name: "Vereinslos" }
+                            };
+                            return {...item, players_master: player};
+                        });
                     }
                     if (table === 'players_master') {
                         filtered = filtered.map(p => {
@@ -280,14 +295,26 @@ const LoginModal = ({ onClose, onSuccess }) => {
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        if (data.user && !data.session) { setSuccessMsg('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.'); return; }
+        if (error) { 
+            throw error; 
+        }
+        if (data.user) { 
+            // In der Simulation loggen wir direkt ein, wenn User da ist.
+            // In echter App prüfen wir auf session.
+            setSuccessMsg('✅ Registrierung erfolgreich!');
+            setTimeout(() => onSuccess(), 1500); // Kurz warten dann schließen
+            return; 
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        onSuccess();
       }
-      onSuccess();
-    } catch (error) { setMsg(error.message); } finally { setLoading(false); }
+    } catch (error) { 
+        setMsg(error.message || "Ein Fehler ist aufgetreten."); 
+    } finally { 
+        setLoading(false); 
+    }
   };
 
   return (
@@ -305,7 +332,6 @@ const LoginModal = ({ onClose, onSuccess }) => {
             {successMsg ? (
                 <div className="text-center space-y-4">
                     <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
-                    <button onClick={() => { setView('login'); setSuccessMsg(''); }} className="text-blue-400 hover:text-white text-sm font-bold underline">Zum Login wechseln</button>
                 </div>
             ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
@@ -331,7 +357,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
 
             <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                <button onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
+                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
                     {view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}
                 </button>
             </div>
