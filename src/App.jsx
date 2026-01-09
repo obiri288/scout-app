@@ -13,7 +13,8 @@ import {
 // --- MOCK DATABASE & CLIENT (Simulation) ---
 const MOCK_USER_ID = "user-123";
 
-// HINWEIS: Um den "Empty State" zu testen, kommentiere das Objekt im Array aus.
+// HINWEIS: Um den "Empty State" (leeres Profil) nach dem Login zu testen, 
+// kommentiere das Objekt im Array aus.
 const MOCK_DB = {
     players_master: [
         // { id: 1, user_id: MOCK_USER_ID, full_name: "Max Mustermann", position_primary: "ZOM", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=400&h=400&fit=crop", clubs: { id: 101, name: "FC Berlin", league: "Regionalliga", is_icon_league: true }, followers_count: 120, is_verified: true },
@@ -31,15 +32,42 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Simulation des Supabase Clients
+// Simulation des Supabase Clients (Stateful für Login/Logout Simulation)
 const createMockClient = () => {
+    // Startet jetzt AUSGELOGGT (null), damit der Login-Button sichtbar ist
+    let currentSession = null; 
+    let authListener = null;
+
+    const notify = (event, session) => {
+        if (authListener) authListener(event, session);
+    };
+
     return {
         auth: {
-            getSession: async () => ({ data: { session: { user: { id: MOCK_USER_ID, email: "test@example.com" } } } }),
-            onAuthStateChange: (cb) => { cb('SIGNED_IN', { user: { id: MOCK_USER_ID } }); return { data: { subscription: { unsubscribe: () => {} } } }; },
-            signInWithPassword: async () => ({ data: { user: { id: MOCK_USER_ID }, session: {} }, error: null }),
-            signUp: async () => ({ data: { user: { id: MOCK_USER_ID }, session: null }, error: null }),
-            signOut: async () => ({ error: null })
+            getSession: async () => ({ data: { session: currentSession } }),
+            onAuthStateChange: (cb) => { 
+                authListener = cb; 
+                return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
+            },
+            signInWithPassword: async ({ email, password }) => {
+                // Simulierter Login
+                if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
+                currentSession = { user: { id: MOCK_USER_ID, email } };
+                notify('SIGNED_IN', { session: currentSession });
+                return { data: { user: currentSession.user, session: currentSession }, error: null };
+            },
+            signUp: async ({ email, password }) => {
+                // Simulierte Registrierung (Loggt direkt ein)
+                if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
+                currentSession = { user: { id: MOCK_USER_ID, email } };
+                notify('SIGNED_IN', { session: currentSession });
+                return { data: { user: currentSession.user, session: currentSession }, error: null };
+            },
+            signOut: async () => {
+                currentSession = null;
+                notify('SIGNED_OUT', null);
+                return { error: null };
+            }
         },
         from: (table) => {
             const data = MOCK_DB[table] || [];
