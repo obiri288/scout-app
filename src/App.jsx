@@ -15,15 +15,16 @@ const MOCK_USER_ID = "user-123";
 
 const MOCK_DB = {
     players_master: [
-        // { id: 1, user_id: MOCK_USER_ID, full_name: "Max Mustermann", position_primary: "ZOM", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=400&h=400&fit=crop", clubs: { id: 101, name: "FC Berlin", league: "Regionalliga", is_icon_league: true }, followers_count: 120, is_verified: true },
-        { id: 2, user_id: "user-456", full_name: "Leon Goretzka", position_primary: "ZM", transfer_status: "Vertrag läuft aus", avatar_url: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=400&fit=crop", clubs: { id: 102, name: "Bayern M.", league: "Bundesliga", is_icon_league: true }, followers_count: 5000, is_verified: true },
+        // Leon Goretzka entfernt. Neutraler Demo-User hinzugefügt.
+        { id: 99, user_id: "user-demo", full_name: "Nico Schlotterbeck", position_primary: "IV", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", clubs: { id: 103, name: "BVB 09", league: "Bundesliga", is_icon_league: true }, followers_count: 850, is_verified: true },
     ],
     clubs: [
         { id: 101, name: "FC Berlin", league: "Regionalliga", logo_url: "https://placehold.co/100x100/1e293b/ffffff?text=FCB", is_verified: true },
-        { id: 102, name: "Bayern M.", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true }
+        { id: 103, name: "BVB 09", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true }
     ],
     media_highlights: [
-        { id: 1001, player_id: 2, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 45, created_at: new Date().toISOString() },
+        // Video angepasst auf Demo-User
+        { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
@@ -44,7 +45,6 @@ const createMockClient = () => {
             getSession: async () => ({ data: { session: currentSession } }),
             onAuthStateChange: (cb) => { 
                 authListener = cb; 
-                // Initial call to update state immediately if needed
                 if (currentSession) cb('SIGNED_IN', currentSession);
                 return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
             },
@@ -54,7 +54,7 @@ const createMockClient = () => {
                 // Login erfolgreich simulieren
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 
-                // WICHTIGER FIX: Session direkt übergeben, nicht verschachtelt als { session: ... }
+                // WICHTIG: Session wird hier korrekt gesetzt
                 notify('SIGNED_IN', currentSession);
                 
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
@@ -64,8 +64,6 @@ const createMockClient = () => {
                 
                 // Registrierung erfolgreich -> direkt einloggen
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                
-                // WICHTIGER FIX: Session direkt übergeben
                 notify('SIGNED_IN', currentSession);
                 
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
@@ -686,9 +684,21 @@ const App = () => {
   useEffect(() => { activeChatPartnerRef.current = activeChatPartner; }, [activeChatPartner]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) fetchMyProfile(session.user.id); });
-    supabase.auth.onAuthStateChange((_event, session) => { setSession(session); if (session) fetchMyProfile(session.user.id); else setCurrentUserProfile(null); });
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
+    supabase.auth.getSession().then(({ data: { session } }) => { 
+        setSession(session); 
+        // WICHTIGER FIX: Prüfen, ob session UND session.user existieren
+        if (session?.user) fetchMyProfile(session.user.id); 
+    });
+    
+    // Auth Listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { 
+        setSession(session); 
+        // WICHTIGER FIX: Prüfen, ob session UND session.user existieren
+        if (session?.user) fetchMyProfile(session.user.id); 
+        else setCurrentUserProfile(null); 
+    });
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchMyProfile = async (userId) => { 
