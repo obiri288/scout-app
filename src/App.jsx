@@ -9,13 +9,13 @@ import {
   Eye, EyeOff, Edit, Pencil
 } from 'lucide-react';
 
-// --- 1. MOCK DATABASE & CLIENT ---
+// --- MOCK DATABASE & CLIENT ---
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
 const MOCK_DB = {
     players_master: [
-        // DB Start: Nur ein Demo-User, kein "Goretzka"
+        // DB Start: Nur ein Demo-User
         { id: 99, user_id: "user-demo", full_name: "Nico Schlotterbeck", position_primary: "IV", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", clubs: { id: 103, name: "BVB 09", league: "Bundesliga", is_icon_league: true }, followers_count: 850, is_verified: true, height_user: 191, strong_foot: "Links" },
     ],
     clubs: [
@@ -156,6 +156,7 @@ const useSmartProfile = (session) => {
                 .maybeSingle();
 
             if (!data) {
+                // Auto-Create Profile for new user
                 const newProfile = { 
                     user_id: session.user.id, 
                     full_name: 'Neuer Spieler', 
@@ -424,7 +425,7 @@ const SearchScreen = ({ onUserClick }) => {
           <div className="space-y-3">
               {res.map(p => (
                   <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/5 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}</div>
+                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}</div>
                       <div className="flex-1">
                           <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base">{p.full_name}</h3><span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span></div>
                           <div className="flex items-center gap-1 mt-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
@@ -614,52 +615,6 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
     )
 }
 
-// 5. CLUB SCREEN
-const ClubScreen = ({ club, onBack, onUserClick }) => {
-    const [players, setPlayers] = useState([]);
-    useEffect(() => {
-        const fetchPlayers = async () => {
-            const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id);
-            setPlayers(data || []);
-        };
-        fetchPlayers();
-    }, [club]);
-
-    return (
-        <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
-             <div className="relative h-40 bg-zinc-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
-                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30 blur-sm"/>}
-                <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
-             </div>
-             <div className="px-6 -mt-12 relative z-10">
-                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
-                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
-                 </div>
-                 <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
-                 <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
-
-                 <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
-                 <div className="space-y-3">
-                     {players.map(p => (
-                         <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                             <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
-                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-3"/>}
-                             </div>
-                             <div>
-                                 <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
-                                 <span className="text-xs text-zinc-500 bg-white/10 px-2 py-0.5 rounded">{p.position_primary}</span>
-                             </div>
-                             <ChevronRight size={16} className="ml-auto text-zinc-600"/>
-                         </div>
-                     ))}
-                     {players.length === 0 && <p className="text-zinc-500 text-sm">Keine Spieler gefunden.</p>}
-                 </div>
-             </div>
-        </div>
-    );
-};
-
 // --- 6. MAIN APP ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -779,7 +734,7 @@ const App = () => {
       {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
       {activeTab === 'admin' && <AdminDashboard session={session} />}
       
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-40 rounded-3xl shadow-2xl shadow-black/50">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-[9999] rounded-3xl shadow-2xl shadow-black/50 pointer-events-auto">
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'home' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Home size={24} /></button>
           <button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'search' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Search size={24} /></button>
           <div className="relative -top-8"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40 border-4 border-black transition-transform hover:scale-105 active:scale-95"><Plus size={28} className="text-white" strokeWidth={3} /></button></div>
