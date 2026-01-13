@@ -6,7 +6,7 @@ import {
   Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
   Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
-  Eye, EyeOff, Edit, Pencil, FileVideo, Film
+  Eye, EyeOff, Edit, Pencil, FileVideo, Film, Smartphone, Key, RefreshCw, ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 
 // --- MOCK DATABASE & CLIENT (Simulation) ---
@@ -15,7 +15,7 @@ const STORAGE_KEY = 'scoutvision_mock_session';
 
 const MOCK_DB = {
     players_master: [
-        // DB Start: Nur ein Demo-User, kein "Goretzka"
+        // DB Start: Nur ein Demo-User
         { id: 99, user_id: "user-demo", full_name: "Nico Schlotterbeck", position_primary: "IV", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", clubs: { id: 103, name: "BVB 09", league: "Bundesliga", is_icon_league: true }, followers_count: 850, is_verified: true, height_user: 191, strong_foot: "Links" },
     ],
     clubs: [
@@ -24,7 +24,6 @@ const MOCK_DB = {
         { id: 103, name: "BVB 09", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true }
     ],
     media_highlights: [
-        // Robuste Video URL
         { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
@@ -123,7 +122,6 @@ const createMockClient = () => {
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
                 ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))),
                 in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
-                // FIX: match funktion hinzugefügt, um den Crash zu verhindern
                 match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))),
                 or: () => helper(d),
                 order: () => helper(d), 
@@ -159,7 +157,6 @@ const useSmartProfile = (session) => {
                 .maybeSingle();
 
             if (!data) {
-                // Auto-Create Profile for new user
                 const newProfile = { 
                     user_id: session.user.id, 
                     full_name: 'Neuer Spieler', 
@@ -243,35 +240,126 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, realtimeStatus }) => {
-    const [view, setView] = useState('menu');
-    const LegalText = ({ title, content }) => (<div className="h-full flex flex-col"><div className="flex items-center gap-3 mb-6 pb-2 border-b border-white/5"><button onClick={() => setView('menu')} className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft size={20} className="text-white" /></button><h3 className="font-bold text-white text-lg">{title}</h3></div><div className="flex-1 overflow-y-auto text-zinc-400 text-sm space-y-4 pr-2 leading-relaxed">{content}</div></div>);
-    const MenuItem = ({ icon: Icon, label, onClick, highlight }) => (
-        <button onClick={onClick} className={`w-full p-4 rounded-2xl flex items-center justify-between transition-all group ${highlight ? 'bg-gradient-to-r from-blue-600/20 to-indigo-600/20 border border-blue-500/30' : 'bg-white/5 hover:bg-white/10 border border-transparent'}`}>
-            <div className="flex items-center gap-4"><div className={`p-2 rounded-xl ${highlight ? 'bg-blue-500 text-white' : 'bg-black/30 text-zinc-400 group-hover:text-white'}`}><Icon size={20} /></div><span className={`font-semibold ${highlight ? 'text-blue-200' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div><ChevronRight size={18} className={highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
+// --- EINSTELLUNGEN MENÜ (Overlay) ---
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq }) => {
+    const [showToast, setShowToast] = useState(null);
+
+    const showFeedback = (msg) => {
+        setShowToast(msg);
+        setTimeout(() => setShowToast(null), 2000);
+    };
+
+    const handleClearCache = () => {
+        try {
+            localStorage.clear();
+            showFeedback('Cache geleert!');
+            // Optional: Reload page to force fresh state
+            // window.location.reload(); 
+        } catch (e) {
+            showFeedback('Fehler beim Leeren');
+        }
+    };
+
+    const handleShareProfile = () => {
+        if (!user?.id) return;
+        const url = `https://scoutvision.app/user/${user.id}`;
+        navigator.clipboard.writeText(url).then(() => showFeedback('Link kopiert!'));
+    };
+
+    const handleAccountDelete = () => {
+        if (confirm("Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
+            // Mock delete
+            onLogout(); 
+            alert("Account gelöscht (Simulation)");
+        }
+    };
+
+    const SettingsItem = ({ icon: Icon, label, onClick, danger = false }) => (
+        <button 
+            onClick={onClick}
+            className={`w-full p-4 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : 'hover:bg-white/5'}`}
+        >
+            <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
+                    <Icon size={20} />
+                </div>
+                <span className={`font-medium ${danger ? 'text-red-500' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
+            </div>
+            <ChevronRightIcon size={18} className={danger ? 'text-red-500' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
+
     return (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in">
-            <div className={`w-full max-w-sm ${cardStyle} h-[600px] max-h-[90vh] flex flex-col relative p-6`}>
-                <button onClick={onClose} className="absolute top-5 right-5 p-2 hover:bg-white/10 rounded-full transition text-zinc-500 hover:text-white"><X size={20} /></button>
-                {view === 'menu' && (
-                    <div className="space-y-4 mt-8">
-                        <div className="text-center mb-8"><div className="w-16 h-16 bg-gradient-to-tr from-zinc-800 to-zinc-700 rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg"><Settings size={32} className="text-zinc-400"/></div><h2 className="text-xl font-bold text-white">Einstellungen</h2><p className="text-zinc-500 text-xs mt-1">Version 2.0.4 (Glass Stable)</p></div>
-                        {installPrompt && <MenuItem icon={Download} label="App installieren" onClick={onInstallApp} highlight />}
-                        <MenuItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
-                        <div className="h-px bg-white/5 my-2"></div>
-                        <MenuItem icon={FileText} label="Impressum" onClick={() => setView('impressum')} />
-                        <MenuItem icon={Lock} label="Datenschutz" onClick={() => setView('privacy')} />
-                        <div className="pt-4"><button onClick={onLogout} className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 p-4 rounded-2xl flex justify-center font-bold items-center gap-2 border border-red-500/20 transition"><LogOut size={18} /> Abmelden</button></div>
-                        <div className="flex items-center justify-center gap-2 mt-4 text-xs">
-                            {realtimeStatus === 'SUBSCRIBED' ? <Wifi size={12} className="text-green-500"/> : <WifiOff size={12} className="text-red-500"/>}
-                            <span className={realtimeStatus === 'SUBSCRIBED' ? 'text-green-500' : 'text-red-500'}>{realtimeStatus === 'SUBSCRIBED' ? 'Verbunden' : 'Getrennt'}</span>
+        <div className="fixed inset-0 z-[100] flex justify-end">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}></div>
+            
+            {/* Slide-in Panel */}
+            <div className="relative w-full max-w-sm h-full bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+                
+                {/* Header */}
+                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Settings size={22} className="text-blue-500"/> Einstellungen
+                    </h2>
+                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content Scrollable */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-8">
+                    
+                    {/* Section 1: App */}
+                    <div>
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">App Einstellungen</h3>
+                        <div className="space-y-1">
+                            {installPrompt && <SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} />}
+                            <SettingsItem icon={Bell} label="Push-Nachrichten" onClick={() => { onRequestPush(); showFeedback('Push aktiviert!'); }} />
+                            <SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} />
                         </div>
                     </div>
+
+                    {/* Section 2: Account */}
+                    <div>
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">Mein Account</h3>
+                        <div className="space-y-1">
+                            <SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />
+                            <SettingsItem icon={Share2} label="Profil teilen" onClick={handleShareProfile} />
+                            <SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback('Passwort-Reset gesendet')} />
+                            <SettingsItem icon={Smartphone} label="Geräte verwalten" onClick={() => showFeedback('Andere Sessions beendet')} />
+                        </div>
+                    </div>
+
+                    {/* Section 3: Rechtliches */}
+                    <div>
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">Rechtliches</h3>
+                        <div className="space-y-1">
+                            <SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback('Datenschutz geöffnet')} />
+                            <SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback('Impressum geöffnet')} />
+                        </div>
+                    </div>
+
+                    {/* Section 4: Danger Zone */}
+                    <div>
+                        <h3 className="text-xs font-bold text-red-500/70 uppercase tracking-wider mb-3 px-2">Zone</h3>
+                        <div className="space-y-1">
+                            <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
+                            <SettingsItem icon={Trash2} label="Account löschen" onClick={handleAccountDelete} danger />
+                        </div>
+                    </div>
+
+                    <div className="text-center text-zinc-600 text-xs py-4">
+                        ScoutVision v2.1.0 (Beta)
+                    </div>
+                </div>
+
+                {/* Toast Notification inside Overlay */}
+                {showToast && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2">
+                        {showToast}
+                    </div>
                 )}
-                {view === 'impressum' && <LegalText title="Impressum" content={<><p>ScoutVision GmbH (i.G.)<br/>Musterstraße 1, 12345 Berlin</p></>} />}
-                {view === 'privacy' && <LegalText title="Datenschutz" content={<p>Datenschutzerklärung...</p>} />}
             </div>
         </div>
     );
@@ -305,6 +393,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
         }
         if (data.user) { 
             setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
+            // CRUCIAL: Pass new user data to parent via onSuccess
             setTimeout(() => onSuccess({ user: data.user }), 1000); 
             return; 
         }
@@ -363,8 +452,6 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
     if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
     try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
   };
-  
-  // FIX: z-index auf 10000 erhöht (über Navigation) und Zentrierung angepasst
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}> 
@@ -377,6 +464,22 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
             </label>
         </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const EditProfileModal = ({ player, onClose, onUpdate }) => {
+  const [loading, setLoading] = useState(false); const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '' });
+  const [avatarFile, setAvatarFile] = useState(null); const [previewUrl, setPreviewUrl] = useState(player.avatar_url); const [clubSearch, setClubSearch] = useState(''); const [clubResults, setClubResults] = useState([]); const [selectedClub, setSelectedClub] = useState(player.clubs || null); const [showCreateClub, setShowCreateClub] = useState(false); const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
+  useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
+  const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
+  const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+      <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
+        <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
+        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
       </div>
     </div>
   );
@@ -748,7 +851,7 @@ const App = () => {
             onBack={() => setActiveTab('home')}
             onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))}
             onEditReq={() => setShowEditProfile(true)}
-            onSettingsReq={() => setShowSettings(true)}
+            onSettingsReq={() => setShowSettings(true)} // Öffnet SettingsOverlay
             onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
             onClubClick={(c) => { setViewedClub(c); setActiveTab('club'); }}
             onAdminReq={()=>setActiveTab('admin')}
@@ -774,7 +877,29 @@ const App = () => {
       <ToastContainer toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4 animate-in fade-in duration-300"><button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/10 rounded-full hover:bg-white/20 backdrop-blur-md transition"><X size={24} className="text-white"/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} />}
+      
+      {/* Settings Overlay - Integration */}
+      {showSettings && (
+          <SettingsModal 
+              onClose={() => setShowSettings(false)} 
+              onLogout={() => { 
+                  supabase.auth.signOut(); 
+                  setShowSettings(false); 
+                  setSession(null); 
+                  setCurrentUserProfile(null);
+                  setActiveTab('home'); 
+              }} 
+              installPrompt={deferredPrompt} 
+              onInstallApp={handleInstallApp} 
+              onRequestPush={handlePushRequest}
+              user={currentUserProfile}
+              onEditReq={() => {
+                  setShowSettings(false);
+                  setShowEditProfile(true);
+              }}
+          />
+      )}
+
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
