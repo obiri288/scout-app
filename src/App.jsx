@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 // import { createClient } from '@supabase/supabase-js'; // Mock aktiv für Preview
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
@@ -7,11 +7,12 @@ import {
   Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
   Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
-  Eye, EyeOff, Pencil // "Pencil" statt "Edit" für bessere Kompatibilität
+  Eye, EyeOff, Edit, Pencil
 } from 'lucide-react';
 
 // --- MOCK DATABASE & CLIENT (Simulation) ---
 const MOCK_USER_ID = "user-123";
+const STORAGE_KEY = 'scoutvision_mock_session';
 
 const MOCK_DB = {
     players_master: [
@@ -32,10 +33,15 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Simulation des Supabase Clients (Mock)
+// Simulation des Supabase Clients (Stateful mit Persistence)
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
+
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) currentSession = JSON.parse(stored);
+    } catch (e) { console.error(e); }
 
     const notify = (event, session) => {
         if (authListener) authListener(event, session);
@@ -50,22 +56,28 @@ const createMockClient = () => {
                 return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
             },
             signInWithPassword: async ({ email, password }) => {
+                await new Promise(r => setTimeout(r, 500));
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
                 currentSession = { user: { id: MOCK_USER_ID, email } };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signUp: async ({ email, password }) => {
+                await new Promise(r => setTimeout(r, 500));
                 if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
                 currentSession = { user: { id: MOCK_USER_ID, email } };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signOut: async () => {
                 currentSession = null;
+                localStorage.removeItem(STORAGE_KEY);
                 notify('SIGNED_OUT', null);
                 return { error: null };
-            }
+            },
+            resetPasswordForEmail: async () => ({ data: {}, error: null })
         },
         from: (table) => {
             const data = MOCK_DB[table] || [];
@@ -95,7 +107,6 @@ const createMockClient = () => {
                 }}),
                 delete: () => ({ match: () => ({ error: null }) }),
                 upsert: async (obj) => { 
-                    // Verbesserter Mock Upsert für Auto-Create
                     if (!MOCK_DB[table]) MOCK_DB[table] = [];
                     const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
                     let result;
@@ -106,7 +117,7 @@ const createMockClient = () => {
                          result = { ...obj, id: Date.now(), followers_count: 0 };
                          MOCK_DB[table].push(result);
                     }
-                    return { data: result, error: null };
+                    return { data: result, error: null }; // Mock upsert return
                 }
             };
             function helper(d) { return { 
@@ -128,6 +139,53 @@ const createMockClient = () => {
 };
 const supabase = createMockClient();
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
+
+// --- CUSTOM HOOK: SMART PROFILE LOGIC ---
+const useSmartProfile = (session) => {
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const fetchOrCreateIndex = useCallback(async () => {
+        if (!session?.user?.id) {
+            setProfile(null);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // 1. Try fetch existing
+            let { data, error } = await supabase.from('players_master')
+                .select('*, clubs(*)')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+
+            // 2. Auto-Create if not exists
+            if (!data) {
+                const newProfile = { 
+                    user_id: session.user.id, 
+                    full_name: 'Neuer Spieler', 
+                    position_primary: 'ZM', 
+                    transfer_status: 'Gebunden',
+                    followers_count: 0
+                };
+                // Upsert returns the created object in real Supabase, mock needs handling
+                await supabase.from('players_master').upsert(newProfile);
+                data = newProfile;
+            }
+            setProfile(data);
+        } catch (e) {
+            console.error("Profile fetch error", e);
+        } finally {
+            setLoading(false);
+        }
+    }, [session]);
+
+    useEffect(() => {
+        fetchOrCreateIndex();
+    }, [fetchOrCreateIndex]);
+
+    return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
+};
 
 // --- 3. HELFER & STYLES ---
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
@@ -222,20 +280,31 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
 };
 
 const LoginModal = ({ onClose, onSuccess }) => {
-  const [view, setView] = useState('login'); // Standard: 'login' (Kein Start-Screen mehr)
+  const [view, setView] = useState('login'); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
+  const [showResetLink, setShowResetLink] = useState(false);
+
+  useEffect(() => { setMsg(''); setRetryCount(0); setShowResetLink(false); }, [view]);
+
+  const handlePasswordReset = async () => {
+    setLoading(true);
+    await supabase.auth.resetPasswordForEmail(email);
+    setMsg('');
+    setSuccessMsg('Link zum Zurücksetzen gesendet (Simulation).');
+    setLoading(false);
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault(); 
     setLoading(true); setMsg(''); setSuccessMsg('');
     const isSignUp = view === 'register';
 
-    // Password Check
     if (isSignUp && password !== confirmPassword) {
         setMsg("Passwörter stimmen nicht überein!");
         setLoading(false);
@@ -245,12 +314,9 @@ const LoginModal = ({ onClose, onSuccess }) => {
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) { 
-            throw error; 
-        }
+        if (error) throw error;
         if (data.user) { 
             setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-            // In Mock simulieren wir direkten Success
             setTimeout(() => onSuccess(), 1000); 
             return; 
         }
@@ -260,7 +326,12 @@ const LoginModal = ({ onClose, onSuccess }) => {
         onSuccess();
       }
     } catch (error) { 
-        setMsg(error.message || "Ein Fehler ist aufgetreten."); 
+        console.error("Auth Error:", error);
+        setMsg(error.message || "Ein Fehler ist aufgetreten.");
+        if (!isSignUp) {
+            setRetryCount(prev => prev + 1);
+            if (retryCount >= 2) setShowResetLink(true);
+        }
     } finally { 
         setLoading(false); 
     }
@@ -270,45 +341,28 @@ const LoginModal = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
-        
         <div className="animate-in fade-in slide-in-from-right-5">
             <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"><User size={28} className="text-white"/></div>
                 <h2 className="text-2xl font-bold text-white">{view === 'register' ? 'Account erstellen' : 'Willkommen zurück'}</h2>
                 <p className="text-zinc-400 text-sm text-center">{view === 'register' ? 'Werde Teil der Community' : 'Melde dich an, um fortzufahren'}</p>
             </div>
-
             {successMsg ? (
-                <div className="text-center space-y-4">
-                    <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
-                </div>
+                <div className="text-center space-y-4"><div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div></div>
             ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div className="space-y-3">
                         <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
                         <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-                        
-                        {view === 'register' && (
-                            <div className="animate-in slide-in-from-top-2 fade-in">
-                                <input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                            </div>
-                        )}
+                        {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
                     </div>
-
-                    {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
-                    
-                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>
-                        {loading && <Loader2 className="animate-spin" size={18} />} 
-                        {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}
-                    </button>
+                    {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>{showResetLink && (<button type="button" onClick={handlePasswordReset} className="text-xs underline text-red-300 hover:text-white self-start">Passwort vergessen? Zurücksetzen</button>)}</div>)}
+                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
                 </form>
             )}
-
             <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
-                    {view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}
-                </button>
+                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); }} className="text-white hover:text-blue-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
             </div>
         </div>
       </div>
@@ -360,6 +414,13 @@ const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
   const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
   return (<div className="fixed inset-0 z-[90] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
+};
+
+const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
+  const [comments, setComments] = useState([]); const [newComment, setNewComment] = useState('');
+  useEffect(() => { supabase.from('media_comments').select('*').eq('video_id', video.id).order('created_at',{ascending:false}).then(({data}) => setComments(data||[])) }, [video]);
+  const handleSend = async (e) => { e.preventDefault(); if (!newComment.trim() || !session) { if(!session) onLoginReq(); return; } const { data } = await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: newComment }).select().single(); if(data) { setComments([data, ...comments]); setNewComment(''); } };
+  return (<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in"><div className={`w-full max-w-md ${cardStyle} rounded-t-3xl h-[60vh] flex flex-col shadow-2xl border-t border-zinc-700 animate-in slide-in-from-bottom-10`}><div className="flex justify-between items-center p-5 border-b border-white/5"><div className="text-sm font-bold text-white">Kommentare ({comments.length})</div><button onClick={onClose}><X size={20} className="text-zinc-500 hover:text-white" /></button></div><div className="flex-1 overflow-y-auto p-5 space-y-4">{comments.map(c=><div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2"><div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0 text-zinc-500 border border-white/5"><User size={14}/></div><div><div className="text-xs text-zinc-400 font-bold mb-0.5">User {c.user_id.slice(0,4)}</div><p className="text-sm text-zinc-200 bg-zinc-800/50 px-3 py-2 rounded-xl rounded-tl-none">{c.content}</p></div></div>)}</div><form onSubmit={handleSend} className="p-4 border-t border-white/5 flex gap-3 bg-zinc-900/80"><input value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="Kommentar hinzufügen..." className="flex-1 bg-black/50 border border-zinc-700 text-white rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500"/><button type="submit" className="p-2.5 bg-blue-600 rounded-xl text-white hover:bg-blue-500 transition"><Send size={18} /></button></form></div></div>);
 };
 
 // 4. PROFILE SCREEN (Überarbeitet: Neues Design & Auto-Loading)
@@ -557,6 +618,14 @@ const App = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Smart Profile Hook (Auto-Load & Auto-Create)
+  const { profile: smartProfile, loading: profileLoading, refresh: refreshProfile } = useSmartProfile(session);
+
+  // Sync smart profile with app state
+  useEffect(() => {
+    if (smartProfile) setCurrentUserProfile(smartProfile);
+  }, [smartProfile]);
+
   const activeChatPartnerRef = useRef(activeChatPartner);
   const [reportTarget, setReportTarget] = useState(null);
 
@@ -565,36 +634,16 @@ const App = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { 
         setSession(session); 
-        if (session?.user) fetchMyProfile(session.user.id); 
     });
     
     // Auth Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { 
         setSession(session); 
-        if (session?.user) fetchMyProfile(session.user.id); 
-        else setCurrentUserProfile(null); 
+        if (!session) setCurrentUserProfile(null); 
     });
     
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchMyProfile = async (userId) => { 
-      let { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
-      
-      if (!data) {
-          // AUTO-CREATE PROFILE if not exists (Smart Logic)
-          const newProfile = { 
-            user_id: userId, 
-            full_name: 'Neuer Spieler', 
-            position_primary: 'ZM', 
-            transfer_status: 'Gebunden',
-            followers_count: 0
-          };
-          await supabase.from('players_master').upsert(newProfile);
-          data = newProfile; 
-      }
-      setCurrentUserProfile(data); 
-  };
   
   const loadProfile = async (targetPlayer) => { 
       let p = { ...targetPlayer };
@@ -616,10 +665,12 @@ const App = () => {
           return;
       }
 
-      if (session && currentUserProfile) {
+      // Wenn wir ein Profil haben, laden wir es. Wenn nicht (noch am Laden), zeigen wir den Ladescreen
+      if (currentUserProfile) {
           loadProfile(currentUserProfile); 
       } else {
-          // Fallback, falls Auto-Create noch lädt
+          // Trigger reload if needed, show loading state by setting null viewedProfile
+          refreshProfile();
           setViewedProfile(null); 
           setActiveTab('profile'); 
       }
