@@ -6,7 +6,7 @@ import {
   Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
   Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
-  Eye, EyeOff, Edit, Pencil
+  Eye, EyeOff, Edit, Pencil, FileVideo, Film
 } from 'lucide-react';
 
 // --- MOCK DATABASE & CLIENT (Simulation) ---
@@ -354,26 +354,143 @@ const LoginModal = ({ onClose, onSuccess }) => {
   );
 };
 
+// UPLOAD MODAL OPTIMIERT
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
-  const [uploading, setUploading] = useState(false); const [category, setCategory] = useState("Training");
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
-    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
-    try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [category, setCategory] = useState("Training");
+  const [description, setDescription] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+        if (selectedFile.size > MAX_FILE_SIZE) {
+            alert("Datei zu groß! Max 50 MB.");
+            return;
+        }
+        setFile(selectedFile);
+        setPreviewUrl(URL.createObjectURL(selectedFile));
+    }
   };
+
+  const handleUpload = async () => {
+    if (!file || !player?.user_id) return;
+    
+    setUploading(true);
+    
+    // Simuliere Upload Progress
+    let currentProgress = 0;
+    const interval = setInterval(() => {
+        currentProgress += 10;
+        if (currentProgress > 90) clearInterval(interval);
+        setProgress(currentProgress);
+    }, 200);
+
+    try {
+        const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`;
+        // Simulation des Uploads
+        await new Promise(r => setTimeout(r, 2000));
+        
+        const { error: dbErr } = await supabase.from('media_highlights').insert({ 
+            player_id: player.id, 
+            video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", // Mock URL
+            thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", 
+            category_tag: category,
+            // description: description // Falls DB Feld existiert
+        }); 
+        
+        if (dbErr) throw dbErr;
+        
+        clearInterval(interval);
+        setProgress(100);
+        setTimeout(() => {
+            onUploadComplete();
+            onClose();
+        }, 500);
+
+    } catch (error) { 
+        alert('Upload Fehler: ' + error.message); 
+        setUploading(false);
+        clearInterval(interval);
+    }
+  };
+
+  useEffect(() => {
+      // Cleanup preview URL
+      return () => {
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+      }
+  }, [previewUrl]);
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 backdrop-blur-sm p-4"><div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl`}>
-      <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
-      {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
-      <div className="space-y-4">
-          <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
-          <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-              <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-          </label>
-      </div>
-      )}
-    </div></div>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+        <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl`}>
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Clip hochladen</h3>
+                <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
+            </div>
+
+            {uploading ? (
+                <div className="text-center py-8 space-y-4">
+                    <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <p className="text-zinc-400 font-medium text-sm">Dein Highlight wird hochgeladen... {progress}%</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {!file ? (
+                        <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
+                            <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform shadow-lg">
+                                <FileVideo className="w-8 h-8 text-blue-400" />
+                            </div>
+                            <p className="text-sm text-zinc-300 font-medium">Video auswählen</p>
+                            <p className="text-xs text-zinc-500 mt-1">Max. 50 MB • MP4, MOV</p>
+                            <input type="file" accept="video/*" className="hidden" onChange={handleFileSelect} />
+                        </label>
+                    ) : (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
+                                <video src={previewUrl} className="w-full h-full object-cover" controls />
+                                <button onClick={() => { setFile(null); setPreviewUrl(null); }} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                            
+                            <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 space-y-3">
+                                <div>
+                                    <label className="text-xs text-zinc-500 font-bold uppercase mb-1 block pl-1">Kategorie</label>
+                                    <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition">
+                                        <option>Training</option>
+                                        <option>Match Highlight</option>
+                                        <option>Tor</option>
+                                        <option>Skill</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-zinc-500 font-bold uppercase mb-1 block pl-1">Beschreibung (Optional)</label>
+                                    <input 
+                                        type="text" 
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Was passiert im Video?"
+                                        className="w-full bg-zinc-800 text-white p-2.5 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600"
+                                    />
+                                </div>
+                            </div>
+
+                            <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}>
+                                <UploadCloud size={20} />
+                                Jetzt hochladen
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    </div>
   );
 };
 
@@ -487,16 +604,6 @@ const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
             </div>
         </div>
     );
-};
-
-const AdminDashboard = ({ session }) => {
-    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
-    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
-    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
-    useEffect(() => { fetchPending(); fetchReports(); }, []);
-    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
-    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
-    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
 };
 
 // 4. PROFILE SCREEN (Überarbeitet: Neues Design & Auto-Loading)
@@ -651,41 +758,29 @@ const App = () => {
   const activeChatPartnerRef = useRef(activeChatPartner);
   const [reportTarget, setReportTarget] = useState(null);
 
+  // Smart Profile Hook (Auto-Load & Auto-Create)
+  const { profile: smartProfile, loading: profileLoading, refresh: refreshProfile } = useSmartProfile(session);
+
+  // Sync smart profile with app state
+  useEffect(() => {
+    if (smartProfile) setCurrentUserProfile(smartProfile);
+  }, [smartProfile]);
+
   useEffect(() => { activeChatPartnerRef.current = activeChatPartner; }, [activeChatPartner]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { 
         setSession(session); 
-        if (session?.user) fetchMyProfile(session.user.id); 
     });
     
     // Auth Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { 
         setSession(session); 
-        if (session?.user) fetchMyProfile(session.user.id); 
-        else setCurrentUserProfile(null); 
+        if (!session) setCurrentUserProfile(null); 
     });
     
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchMyProfile = async (userId) => { 
-      let { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', userId).maybeSingle(); 
-      
-      if (!data) {
-          // AUTO-CREATE PROFILE if not exists
-          const newProfile = { 
-            user_id: userId, 
-            full_name: 'Neuer Spieler', 
-            position_primary: 'ZM', 
-            transfer_status: 'Gebunden',
-            followers_count: 0
-          };
-          await supabase.from('players_master').upsert(newProfile);
-          data = newProfile; // Setze Daten direkt für State
-      }
-      setCurrentUserProfile(data); 
-  };
   
   const loadProfile = async (targetPlayer) => { 
       let p = { ...targetPlayer };
@@ -702,16 +797,17 @@ const App = () => {
   
   // Tab-Logik angepasst
   const handleProfileTabClick = () => { 
-      // Wenn nicht eingeloggt, direkt Login-Modal öffnen statt Tab zu wechseln
       if (!session) {
           setShowLogin(true);
           return;
       }
 
-      if (session && currentUserProfile) {
+      // Wenn wir ein Profil haben, laden wir es. Wenn nicht (noch am Laden), zeigen wir den Ladescreen
+      if (currentUserProfile) {
           loadProfile(currentUserProfile); 
       } else {
-          // Fallback, sollte eigentlich durch Auto-Create nicht passieren
+          // Trigger reload if needed, show loading state by setting null viewedProfile
+          refreshProfile();
           setViewedProfile(null); 
           setActiveTab('profile'); 
       }
@@ -741,14 +837,14 @@ const App = () => {
             onFollow={() => {}}
             onShowFollowers={() => setShowFollowersModal(true)}
             onLoginReq={() => setShowLogin(true)}
-            onCreateProfile={() => {}} // Nicht mehr nötig dank Auto-Create
+            onCreateProfile={() => {}} 
           />
       )}
       
       {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
       {activeTab === 'admin' && <AdminDashboard session={session} />}
       
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-40 rounded-3xl shadow-2xl shadow-black/50">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-[9999] rounded-3xl shadow-2xl shadow-black/50 pointer-events-auto">
           <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'home' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Home size={24} /></button>
           <button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'search' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Search size={24} /></button>
           <div className="relative -top-8"><button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40 border-4 border-black transition-transform hover:scale-105 active:scale-95"><Plus size={28} className="text-white" strokeWidth={3} /></button></div>
