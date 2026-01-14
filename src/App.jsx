@@ -7,7 +7,7 @@ import {
   Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
-  Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle
+  Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film
 } from 'lucide-react';
 
 // --- 1. HELFER & STYLES (Nach oben verschoben, um ReferenceErrors zu vermeiden) ---
@@ -33,7 +33,7 @@ const MOCK_DB = {
         { id: 103, name: "BVB 09", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true }
     ],
     media_highlights: [
-        { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
+        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
@@ -790,6 +790,27 @@ const App = () => {
     setActiveTab('profile'); // Switch tab
   };
   
+  // Fehlende Handler für Settings Menü ergänzt:
+  const handleInstallApp = () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        setDeferredPrompt(null);
+    } else {
+        alert("App ist bereits installiert oder wird nicht unterstützt.");
+    }
+  };
+
+  const handlePushRequest = () => {
+      // Mock Implementation
+      if ("Notification" in window) {
+          Notification.requestPermission().then(permission => {
+              if (permission === "granted") alert("Push-Benachrichtigungen aktiviert!");
+          });
+      } else {
+          alert("Push wird nicht unterstützt.");
+      }
+  };
+
   const loadProfile = async (targetPlayer) => { 
       let p = { ...targetPlayer };
       if (session) { const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle(); p.isFollowing = !!data; }
