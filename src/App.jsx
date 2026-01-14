@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+// import ReactDOM from 'react-dom'; // Optional, wir nutzen hier eine sichere In-App-Lösung
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
   Camera, Save, UploadCloud, Mail, Users, ChevronRight, Shield, ShieldAlert, 
   Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
-  Database, Share2, Copy, Trophy, Crown, FileText, Lock, Cookie, Download, 
+  Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
-  Eye, EyeOff, Edit, Pencil, FileVideo, Film, Smartphone, Key, RefreshCw, ChevronRight as ChevronRightIcon
+  Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle
 } from 'lucide-react';
 
-// --- MOCK DATABASE & CLIENT (Simulation) ---
+// --- MOCK DATABASE & CLIENT ---
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
@@ -24,7 +25,7 @@ const MOCK_DB = {
         { id: 103, name: "BVB 09", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true }
     ],
     media_highlights: [
-        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
+        { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
@@ -182,16 +183,129 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 3. HELFER & STYLES ---
-const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
-const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
-const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
-const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
-const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
-const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
+// --- 3. UI KOMPONENTEN ---
+// Error Boundary (Simple Function Component Alternative)
+class SafeErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false }; }
+    static getDerivedStateFromError(error) { return { hasError: true }; }
+    componentDidCatch(error, errorInfo) { console.error("Settings Error:", error, errorInfo); }
+    render() {
+      if (this.state.hasError) {
+        return (
+          <div className="p-6 text-center text-white bg-zinc-900 rounded-xl m-4 border border-red-500/30">
+            <AlertTriangle className="mx-auto text-red-500 mb-2" size={32} />
+            <h3 className="font-bold mb-2">Ein Fehler ist aufgetreten</h3>
+            <button onClick={() => this.setState({ hasError: false })} className="px-4 py-2 bg-zinc-800 rounded-lg text-sm">Neustarten</button>
+          </div>
+        );
+      }
+      return this.props.children; 
+    }
+}
 
-// --- 4. KOMPONENTEN & MODALS ---
+// --- EINSTELLUNGEN OVERLAY (NEU & ROBUST) ---
+const SettingsOverlay = ({ isOpen, onClose, onLogout, user, onEditReq }) => {
+    // 1. Render-Guard: Wenn nicht offen, rendere nichts (spart Performance & Z-Index Probleme)
+    if (!isOpen) return null;
 
+    // Aktionen (Mock)
+    const handlePWAInstall = () => { alert("PWA Installation würde hier starten (Browser-Prompt)."); };
+    const handleClearCache = () => { localStorage.clear(); alert("Cache geleert. Bitte App neu laden."); };
+    const handlePushToggle = () => { alert("Push-Benachrichtigungen aktiviert!"); };
+    const handleShare = () => { 
+        if(user?.id) navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); 
+        alert("Link in Zwischenablage kopiert!");
+    };
+    const handleDeleteAccount = () => {
+        if(confirm("ACHTUNG: Account unwiderruflich löschen?")) {
+            onLogout();
+            alert("Account gelöscht.");
+        }
+    };
+
+    // Inhalt des Menüs
+    const SettingsContent = () => (
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Sektion 1: App */}
+            <div className="space-y-2">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2">App</h3>
+                <button onClick={handlePWAInstall} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <Download size={18} className="text-blue-400" /> <span>App installieren</span>
+                </button>
+                <button onClick={handlePushToggle} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <Bell size={18} className="text-zinc-400" /> <span>Benachrichtigungen</span>
+                </button>
+                <button onClick={handleClearCache} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <RefreshCw size={18} className="text-zinc-400" /> <span>Cache leeren</span>
+                </button>
+            </div>
+
+            {/* Sektion 2: Account */}
+            <div className="space-y-2">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2">Mein Profil</h3>
+                <button onClick={onEditReq} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <Edit size={18} className="text-zinc-400" /> <span>Profil bearbeiten</span>
+                </button>
+                <button onClick={handleShare} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <Share2 size={18} className="text-zinc-400" /> <span>Link teilen</span>
+                </button>
+                <button onClick={() => alert("Passwort-Reset Email gesendet.")} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <Key size={18} className="text-zinc-400" /> <span>Passwort ändern</span>
+                </button>
+            </div>
+
+             {/* Sektion 3: Rechtliches */}
+             <div className="space-y-2">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2">Rechtliches</h3>
+                <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <Lock size={18} className="text-zinc-400" /> <span>Datenschutz</span>
+                </button>
+                <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
+                    <FileText size={18} className="text-zinc-400" /> <span>Impressum</span>
+                </button>
+            </div>
+
+            {/* Sektion 4: Gefahr */}
+            <div className="pt-4 border-t border-white/10 space-y-2">
+                <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition font-medium">
+                    <LogOut size={18} /> <span>Abmelden</span>
+                </button>
+                <button onClick={handleDeleteAccount} className="w-full flex items-center gap-3 p-3 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 rounded-xl transition text-xs justify-center">
+                    <Trash2 size={14} /> <span>Account löschen</span>
+                </button>
+            </div>
+
+            <div className="text-center text-zinc-700 text-xs pt-4 pb-8">
+                ScoutVision v2.2.0 (Build 492)
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[99999] flex justify-end">
+             {/* Backdrop (Klick schließt) */}
+             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+             
+             {/* Slide-In Panel */}
+             <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                 {/* Header */}
+                 <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
+                     <h2 className="text-lg font-bold text-white">Einstellungen</h2>
+                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition">
+                         <X size={20} />
+                     </button>
+                 </div>
+                 
+                 {/* Safe Content Area */}
+                 <SafeErrorBoundary>
+                    <SettingsContent />
+                 </SafeErrorBoundary>
+             </div>
+        </div>
+    );
+};
+
+// --- HELPER COMPONENTS ---
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
         <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10 relative overflow-hidden">
@@ -217,154 +331,6 @@ const ToastContainer = ({ toasts, removeToast }) => (<div className="fixed top-6
 
 const CookieBanner = () => { const [accepted, setAccepted] = useState(false); useEffect(() => { if (localStorage.getItem('cookie_consent') === 'true') setAccepted(true); }, []); if (accepted) return null; return (<div className="fixed bottom-24 left-4 right-4 md:bottom-6 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-[100]"><div className="bg-black/80 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl flex flex-col gap-4"><div className="flex items-start gap-4"><Cookie size={24} className="text-white"/><div className="text-xs text-zinc-400">Wir nutzen technisch notwendige Cookies.</div></div><button onClick={() => { localStorage.setItem('cookie_consent', 'true'); setAccepted(true); }} className="w-full bg-white text-black font-bold py-3 rounded-xl text-sm">Alles klar</button></div></div>); };
 
-const ReportModal = ({ targetId, targetType, onClose, session }) => {
-    const [reason, setReason] = useState('Spam');
-    const [loading, setLoading] = useState(false);
-    const handleReport = async () => {
-        setLoading(true);
-        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
-    };
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className={`w-full max-w-xs ${cardStyle} p-5`}>
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3>
-                <div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5">
-                    <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select>
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button>
-                    <button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- EINSTELLUNGEN MENÜ (Overlay) ---
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq }) => {
-    const [showToast, setShowToast] = useState(null);
-
-    const showFeedback = (msg) => {
-        setShowToast(msg);
-        setTimeout(() => setShowToast(null), 2000);
-    };
-
-    const handleClearCache = () => {
-        try {
-            localStorage.clear();
-            showFeedback('Cache geleert!');
-            // Optional: Reload page to force fresh state
-            // window.location.reload(); 
-        } catch (e) {
-            showFeedback('Fehler beim Leeren');
-        }
-    };
-
-    const handleShareProfile = () => {
-        if (!user?.id) return;
-        const url = `https://scoutvision.app/user/${user.id}`;
-        navigator.clipboard.writeText(url).then(() => showFeedback('Link kopiert!'));
-    };
-
-    const handleAccountDelete = () => {
-        if (confirm("Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
-            // Mock delete
-            onLogout(); 
-            alert("Account gelöscht (Simulation)");
-        }
-    };
-
-    const SettingsItem = ({ icon: Icon, label, onClick, danger = false }) => (
-        <button 
-            onClick={onClick}
-            className={`w-full p-4 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : 'hover:bg-white/5'}`}
-        >
-            <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
-                    <Icon size={20} />
-                </div>
-                <span className={`font-medium ${danger ? 'text-red-500' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
-            </div>
-            <ChevronRightIcon size={18} className={danger ? 'text-red-500' : 'text-zinc-600 group-hover:text-zinc-400'} />
-        </button>
-    );
-
-    return (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}></div>
-            
-            {/* Slide-in Panel */}
-            <div className="relative w-full max-w-sm h-full bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
-                
-                {/* Header */}
-                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Settings size={22} className="text-blue-500"/> Einstellungen
-                    </h2>
-                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Content Scrollable */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-8">
-                    
-                    {/* Section 1: App */}
-                    <div>
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">App Einstellungen</h3>
-                        <div className="space-y-1">
-                            {installPrompt && <SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} />}
-                            <SettingsItem icon={Bell} label="Push-Nachrichten" onClick={() => { onRequestPush(); showFeedback('Push aktiviert!'); }} />
-                            <SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} />
-                        </div>
-                    </div>
-
-                    {/* Section 2: Account */}
-                    <div>
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">Mein Account</h3>
-                        <div className="space-y-1">
-                            <SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />
-                            <SettingsItem icon={Share2} label="Profil teilen" onClick={handleShareProfile} />
-                            <SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback('Passwort-Reset gesendet')} />
-                            <SettingsItem icon={Smartphone} label="Geräte verwalten" onClick={() => showFeedback('Andere Sessions beendet')} />
-                        </div>
-                    </div>
-
-                    {/* Section 3: Rechtliches */}
-                    <div>
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">Rechtliches</h3>
-                        <div className="space-y-1">
-                            <SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback('Datenschutz geöffnet')} />
-                            <SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback('Impressum geöffnet')} />
-                        </div>
-                    </div>
-
-                    {/* Section 4: Danger Zone */}
-                    <div>
-                        <h3 className="text-xs font-bold text-red-500/70 uppercase tracking-wider mb-3 px-2">Zone</h3>
-                        <div className="space-y-1">
-                            <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
-                            <SettingsItem icon={Trash2} label="Account löschen" onClick={handleAccountDelete} danger />
-                        </div>
-                    </div>
-
-                    <div className="text-center text-zinc-600 text-xs py-4">
-                        ScoutVision v2.1.0 (Beta)
-                    </div>
-                </div>
-
-                {/* Toast Notification inside Overlay */}
-                {showToast && (
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2">
-                        {showToast}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
 const LoginModal = ({ onClose, onSuccess }) => {
   const [view, setView] = useState('login'); 
   const [email, setEmail] = useState('');
@@ -388,19 +354,15 @@ const LoginModal = ({ onClose, onSuccess }) => {
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) { 
-            throw error; 
-        }
+        if (error) { throw error; }
         if (data.user) { 
             setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-            // CRUCIAL: Pass new user data to parent via onSuccess
             setTimeout(() => onSuccess({ user: data.user }), 1000); 
             return; 
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // CRUCIAL: Pass session data to parent via onSuccess
         onSuccess(data.session);
       }
     } catch (error) { 
@@ -579,6 +541,16 @@ const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
             </div>
         </div>
     );
+};
+
+const AdminDashboard = ({ session }) => {
+    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
+    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
+    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
+    useEffect(() => { fetchPending(); fetchReports(); }, []);
+    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
+    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
+    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
 };
 
 // 4. PROFILE SCREEN (Überarbeitet: Neues Design & Auto-Loading)
@@ -802,6 +774,14 @@ const App = () => {
     
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleLoginSuccess = async (sessionData) => {
+    setSession(sessionData);
+    setShowLogin(false);
+    refreshProfile(); // Trigger profile load explicitly
+    setViewedProfile(null); // Clear any previous view
+    setActiveTab('profile'); // Switch tab
+  };
   
   const loadProfile = async (targetPlayer) => { 
       let p = { ...targetPlayer };
@@ -903,7 +883,7 @@ const App = () => {
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={() => setShowLogin(false)} />}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
       {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
     </div>
