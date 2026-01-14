@@ -192,9 +192,9 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 4. KOMPONENTEN & MODALS ---
+// --- 3. HELFER & UI KOMPONENTEN ---
 
-// Error Boundary (Simple Function Component Alternative)
+// Error Boundary für Settings
 class SafeErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
     static getDerivedStateFromError(error) { return { hasError: true }; }
@@ -261,19 +261,34 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// --- EINSTELLUNGEN OVERLAY (NEU & ROBUST) ---
+// --- EINSTELLUNGEN OVERLAY (ROBUST & NEU) ---
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq }) => {
-    // 1. Render-Guard: Wenn nicht offen, rendere nichts (spart Performance & Z-Index Probleme)
-    // (Wird von App.js gesteuert, hier nur als Safety)
-    
-    // Aktionen (Mock)
-    const handlePWAInstall = () => { alert("PWA Installation würde hier starten (Browser-Prompt)."); };
-    const handleClearCache = () => { localStorage.clear(); alert("Cache geleert. Bitte App neu laden."); };
-    const handlePushToggle = () => { alert("Push-Benachrichtigungen aktiviert!"); };
-    const handleShare = () => { 
-        if(user?.id) navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); 
-        alert("Link in Zwischenablage kopiert!");
+    const [showToast, setShowToast] = useState(null);
+
+    // Render-Guard
+    if (!user) return null;
+
+    const showFeedback = (msg) => {
+        setShowToast(msg);
+        setTimeout(() => setShowToast(null), 2000);
     };
+
+    const handleClearCache = () => {
+        try {
+            localStorage.clear();
+            showFeedback('Cache geleert!');
+        } catch (e) {
+            showFeedback('Fehler beim Leeren');
+        }
+    };
+
+    const handleShare = () => { 
+        if(user?.id) {
+            navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); 
+            showFeedback('Link in Zwischenablage!');
+        }
+    };
+
     const handleDeleteAccount = () => {
         if(confirm("ACHTUNG: Account unwiderruflich löschen?")) {
             onLogout();
@@ -281,83 +296,78 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
         }
     };
 
-    // Inhalt des Menüs
-    const SettingsContent = () => (
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {/* Sektion 1: App */}
-            <div className="space-y-2">
-                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2">App</h3>
-                <button onClick={handlePWAInstall} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <Download size={18} className="text-blue-400" /> <span>App installieren</span>
-                </button>
-                <button onClick={handlePushToggle} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <Bell size={18} className="text-zinc-400" /> <span>Benachrichtigungen</span>
-                </button>
-                <button onClick={handleClearCache} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <RefreshCw size={18} className="text-zinc-400" /> <span>Cache leeren</span>
-                </button>
+    const SettingsItem = ({ icon: Icon, label, onClick, danger = false }) => (
+        <button 
+            onClick={onClick}
+            className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : 'hover:bg-white/5'}`}
+        >
+            <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
+                    <Icon size={18} />
+                </div>
+                <span className={`font-medium text-sm ${danger ? 'text-red-500' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
             </div>
-
-            {/* Sektion 2: Account */}
-            <div className="space-y-2">
-                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2">Mein Profil</h3>
-                <button onClick={onEditReq} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <Edit size={18} className="text-zinc-400" /> <span>Profil bearbeiten</span>
-                </button>
-                <button onClick={handleShare} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <Share2 size={18} className="text-zinc-400" /> <span>Link teilen</span>
-                </button>
-                <button onClick={() => alert("Passwort-Reset Email gesendet.")} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <Key size={18} className="text-zinc-400" /> <span>Passwort ändern</span>
-                </button>
-            </div>
-
-             {/* Sektion 3: Rechtliches */}
-             <div className="space-y-2">
-                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2">Rechtliches</h3>
-                <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <Lock size={18} className="text-zinc-400" /> <span>Datenschutz</span>
-                </button>
-                <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition text-white">
-                    <FileText size={18} className="text-zinc-400" /> <span>Impressum</span>
-                </button>
-            </div>
-
-            {/* Sektion 4: Gefahr */}
-            <div className="pt-4 border-t border-white/10 space-y-2">
-                <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition font-medium">
-                    <LogOut size={18} /> <span>Abmelden</span>
-                </button>
-                <button onClick={handleDeleteAccount} className="w-full flex items-center gap-3 p-3 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 rounded-xl transition text-xs justify-center">
-                    <Trash2 size={14} /> <span>Account löschen</span>
-                </button>
-            </div>
-
-            <div className="text-center text-zinc-700 text-xs pt-4 pb-8">
-                ScoutVision v2.2.0 (Build 492)
-            </div>
-        </div>
+            <ChevronRight size={16} className={danger ? 'text-red-500' : 'text-zinc-600 group-hover:text-zinc-400'} />
+        </button>
     );
 
     return (
-        <div className="fixed inset-0 z-[99999] flex justify-end">
-             {/* Backdrop (Klick schließt) */}
+        <div className="fixed inset-0 z-[10000] flex justify-end">
+             {/* Backdrop */}
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
              
              {/* Slide-In Panel */}
              <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
                  {/* Header */}
                  <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
-                     <h2 className="text-lg font-bold text-white">Einstellungen</h2>
+                     <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2>
                      <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition">
                          <X size={20} />
                      </button>
                  </div>
                  
-                 {/* Safe Content Area */}
+                 {/* Content */}
                  <SafeErrorBoundary>
-                    <SettingsContent />
+                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                        {/* Section 1 */}
+                        <div className="space-y-1">
+                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3>
+                            <SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} />
+                            <SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
+                            <SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} />
+                        </div>
+
+                        {/* Section 2 */}
+                        <div className="space-y-1">
+                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3>
+                            <SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />
+                            <SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} />
+                            <SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} />
+                        </div>
+
+                        {/* Section 3 */}
+                        <div className="space-y-1">
+                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3>
+                            <SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} />
+                            <SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} />
+                        </div>
+
+                        {/* Danger Zone */}
+                        <div className="pt-4 border-t border-white/10 space-y-2">
+                            <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
+                            <SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger />
+                        </div>
+                        
+                        <div className="text-center text-zinc-700 text-xs py-4">v2.2.1 Stable</div>
+                    </div>
                  </SafeErrorBoundary>
+
+                 {/* In-Menu Toast */}
+                 {showToast && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">
+                        {showToast}
+                    </div>
+                )}
              </div>
         </div>
     );
@@ -413,28 +423,45 @@ const LoginModal = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
+        
         <div className="animate-in fade-in slide-in-from-right-5">
             <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"><User size={28} className="text-white"/></div>
                 <h2 className="text-2xl font-bold text-white">{view === 'register' ? 'Account erstellen' : 'Willkommen zurück'}</h2>
                 <p className="text-zinc-400 text-sm text-center">{view === 'register' ? 'Werde Teil der Community' : 'Melde dich an, um fortzufahren'}</p>
             </div>
+
             {successMsg ? (
-                <div className="text-center space-y-4"><div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div></div>
+                <div className="text-center space-y-4">
+                    <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
+                </div>
             ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div className="space-y-3">
                         <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
                         <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-                        {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
+                        
+                        {view === 'register' && (
+                            <div className="animate-in slide-in-from-top-2 fade-in">
+                                <input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                            </div>
+                        )}
                     </div>
-                    {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div></div>)}
-                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
+
+                    {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
+                    
+                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>
+                        {loading && <Loader2 className="animate-spin" size={18} />} 
+                        {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}
+                    </button>
                 </form>
             )}
+
             <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); }} className="text-white hover:text-blue-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
+                    {view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}
+                </button>
             </div>
         </div>
       </div>
@@ -707,52 +734,6 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
         </div>
     )
 }
-
-// 5. CLUB SCREEN
-const ClubScreen = ({ club, onBack, onUserClick }) => {
-    const [players, setPlayers] = useState([]);
-    useEffect(() => {
-        const fetchPlayers = async () => {
-            const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id);
-            setPlayers(data || []);
-        };
-        fetchPlayers();
-    }, [club]);
-
-    return (
-        <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
-             <div className="relative h-40 bg-zinc-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
-                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30 blur-sm"/>}
-                <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
-             </div>
-             <div className="px-6 -mt-12 relative z-10">
-                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
-                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
-                 </div>
-                 <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
-                 <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
-
-                 <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
-                 <div className="space-y-3">
-                     {players.map(p => (
-                         <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                             <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
-                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-3"/>}
-                             </div>
-                             <div>
-                                 <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
-                                 <span className="text-xs text-zinc-500 bg-white/10 px-2 py-0.5 rounded">{p.position_primary}</span>
-                             </div>
-                             <ChevronRight size={16} className="ml-auto text-zinc-600"/>
-                         </div>
-                     ))}
-                     {players.length === 0 && <p className="text-zinc-500 text-sm">Keine Spieler gefunden.</p>}
-                 </div>
-             </div>
-        </div>
-    );
-};
 
 // --- 6. MAIN APP ---
 const App = () => {
