@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-// import ReactDOM from 'react-dom'; // Optional, wir nutzen hier eine sichere In-App-Lösung
+// HINWEIS FÜR LOKALE ENTWICKLUNG:
+// 1. Installieren Sie: npm install @supabase/supabase-js
+// 2. Entkommentieren Sie die folgende Zeile:
+// import { createClient } from '@supabase/supabase-js'; 
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -10,15 +13,13 @@ import {
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film
 } from 'lucide-react';
 
-// --- 1. HELFER & STYLES (Nach oben verschoben, um ReferenceErrors zu vermeiden) ---
-const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
-const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
-const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
-const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
-const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
-const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
+// --- 1. KONFIGURATION & STYLES ---
 
-// --- MOCK DATABASE & CLIENT ---
+// ECHTE SUPABASE KONFIGURATION (Für später)
+const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
+
+// --- MOCK DATABASE & CLIENT (Simulation für Preview) ---
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
@@ -145,10 +146,23 @@ const createMockClient = () => {
         removeChannel: () => {}
     };
 };
-const supabase = createMockClient();
+
+// AKTIVIERE MOCK FÜR PREVIEW (Um auf ECHT zu wechseln: Zeile 10 einkommentieren und diese Zeile löschen)
+const supabase = createMockClient(); 
+// const supabase = createClient(supabaseUrl, supabaseKey); // <-- Hier für Production umschalten
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
+const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
+const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
+const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
+const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
+const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
+const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
+
 // --- 2. HOOKS ---
+
+// Smart Profile Hook: Lädt Profil oder erstellt es automatisch beim ersten Login
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -160,26 +174,37 @@ const useSmartProfile = (session) => {
         }
         setLoading(true);
         try {
-            let { data } = await supabase.from('players_master')
+            // 1. Versuche existierendes Profil zu laden
+            let { data, error } = await supabase.from('players_master')
                 .select('*, clubs(*)')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
 
+            // 2. Falls keins existiert -> Auto-Create
             if (!data) {
-                // Auto-Create Profile for new user
+                console.log("Kein Profil gefunden, erstelle neu...");
                 const newProfile = { 
                     user_id: session.user.id, 
                     full_name: 'Neuer Spieler', 
                     position_primary: 'ZM', 
                     transfer_status: 'Gebunden',
-                    followers_count: 0
+                    followers_count: 0,
+                    is_verified: false,
+                    is_admin: false
                 };
-                await supabase.from('players_master').upsert(newProfile);
-                data = newProfile;
+                
+                const { data: createdProfile, error: createError } = await supabase
+                    .from('players_master')
+                    .upsert(newProfile)
+                    .select()
+                    .single();
+                
+                if (createError) throw createError;
+                data = createdProfile || newProfile; // Mock fallback
             }
             setProfile(data);
         } catch (e) {
-            console.error("Profile fetch error", e);
+            console.error("Profile fetch error:", e.message);
         } finally {
             setLoading(false);
         }
@@ -192,7 +217,7 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 3. HELFER & UI KOMPONENTEN ---
+// --- 3. UI KOMPONENTEN ---
 
 // Error Boundary für Settings
 class SafeErrorBoundary extends React.Component {
@@ -243,7 +268,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     const [loading, setLoading] = useState(false);
     const handleReport = async () => {
         setLoading(true);
-        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
+        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -261,7 +286,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// --- EINSTELLUNGEN OVERLAY (ROBUST & NEU) ---
+// --- EINSTELLUNGEN OVERLAY ---
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq }) => {
     const [showToast, setShowToast] = useState(null);
 
@@ -290,9 +315,9 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     };
 
     const handleDeleteAccount = () => {
-        if(confirm("ACHTUNG: Account unwiderruflich löschen?")) {
-            onLogout();
-            alert("Account gelöscht.");
+        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
+            // Echte Löschlogik würde hier eine Cloud Function rufen
+            alert("Bitte kontaktiere den Support für die endgültige Löschung.");
         }
     };
 
@@ -358,7 +383,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                             <SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger />
                         </div>
                         
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.2.1 Stable</div>
+                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.0 Live</div>
                     </div>
                  </SafeErrorBoundary>
 
@@ -400,15 +425,12 @@ const LoginModal = ({ onClose, onSuccess }) => {
             throw error; 
         }
         if (data.user) { 
-            setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-            // CRUCIAL: Pass new user data to parent via onSuccess
-            setTimeout(() => onSuccess({ user: data.user }), 1000); 
-            return; 
+            setSuccessMsg('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.');
+            setTimeout(() => { if (onSuccess) onSuccess(data.session); }, 2000);
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // CRUCIAL: Pass session data to parent via onSuccess
         onSuccess(data.session);
       }
     } catch (error) { 
@@ -423,45 +445,28 @@ const LoginModal = ({ onClose, onSuccess }) => {
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
-        
         <div className="animate-in fade-in slide-in-from-right-5">
             <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"><User size={28} className="text-white"/></div>
                 <h2 className="text-2xl font-bold text-white">{view === 'register' ? 'Account erstellen' : 'Willkommen zurück'}</h2>
                 <p className="text-zinc-400 text-sm text-center">{view === 'register' ? 'Werde Teil der Community' : 'Melde dich an, um fortzufahren'}</p>
             </div>
-
             {successMsg ? (
-                <div className="text-center space-y-4">
-                    <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
-                </div>
+                <div className="text-center space-y-4"><div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div></div>
             ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div className="space-y-3">
                         <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
                         <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-                        
-                        {view === 'register' && (
-                            <div className="animate-in slide-in-from-top-2 fade-in">
-                                <input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                            </div>
-                        )}
+                        {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
                     </div>
-
-                    {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14}/> {msg}</div>}
-                    
-                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>
-                        {loading && <Loader2 className="animate-spin" size={18} />} 
-                        {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}
-                    </button>
+                    {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div></div>)}
+                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
                 </form>
             )}
-
             <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
-                    {view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}
-                </button>
+                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); }} className="text-white hover:text-blue-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
             </div>
         </div>
       </div>
