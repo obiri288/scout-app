@@ -149,7 +149,7 @@ const createMockClient = () => {
 
 // AKTIVIERE MOCK FÜR PREVIEW (Um auf ECHT zu wechseln: Zeile 10 einkommentieren und diese Zeile löschen)
 // const supabase = createMockClient(); 
-const supabase = createClient(supabaseUrl, supabaseKey); 
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
@@ -448,7 +448,7 @@ const handleAuth = async (e) => {
     }
   };
 
-  
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
