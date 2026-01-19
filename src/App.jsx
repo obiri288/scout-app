@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 // HINWEIS FÜR LOKALE ENTWICKLUNG:
 // 1. Installieren Sie: npm install @supabase/supabase-js
 // 2. Entkommentieren Sie die folgende Zeile:
-// import { createClient } from '@supabase/supabase-js'; 
+import { createClient } from '@supabase/supabase-js'; 
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -148,8 +148,8 @@ const createMockClient = () => {
 };
 
 // AKTIVIERE MOCK FÜR PREVIEW (Um auf ECHT zu wechseln: Zeile 10 einkommentieren und diese Zeile löschen)
-const supabase = createMockClient(); 
-// const supabase = createClient(supabaseUrl, supabaseKey); // <-- Hier für Production umschalten
+// const supabase = createMockClient(); 
+const supabase = createClient(supabaseUrl, supabaseKey); 
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
@@ -407,7 +407,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const [msg, setMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const handleAuth = async (e) => {
+const handleAuth = async (e) => {
     e.preventDefault(); 
     setLoading(true); setMsg(''); setSuccessMsg('');
     const isSignUp = view === 'register';
@@ -421,14 +421,21 @@ const LoginModal = ({ onClose, onSuccess }) => {
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) { 
-            throw error; 
+        if (error) throw error;
+
+        // FALL 1: Registrierung erfolgreich, aber E-Mail muss noch bestätigt werden (keine Session)
+        if (data.user && !data.session) { 
+            setSuccessMsg('📧 Fast fertig! Bitte bestätige den Link in deiner E-Mail.');
+            // WICHTIG: Wir rufen hier NICHT onSuccess() auf. Der User bleibt im Modal.
         }
-        if (data.user) { 
-            setSuccessMsg('✅ Registrierung erfolgreich! Bitte E-Mail bestätigen.');
-            setTimeout(() => { if (onSuccess) onSuccess(data.session); }, 2000);
+        
+        // FALL 2: Registrierung erfolgreich & direkt eingeloggt (falls E-Mail Confirm aus ist)
+        else if (data.user && data.session) {
+            setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
+            setTimeout(() => onSuccess(data.session), 1000); 
         }
       } else {
+        // LOGIN
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         onSuccess(data.session);
@@ -441,6 +448,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
     }
   };
 
+  
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
