@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-// HINWEIS FÜR LOKALE ENTWICKLUNG:
-// 1. Installieren Sie: npm install @supabase/supabase-js
-// 2. Entkommentieren Sie die folgende Zeile:
-import { createClient } from '@supabase/supabase-js'; 
+// import { createClient } from '@supabase/supabase-js'; // Mock aktiv für Preview
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -10,31 +7,66 @@ import {
   Briefcase, ArrowRight, Instagram, Youtube, Video, Filter, Check, Trash2, 
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
-  Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film
+  Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
+  Calendar, Weight, Hash, Globe
 } from 'lucide-react';
 
-// --- 1. KONFIGURATION & STYLES ---
+// --- 1. HELFER & STYLES ---
+const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
-// ECHTE SUPABASE KONFIGURATION (Für später)
-const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
+const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
+const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
+const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
+const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
+const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
 
-// --- MOCK DATABASE & CLIENT (Simulation für Preview) ---
+// Helper um Alter zu berechnen
+const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
+};
+
+// --- MOCK DATABASE & CLIENT ---
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
+// UPDATE: Mock-Daten erweitert um neue Felder
 const MOCK_DB = {
     players_master: [
-        // DB Start: Nur ein Demo-User
-        { id: 99, user_id: "user-demo", full_name: "Nico Schlotterbeck", position_primary: "IV", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", clubs: { id: 103, name: "BVB 09", league: "Bundesliga", is_icon_league: true }, followers_count: 850, is_verified: true, height_user: 191, strong_foot: "Links" },
+        { 
+            id: 99, 
+            user_id: "user-demo", 
+            full_name: "Nico Schlotterbeck", 
+            first_name: "Nico",
+            last_name: "Schlotterbeck",
+            position_primary: "IV", 
+            transfer_status: "Gebunden", 
+            avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
+            clubs: { id: 103, name: "BVB 09", short_name: "BVB", league: "Bundesliga", is_icon_league: true, color_primary: "#fbbf24", color_secondary: "#000000", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB" }, 
+            followers_count: 850, 
+            is_verified: true, 
+            height_user: 191, 
+            weight: 86,
+            strong_foot: "Links",
+            birth_date: "1999-12-01",
+            jersey_number: 4,
+            nationality: "Deutschland"
+        },
     ],
     clubs: [
-        { id: 101, name: "FC Berlin", league: "Regionalliga", logo_url: "https://placehold.co/100x100/1e293b/ffffff?text=FCB", is_verified: true },
-        { id: 102, name: "Bayern M.", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true },
-        { id: 103, name: "BVB 09", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true }
+        { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true, color_primary: "#dc2626", color_secondary: "#ffffff" },
+        { id: 102, name: "FC Schalke 04", short_name: "S04", league: "2. Bundesliga", logo_url: "https://placehold.co/100x100/1d4ed8/ffffff?text=S04", is_verified: true, color_primary: "#1d4ed8", color_secondary: "#ffffff" },
+        { id: 103, name: "Borussia Dortmund", short_name: "BVB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true, color_primary: "#fbbf24", color_secondary: "#000000" }
     ],
     media_highlights: [
-        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
+        { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
@@ -146,23 +178,10 @@ const createMockClient = () => {
         removeChannel: () => {}
     };
 };
-
-// AKTIVIERE MOCK FÜR PREVIEW (Um auf ECHT zu wechseln: Zeile 10 einkommentieren und diese Zeile löschen)
-// const supabase = createMockClient(); 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+const supabase = createMockClient();
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
-const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
-const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
-const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
-const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
-const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
-const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
-
 // --- 2. HOOKS ---
-
-// Smart Profile Hook: Lädt Profil oder erstellt es automatisch beim ersten Login
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -174,37 +193,25 @@ const useSmartProfile = (session) => {
         }
         setLoading(true);
         try {
-            // 1. Versuche existierendes Profil zu laden
-            let { data, error } = await supabase.from('players_master')
+            let { data } = await supabase.from('players_master')
                 .select('*, clubs(*)')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
 
-            // 2. Falls keins existiert -> Auto-Create
             if (!data) {
-                console.log("Kein Profil gefunden, erstelle neu...");
                 const newProfile = { 
                     user_id: session.user.id, 
                     full_name: 'Neuer Spieler', 
                     position_primary: 'ZM', 
                     transfer_status: 'Gebunden',
-                    followers_count: 0,
-                    is_verified: false,
-                    is_admin: false
+                    followers_count: 0
                 };
-                
-                const { data: createdProfile, error: createError } = await supabase
-                    .from('players_master')
-                    .upsert(newProfile)
-                    .select()
-                    .single();
-                
-                if (createError) throw createError;
-                data = createdProfile || newProfile; // Mock fallback
+                await supabase.from('players_master').upsert(newProfile);
+                data = newProfile;
             }
             setProfile(data);
         } catch (e) {
-            console.error("Profile fetch error:", e.message);
+            console.error("Profile fetch error", e);
         } finally {
             setLoading(false);
         }
@@ -268,7 +275,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     const [loading, setLoading] = useState(false);
     const handleReport = async () => {
         setLoading(true);
-        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
+        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -407,7 +414,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
   const [msg, setMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-const handleAuth = async (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault(); 
     setLoading(true); setMsg(''); setSuccessMsg('');
     const isSignUp = view === 'register';
@@ -421,23 +428,19 @@ const handleAuth = async (e) => {
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-
-        // FALL 1: Registrierung erfolgreich, aber E-Mail muss noch bestätigt werden (keine Session)
-        if (data.user && !data.session) { 
-            setSuccessMsg('📧 Fast fertig! Bitte bestätige den Link in deiner E-Mail.');
-            // WICHTIG: Wir rufen hier NICHT onSuccess() auf. Der User bleibt im Modal.
+        if (error) { 
+            throw error; 
         }
-        
-        // FALL 2: Registrierung erfolgreich & direkt eingeloggt (falls E-Mail Confirm aus ist)
-        else if (data.user && data.session) {
+        if (data.user) { 
             setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-            setTimeout(() => onSuccess(data.session), 1000); 
+            // CRUCIAL: Pass new user data to parent via onSuccess
+            setTimeout(() => onSuccess({ user: data.user }), 1000); 
+            return; 
         }
       } else {
-        // LOGIN
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // CRUCIAL: Pass session data to parent via onSuccess
         onSuccess(data.session);
       }
     } catch (error) { 
@@ -447,7 +450,6 @@ const handleAuth = async (e) => {
         setLoading(false); 
     }
   };
-
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
@@ -508,16 +510,241 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
 };
 
 const EditProfileModal = ({ player, onClose, onUpdate }) => {
-  const [loading, setLoading] = useState(false); const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '' });
-  const [avatarFile, setAvatarFile] = useState(null); const [previewUrl, setPreviewUrl] = useState(player.avatar_url); const [clubSearch, setClubSearch] = useState(''); const [clubResults, setClubResults] = useState([]); const [selectedClub, setSelectedClub] = useState(player.clubs || null); const [showCreateClub, setShowCreateClub] = useState(false); const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
-  useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
-  const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
-  const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
+  const [loading, setLoading] = useState(false);
+  
+  // INITIALE WERTE MIT FALLBACKS (Wichtig für Split-Name)
+  const [formData, setFormData] = useState({ 
+      // Name splitten wenn möglich
+      first_name: player.first_name || (player.full_name ? player.full_name.split(' ')[0] : ''),
+      last_name: player.last_name || (player.full_name ? player.full_name.split(' ').slice(1).join(' ') : ''),
+      
+      position_primary: player.position_primary || 'ZM', 
+      height_user: player.height_user || '', 
+      weight: player.weight || '',
+      strong_foot: player.strong_foot || 'Rechts', 
+      transfer_status: player.transfer_status || 'Gebunden',
+      instagram_handle: player.instagram_handle || '', 
+      tiktok_handle: player.tiktok_handle || '', 
+      youtube_handle: player.youtube_handle || '',
+      birth_date: player.birth_date || '',
+      jersey_number: player.jersey_number || '',
+      nationality: player.nationality || ''
+  });
+  
+  const [avatarFile, setAvatarFile] = useState(null); 
+  const [previewUrl, setPreviewUrl] = useState(player.avatar_url); 
+  
+  const [clubSearch, setClubSearch] = useState(''); 
+  const [clubResults, setClubResults] = useState([]); 
+  const [selectedClub, setSelectedClub] = useState(player.clubs || null); 
+
+  useEffect(() => { 
+      if (clubSearch.length < 2) { setClubResults([]); return; } 
+      const t = setTimeout(async () => { 
+          const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); 
+          setClubResults(data || []); 
+      }, 300); 
+      return () => clearTimeout(t); 
+  }, [clubSearch]);
+
+  const handleCreateClub = async () => { 
+      if(!clubSearch.trim()) return; 
+      setLoading(true); 
+      try { 
+          const { data } = await supabase.from('clubs').insert({ name: clubSearch, league: 'Kreisliga', is_verified: false }).select().single(); 
+          setSelectedClub(data); 
+          setClubSearch('');
+          setClubResults([]);
+      } catch(e){ alert(e.message); } 
+      finally { setLoading(false); } 
+  }
+
+  const handleSave = async (e) => { 
+      e.preventDefault(); 
+      setLoading(true); 
+      try { 
+          let av = player.avatar_url; 
+          if (avatarFile) { 
+              const p = `${player.user_id}/${Date.now()}.jpg`; 
+              await supabase.storage.from('avatars').upload(p, avatarFile); 
+              const { data } = supabase.storage.from('avatars').getPublicUrl(p); 
+              av = data.publicUrl; 
+          } 
+          
+          // ZUSAMMENBAUEN
+          const full_name = `${formData.first_name} ${formData.last_name}`.trim();
+          
+          const updates = { 
+            ...formData, 
+            full_name, // Wichtig für DB Kompatibilität
+            height_user: formData.height_user ? parseInt(formData.height_user) : null,
+            weight: formData.weight ? parseInt(formData.weight) : null,
+            jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+            avatar_url: av, 
+            club_id: selectedClub?.id || null 
+          };
+          
+          const { data } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*)').single(); 
+          onUpdate(data); 
+          onClose(); 
+      } catch(e){ 
+          alert(e.message); 
+      } finally { 
+          setLoading(false); 
+      } 
+  };
+
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
-        <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
-        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
+        
+        <div className="flex justify-between items-center p-6 border-b border-white/5">
+            <h2 className="text-xl font-bold text-white">Profil bearbeiten</h2>
+            <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+            <form onSubmit={handleSave} className="space-y-6">
+                
+                {/* AVATAR */}
+                <div className="flex justify-center">
+                    <div className="relative group cursor-pointer">
+                        <div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">
+                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}
+                        </div>
+                        <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
+                            <Camera size={28} className="text-white" />
+                        </div>
+                        <input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </div>
+                </div>
+
+                {/* NAMEN */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Vorname</label>
+                        <input value={formData.first_name} onChange={e=>setFormData({...formData, first_name: e.target.value})} className={inputStyle} placeholder="Max" />
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Nachname</label>
+                        <input value={formData.last_name} onChange={e=>setFormData({...formData, last_name: e.target.value})} className={inputStyle} placeholder="Mustermann" />
+                    </div>
+                </div>
+
+                {/* VEREINSSUCHE */}
+                <div>
+                    <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Verein</label>
+                    {selectedClub ? (
+                        <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10" style={{ borderColor: getClubBorderColor(selectedClub) }}>
+                            <div className="flex items-center gap-3">
+                                {selectedClub.logo_url && <img src={selectedClub.logo_url} className="w-8 h-8 rounded-full object-cover" />}
+                                <div>
+                                    <span className="font-bold text-white block">{selectedClub.name}</span>
+                                    <span className="text-xs text-zinc-500">{selectedClub.league}</span>
+                                </div>
+                            </div>
+                            <button type="button" onClick={()=>setSelectedClub(null)} className="p-2 hover:bg-white/10 rounded-full transition"><X size={16} className="text-zinc-400"/></button>
+                        </div> 
+                    ) : (
+                        <div className="relative">
+                            <Search className="absolute left-4 top-4 text-zinc-500" size={18}/>
+                            <input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>
+                            {clubResults.length > 0 && (
+                                <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
+                                    {clubResults.map(c => (
+                                        <div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 flex items-center gap-3">
+                                            {c.logo_url && <img src={c.logo_url} className="w-6 h-6 rounded-full"/>}
+                                            <span className="text-sm">{c.name}</span>
+                                        </div>
+                                    ))}
+                                    {clubSearch.length > 2 && (
+                                        <div onClick={handleCreateClub} className="p-3 bg-blue-600/10 text-blue-400 cursor-pointer font-bold text-sm hover:bg-blue-600/20 border-t border-white/5">
+                                            + "{clubSearch}" neu gründen
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* DETAILS (Position, Status etc.) */}
+                <div className="grid grid-cols-2 gap-3">
+                     <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Position</label>
+                        <select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>
+                            {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Status</label>
+                        <select value={formData.transfer_status} onChange={e=>setFormData({...formData, transfer_status: e.target.value})} className={inputStyle}>
+                            <option>Gebunden</option>
+                            <option>Suche Verein</option>
+                            <option>Vertrag läuft aus</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* PHYSISCHE DATEN & GEBURTSTAG */}
+                <div>
+                     <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Geburtsdatum</label>
+                     <div className="relative">
+                        <Calendar className="absolute left-4 top-4 text-zinc-500" size={18}/>
+                        <input type="date" value={formData.birth_date} onChange={e=>setFormData({...formData, birth_date: e.target.value})} className={`${inputStyle} pl-12`} />
+                     </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Größe (cm)</label>
+                        <input type="number" placeholder="185" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} />
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Gewicht (kg)</label>
+                        <input type="number" placeholder="80" value={formData.weight} onChange={e=>setFormData({...formData, weight: e.target.value})} className={inputStyle} />
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Fuß</label>
+                        <select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}>
+                            <option>Rechts</option>
+                            <option>Links</option>
+                            <option>Beidfüßig</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                     <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Nr.</label>
+                        <div className="relative">
+                            <Hash className="absolute left-4 top-4 text-zinc-500" size={18}/>
+                            <input type="number" placeholder="10" value={formData.jersey_number} onChange={e=>setFormData({...formData, jersey_number: e.target.value})} className={`${inputStyle} pl-12`} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Nationalität</label>
+                        <div className="relative">
+                            <Globe className="absolute left-4 top-4 text-zinc-500" size={18}/>
+                            <input placeholder="DE" value={formData.nationality} onChange={e=>setFormData({...formData, nationality: e.target.value})} className={`${inputStyle} pl-12`} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* SOCIAL MEDIA */}
+                <div className="space-y-3 pt-2">
+                    <h3 className="text-xs font-bold text-zinc-500 uppercase">Social Media</h3>
+                    <div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram Name" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
+                    <div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok Name" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
+                </div>
+
+            </form>
+        </div>
+
+        <div className="p-6 border-t border-zinc-800 bg-zinc-900">
+            <button disabled={loading} onClick={handleSave} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button>
+        </div>
+
       </div>
     </div>
   );
