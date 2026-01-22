@@ -11,7 +11,7 @@ import {
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
-  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck
+  Calendar, Weight, Hash, Globe
 } from 'lucide-react';
 
 // --- 1. HELFER & STYLES ---
@@ -41,7 +41,7 @@ const calculateAge = (birthDate) => {
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
-// UPDATE: Mock-Daten
+// UPDATE: Mock-Daten erweitert um neue Felder
 const MOCK_DB = {
     players_master: [
         { 
@@ -77,8 +77,7 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Simulation des Supabase Clients (Mock)
-// FIX: Verbesserte Promise-Rückgabewerte für insert/update/delete
+// Simulation des Supabase Clients
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
@@ -129,7 +128,7 @@ const createMockClient = () => {
             let filtered = [...data];
             return {
                 select: (query) => {
-                    if (table === 'media_highlights' && query && query.includes('players_master')) {
+                    if (table === 'media_highlights' && query.includes('players_master')) {
                         filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
                     }
                     if (table === 'players_master') {
@@ -140,30 +139,18 @@ const createMockClient = () => {
                     }
                     return helper(filtered);
                 },
-                // FIX: Insert muss Promise-Like sein und {data, error} zurückgeben
-                insert: (obj) => { 
+                insert: async (obj) => { 
                     const newItem = { ...obj, id: Date.now() }; 
                     if(MOCK_DB[table]) MOCK_DB[table].push(newItem); 
-                    const res = { data: [newItem], error: null };
-                    return { 
-                        select: () => ({ single: () => ({ data: newItem, error: null }), data: newItem }), 
-                        then: (cb) => cb(res) // Promise-Like Behavior
-                    }; 
+                    return { select: () => ({ single: () => ({ data: newItem }) }), catch: ()=>{} }; 
                 },
                 update: (obj) => ({ eq: (col, val) => { 
                     const idx = MOCK_DB[table].findIndex(r => r[col] == val);
-                    let res = { data: null, error: "Not found" };
-                    if(idx >= 0) {
-                        MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
-                        res = { data: MOCK_DB[table][idx], error: null };
-                    }
-                    return { 
-                        select: () => ({ single: () => res }),
-                        then: (cb) => cb(res)
-                    }; 
+                    if(idx >= 0) MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
+                    return { select: () => ({ single: () => ({ data: MOCK_DB[table][idx] }) }) }; 
                 }}),
-                delete: () => ({ match: () => ({ then: (cb) => cb({ error: null }) }) }),
-                upsert: (obj) => { 
+                delete: () => ({ match: () => ({ error: null }) }),
+                upsert: async (obj) => { 
                     if (!MOCK_DB[table]) MOCK_DB[table] = [];
                     const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
                     let result;
@@ -174,11 +161,7 @@ const createMockClient = () => {
                          result = { ...obj, id: Date.now(), followers_count: 0 };
                          MOCK_DB[table].push(result);
                     }
-                    const res = { data: result, error: null };
-                    return {
-                        select: () => ({ single: () => res }),
-                        then: (cb) => cb(res)
-                    }
+                    return { data: result, error: null };
                 }
             };
             function helper(d) { return { 
@@ -195,7 +178,7 @@ const createMockClient = () => {
             };}
         },
         storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "https://placehold.co/600" } }) }) },
-        channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
+        channel: () => ({ on: () => ({ subscribe: () => {} }) }),
         removeChannel: () => {}
     };
 };
@@ -225,9 +208,7 @@ const useSmartProfile = (session) => {
                     full_name: 'Neuer Spieler', 
                     position_primary: 'ZM', 
                     transfer_status: 'Gebunden',
-                    followers_count: 0,
-                    is_verified: false,
-                    is_admin: false
+                    followers_count: 0
                 };
                 await supabase.from('players_master').upsert(newProfile);
                 data = newProfile;
@@ -285,7 +266,7 @@ const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
     const [loading, setLoading] = useState(true);
     useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} finally { setLoading(false); } }; f(); }, [userId]);
-    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
+    return (<div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
 };
 
 const ToastContainer = ({ toasts, removeToast }) => (<div className="fixed top-6 left-0 right-0 z-[120] flex flex-col items-center gap-3 pointer-events-none px-4">{toasts.map(t => (<div key={t.id} onClick={()=>removeToast(t.id)} className={`bg-zinc-900/90 backdrop-blur-md border border-white/10 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-4 pointer-events-auto max-w-sm w-full cursor-pointer animate-in slide-in-from-top-2`}><div className={`p-3 rounded-full ${t.type==='error'?'bg-red-500/20 text-red-400':'bg-blue-500/20 text-blue-400'}`}>{t.type==='error'?<AlertCircle size={20}/>:<Bell size={20}/>}</div><div className="flex-1 text-sm font-medium">{t.content}</div></div>))}</div>);
@@ -300,7 +281,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
         try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className={`w-full max-w-xs ${cardStyle} p-5`}>
                 <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3>
                 <div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5">
@@ -315,51 +296,11 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// --- VERIFICATION MODAL ---
-const VerificationModal = ({ onClose, onUploadComplete }) => {
-    const [uploading, setUploading] = useState(false);
-    
-    const handleUpload = async () => {
-        setUploading(true);
-        // Simulierter Upload für den Prototyp
-        await new Promise(r => setTimeout(r, 1500));
-        alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
-        setUploading(false);
-        onUploadComplete();
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}>
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
-                    <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
-                </div>
-                
-                <div className="space-y-6">
-                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
-                        Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
-                    </div>
-
-                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                        <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
-                        <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
-                        <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
-                        <input type="file" className="hidden" onChange={handleUpload} />
-                    </label>
-
-                    {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 // --- EINSTELLUNGEN OVERLAY ---
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq }) => {
     const [showToast, setShowToast] = useState(null);
 
+    // Render-Guard
     if (!user) return null;
 
     const showFeedback = (msg) => {
@@ -368,68 +309,100 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     };
 
     const handleClearCache = () => {
-        try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); }
+        try {
+            localStorage.clear();
+            showFeedback('Cache geleert!');
+        } catch (e) {
+            showFeedback('Fehler beim Leeren');
+        }
     };
 
     const handleShare = () => { 
-        if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); }
+        if(user?.id) {
+            navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); 
+            showFeedback('Link in Zwischenablage!');
+        }
     };
 
     const handleDeleteAccount = () => {
-        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); }
+        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
+            // Echte Löschlogik würde hier eine Cloud Function rufen
+            alert("Bitte kontaktiere den Support für die endgültige Löschung.");
+        }
     };
 
-    const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
+    const SettingsItem = ({ icon: Icon, label, onClick, danger = false }) => (
         <button 
             onClick={onClick}
-            className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}
+            className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : 'hover:bg-white/5'}`}
         >
             <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
+                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
                     <Icon size={18} />
                 </div>
-                <span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
+                <span className={`font-medium text-sm ${danger ? 'text-red-500' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
             </div>
-            <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
+            <ChevronRight size={16} className={danger ? 'text-red-500' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
 
     return (
         <div className="fixed inset-0 z-[10000] flex justify-end">
+             {/* Backdrop */}
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+             
+             {/* Slide-In Panel */}
              <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                 {/* Header */}
                  <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
                      <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2>
-                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition">
+                         <X size={20} />
+                     </button>
                  </div>
+                 
+                 {/* Content */}
                  <SafeErrorBoundary>
                     <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                        {/* Section 1 */}
                         <div className="space-y-1">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3>
                             <SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} />
                             <SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                             <SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} />
                         </div>
+
+                        {/* Section 2 */}
                         <div className="space-y-1">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3>
                             <SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />
-                            {!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}
                             <SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} />
                             <SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} />
                         </div>
+
+                        {/* Section 3 */}
                         <div className="space-y-1">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3>
                             <SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} />
                             <SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} />
                         </div>
+
+                        {/* Danger Zone */}
                         <div className="pt-4 border-t border-white/10 space-y-2">
                             <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
                             <SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger />
                         </div>
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.1 (Verify Update)</div>
+                        
+                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.0 Live</div>
                     </div>
                  </SafeErrorBoundary>
-                 {showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}
+
+                 {/* In-Menu Toast */}
+                 {showToast && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">
+                        {showToast}
+                    </div>
+                )}
              </div>
         </div>
     );
@@ -482,31 +455,48 @@ const LoginModal = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
+        
         <div className="animate-in fade-in slide-in-from-right-5">
             <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"><User size={28} className="text-white"/></div>
                 <h2 className="text-2xl font-bold text-white">{view === 'register' ? 'Account erstellen' : 'Willkommen zurück'}</h2>
                 <p className="text-zinc-400 text-sm text-center">{view === 'register' ? 'Werde Teil der Community' : 'Melde dich an, um fortzufahren'}</p>
             </div>
+
             {successMsg ? (
-                <div className="text-center space-y-4"><div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div></div>
+                <div className="text-center space-y-4">
+                    <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
+                </div>
             ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div className="space-y-3">
                         <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
                         <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-                        {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
+                        
+                        {view === 'register' && (
+                            <div className="animate-in slide-in-from-top-2 fade-in">
+                                <input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                            </div>
+                        )}
                     </div>
-                    {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div></div>)}
-                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
+
+                    {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div></div>}
+                    
+                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>
+                        {loading && <Loader2 className="animate-spin" size={18} />} 
+                        {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}
+                    </button>
                 </form>
             )}
+
             <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); }} className="text-white hover:text-blue-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
+                    {view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}
+                </button>
             </div>
         </div>
       </div>
@@ -540,16 +530,290 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
 };
 
 const EditProfileModal = ({ player, onClose, onUpdate }) => {
-  const [loading, setLoading] = useState(false); const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '' });
-  const [avatarFile, setAvatarFile] = useState(null); const [previewUrl, setPreviewUrl] = useState(player.avatar_url); const [clubSearch, setClubSearch] = useState(''); const [clubResults, setClubResults] = useState([]); const [selectedClub, setSelectedClub] = useState(player.clubs || null); const [showCreateClub, setShowCreateClub] = useState(false); const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
-  useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
-  const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
-  const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('general'); // 'general', 'sport', 'social'
+  
+  // Intelligente Initialisierung: Versucht Namen zu splitten, falls keine separaten Felder existieren
+  const initialFirstName = player.first_name || (player.full_name ? player.full_name.split(' ')[0] : '');
+  const initialLastName = player.last_name || (player.full_name ? player.full_name.split(' ').slice(1).join(' ') : '');
+
+  const [formData, setFormData] = useState({ 
+      first_name: initialFirstName,
+      last_name: initialLastName,
+      position_primary: player.position_primary || 'ZOM', 
+      height_user: player.height_user || '', 
+      weight: player.weight || '',
+      strong_foot: player.strong_foot || 'Rechts', 
+      transfer_status: player.transfer_status || 'Gebunden',
+      instagram_handle: player.instagram_handle || '', 
+      tiktok_handle: player.tiktok_handle || '', 
+      youtube_handle: player.youtube_handle || '',
+      birth_date: player.birth_date || '',
+      jersey_number: player.jersey_number || '',
+      nationality: player.nationality || ''
+  });
+
+  const [avatarFile, setAvatarFile] = useState(null); 
+  const [previewUrl, setPreviewUrl] = useState(player.avatar_url); 
+  
+  // Club Search
+  const [clubSearch, setClubSearch] = useState(''); 
+  const [clubResults, setClubResults] = useState([]); 
+  const [selectedClub, setSelectedClub] = useState(player.clubs || null); 
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Suche Logik (Mock-Simulation für Preview, in echter App supabase query)
+  useEffect(() => { 
+      if (clubSearch.length < 2) { setClubResults([]); return; } 
+      const t = setTimeout(async () => { 
+          // Hier würde die echte Supabase-Suche stehen
+          const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5);
+          setClubResults(data || []);
+      }, 300); 
+      return () => clearTimeout(t); 
+  }, [clubSearch]);
+
+  const handleCreateClub = async () => {
+    if(!clubSearch.trim()) return; 
+    setLoading(true); 
+    try { 
+        const { data } = await supabase.from('clubs').insert({ name: clubSearch, league: 'Kreisliga', is_verified: false }).select().single(); 
+        setSelectedClub(data); 
+        setClubSearch('');
+        setClubResults([]);
+    } catch(e){ alert(e.message); } 
+    finally { setLoading(false); } 
+  };
+
+  const handleSave = async (e) => { 
+      e.preventDefault(); 
+      setLoading(true); 
+      try { 
+          let av = player.avatar_url; 
+          if (avatarFile) { 
+              const p = `${player.user_id}/${Date.now()}.jpg`; 
+              await supabase.storage.from('avatars').upload(p, avatarFile); 
+              const { data } = supabase.storage.from('avatars').getPublicUrl(p); 
+              av = data.publicUrl; 
+          } 
+          
+          // ZUSAMMENBAUEN
+          const full_name = `${formData.first_name} ${formData.last_name}`.trim();
+          
+          const updates = { 
+            ...formData, 
+            full_name, // Wichtig für DB Kompatibilität
+            height_user: formData.height_user ? parseInt(formData.height_user) : null,
+            weight: formData.weight ? parseInt(formData.weight) : null,
+            jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+            avatar_url: av, 
+            club_id: selectedClub?.id || null 
+          };
+          
+          const { data } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*)').single(); 
+          onUpdate(data); 
+          onClose(); 
+      } catch(e){ 
+          alert(e.message); 
+      } finally { 
+          setLoading(false); 
+      } 
+  };
+
+  const TabButton = ({ id, label, icon: Icon }) => (
+      <button 
+          type="button"
+          onClick={() => setActiveTab(id)}
+          className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+      >
+          <Icon size={16} /> {label}
+      </button>
+  );
+
   return (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+    // FIX: z-[10000]
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
-        <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
-        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-5 border-b border-white/5 bg-zinc-900">
+            <h2 className="text-lg font-bold text-white">Profil bearbeiten</h2>
+            <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-white/5 bg-zinc-900">
+            <TabButton id="general" label="Allgemein" icon={User} />
+            <TabButton id="sport" label="Sportlich" icon={Activity} />
+            <TabButton id="social" label="Socials" icon={Share2} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 bg-zinc-900/50">
+            <form id="edit-form" onSubmit={handleSave} className="space-y-6">
+                
+                {/* TAB 1: ALLGEMEIN */}
+                {activeTab === 'general' && (
+                    <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                        {/* Avatar */}
+                        <div className="flex justify-center">
+                            <div className="relative group cursor-pointer">
+                                <div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">
+                                    {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}
+                                </div>
+                                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
+                                    <Camera size={28} className="text-white" />
+                                </div>
+                                <input type="file" accept="image/*" onChange={e => {
+                                    const f = e.target.files[0]; 
+                                    if(f){ setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f)); }
+                                }} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Persönliche Daten</h3>
+                            
+                            {/* Vorname & Nachname Split */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Vorname</label>
+                                    <input value={formData.first_name} onChange={e=>setFormData({...formData, first_name: e.target.value})} className={inputStyle} placeholder="Max" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nachname</label>
+                                    <input value={formData.last_name} onChange={e=>setFormData({...formData, last_name: e.target.value})} className={inputStyle} placeholder="Mustermann" />
+                                </div>
+                            </div>
+
+                            {/* Geburtstag & Nationalität */}
+                             <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-3.5 text-zinc-500" size={16}/>
+                                        <input type="date" value={formData.birth_date} onChange={e=>setFormData({...formData, birth_date: e.target.value})} className={`${inputStyle} pl-10`} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nationalität</label>
+                                    <div className="relative">
+                                        <Globe className="absolute left-3 top-3.5 text-zinc-500" size={16}/>
+                                        <input placeholder="z.B. Deutschland" value={formData.nationality} onChange={e=>setFormData({...formData, nationality: e.target.value})} className={`${inputStyle} pl-10`} />
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 2: SPORTLICH */}
+                {activeTab === 'sport' && (
+                    <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                        {/* Verein */}
+                        <div>
+                            <label className="text-xs text-zinc-500 font-bold uppercase ml-1 mb-1 block">Aktueller Verein</label>
+                            {selectedClub ? (
+                                <div className="bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10" style={{ borderColor: getClubBorderColor(selectedClub) }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
+                                            {selectedClub.logo_url ? <img src={selectedClub.logo_url} className="w-full h-full rounded-full object-cover"/> : <Shield size={14}/>}
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-white block text-sm">{selectedClub.name}</span>
+                                            <span className="text-xs text-zinc-500">{selectedClub.league}</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" onClick={()=>setSelectedClub(null)} className="p-2 hover:bg-white/10 rounded-full transition"><X size={16} className="text-zinc-400"/></button>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-4 text-zinc-500" size={18}/>
+                                    <input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`} />
+                                    {/* (Suchergebnisse Overlay Logik hier wenn aktiv) */}
+                                    {clubResults.length > 0 && (
+                                        <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
+                                            {clubResults.map(c => (
+                                                <div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('');}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 flex items-center gap-3">
+                                                    {c.is_verified ? <CheckCircle size={14} className="text-blue-500"/> : <Shield size={14} className="text-zinc-600"/>}
+                                                    <span className="text-sm">{c.name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {clubSearch.length > 2 && clubResults.length === 0 && (
+                                        <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl p-2">
+                                            <div onClick={handleCreateClub} className="p-3 bg-blue-600/10 text-blue-400 cursor-pointer font-bold text-xs hover:bg-blue-600/20 flex items-center gap-2 rounded-lg">
+                                                <Plus size={14}/> "{clubSearch}" als neuen Verein anlegen
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Hauptposition</label>
+                                <select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>
+                                    {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Transfer-Status</label>
+                                <select value={formData.transfer_status} onChange={e=>setFormData({...formData, transfer_status: e.target.value})} className={inputStyle}>
+                                    <option>Gebunden</option>
+                                    <option>Suche Verein</option>
+                                    <option>Vertrag läuft aus</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Physische Daten + Trikotnummer */}
+                        <div className="grid grid-cols-4 gap-2">
+                            <div className="col-span-1">
+                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nr.</label>
+                                <input type="number" min="0" placeholder="#" value={formData.jersey_number} onChange={e=>setFormData({...formData, jersey_number: e.target.value})} className={`${inputStyle} text-center`} />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Größe</label>
+                                <input type="number" min="0" placeholder="cm" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Gewicht</label>
+                                <input type="number" min="0" placeholder="kg" value={formData.weight} onChange={e=>setFormData({...formData, weight: e.target.value})} className={inputStyle} />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Fuß</label>
+                                <select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={`${inputStyle} px-1 text-xs`}>
+                                    <option>Rechts</option>
+                                    <option>Links</option>
+                                    <option>Beidfüßig</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 3: SOCIALS */}
+                {activeTab === 'social' && (
+                    <div className="space-y-4 animate-in slide-in-from-right-4 fade-in duration-300">
+                        <div className="bg-zinc-800/30 p-4 rounded-xl border border-white/5 text-center mb-2">
+                             <p className="text-sm text-zinc-400">Verbinde deine Accounts, damit Scouts mehr von dir sehen können.</p>
+                        </div>
+                        <div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram Username" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
+                        <div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok Username" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
+                        <div className="relative"><Youtube className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="YouTube Channel" value={formData.youtube_handle} onChange={e=>setFormData({...formData, youtube_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
+                    </div>
+                )}
+            </form>
+        </div>
+
+        <div className="p-6 border-t border-zinc-800 bg-zinc-900">
+            <button form="edit-form" disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
+                {loading ? <Loader2 className="animate-spin" /> : <><Save size={18}/> Änderungen speichern</>}
+            </button>
+        </div>
+
       </div>
     </div>
   );
@@ -780,52 +1044,6 @@ const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack,
     )
 }
 
-// 5. CLUB SCREEN
-const ClubScreen = ({ club, onBack, onUserClick }) => {
-    const [players, setPlayers] = useState([]);
-    useEffect(() => {
-        const fetchPlayers = async () => {
-            const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id);
-            setPlayers(data || []);
-        };
-        fetchPlayers();
-    }, [club]);
-
-    return (
-        <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
-             <div className="relative h-40 bg-zinc-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
-                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30 blur-sm"/>}
-                <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
-             </div>
-             <div className="px-6 -mt-12 relative z-10">
-                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
-                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
-                 </div>
-                 <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
-                 <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
-
-                 <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
-                 <div className="space-y-3">
-                     {players.map(p => (
-                         <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                             <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
-                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-3"/>}
-                             </div>
-                             <div>
-                                 <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
-                                 <span className="text-xs text-zinc-500 bg-white/10 px-2 py-0.5 rounded">{p.position_primary}</span>
-                             </div>
-                             <ChevronRight size={16} className="ml-auto text-zinc-600"/>
-                         </div>
-                     ))}
-                     {players.length === 0 && <p className="text-zinc-500 text-sm">Keine Spieler gefunden.</p>}
-                 </div>
-             </div>
-        </div>
-    );
-};
-
 // --- 6. MAIN APP ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -845,7 +1063,6 @@ const App = () => {
   const [toasts, setToasts] = useState([]);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const activeChatPartnerRef = useRef(activeChatPartner);
   const [reportTarget, setReportTarget] = useState(null);
@@ -996,21 +1213,6 @@ const App = () => {
               onEditReq={() => {
                   setShowSettings(false);
                   setShowEditProfile(true);
-              }}
-              onVerifyReq={() => {
-                  setShowSettings(false);
-                  setShowVerificationModal(true);
-              }}
-          />
-      )}
-      
-      {/* Verification Modal */}
-      {showVerificationModal && (
-          <VerificationModal 
-              onClose={() => setShowVerificationModal(false)}
-              onUploadComplete={() => {
-                  // Hier könnte man den User neu laden, um den Status anzuzeigen
-                  refreshProfile();
               }}
           />
       )}
