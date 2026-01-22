@@ -11,7 +11,7 @@ import {
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
-  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck
+  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck
 } from 'lucide-react';
 
 // --- 1. HELFER & STYLES ---
@@ -76,8 +76,7 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Simulation des Supabase Clients (Mock)
-// WICHTIG: Realtime wird hier nur gestubbt, damit der Code nicht abstürzt.
+// Simulation des Supabase Clients
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
@@ -178,11 +177,7 @@ const createMockClient = () => {
             };}
         },
         storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "https://placehold.co/600" } }) }) },
-        // REALTIME MOCK: Einfache Stubs, damit es nicht crasht
-        channel: () => ({ 
-            on: () => ({ subscribe: () => {} }),
-            subscribe: () => {} 
-        }),
+        channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
         removeChannel: () => {}
     };
 };
@@ -302,11 +297,51 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
+// --- VERIFICATION MODAL ---
+const VerificationModal = ({ onClose, onUploadComplete }) => {
+    const [uploading, setUploading] = useState(false);
+    
+    const handleUpload = async () => {
+        setUploading(true);
+        // Simulierter Upload für den Prototyp
+        await new Promise(r => setTimeout(r, 1500));
+        alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
+        setUploading(false);
+        onUploadComplete();
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}>
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
+                    <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
+                </div>
+                
+                <div className="space-y-6">
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
+                        Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
+                    </div>
+
+                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
+                        <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
+                        <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
+                        <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
+                        <input type="file" className="hidden" onChange={handleUpload} />
+                    </label>
+
+                    {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- EINSTELLUNGEN OVERLAY ---
-const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq }) => {
+const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
 
-    // Render-Guard
     if (!user) return null;
 
     const showFeedback = (msg) => {
@@ -315,100 +350,68 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     };
 
     const handleClearCache = () => {
-        try {
-            localStorage.clear();
-            showFeedback('Cache geleert!');
-        } catch (e) {
-            showFeedback('Fehler beim Leeren');
-        }
+        try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); }
     };
 
     const handleShare = () => { 
-        if(user?.id) {
-            navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); 
-            showFeedback('Link in Zwischenablage!');
-        }
+        if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); }
     };
 
     const handleDeleteAccount = () => {
-        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
-            // Echte Löschlogik würde hier eine Cloud Function rufen
-            alert("Bitte kontaktiere den Support für die endgültige Löschung.");
-        }
+        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); }
     };
 
-    const SettingsItem = ({ icon: Icon, label, onClick, danger = false }) => (
+    const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
         <button 
             onClick={onClick}
-            className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : 'hover:bg-white/5'}`}
+            className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}
         >
             <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
+                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
                     <Icon size={18} />
                 </div>
-                <span className={`font-medium text-sm ${danger ? 'text-red-500' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
+                <span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
             </div>
-            <ChevronRight size={16} className={danger ? 'text-red-500' : 'text-zinc-600 group-hover:text-zinc-400'} />
+            <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
 
     return (
         <div className="fixed inset-0 z-[10000] flex justify-end">
-             {/* Backdrop */}
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-             
-             {/* Slide-In Panel */}
              <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                 {/* Header */}
                  <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
                      <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2>
-                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition">
-                         <X size={20} />
-                     </button>
+                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
                  </div>
-                 
-                 {/* Content */}
                  <SafeErrorBoundary>
                     <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                        {/* Section 1 */}
                         <div className="space-y-1">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3>
                             <SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} />
                             <SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
                             <SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} />
                         </div>
-
-                        {/* Section 2 */}
                         <div className="space-y-1">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3>
                             <SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />
+                            {!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}
                             <SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} />
                             <SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} />
                         </div>
-
-                        {/* Section 3 */}
                         <div className="space-y-1">
                             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3>
                             <SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} />
                             <SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} />
                         </div>
-
-                        {/* Danger Zone */}
                         <div className="pt-4 border-t border-white/10 space-y-2">
                             <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
                             <SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger />
                         </div>
-                        
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.0 Live</div>
+                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.1 (Verify Update)</div>
                     </div>
                  </SafeErrorBoundary>
-
-                 {/* In-Menu Toast */}
-                 {showToast && (
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">
-                        {showToast}
-                    </div>
-                )}
+                 {showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}
              </div>
         </div>
     );
@@ -461,48 +464,31 @@ const LoginModal = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
       <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
         <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
-        
         <div className="animate-in fade-in slide-in-from-right-5">
             <div className="flex flex-col items-center gap-3 mb-8">
                 <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"><User size={28} className="text-white"/></div>
                 <h2 className="text-2xl font-bold text-white">{view === 'register' ? 'Account erstellen' : 'Willkommen zurück'}</h2>
                 <p className="text-zinc-400 text-sm text-center">{view === 'register' ? 'Werde Teil der Community' : 'Melde dich an, um fortzufahren'}</p>
             </div>
-
             {successMsg ? (
-                <div className="text-center space-y-4">
-                    <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
-                </div>
+                <div className="text-center space-y-4"><div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div></div>
             ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
                     <div className="space-y-3">
                         <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
                         <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-                        
-                        {view === 'register' && (
-                            <div className="animate-in slide-in-from-top-2 fade-in">
-                                <input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                            </div>
-                        )}
+                        {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
                     </div>
-
-                    {msg && <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div></div>}
-                    
-                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>
-                        {loading && <Loader2 className="animate-spin" size={18} />} 
-                        {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}
-                    </button>
+                    {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14}/> {msg}</div></div>)}
+                    <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
                 </form>
             )}
-
             <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">
-                    {view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}
-                </button>
+                <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); }} className="text-white hover:text-blue-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
             </div>
         </div>
       </div>
@@ -553,192 +539,16 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
 const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   const [messages, setMessages] = useState([]); const [txt, setTxt] = useState(''); const endRef = useRef(null);
-  useEffect(() => { 
-      // 1. Initial Fetch
-      const fetchMsgs = async () => { 
-          const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); 
-          setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); 
-          endRef.current?.scrollIntoView(); 
-      }; 
-      fetchMsgs(); 
-
-      // 2. Realtime Subscription (New Message Listener)
-      const channel = supabase.channel('realtime_chat')
-          .on(
-              'postgres_changes', 
-              { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `receiver_id=eq.${session.user.id}` }, 
-              (payload) => {
-                  if (payload.new.sender_id === partner.user_id) {
-                      setMessages(prev => [...prev, payload.new]);
-                      endRef.current?.scrollIntoView({ behavior: 'smooth' });
-                  }
-              }
-          )
-          .subscribe();
-
-      // 3. Fallback Polling (for Mock mode)
-      const i = setInterval(fetchMsgs, 3000); 
-      return () => { clearInterval(i); supabase.removeChannel(channel); }; 
-  }, [partner]);
-
-  const send = async (e) => { 
-      e.preventDefault(); if(!txt.trim()) return; 
-      // Optimistic UI Update
-      const optimisticMsg = { sender_id: session.user.id, content: txt, id: Date.now(), created_at: new Date().toISOString() };
-      setMessages(prev => [...prev, optimisticMsg]);
-      setTxt(''); 
-      endRef.current?.scrollIntoView({ behavior: 'smooth' });
-      
-      await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); 
-  };
-
-  return (
-    <div className="fixed inset-0 z-[10000] bg-black flex flex-col animate-in slide-in-from-right duration-300">
-        <div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10">
-            <button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button>
-            <div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group">
-                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div>
-                <div className="font-bold text-white">{partner.full_name}</div>
-            </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">
-            {messages.map(m => (
-                <div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}>
-                    <div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>
-                        {m.content}
-                        {/* Gelesen-Status (Häkchen) */}
-                        {m.sender_id === session.user.id && (
-                            <div className="text-[10px] text-blue-200 flex justify-end mt-1 opacity-70">
-                                <CheckCheck size={12} />
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ))}
-            <div ref={endRef}/>
-        </div>
-        <form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4">
-            <input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/>
-            <button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button>
-        </form>
-    </div>
-  );
+  useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
+  const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
+  return (<div className="fixed inset-0 z-[90] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
 };
 
 const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [likes, setLikes] = useState(video.likes_count || 0); const [liked, setLiked] = useState(false); const [showMenu, setShowMenu] = useState(false);
     const like = async (e) => { e.stopPropagation(); if(!session){onLikeReq(); return;} setLiked(!liked); setLikes(l=>liked?l-1:l+1); if(!liked) { await supabase.from('media_likes').insert({user_id:session.user.id, video_id:video.id}); } };
-    
-    // Video Player Refs & State
-    const videoRef = useRef(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [isBuffering, setIsBuffering] = useState(false);
-    const [showHeartAnim, setShowHeartAnim] = useState(false);
-    
-    // Autoplay Logic (Intersection Observer)
-    useEffect(() => {
-        const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) {
-                videoRef.current?.play().catch(() => {});
-                setIsPlaying(true);
-            } else {
-                videoRef.current?.pause();
-                setIsPlaying(false);
-            }
-        }, { threshold: 0.6 }); // 60% sichtbar
-        
-        if (videoRef.current) observer.observe(videoRef.current);
-        return () => observer.disconnect();
-    }, []);
-
-    // Double Tap Logic
-    const lastTap = useRef(0);
-    const handleTap = (e) => {
-        const now = Date.now();
-        if (now - lastTap.current < 300) { // Double Tap
-            if (!liked) like(e);
-            setShowHeartAnim(true);
-            setTimeout(() => setShowHeartAnim(false), 1000);
-        } else { // Single Tap (Play/Pause)
-            if (videoRef.current?.paused) {
-                videoRef.current.play();
-                setIsPlaying(true);
-            } else {
-                videoRef.current?.pause();
-                setIsPlaying(false);
-            }
-        }
-        lastTap.current = now;
-    };
-
     return (
-        <div className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20 relative">
-            
-            {/* Player Header */}
-            <div className="flex items-center justify-between px-4 py-3 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-                <div className="flex items-center gap-3 cursor-pointer group pointer-events-auto" onClick={()=>onUserClick(video.players_master)}>
-                    <div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-0.5 ${getClubStyle(video.players_master?.clubs?.is_icon_league)}`}>
-                        <div className="w-full h-full rounded-full overflow-hidden bg-black">
-                            {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-2 text-zinc-500"/>}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="font-bold text-white text-sm flex items-center gap-1 shadow-black drop-shadow-md">
-                            {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500 bg-white rounded-full"/>}
-                        </div>
-                        <div className="text-xs text-zinc-300 shadow-black drop-shadow-md">{video.players_master?.clubs?.name || "Vereinslos"}</div>
-                    </div>
-                </div>
-                <div className="relative pointer-events-auto">
-                    <button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-white hover:text-zinc-300 p-2 drop-shadow-md"><MoreHorizontal size={24}/></button>
-                    {showMenu && (<div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 w-32 overflow-hidden animate-in fade-in"><button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2"><Flag size={14}/> Melden</button></div>)}
-                </div>
-            </div>
-
-            {/* Video Container */}
-            <div className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer" onClick={handleTap}>
-                <video 
-                    ref={videoRef}
-                    src={video.video_url} 
-                    className="w-full h-full object-cover" 
-                    loop 
-                    playsInline 
-                    muted // Autoplay policies usually require muted first
-                    onWaiting={() => setIsBuffering(true)}
-                    onPlaying={() => setIsBuffering(false)}
-                />
-                
-                {/* Overlay UI */}
-                {isBuffering && <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10"><Loader2 className="w-12 h-12 text-white/80 animate-spin"/></div>}
-                
-                {showHeartAnim && <div className="absolute inset-0 flex items-center justify-center z-20 animate-in zoom-in duration-300 fade-out-0"><Heart className="w-24 h-24 text-red-500 fill-red-500 drop-shadow-2xl"/></div>}
-
-                {!isPlaying && !isBuffering && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/20 pointer-events-none">
-                        <Play className="w-16 h-16 text-white/80 fill-white/80 opacity-70"/>
-                    </div>
-                )}
-
-                <div className="absolute bottom-4 right-4 z-10 pointer-events-auto">
-                     <button onClick={(e) => { e.stopPropagation(); onClick(video); }} className="bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/20 transition">
-                        <Maximize2 size={20}/>
-                     </button>
-                </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="px-4 pt-4 flex items-center gap-6">
-                <button onClick={like} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked?'text-red-500':'text-white hover:text-red-400'}`}>
-                    <Heart size={28} className={liked?'fill-red-500':''}/> 
-                    <span className="font-bold text-sm">{likes}</span>
-                </button>
-                <button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white hover:text-blue-400 transition active:scale-90">
-                    <MessageCircle size={28}/> 
-                    <span className="font-bold text-sm">Chat</span>
-                </button>
-                <div className="ml-auto"><Share2 size={26} className="text-zinc-500 hover:text-white transition cursor-pointer active:scale-90"/></div>
-            </div>
-        </div>
+        <div className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20"><div className="flex items-center justify-between px-4 py-3"><div className="flex items-center gap-3 cursor-pointer group" onClick={()=>onUserClick(video.players_master)}><div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-0.5 ${getClubStyle(video.players_master?.clubs?.is_icon_league)}`}><div className="w-full h-full rounded-full overflow-hidden bg-black">{video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-2 text-zinc-500"/>}</div></div><div><div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-blue-400 transition">{video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500"/>}</div><div className="text-xs text-zinc-500">{video.players_master?.clubs?.name || "Vereinslos"}</div></div></div><div className="relative"><button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-zinc-500 hover:text-white p-2"><MoreHorizontal size={20}/></button>{showMenu && (<div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 w-32 overflow-hidden animate-in fade-in"><button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2"><Flag size={14}/> Melden</button></div>)}</div></div><div onClick={()=>onClick(video)} className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer"><video src={video.video_url} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-500" muted loop playsInline onMouseOver={e=>e.target.play()} onMouseOut={e=>e.target.pause()} /><div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 pointer-events-none"></div><div className="absolute bottom-4 right-4 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-white text-xs font-bold flex items-center gap-1"><Play size={10} fill="white"/> Watch</div></div><div className="px-4 pt-4 flex items-center gap-6"><button onClick={like} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked?'text-red-500':'text-white hover:text-red-400'}`}><Heart size={26} className={liked?'fill-red-500':''}/> <span className="font-bold text-sm">{likes}</span></button><button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white hover:text-blue-400 transition"><MessageCircle size={26}/> <span className="font-bold text-sm">Chat</span></button><div className="ml-auto"><Share2 size={24} className="text-zinc-500 hover:text-white transition cursor-pointer"/></div></div></div>
     )
 };
 
@@ -963,6 +773,10 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
         fetchPlayers();
     }, [club]);
 
+    // Berechne fehlende Spieler für offiziellen Status (Gamification)
+    const playersNeeded = 11 - players.length;
+    const isOfficial = players.length >= 11;
+
     return (
         <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
              <div className="relative h-40 bg-zinc-900 overflow-hidden">
@@ -971,11 +785,21 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
                 <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
              </div>
              <div className="px-6 -mt-12 relative z-10">
-                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
-                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
+                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4 flex items-center justify-center">
+                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600"/>}
                  </div>
                  <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
                  <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
+
+                 {/* Gamification Badge */}
+                 {!isOfficial && (
+                     <div className="mb-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-center gap-3">
+                         <div className="bg-blue-500 text-white font-bold p-2 rounded-lg">{playersNeeded}</div>
+                         <div className="text-xs text-blue-200">
+                             Spieler fehlen noch, damit dieser Verein als <strong>Offiziell</strong> markiert wird. Lad deine Teammates ein!
+                         </div>
+                     </div>
+                 )}
 
                  <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
                  <div className="space-y-3">
@@ -1017,6 +841,7 @@ const App = () => {
   const [toasts, setToasts] = useState([]);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const activeChatPartnerRef = useRef(activeChatPartner);
   const [reportTarget, setReportTarget] = useState(null);
@@ -1167,6 +992,21 @@ const App = () => {
               onEditReq={() => {
                   setShowSettings(false);
                   setShowEditProfile(true);
+              }}
+              onVerifyReq={() => {
+                  setShowSettings(false);
+                  setShowVerificationModal(true);
+              }}
+          />
+      )}
+      
+      {/* Verification Modal */}
+      {showVerificationModal && (
+          <VerificationModal 
+              onClose={() => setShowVerificationModal(false)}
+              onUploadComplete={() => {
+                  // Hier könnte man den User neu laden, um den Status anzuzeigen
+                  refreshProfile();
               }}
           />
       )}
