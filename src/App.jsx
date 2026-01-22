@@ -11,7 +11,7 @@ import {
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
-  Calendar, Weight, Hash, Globe, Maximize2
+  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck
 } from 'lucide-react';
 
 // --- 1. HELFER & STYLES ---
@@ -76,7 +76,8 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Simulation des Supabase Clients
+// Simulation des Supabase Clients (Mock)
+// WICHTIG: Realtime wird hier nur gestubbt, damit der Code nicht abstürzt.
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
@@ -177,7 +178,11 @@ const createMockClient = () => {
             };}
         },
         storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "https://placehold.co/600" } }) }) },
-        channel: () => ({ on: () => ({ subscribe: () => {} }) }),
+        // REALTIME MOCK: Einfache Stubs, damit es nicht crasht
+        channel: () => ({ 
+            on: () => ({ subscribe: () => {} }),
+            subscribe: () => {} 
+        }),
         removeChannel: () => {}
     };
 };
@@ -207,7 +212,9 @@ const useSmartProfile = (session) => {
                     full_name: 'Neuer Spieler', 
                     position_primary: 'ZM', 
                     transfer_status: 'Gebunden',
-                    followers_count: 0
+                    followers_count: 0,
+                    is_verified: false,
+                    is_admin: false
                 };
                 await supabase.from('players_master').upsert(newProfile);
                 data = newProfile;
@@ -546,174 +553,193 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
 const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   const [messages, setMessages] = useState([]); const [txt, setTxt] = useState(''); const endRef = useRef(null);
-  useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
-  const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
-  return (<div className="fixed inset-0 z-[90] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
+  useEffect(() => { 
+      // 1. Initial Fetch
+      const fetchMsgs = async () => { 
+          const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); 
+          setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); 
+          endRef.current?.scrollIntoView(); 
+      }; 
+      fetchMsgs(); 
+
+      // 2. Realtime Subscription (New Message Listener)
+      const channel = supabase.channel('realtime_chat')
+          .on(
+              'postgres_changes', 
+              { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `receiver_id=eq.${session.user.id}` }, 
+              (payload) => {
+                  if (payload.new.sender_id === partner.user_id) {
+                      setMessages(prev => [...prev, payload.new]);
+                      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }
+              }
+          )
+          .subscribe();
+
+      // 3. Fallback Polling (for Mock mode)
+      const i = setInterval(fetchMsgs, 3000); 
+      return () => { clearInterval(i); supabase.removeChannel(channel); }; 
+  }, [partner]);
+
+  const send = async (e) => { 
+      e.preventDefault(); if(!txt.trim()) return; 
+      // Optimistic UI Update
+      const optimisticMsg = { sender_id: session.user.id, content: txt, id: Date.now(), created_at: new Date().toISOString() };
+      setMessages(prev => [...prev, optimisticMsg]);
+      setTxt(''); 
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+      
+      await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); 
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10000] bg-black flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10">
+            <button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button>
+            <div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group">
+                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div>
+                <div className="font-bold text-white">{partner.full_name}</div>
+            </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">
+            {messages.map(m => (
+                <div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}>
+                    <div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>
+                        {m.content}
+                        {/* Gelesen-Status (Häkchen) */}
+                        {m.sender_id === session.user.id && (
+                            <div className="text-[10px] text-blue-200 flex justify-end mt-1 opacity-70">
+                                <CheckCheck size={12} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ))}
+            <div ref={endRef}/>
+        </div>
+        <form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4">
+            <input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/>
+            <button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button>
+        </form>
+    </div>
+  );
 };
 
-// -- FEED ITEM (NEU: Autoplay, Double Tap, etc.)
 const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
-    const [likes, setLikes] = useState(video.likes_count || 0);
-    const [liked, setLiked] = useState(false);
-    const [showMenu, setShowMenu] = useState(false);
+    const [likes, setLikes] = useState(video.likes_count || 0); const [liked, setLiked] = useState(false); const [showMenu, setShowMenu] = useState(false);
+    const like = async (e) => { e.stopPropagation(); if(!session){onLikeReq(); return;} setLiked(!liked); setLikes(l=>liked?l-1:l+1); if(!liked) { await supabase.from('media_likes').insert({user_id:session.user.id, video_id:video.id}); } };
+    
+    // Video Player Refs & State
+    const videoRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isBuffering, setIsBuffering] = useState(false);
-    const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+    const [showHeartAnim, setShowHeartAnim] = useState(false);
     
-    const videoRef = useRef(null);
-    const containerRef = useRef(null);
-    const lastTapRef = useRef(0);
-
-    // Autoplay Logic
+    // Autoplay Logic (Intersection Observer)
     useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    videoRef.current?.play().catch(() => {});
-                    setIsPlaying(true);
-                } else {
-                    videoRef.current?.pause();
-                    setIsPlaying(false);
-                }
-            },
-            { threshold: 0.6 }
-        );
-
-        if (containerRef.current) observer.observe(containerRef.current);
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) {
+                videoRef.current?.play().catch(() => {});
+                setIsPlaying(true);
+            } else {
+                videoRef.current?.pause();
+                setIsPlaying(false);
+            }
+        }, { threshold: 0.6 }); // 60% sichtbar
+        
+        if (videoRef.current) observer.observe(videoRef.current);
         return () => observer.disconnect();
     }, []);
 
-    const handleLike = async () => {
-        if (!session) {
-            onLikeReq();
-            return;
-        }
-        
-        const newLikedState = !liked;
-        setLiked(newLikedState);
-        setLikes(prev => newLikedState ? prev + 1 : prev - 1);
-
-        if (newLikedState) {
-            setShowHeartAnimation(true);
-            setTimeout(() => setShowHeartAnimation(false), 1000);
-        }
-
-        if (newLikedState) {
-            await supabase.from('media_likes').insert({ user_id: session.user.id, video_id: video.id }).catch(console.error);
-        } else {
-            await supabase.from('media_likes').delete().match({ user_id: session.user.id, video_id: video.id }).catch(console.error);
-        }
-    };
-
-    const handleContainerClick = (e) => {
+    // Double Tap Logic
+    const lastTap = useRef(0);
+    const handleTap = (e) => {
         const now = Date.now();
-        const DOUBLE_TAP_DELAY = 300;
-        
-        if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
-            handleLike();
-        } else {
-            // Single Tap
-            if (videoRef.current) {
-                if (isPlaying) {
-                    videoRef.current.pause();
-                    setIsPlaying(false);
-                } else {
-                    videoRef.current.play();
-                    setIsPlaying(true);
-                }
+        if (now - lastTap.current < 300) { // Double Tap
+            if (!liked) like(e);
+            setShowHeartAnim(true);
+            setTimeout(() => setShowHeartAnim(false), 1000);
+        } else { // Single Tap (Play/Pause)
+            if (videoRef.current?.paused) {
+                videoRef.current.play();
+                setIsPlaying(true);
+            } else {
+                videoRef.current?.pause();
+                setIsPlaying(false);
             }
         }
-        lastTapRef.current = now;
+        lastTap.current = now;
     };
 
     return (
-        <div ref={containerRef} className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20 relative group">
-            {/* Header Overlay */}
-            <div className="flex items-center justify-between px-4 py-3 absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
-                <div className="flex items-center gap-3 cursor-pointer pointer-events-auto" onClick={() => onUserClick(video.players_master)}>
+        <div className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20 relative">
+            
+            {/* Player Header */}
+            <div className="flex items-center justify-between px-4 py-3 absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+                <div className="flex items-center gap-3 cursor-pointer group pointer-events-auto" onClick={()=>onUserClick(video.players_master)}>
                     <div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-0.5 ${getClubStyle(video.players_master?.clubs?.is_icon_league)}`}>
                         <div className="w-full h-full rounded-full overflow-hidden bg-black">
-                            {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-zinc-500" />}
+                            {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-2 text-zinc-500"/>}
                         </div>
                     </div>
                     <div>
                         <div className="font-bold text-white text-sm flex items-center gap-1 shadow-black drop-shadow-md">
-                            {video.players_master?.full_name} 
-                            {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500 bg-white rounded-full" />}
+                            {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500 bg-white rounded-full"/>}
                         </div>
                         <div className="text-xs text-zinc-300 shadow-black drop-shadow-md">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                     </div>
                 </div>
                 <div className="relative pointer-events-auto">
-                    <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-white hover:text-zinc-300 p-2 drop-shadow-md">
-                        <MoreHorizontal size={24} />
-                    </button>
-                    {showMenu && (
-                        <div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-30 w-32 overflow-hidden animate-in fade-in">
-                            <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video'); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2">
-                                <Flag size={14} /> Melden
-                            </button>
-                        </div>
-                    )}
+                    <button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-white hover:text-zinc-300 p-2 drop-shadow-md"><MoreHorizontal size={24}/></button>
+                    {showMenu && (<div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 w-32 overflow-hidden animate-in fade-in"><button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2"><Flag size={14}/> Melden</button></div>)}
                 </div>
             </div>
 
-            {/* Video Player */}
-            <div className="aspect-[4/5] bg-zinc-900 relative overflow-hidden cursor-pointer" onClick={handleContainerClick}>
+            {/* Video Container */}
+            <div className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer" onClick={handleTap}>
                 <video 
                     ref={videoRef}
                     src={video.video_url} 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover" 
                     loop 
                     playsInline 
-                    muted 
+                    muted // Autoplay policies usually require muted first
                     onWaiting={() => setIsBuffering(true)}
                     onPlaying={() => setIsBuffering(false)}
                 />
                 
-                {isBuffering && (
-                    <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/20">
-                        <Loader2 className="w-12 h-12 text-white/80 animate-spin" />
-                    </div>
-                )}
-
-                {showHeartAnimation && (
-                    <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none animate-in zoom-in duration-300 fade-out-0">
-                        <Heart className="w-24 h-24 text-red-500 fill-red-500 drop-shadow-2xl" />
-                    </div>
-                )}
+                {/* Overlay UI */}
+                {isBuffering && <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10"><Loader2 className="w-12 h-12 text-white/80 animate-spin"/></div>}
+                
+                {showHeartAnim && <div className="absolute inset-0 flex items-center justify-center z-20 animate-in zoom-in duration-300 fade-out-0"><Heart className="w-24 h-24 text-red-500 fill-red-500 drop-shadow-2xl"/></div>}
 
                 {!isPlaying && !isBuffering && (
                     <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/20 pointer-events-none">
-                        <Play className="w-16 h-16 text-white/80 fill-white/80 opacity-70" />
+                        <Play className="w-16 h-16 text-white/80 fill-white/80 opacity-70"/>
                     </div>
                 )}
 
-                {/* Maximize Button */}
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onClick(video); }} 
-                    className="absolute bottom-4 right-4 bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/20 transition z-20 pointer-events-auto"
-                >
-                    <FileVideo size={20} />
-                </button>
+                <div className="absolute bottom-4 right-4 z-10 pointer-events-auto">
+                     <button onClick={(e) => { e.stopPropagation(); onClick(video); }} className="bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/20 transition">
+                        <Maximize2 size={20}/>
+                     </button>
+                </div>
             </div>
 
             {/* Footer Actions */}
             <div className="px-4 pt-4 flex items-center gap-6">
-                <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked ? 'text-red-500' : 'text-white hover:text-red-400'}`}>
-                    <Heart size={28} className={liked ? 'fill-red-500' : ''} /> 
+                <button onClick={like} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked?'text-red-500':'text-white hover:text-red-400'}`}>
+                    <Heart size={28} className={liked?'fill-red-500':''}/> 
                     <span className="font-bold text-sm">{likes}</span>
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); onCommentClick(video); }} className="flex items-center gap-2 text-white hover:text-blue-400 transition active:scale-90">
-                    <MessageCircle size={28} /> 
+                <button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white hover:text-blue-400 transition active:scale-90">
+                    <MessageCircle size={28}/> 
                     <span className="font-bold text-sm">Chat</span>
                 </button>
-                <div className="ml-auto">
-                    <Share2 size={26} className="text-zinc-500 hover:text-white transition cursor-pointer active:scale-90" />
-                </div>
+                <div className="ml-auto"><Share2 size={26} className="text-zinc-500 hover:text-white transition cursor-pointer active:scale-90"/></div>
             </div>
         </div>
-    );
+    )
 };
 
 const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
