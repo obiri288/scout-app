@@ -342,6 +342,7 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
 
+    // Render-Guard
     if (!user) return null;
 
     const showFeedback = (msg) => {
@@ -497,26 +498,143 @@ const LoginModal = ({ onClose, onSuccess }) => {
 };
 
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
-  const [uploading, setUploading] = useState(false); const [category, setCategory] = useState("Training");
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
-    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
-    try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [uploading, setUploading] = useState(false); 
+  const [category, setCategory] = useState("Training");
+  const [description, setDescription] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+    if (selectedFile.size > MAX_FILE_SIZE) { 
+        alert("Datei zu groß! Max 50 MB."); 
+        return; 
+    }
+    setFile(selectedFile);
+    setPreviewUrl(URL.createObjectURL(selectedFile));
   };
+
+  const handleUpload = async () => {
+    if (!file || !player?.user_id) return;
+    
+    setUploading(true);
+    // Simulierter Progress für UX
+    const interval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 10, 90));
+    }, 200);
+
+    try { 
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
+        
+        // 1. Upload
+        const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
+        if (upErr) throw upErr; 
+        
+        // 2. Public URL
+        const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
+        
+        // 3. DB Insert
+        const { error: dbErr } = await supabase.from('media_highlights').insert({ 
+            player_id: player.id, 
+            video_url: publicUrl, 
+            thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", // Placeholder für Thumbnail
+            category_tag: category,
+            // description: description // Falls DB Feld existiert, sonst weglassen
+        }); 
+        
+        if (dbErr) throw dbErr; 
+        
+        clearInterval(interval);
+        setProgress(100);
+        setTimeout(() => {
+            onUploadComplete(); 
+            onClose(); 
+        }, 500);
+
+    } catch (error) { 
+        console.error(error);
+        alert('Upload Fehler: ' + (error.message || "Unbekannter Fehler")); 
+        clearInterval(interval);
+    } finally { 
+        setUploading(false); 
+    }
+  };
+
+  useEffect(() => {
+      return () => {
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+      }
+  }, [previewUrl]);
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}> 
-        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
-        {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
-        <div className="space-y-4">
-            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-            </label>
+        <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}>
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Clip hochladen</h3>
+                <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
+            </div>
+
+            {uploading ? (
+                <div className="text-center py-8 space-y-4">
+                    <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <p className="text-zinc-400 font-medium text-sm">Dein Highlight wird hochgeladen... {progress}%</p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {!file ? (
+                        <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
+                            <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform shadow-lg">
+                                <FileVideo className="w-8 h-8 text-blue-400" />
+                            </div>
+                            <p className="text-sm text-zinc-300 font-medium">Video auswählen</p>
+                            <p className="text-xs text-zinc-500 mt-1">Max. 50 MB • MP4, MOV</p>
+                            <input type="file" accept="video/*" className="hidden" onChange={handleFileSelect} />
+                        </label>
+                    ) : (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
+                                <video src={previewUrl} className="w-full h-full object-cover" controls />
+                                <button onClick={() => { setFile(null); setPreviewUrl(null); }} className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                            
+                            <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 space-y-3">
+                                <div>
+                                    <label className="text-xs text-zinc-500 font-bold uppercase mb-1 block pl-1">Kategorie</label>
+                                    <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition">
+                                        <option>Training</option>
+                                        <option>Match Highlight</option>
+                                        <option>Tor</option>
+                                        <option>Skill</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-zinc-500 font-bold uppercase mb-1 block pl-1">Beschreibung (Optional)</label>
+                                    <input 
+                                        type="text" 
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        placeholder="Was passiert im Video?"
+                                        className="w-full bg-zinc-800 text-white p-2.5 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600"
+                                    />
+                                </div>
+                            </div>
+
+                            <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}>
+                                <UploadCloud size={20} />
+                                Jetzt hochladen
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
-        )}
-      </div>
     </div>
   );
 };
@@ -773,10 +891,6 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
         fetchPlayers();
     }, [club]);
 
-    // Berechne fehlende Spieler für offiziellen Status (Gamification)
-    const playersNeeded = 11 - players.length;
-    const isOfficial = players.length >= 11;
-
     return (
         <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
              <div className="relative h-40 bg-zinc-900 overflow-hidden">
@@ -785,21 +899,11 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
                 <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
              </div>
              <div className="px-6 -mt-12 relative z-10">
-                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4 flex items-center justify-center">
-                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600"/>}
+                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
+                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
                  </div>
                  <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
                  <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
-
-                 {/* Gamification Badge */}
-                 {!isOfficial && (
-                     <div className="mb-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-center gap-3">
-                         <div className="bg-blue-500 text-white font-bold p-2 rounded-lg">{playersNeeded}</div>
-                         <div className="text-xs text-blue-200">
-                             Spieler fehlen noch, damit dieser Verein als <strong>Offiziell</strong> markiert wird. Lad deine Teammates ein!
-                         </div>
-                     </div>
-                 )}
 
                  <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
                  <div className="space-y-3">
@@ -841,7 +945,6 @@ const App = () => {
   const [toasts, setToasts] = useState([]);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const activeChatPartnerRef = useRef(activeChatPartner);
   const [reportTarget, setReportTarget] = useState(null);
