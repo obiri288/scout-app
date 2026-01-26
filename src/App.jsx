@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 // HINWEIS FÜR LOKALE ENTWICKLUNG:
 // 1. Installieren Sie: npm install @supabase/supabase-js
-// 2. Entkommentieren Sie die folgende Zeile:
-// import { createClient } from '@supabase/supabase-js'; 
+import { createClient } from '@supabase/supabase-js'; 
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -206,11 +205,10 @@ const createMockClient = () => {
 };
 
 // AKTIVIERE MOCK FÜR PREVIEW (Hier im Browser)
-const supabase = createMockClient(); 
 
 // FÜR LOKALE ENTWICKLUNG (VS Code):
 // Entfernen Sie die Zeile oben und aktivieren Sie diese Zeile:
-// const supabase = createClient(supabaseUrl, supabaseKey); 
+const supabase = createClient(supabaseUrl, supabaseKey); 
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
