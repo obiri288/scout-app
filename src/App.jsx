@@ -41,6 +41,11 @@ const calculateAge = (birthDate) => {
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
+// ECHTE SUPABASE KONFIGURATION (Für später lokal einkommentieren)
+const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
+
+
 const MOCK_DB = {
     players_master: [
         { 
@@ -69,8 +74,7 @@ const MOCK_DB = {
         { id: 103, name: "Borussia Dortmund", short_name: "BVB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true, color_primary: "#fbbf24", color_secondary: "#000000" }
     ],
     media_highlights: [
-        // FIX: Eine zuverlässige Video-URL für den Mock-Start
-        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
+        { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
@@ -139,9 +143,6 @@ const createMockClient = () => {
                     }
                     if (table === 'clubs') {
                          // Mock search logic
-                         if (query.includes('ilike')) {
-                             // Simple mock filter
-                         }
                     }
                     return helper(filtered);
                 },
@@ -198,22 +199,19 @@ const createMockClient = () => {
                 then: (cb) => cb({ data: d }) 
             };}
         },
-        // FIX: Mock Storage gibt jetzt eine gültige Video-URL zurück, keine Bild-URL mehr
-        storage: { 
-            from: () => ({ 
-                upload: async () => ({ error: null }), 
-                getPublicUrl: () => ({ 
-                    data: { 
-                        publicUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4" 
-                    } 
-                }) 
-            }) 
-        },
+        storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4" } }) }) },
         channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
         removeChannel: () => {}
     };
 };
-const supabase = createMockClient();
+
+// AKTIVIERE MOCK FÜR PREVIEW (Hier im Browser)
+const supabase = createMockClient(); 
+
+// FÜR LOKALE ENTWICKLUNG (VS Code):
+// Entfernen Sie die Zeile oben und aktivieren Sie diese Zeile:
+// const supabase = createClient(supabaseUrl, supabaseKey); 
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
 // --- 2. HOOKS ---
@@ -335,6 +333,7 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
     
     const handleUpload = async () => {
         setUploading(true);
+        // Simulierter Upload für den Prototyp
         await new Promise(r => setTimeout(r, 1500));
         alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
         setUploading(false);
@@ -349,16 +348,19 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
                     <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
                     <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
                 </div>
+                
                 <div className="space-y-6">
                     <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
                         Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
                     </div>
+
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
                         <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
                         <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
                         <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
                         <input type="file" className="hidden" onChange={handleUpload} />
                     </label>
+
                     {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
                 </div>
             </div>
@@ -369,17 +371,34 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
 // --- EINSTELLUNGEN OVERLAY ---
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
+
+    // Render-Guard
     if (!user) return null;
-    const showFeedback = (msg) => { setShowToast(msg); setTimeout(() => setShowToast(null), 2000); };
-    const handleClearCache = () => { try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); } };
-    const handleShare = () => { if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); } };
-    const handleDeleteAccount = () => { if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); } };
+
+    const showFeedback = (msg) => {
+        setShowToast(msg);
+        setTimeout(() => setShowToast(null), 2000);
+    };
+
+    const handleClearCache = () => {
+        try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); }
+    };
+
+    const handleShare = () => { 
+        if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); }
+    };
+
+    const handleDeleteAccount = () => {
+        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); }
+    };
+
     const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
         <button onClick={onClick} className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}>
             <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div>
             <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
+
     return (
         <div className="fixed inset-0 z-[10000] flex justify-end">
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
@@ -394,7 +413,7 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
                         <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div>
                         <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div>
                         <div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div>
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.1 (Verify Update)</div>
+                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.2 (Stable)</div>
                     </div>
                  </SafeErrorBoundary>
                  {showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}
@@ -425,12 +444,22 @@ const LoginModal = ({ onClose, onSuccess }) => {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) { throw error; }
-        if (data.user) { 
-            setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-            setTimeout(() => onSuccess({ user: data.user }), 1000); 
-            return; 
+        const { data, error } = await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+                emailRedirectTo: window.location.origin
+            }
+        });
+        if (error) throw error;
+        
+        // Check for session to determine if email confirmation is required
+        if (data.user && !data.session) {
+             setSuccessMsg('📧 E-Mail gesendet! Bitte Link bestätigen, um dich einzuloggen.');
+             // KEIN onSuccess() hier, da der User noch nicht eingeloggt ist!
+        } else if (data.user && data.session) {
+             setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
+             setTimeout(() => onSuccess(data.session), 1000); 
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -480,86 +509,23 @@ const LoginModal = ({ onClose, onSuccess }) => {
 
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const [uploading, setUploading] = useState(false); const [category, setCategory] = useState("Training");
-  const [description, setDescription] = useState("");
-  const [file, setFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  
   const handleFileChange = async (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-        if (selectedFile.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
-        setFile(selectedFile);
-        setPreviewUrl(URL.createObjectURL(selectedFile));
-    }
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
+    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
+    try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
   };
-
-  const handleUpload = async () => {
-    if (!player?.user_id || !file) { alert("Bitte Profil erst vervollständigen."); return; }
-    
-    setUploading(true);
-    try { 
-        const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; 
-        
-        // 1. Upload File
-        const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); 
-        if (upErr) throw upErr; 
-        
-        // 2. Get URL
-        const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); 
-        
-        // 3. Save to DB
-        const { error: dbErr } = await supabase.from('media_highlights').insert({ 
-            player_id: player.id, 
-            video_url: publicUrl, 
-            thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", 
-            category_tag: category,
-            // description: description 
-        }); 
-        
-        if (dbErr) throw dbErr; 
-        
-        onUploadComplete(); 
-        onClose(); 
-    } catch (error) { 
-        alert('Upload Fehler: ' + error.message); 
-    } finally { 
-        setUploading(false); 
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}> 
         <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
-        
-        {uploading ? (
-            <div className="text-center py-12">
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-                <p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p>
-            </div> 
-        ) : (
-            <div className="space-y-4">
-                {!file ? (
-                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                        <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div>
-                        <p className="text-sm text-zinc-300 font-medium">Video auswählen</p>
-                        <p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p>
-                        <input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-                    </label>
-                ) : (
-                    <div className="space-y-4">
-                        <div className="relative rounded-xl overflow-hidden aspect-video bg-black">
-                            <video src={previewUrl} className="w-full h-full object-cover" controls />
-                            <button onClick={() => {setFile(null); setPreviewUrl(null);}} className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white hover:bg-red-500"><Trash2 size={16}/></button>
-                        </div>
-                        <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5 space-y-2">
-                             <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium text-sm"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select>
-                             <input type="text" placeholder="Beschreibung (optional)" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none text-sm border-t border-white/5" />
-                        </div>
-                        <button onClick={handleUpload} className={`${btnPrimary} w-full`}>Jetzt hochladen</button>
-                    </div>
-                )}
-            </div>
+        {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
+        <div className="space-y-4">
+            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
+            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
+                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+            </label>
+        </div>
         )}
       </div>
     </div>
@@ -591,34 +557,9 @@ const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
 
 const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [likes, setLikes] = useState(video.likes_count || 0); const [liked, setLiked] = useState(false); const [showMenu, setShowMenu] = useState(false);
-    // FIX: Fehlerbehandlung für Videos
-    const [videoError, setVideoError] = useState(false);
-    const videoRef = useRef(null);
-
     const like = async (e) => { e.stopPropagation(); if(!session){onLikeReq(); return;} setLiked(!liked); setLikes(l=>liked?l-1:l+1); if(!liked) { await supabase.from('media_likes').insert({user_id:session.user.id, video_id:video.id}); } };
-    
     return (
-        <div className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20"><div className="flex items-center justify-between px-4 py-3"><div className="flex items-center gap-3 cursor-pointer group" onClick={()=>onUserClick(video.players_master)}><div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-0.5 ${getClubStyle(video.players_master?.clubs?.is_icon_league)}`}><div className="w-full h-full rounded-full overflow-hidden bg-black">{video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-2 text-zinc-500"/>}</div></div><div><div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-blue-400 transition">{video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500"/>}</div><div className="text-xs text-zinc-500">{video.players_master?.clubs?.name || "Vereinslos"}</div></div></div><div className="relative"><button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-zinc-500 hover:text-white p-2"><MoreHorizontal size={20}/></button>{showMenu && (<div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 w-32 overflow-hidden animate-in fade-in"><button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2"><Flag size={14}/> Melden</button></div>)}</div></div>
-        <div onClick={()=>onClick(video)} className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer">
-            {videoError ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500">
-                    <AlertTriangle size={32} className="mb-2 opacity-50" />
-                    <span className="text-xs">Video nicht verfügbar</span>
-                </div>
-            ) : (
-                <video 
-                    ref={videoRef}
-                    src={video.video_url} 
-                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-500" 
-                    muted 
-                    loop 
-                    playsInline 
-                    onMouseOver={e=>e.target.play().catch(() => {})} 
-                    onMouseOut={e=>e.target.pause()}
-                    onError={() => setVideoError(true)} 
-                />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 pointer-events-none"></div><div className="absolute bottom-4 right-4 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-white text-xs font-bold flex items-center gap-1"><Play size={10} fill="white"/> Watch</div></div><div className="px-4 pt-4 flex items-center gap-6"><button onClick={like} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked?'text-red-500':'text-white hover:text-red-400'}`}><Heart size={26} className={liked?'fill-red-500':''}/> <span className="font-bold text-sm">{likes}</span></button><button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white hover:text-blue-400 transition"><MessageCircle size={26}/> <span className="font-bold text-sm">Chat</span></button><div className="ml-auto"><Share2 size={24} className="text-zinc-500 hover:text-white transition cursor-pointer"/></div></div></div>
+        <div className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20"><div className="flex items-center justify-between px-4 py-3"><div className="flex items-center gap-3 cursor-pointer group" onClick={()=>onUserClick(video.players_master)}><div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-0.5 ${getClubStyle(video.players_master?.clubs?.is_icon_league)}`}><div className="w-full h-full rounded-full overflow-hidden bg-black">{video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-2 text-zinc-500"/>}</div></div><div><div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-blue-400 transition">{video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500"/>}</div><div className="text-xs text-zinc-500">{video.players_master?.clubs?.name || "Vereinslos"}</div></div></div><div className="relative"><button onClick={(e) => {e.stopPropagation(); setShowMenu(!showMenu)}} className="text-zinc-500 hover:text-white p-2"><MoreHorizontal size={20}/></button>{showMenu && (<div className="absolute right-0 top-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-20 w-32 overflow-hidden animate-in fade-in"><button onClick={(e) => {e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video');}} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-zinc-800 flex items-center gap-2"><Flag size={14}/> Melden</button></div>)}</div></div><div onClick={()=>onClick(video)} className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer"><video src={video.video_url} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-500" muted loop playsInline onMouseOver={e=>e.target.play()} onMouseOut={e=>e.target.pause()} /><div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 pointer-events-none"></div><div className="absolute bottom-4 right-4 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-white text-xs font-bold flex items-center gap-1"><Play size={10} fill="white"/> Watch</div></div><div className="px-4 pt-4 flex items-center gap-6"><button onClick={like} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked?'text-red-500':'text-white hover:text-red-400'}`}><Heart size={26} className={liked?'fill-red-500':''}/> <span className="font-bold text-sm">{likes}</span></button><button onClick={(e)=>{e.stopPropagation(); onCommentClick(video)}} className="flex items-center gap-2 text-white hover:text-blue-400 transition"><MessageCircle size={26}/> <span className="font-bold text-sm">Chat</span></button><div className="ml-auto"><Share2 size={24} className="text-zinc-500 hover:text-white transition cursor-pointer"/></div></div></div>
     )
 };
 
@@ -876,16 +817,6 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
              </div>
         </div>
     );
-};
-
-const AdminDashboard = ({ session }) => {
-    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
-    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
-    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
-    useEffect(() => { fetchPending(); fetchReports(); }, []);
-    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
-    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
-    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
 };
 
 // --- 6. MAIN APP ---
