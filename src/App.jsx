@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 
-// --- HINWEIS FÜR LOKALE ENTWICKLUNG ---
-// Wenn Sie diesen Code lokal nutzen, führen Sie `npm install @supabase/supabase-js` aus
-// und entfernen Sie die "//" vor der nächsten Zeile:
-import { createClient } from '@supabase/supabase-js'; 
+// --- HINWEIS FÜR LOKALE ENTWICKLUNG (ECHTBETRIEB) ---
+// 1. Installieren: npm install @supabase/supabase-js
+// 2. Import aktivieren (Kommentar entfernen):
+// import { createClient } from '@supabase/supabase-js'; 
 
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
@@ -16,17 +16,16 @@ import {
   Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck
 } from 'lucide-react';
 
-// --- 1. KONFIGURATION & ECHTE DATEN (Lokal einkommentieren) ---
+// --- 1. KONFIGURATION ---
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 // Lokaler Client (aktivieren für Production):
-const supabase = createClient(supabaseUrl, supabaseKey);
+// const supabase = createClient(supabaseUrl, supabaseKey);
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 // --- 2. HELFER & STYLES ---
-
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
@@ -39,18 +38,15 @@ const generateVideoThumbnail = (file) => {
         video.muted = true;
         video.playsInline = true;
         
-        const timeout = setTimeout(() => resolve(null), 3000); // Max 3s warten
+        const timeout = setTimeout(() => resolve(null), 3000); 
 
-        video.onloadeddata = () => {
-            // Springe zu Sekunde 1 oder zum Anfang
-            video.currentTime = Math.min(1, video.duration / 2);
-        };
+        video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration / 2); };
 
         video.onseeked = () => {
             clearTimeout(timeout);
             try {
                 const canvas = document.createElement("canvas");
-                canvas.width = 480; // Performance: Kleineres Thumbnail
+                canvas.width = 480; 
                 canvas.height = 270;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -58,10 +54,7 @@ const generateVideoThumbnail = (file) => {
                     URL.revokeObjectURL(video.src);
                     resolve(blob);
                 }, "image/jpeg", 0.7);
-            } catch (e) {
-                console.error("Thumbnail Error:", e);
-                resolve(null); 
-            }
+            } catch (e) { resolve(null); }
         };
         video.onerror = () => { clearTimeout(timeout); resolve(null); };
     });
@@ -72,30 +65,34 @@ const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 
 const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
 const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
 
-// --- 3. MOCK CLIENT (Für Vorschau aktiviert) ---
-const MOCK_USER_ID = "user-123";
-const STORAGE_KEY = 'scoutvision_mock_session';
+// Helper um Alter zu berechnen
+const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) { age--; }
+    return age;
+};
 
-const MOCK_DB = {
+// --- 3. INTELLIGENTER MOCK CLIENT (Mit LocalStorage Persistenz) ---
+const MOCK_USER_ID = "user-123";
+const STORAGE_KEY_SESSION = 'scoutvision_mock_session';
+const STORAGE_KEY_DB = 'scoutvision_mock_db';
+
+// Standard-Daten (werden genutzt, wenn LocalStorage leer ist)
+const INITIAL_DB = {
     players_master: [
         { 
             id: 99, 
             user_id: "user-demo", 
             full_name: "Nico Schlotterbeck", 
-            first_name: "Nico",
-            last_name: "Schlotterbeck",
-            position_primary: "IV", 
-            transfer_status: "Gebunden", 
+            first_name: "Nico", last_name: "Schlotterbeck",
+            position_primary: "IV", transfer_status: "Gebunden", 
             avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
             clubs: { id: 103, name: "BVB 09", short_name: "BVB", league: "Bundesliga", is_icon_league: true, color_primary: "#fbbf24", color_secondary: "#000000", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB" }, 
-            followers_count: 850, 
-            is_verified: true, 
-            height_user: 191, 
-            weight: 86,
-            strong_foot: "Links",
-            birth_date: "1999-12-01",
-            jersey_number: 4,
-            nationality: "Deutschland"
+            followers_count: 850, is_verified: true, height_user: 191, weight: 86, strong_foot: "Links", birth_date: "1999-12-01", jersey_number: 4, nationality: "Deutschland"
         },
     ],
     clubs: [
@@ -111,14 +108,28 @@ const MOCK_DB = {
     notifications: []
 };
 
-// Intelligenter Mock-Client
+// Lädt DB aus LocalStorage oder initialisiert sie
+const loadDB = () => {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY_DB);
+        return stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(INITIAL_DB));
+    } catch { return JSON.parse(JSON.stringify(INITIAL_DB)); }
+};
+
+// Speichert DB in LocalStorage
+const saveDB = (db) => {
+    localStorage.setItem(STORAGE_KEY_DB, JSON.stringify(db));
+};
+
 const createMockClient = () => {
     let currentSession = null;
     let authListener = null;
-    const tempStorage = new Map(); // Speichert Blob-URLs für die Session
+    // Lokale DB-Instanz (in-memory, aber sync mit LocalStorage)
+    let db = loadDB();
+    const tempStorage = new Map(); // Blob URLs (flüchtig)
 
     try {
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = localStorage.getItem(STORAGE_KEY_SESSION);
         if (stored) currentSession = JSON.parse(stored);
     } catch (e) { console.error(e); }
 
@@ -137,32 +148,35 @@ const createMockClient = () => {
             signInWithPassword: async ({ email }) => {
                 await new Promise(r => setTimeout(r, 500));
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
+                localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signUp: async ({ email }) => {
                 await new Promise(r => setTimeout(r, 500));
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
+                localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signOut: async () => {
                 currentSession = null;
-                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(STORAGE_KEY_SESSION);
                 notify('SIGNED_OUT', null);
                 return { error: null };
             }
         },
         from: (table) => {
-            const data = MOCK_DB[table] || [];
-            let filtered = [...data];
+            // Immer aktuelle Daten laden
+            db = loadDB();
+            const tableData = db[table] || [];
+            let filtered = [...tableData];
+            
             return {
                 select: (query) => {
-                     // Simulation von Joins und Filtern
+                    // Simuliere Joins (einfach)
                     if (table === 'media_highlights' && query?.includes('players_master')) {
-                        filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
+                        filtered = filtered.map(item => ({...item, players_master: db.players_master.find(p => p.id === item.player_id)}));
                     }
                     if (table === 'players_master') {
                         filtered = filtered.map(p => {
@@ -177,28 +191,40 @@ const createMockClient = () => {
                 },
                 insert: async (obj) => { 
                     const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() };
-                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); // Neue Items oben
+                    if(!db[table]) db[table] = [];
+                    db[table].unshift(newItem); 
+                    saveDB(db); // PERSISTENZ!
                     return { data: [newItem], error: null };
                 },
                 update: (obj) => ({ eq: (col, val) => {
-                    const idx = MOCK_DB[table].findIndex(r => r[col] == val);
-                    if(idx >= 0) MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
-                    return { select: () => ({ single: () => ({ data: MOCK_DB[table][idx], error: null }) }) };
+                    const idx = db[table].findIndex(r => r[col] == val);
+                    let res = { data: null, error: "Not found" };
+                    if(idx >= 0) {
+                        db[table][idx] = { ...db[table][idx], ...obj };
+                        saveDB(db); // PERSISTENZ!
+                        res = { data: db[table][idx], error: null };
+                    }
+                    return { select: () => ({ single: () => res }) };
                 }}),
                 upsert: async (obj) => {
-                     if (!MOCK_DB[table]) MOCK_DB[table] = [];
-                     const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
+                     if (!db[table]) db[table] = [];
+                     const existingIdx = db[table].findIndex(r => r.user_id === obj.user_id);
                      let result;
                      if (existingIdx >= 0) {
-                          MOCK_DB[table][existingIdx] = { ...MOCK_DB[table][existingIdx], ...obj };
-                          result = MOCK_DB[table][existingIdx];
+                          db[table][existingIdx] = { ...db[table][existingIdx], ...obj };
+                          result = db[table][existingIdx];
                      } else {
                           result = { ...obj, id: Date.now(), followers_count: 0 };
-                          MOCK_DB[table].push(result);
+                          db[table].push(result);
                      }
+                     saveDB(db); // PERSISTENZ!
                      return { data: result, error: null };
                 },
-                delete: () => ({ match: () => ({ error: null }) })
+                delete: () => ({ match: (filter) => {
+                    // Simple Mock Delete (nur für media_likes Implementierung relevant)
+                    // In echter App komplexer
+                    return { error: null };
+                }})
             };
             function helper(d) { return { 
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
@@ -220,7 +246,6 @@ const createMockClient = () => {
                 return { error: null };
             },
             getPublicUrl: (path) => {
-                // Video oder Fallback
                 const url = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
                 return { data: { publicUrl: url } };
             } 
@@ -230,9 +255,11 @@ const createMockClient = () => {
     };
 };
 
-// HIER IST DER SCHALTER: Mock für Vorschau aktiv.
-// const supabase = createMockClient(); // Für Vorschau aktivieren
-// Echte Supabase-Verbindung wird oben initialisiert
+// AKTIVIERE MOCK FÜR PREVIEW (Hier im Browser)
+const supabase = createMockClient(); 
+// FÜR ECHTBETRIEB (VS CODE): Zeile oben auskommentieren, Zeile unten einkommentieren!
+// const supabase = createClient(supabaseUrl, supabaseKey); 
+
 
 // --- 4. HOOKS ---
 const useSmartProfile = (session) => {
@@ -257,7 +284,9 @@ const useSmartProfile = (session) => {
                     full_name: 'Neuer Spieler', 
                     position_primary: 'ZM', 
                     transfer_status: 'Gebunden',
-                    followers_count: 0
+                    followers_count: 0,
+                    is_verified: false,
+                    is_admin: false
                 };
                 await supabase.from('players_master').upsert(newProfile);
                 data = newProfile;
@@ -543,7 +572,7 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
         <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
-        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
+        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><div className="grid grid-cols-2 gap-3"><input type="number" min="0" placeholder="Größe (cm)" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} /><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div><div className="space-y-3 pt-2"><h3 className="text-xs font-bold text-zinc-500 uppercase">Social Media</h3><div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div><div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div></div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
       </div>
     </div>
   );
@@ -820,6 +849,16 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
     );
 };
 
+const AdminDashboard = ({ session }) => {
+    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
+    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
+    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
+    useEffect(() => { fetchPending(); fetchReports(); }, []);
+    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
+    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
+    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
+};
+
 // --- 6. MAIN APP ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -1014,19 +1053,7 @@ const App = () => {
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
-      
-      {/* Upload Modal mit Feed-Refresh Callback */}
-      {showUpload && (
-          <UploadModal 
-              player={currentUserProfile} 
-              onClose={() => setShowUpload(false)} 
-              onUploadComplete={() => { 
-                  if(currentUserProfile) loadProfile(currentUserProfile);
-                  setFeedVersion(v => v + 1); // Feed zwingend neu laden
-              }} 
-          />
-      )}
-      
+      {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
     </div>
   );
