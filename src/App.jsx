@@ -18,7 +18,7 @@ import {
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
-// OPTIMIERTE THUMBNAIL GENERIERUNG
+// OPTIMIERTE THUMBNAIL GENERIERUNG (Mit Error Handling)
 const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
         const video = document.createElement("video");
@@ -27,42 +27,29 @@ const generateVideoThumbnail = (file) => {
         video.muted = true;
         video.playsInline = true;
         
-        // Timeout falls Video korrupt ist
-        const timeout = setTimeout(() => {
-            console.warn("Thumbnail Timeout");
-            resolve(null);
-        }, 5000);
+        const timeout = setTimeout(() => resolve(null), 3000); // Max 3s warten
 
         video.onloadeddata = () => {
-            // Springe zu Sekunde 1 oder zum Anfang
-            video.currentTime = Math.min(1, video.duration / 2);
+            video.currentTime = 1; // Snapshot bei Sekunde 1
         };
 
         video.onseeked = () => {
             clearTimeout(timeout);
             try {
                 const canvas = document.createElement("canvas");
-                // Skaliere Thumbnail etwas runter für Performance
-                canvas.width = 640; 
-                canvas.height = 360; 
-                
+                canvas.width = 480; // Performance: Kleineres Thumbnail
+                canvas.height = 270;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
                 canvas.toBlob((blob) => {
                     URL.revokeObjectURL(video.src);
                     resolve(blob);
                 }, "image/jpeg", 0.7);
             } catch (e) {
-                console.error("Canvas Error:", e);
                 resolve(null); 
             }
         };
-        
-        video.onerror = () => {
-             clearTimeout(timeout);
-             resolve(null);
-        };
+        video.onerror = () => { clearTimeout(timeout); resolve(null); };
     });
 };
 
@@ -117,17 +104,19 @@ const MOCK_DB = {
         { id: 103, name: "Borussia Dortmund", short_name: "BVB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true, color_primary: "#fbbf24", color_secondary: "#000000" }
     ],
     media_highlights: [
-        { id: 1001, player_id: 99, video_url: "https://assets.mixkit.co/videos/preview/mixkit-soccer-player-training-in-the-stadium-44520-large.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
+        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
     follows: [],
     direct_messages: [],
     notifications: []
 };
 
-// Simulation des Supabase Clients
+// Simulation des Supabase Clients (Mock)
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
+    // Lokaler Speicher für Uploads während der Session
+    const tempStorage = new Map();
 
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -148,7 +137,6 @@ const createMockClient = () => {
             },
             signInWithPassword: async ({ email, password }) => {
                 await new Promise(r => setTimeout(r, 500));
-                if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
@@ -156,7 +144,6 @@ const createMockClient = () => {
             },
             signUp: async ({ email, password }) => {
                 await new Promise(r => setTimeout(r, 500));
-                if (!email || !password) return { error: { message: "Bitte alles ausfüllen" } };
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
@@ -184,11 +171,21 @@ const createMockClient = () => {
                             return p; 
                         });
                     }
+                    if (table === 'clubs') {
+                         // Mock search logic
+                         if (query && query.includes('ilike')) {
+                             // Basic filter simulation would go here
+                         }
+                    }
+                    // Sortierung simulieren
+                    if (query && query.includes('order')) {
+                        filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    }
                     return helper(filtered);
                 },
                 insert: (obj) => { 
-                    const newItem = { ...obj, id: Date.now() }; 
-                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); // Unshift um es oben anzuzeigen
+                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; 
+                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); 
                     const res = { data: [newItem], error: null };
                     return { 
                         select: () => ({ single: () => ({ data: newItem, error: null }), data: [newItem] }), 
@@ -239,13 +236,28 @@ const createMockClient = () => {
                 then: (cb) => cb({ data: d }) 
             };}
         },
-        storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4" } }) }) },
+        // FIX: Storage speichert jetzt temporär Blob-URLs im Mock-Modus
+        storage: { 
+            from: (bucket) => ({ 
+                upload: async (path, file) => {
+                    // Im Mock-Modus speichern wir das File als Blob URL
+                    const url = URL.createObjectURL(file);
+                    tempStorage.set(path, url);
+                    return { error: null };
+                }, 
+                getPublicUrl: (path) => {
+                    // Wenn wir eine lokale Blob-URL haben, nimm die. Sonst Fallback.
+                    const mockUrl = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+                    return { data: { publicUrl: mockUrl } };
+                } 
+            }) 
+        },
         channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
         removeChannel: () => {}
     };
 };
 
-// AKTIVIERE MOCK FÜR PREVIEW
+// AKTIVIERE MOCK FÜR PREVIEW (Für Production bitte createClient nutzen)
 const supabase = createMockClient(); 
 // const supabase = createClient(supabaseUrl, supabaseKey); 
 
@@ -364,11 +376,13 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
+// --- VERIFICATION MODAL ---
 const VerificationModal = ({ onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
     
     const handleUpload = async () => {
         setUploading(true);
+        // Simulierter Upload für den Prototyp
         await new Promise(r => setTimeout(r, 1500));
         alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
         setUploading(false);
@@ -383,16 +397,19 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
                     <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
                     <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
                 </div>
+                
                 <div className="space-y-6">
                     <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
                         Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
                     </div>
+
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
                         <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
                         <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
                         <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
                         <input type="file" className="hidden" onChange={handleUpload} />
                     </label>
+
                     {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
                 </div>
             </div>
@@ -400,19 +417,37 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
     );
 };
 
+// --- EINSTELLUNGEN OVERLAY ---
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
+
+    // Render-Guard
     if (!user) return null;
-    const showFeedback = (msg) => { setShowToast(msg); setTimeout(() => setShowToast(null), 2000); };
-    const handleClearCache = () => { try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); } };
-    const handleShare = () => { if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); } };
-    const handleDeleteAccount = () => { if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); } };
+
+    const showFeedback = (msg) => {
+        setShowToast(msg);
+        setTimeout(() => setShowToast(null), 2000);
+    };
+
+    const handleClearCache = () => {
+        try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); }
+    };
+
+    const handleShare = () => { 
+        if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); }
+    };
+
+    const handleDeleteAccount = () => {
+        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); }
+    };
+
     const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
         <button onClick={onClick} className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}>
             <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div>
             <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
+
     return (
         <div className="fixed inset-0 z-[10000] flex justify-end">
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
@@ -465,17 +500,19 @@ const LoginModal = ({ onClose, onSuccess }) => {
                 emailRedirectTo: window.location.origin
             }
         });
-        if (error) throw error;
-        
-        if (data.user && !data.session) {
-             setSuccessMsg('📧 E-Mail gesendet! Bitte Link bestätigen.');
-        } else if (data.user && data.session) {
-             setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-             setTimeout(() => onSuccess(data.session), 1000); 
+        if (error) { 
+            throw error; 
+        }
+        if (data.user) { 
+            setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
+            // CRUCIAL: Pass new user data to parent via onSuccess
+            setTimeout(() => onSuccess({ user: data.user }), 1000); 
+            return; 
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // CRUCIAL: Pass session data to parent via onSuccess
         onSuccess(data.session);
       }
     } catch (error) { 
@@ -519,6 +556,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
   );
 };
 
+// --- OPTIMIZED UPLOAD MODAL ---
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const [uploading, setUploading] = useState(false); 
   const [category, setCategory] = useState("Training");
@@ -529,6 +567,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const [errorMsg, setErrorMsg] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Drag & Drop Handler
   const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
   const handleDragLeave = () => setIsDragOver(false);
   const handleDrop = (e) => { 
@@ -566,6 +605,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
     setUploading(true);
     setProgress(10);
     
+    // Simulierter Progress (Supabase hat keinen nativen Progress-Listener im Standard-Client)
     const progressInterval = setInterval(() => {
         setProgress(p => Math.min(p + Math.random() * 5, 90));
     }, 500);
@@ -575,6 +615,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
         const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
         const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
         
+        // 1. Thumbnail Generieren & Uploaden
         let thumbUrl = null;
         try {
             const thumbBlob = await generateVideoThumbnail(file);
@@ -584,19 +625,24 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
                 thumbUrl = data.publicUrl;
             }
         } catch (e) {
+            console.warn("Thumbnail failed", e);
+            // Fallback Thumbnail URL
             thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video";
         }
 
+        // 2. Video Upload
         const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
         if (upErr) throw upErr; 
         
         const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
         
+        // 3. Datenbank Eintrag (MIT CREATED_AT FIX)
         const { error: dbErr } = await supabase.from('media_highlights').insert({ 
             player_id: player.id, 
             video_url: publicUrl, 
             thumbnail_url: thumbUrl,
             category_tag: category,
+            created_at: new Date().toISOString() // Explizites Datum für Sortierung
         }); 
         
         if (dbErr) throw dbErr; 
@@ -713,7 +759,7 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
   const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
   const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
   return (
-    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
         <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
         <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><div className="grid grid-cols-2 gap-3"><input type="number" min="0" placeholder="Größe (cm)" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} /><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div><div className="space-y-3 pt-2"><h3 className="text-xs font-bold text-zinc-500 uppercase">Social Media</h3><div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div><div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div></div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
@@ -726,7 +772,7 @@ const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   const [messages, setMessages] = useState([]); const [txt, setTxt] = useState(''); const endRef = useRef(null);
   useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
   const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
-  return (<div className="fixed inset-0 z-[10000] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
+  return (<div className="fixed inset-0 z-[90] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
 };
 
 const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
