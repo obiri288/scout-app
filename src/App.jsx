@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-// HINWEIS FÜR LOKALE ENTWICKLUNG:
-// 1. Installieren Sie: npm install @supabase/supabase-js
-// 2. Entkommentieren Sie die folgende Zeile:
+
+// --- HINWEIS FÜR LOKALE ENTWICKLUNG ---
+// Wenn Sie diesen Code lokal nutzen, führen Sie `npm install @supabase/supabase-js` aus
+// und entfernen Sie die "//" vor der nächsten Zeile:
 // import { createClient } from '@supabase/supabase-js'; 
+
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -14,11 +16,21 @@ import {
   Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck
 } from 'lucide-react';
 
-// --- 1. HELFER & STYLES ---
+// --- 1. KONFIGURATION & ECHTE DATEN (Lokal einkommentieren) ---
+const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
+
+// Lokaler Client (aktivieren für Production):
+// const supabase = createClient(supabaseUrl, supabaseKey);
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+// --- 2. HELFER & STYLES ---
+
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
-// OPTIMIERTE THUMBNAIL GENERIERUNG (Mit Error Handling)
+// Generiert ein Thumbnail aus einem Video-File (Client-Side)
 const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
         const video = document.createElement("video");
@@ -30,7 +42,8 @@ const generateVideoThumbnail = (file) => {
         const timeout = setTimeout(() => resolve(null), 3000); // Max 3s warten
 
         video.onloadeddata = () => {
-            video.currentTime = 1; // Snapshot bei Sekunde 1
+            // Springe zu Sekunde 1 oder zum Anfang
+            video.currentTime = Math.min(1, video.duration / 2);
         };
 
         video.onseeked = () => {
@@ -46,6 +59,7 @@ const generateVideoThumbnail = (file) => {
                     resolve(blob);
                 }, "image/jpeg", 0.7);
             } catch (e) {
+                console.error("Thumbnail Error:", e);
                 resolve(null); 
             }
         };
@@ -54,25 +68,11 @@ const generateVideoThumbnail = (file) => {
 };
 
 const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
-const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
 const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
 const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
 const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
 
-// Helper um Alter zu berechnen
-const calculateAge = (birthDate) => {
-    if (!birthDate) return null;
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
-    return age;
-};
-
-// --- MOCK DATABASE & CLIENT ---
+// --- 3. MOCK CLIENT (Für Vorschau aktiviert) ---
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY = 'scoutvision_mock_session';
 
@@ -106,17 +106,16 @@ const MOCK_DB = {
     media_highlights: [
         { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
-    follows: [],
     direct_messages: [],
+    follows: [],
     notifications: []
 };
 
-// Simulation des Supabase Clients (Mock)
+// Intelligenter Mock-Client
 const createMockClient = () => {
-    let currentSession = null; 
+    let currentSession = null;
     let authListener = null;
-    // Lokaler Speicher für Uploads während der Session
-    const tempStorage = new Map();
+    const tempStorage = new Map(); // Speichert Blob-URLs für die Session
 
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -135,14 +134,14 @@ const createMockClient = () => {
                 if (currentSession) cb('SIGNED_IN', currentSession);
                 return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
             },
-            signInWithPassword: async ({ email, password }) => {
+            signInWithPassword: async ({ email }) => {
                 await new Promise(r => setTimeout(r, 500));
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
-            signUp: async ({ email, password }) => {
+            signUp: async ({ email }) => {
                 await new Promise(r => setTimeout(r, 500));
                 currentSession = { user: { id: MOCK_USER_ID, email } };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
@@ -154,15 +153,15 @@ const createMockClient = () => {
                 localStorage.removeItem(STORAGE_KEY);
                 notify('SIGNED_OUT', null);
                 return { error: null };
-            },
-            resetPasswordForEmail: async () => ({ data: {}, error: null })
+            }
         },
         from: (table) => {
             const data = MOCK_DB[table] || [];
             let filtered = [...data];
             return {
                 select: (query) => {
-                    if (table === 'media_highlights' && query && query.includes('players_master')) {
+                     // Simulation von Joins und Filtern
+                    if (table === 'media_highlights' && query?.includes('players_master')) {
                         filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
                     }
                     if (table === 'players_master') {
@@ -171,57 +170,35 @@ const createMockClient = () => {
                             return p; 
                         });
                     }
-                    if (table === 'clubs') {
-                         // Mock search logic
-                         if (query && query.includes('ilike')) {
-                             // Basic filter simulation would go here
-                         }
-                    }
-                    // Sortierung simulieren
-                    if (query && query.includes('order')) {
-                        filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    if (query?.includes('order')) {
+                         filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                     }
                     return helper(filtered);
                 },
-                insert: (obj) => { 
-                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; 
-                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); 
-                    const res = { data: [newItem], error: null };
-                    return { 
-                        select: () => ({ single: () => ({ data: newItem, error: null }), data: [newItem] }), 
-                        then: (cb) => cb(res) 
-                    }; 
+                insert: async (obj) => { 
+                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() };
+                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); // Neue Items oben
+                    return { data: [newItem], error: null };
                 },
-                update: (obj) => ({ eq: (col, val) => { 
+                update: (obj) => ({ eq: (col, val) => {
                     const idx = MOCK_DB[table].findIndex(r => r[col] == val);
-                    let res = { data: null, error: "Not found" };
-                    if(idx >= 0) {
-                        MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
-                        res = { data: MOCK_DB[table][idx], error: null };
-                    }
-                    return { 
-                        select: () => ({ single: () => res }),
-                        then: (cb) => cb(res)
-                    }; 
+                    if(idx >= 0) MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
+                    return { select: () => ({ single: () => ({ data: MOCK_DB[table][idx], error: null }) }) };
                 }}),
-                delete: () => ({ match: () => ({ then: (cb) => cb({ error: null }) }) }),
-                upsert: (obj) => { 
-                    if (!MOCK_DB[table]) MOCK_DB[table] = [];
-                    const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
-                    let result;
-                    if (existingIdx >= 0) {
-                         MOCK_DB[table][existingIdx] = { ...MOCK_DB[table][existingIdx], ...obj };
-                         result = MOCK_DB[table][existingIdx];
-                    } else {
-                         result = { ...obj, id: Date.now(), followers_count: 0 };
-                         MOCK_DB[table].push(result);
-                    }
-                    const res = { data: result, error: null };
-                    return {
-                        select: () => ({ single: () => res }),
-                        then: (cb) => cb(res)
-                    }
-                }
+                upsert: async (obj) => {
+                     if (!MOCK_DB[table]) MOCK_DB[table] = [];
+                     const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
+                     let result;
+                     if (existingIdx >= 0) {
+                          MOCK_DB[table][existingIdx] = { ...MOCK_DB[table][existingIdx], ...obj };
+                          result = MOCK_DB[table][existingIdx];
+                     } else {
+                          result = { ...obj, id: Date.now(), followers_count: 0 };
+                          MOCK_DB[table].push(result);
+                     }
+                     return { data: result, error: null };
+                },
+                delete: () => ({ match: () => ({ error: null }) })
             };
             function helper(d) { return { 
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
@@ -231,39 +208,32 @@ const createMockClient = () => {
                 or: () => helper(d),
                 order: () => helper(d), 
                 limit: () => helper(d), 
-                maybeSingle: () => ({ data: d[0]||null }), 
-                single: () => ({ data: d[0]||null }),
-                then: (cb) => cb({ data: d }) 
+                maybeSingle: () => ({ data: d[0]||null, error: null }), 
+                single: () => ({ data: d[0]||null, error: null }),
+                then: (cb) => cb({ data: d, error: null }) 
             };}
         },
-        // FIX: Storage speichert jetzt temporär Blob-URLs im Mock-Modus
-        storage: { 
-            from: (bucket) => ({ 
-                upload: async (path, file) => {
-                    // Im Mock-Modus speichern wir das File als Blob URL
-                    const url = URL.createObjectURL(file);
-                    tempStorage.set(path, url);
-                    return { error: null };
-                }, 
-                getPublicUrl: (path) => {
-                    // Wenn wir eine lokale Blob-URL haben, nimm die. Sonst Fallback.
-                    const mockUrl = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
-                    return { data: { publicUrl: mockUrl } };
-                } 
-            }) 
-        },
+        storage: { from: () => ({ 
+            upload: async (path, file) => {
+                const url = URL.createObjectURL(file);
+                tempStorage.set(path, url);
+                return { error: null };
+            },
+            getPublicUrl: (path) => {
+                // Video oder Fallback
+                const url = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
+                return { data: { publicUrl: url } };
+            } 
+        })},
         channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
         removeChannel: () => {}
     };
 };
 
-// AKTIVIERE MOCK FÜR PREVIEW (Für Production bitte createClient nutzen)
+// HIER IST DER SCHALTER: Mock für Vorschau aktiv.
 const supabase = createMockClient(); 
-// const supabase = createClient(supabaseUrl, supabaseKey); 
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; 
-
-// --- 2. HOOKS ---
+// --- 4. HOOKS ---
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -286,16 +256,14 @@ const useSmartProfile = (session) => {
                     full_name: 'Neuer Spieler', 
                     position_primary: 'ZM', 
                     transfer_status: 'Gebunden',
-                    followers_count: 0,
-                    is_verified: false,
-                    is_admin: false
+                    followers_count: 0
                 };
                 await supabase.from('players_master').upsert(newProfile);
                 data = newProfile;
             }
             setProfile(data);
         } catch (e) {
-            console.error("Profile fetch error", e);
+            console.error("Profile Error", e);
         } finally {
             setLoading(false);
         }
@@ -308,44 +276,33 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 3. UI KOMPONENTEN ---
+// --- 5. UI KOMPONENTEN ---
 
 class SafeErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
     static getDerivedStateFromError(error) { return { hasError: true }; }
-    componentDidCatch(error, errorInfo) { console.error("Settings Error:", error, errorInfo); }
+    componentDidCatch(error, errorInfo) { console.error("UI Error:", error, errorInfo); }
     render() {
-      if (this.state.hasError) {
-        return (
-          <div className="p-6 text-center text-white bg-zinc-900 rounded-xl m-4 border border-red-500/30">
-            <AlertTriangle className="mx-auto text-red-500 mb-2" size={32} />
-            <h3 className="font-bold mb-2">Ein Fehler ist aufgetreten</h3>
-            <button onClick={() => this.setState({ hasError: false })} className="px-4 py-2 bg-zinc-800 rounded-lg text-sm">Neustarten</button>
-          </div>
-        );
-      }
+      if (this.state.hasError) return <div className="p-4 text-red-500 bg-red-500/10 rounded-xl m-4">Ein Fehler ist aufgetreten.</div>;
       return this.props.children; 
     }
 }
 
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
-        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10 relative overflow-hidden">
+        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent"></div>
             <Icon size={40} className="text-zinc-500 relative z-10" />
         </div>
         <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
         <p className="text-zinc-400 mb-8 max-w-xs leading-relaxed text-sm">{text}</p>
-        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>
-            Jetzt anmelden / registrieren
-        </button>
+        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>Jetzt anmelden</button>
     </div>
 );
 
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} finally { setLoading(false); } }; f(); }, [userId]);
+    useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} }; f(); }, [userId]);
     return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
 };
 
@@ -358,117 +315,30 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     const [loading, setLoading] = useState(false);
     const handleReport = async () => {
         setLoading(true);
-        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
+        try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className={`w-full max-w-xs ${cardStyle} p-5`}>
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3>
-                <div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5">
-                    <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select>
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button>
-                    <button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button>
-                </div>
-            </div>
-        </div>
-    );
+    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className={`w-full max-w-xs ${cardStyle} p-5`}><h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3><div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5"><select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select></div><div className="flex gap-3"><button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button><button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button></div></div></div>);
 };
 
-// --- VERIFICATION MODAL ---
 const VerificationModal = ({ onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
-    
-    const handleUpload = async () => {
-        setUploading(true);
-        // Simulierter Upload für den Prototyp
-        await new Promise(r => setTimeout(r, 1500));
-        alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
-        setUploading(false);
-        onUploadComplete();
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}>
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
-                    <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
-                </div>
-                
-                <div className="space-y-6">
-                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
-                        Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
-                    </div>
-
-                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                        <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
-                        <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
-                        <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
-                        <input type="file" className="hidden" onChange={handleUpload} />
-                    </label>
-
-                    {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
-                </div>
-            </div>
-        </div>
-    );
+    const handleUpload = async () => { setUploading(true); await new Promise(r => setTimeout(r, 1500)); alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status."); setUploading(false); onUploadComplete(); onClose(); };
+    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"><div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div><div className="space-y-6"><div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">Lade ein Foto deines Spielerpasses oder Personalausweises hoch.</div><label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group"><div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p><input type="file" className="hidden" onChange={handleUpload} /></label>{uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}</div></div></div>);
 };
 
-// --- EINSTELLUNGEN OVERLAY ---
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
-
-    // Render-Guard
     if (!user) return null;
-
-    const showFeedback = (msg) => {
-        setShowToast(msg);
-        setTimeout(() => setShowToast(null), 2000);
-    };
-
-    const handleClearCache = () => {
-        try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); }
-    };
-
-    const handleShare = () => { 
-        if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); }
-    };
-
-    const handleDeleteAccount = () => {
-        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); }
-    };
-
+    const showFeedback = (msg) => { setShowToast(msg); setTimeout(() => setShowToast(null), 2000); };
+    const handleClearCache = () => { try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); } };
+    const handleShare = () => { if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); } };
+    const handleDeleteAccount = () => { if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); } };
     const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
         <button onClick={onClick} className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}>
-            <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div>
-            <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
+            <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div><ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
-
-    return (
-        <div className="fixed inset-0 z-[10000] flex justify-end">
-             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-             <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                 <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
-                     <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2>
-                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
-                 </div>
-                 <SafeErrorBoundary>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} /><SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div>
-                        <div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div>
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.2 (Stable)</div>
-                    </div>
-                 </SafeErrorBoundary>
-                 {showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}
-             </div>
-        </div>
-    );
+    return (<div className="fixed inset-0 z-[10000] flex justify-end"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div><div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"><div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10"><h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2><button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button></div><SafeErrorBoundary><div className="flex-1 overflow-y-auto p-4 space-y-6"><div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} /><SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div><div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div><div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div><div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div></div></SafeErrorBoundary>{showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}</div></div>);
 };
 
 const LoginModal = ({ onClose, onSuccess }) => {
@@ -496,23 +366,19 @@ const LoginModal = ({ onClose, onSuccess }) => {
         const { data, error } = await supabase.auth.signUp({ 
             email, 
             password,
-            options: {
-                emailRedirectTo: window.location.origin
-            }
+            options: { emailRedirectTo: window.location.origin }
         });
-        if (error) { 
-            throw error; 
-        }
-        if (data.user) { 
-            setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-            // CRUCIAL: Pass new user data to parent via onSuccess
-            setTimeout(() => onSuccess({ user: data.user }), 1000); 
-            return; 
+        if (error) throw error;
+        
+        if (data.user && !data.session) {
+             setSuccessMsg('📧 E-Mail gesendet! Bitte Link bestätigen.');
+        } else if (data.user && data.session) {
+             setSuccessMsg('✅ Registrierung erfolgreich!');
+             setTimeout(() => onSuccess(data.session), 1000); 
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // CRUCIAL: Pass session data to parent via onSuccess
         onSuccess(data.session);
       }
     } catch (error) { 
@@ -556,7 +422,6 @@ const LoginModal = ({ onClose, onSuccess }) => {
   );
 };
 
-// --- OPTIMIZED UPLOAD MODAL ---
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const [uploading, setUploading] = useState(false); 
   const [category, setCategory] = useState("Training");
@@ -567,55 +432,28 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
   const [errorMsg, setErrorMsg] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Drag & Drop Handler
   const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
   const handleDragLeave = () => setIsDragOver(false);
-  const handleDrop = (e) => { 
-      e.preventDefault(); 
-      setIsDragOver(false);
-      const droppedFile = e.dataTransfer.files[0];
-      if(droppedFile) processFile(droppedFile);
-  };
+  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files[0]; if(f) processFile(f); };
 
   const processFile = (selectedFile) => {
-    if (selectedFile.size > MAX_FILE_SIZE) { 
-        setErrorMsg("Datei zu groß! Max 50 MB."); 
-        return; 
-    }
-    if (!selectedFile.type.startsWith('video/')) {
-        setErrorMsg("Nur Videodateien erlaubt (MP4, MOV).");
-        return;
-    }
-    setErrorMsg("");
-    setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
+    if (selectedFile.size > MAX_FILE_SIZE) { setErrorMsg("Datei zu groß! Max 50 MB."); return; }
+    if (!selectedFile.type.startsWith('video/')) { setErrorMsg("Nur Videodateien erlaubt (MP4, MOV)."); return; }
+    setErrorMsg(""); setFile(selectedFile); setPreviewUrl(URL.createObjectURL(selectedFile));
   };
 
-  const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) processFile(selectedFile);
-  };
+  const handleFileSelect = (e) => { const f = e.target.files[0]; if(f) processFile(f); };
 
   const handleUpload = async () => {
-    if (!player?.user_id || !file) { 
-        setErrorMsg("Bitte Profil erst vervollständigen."); 
-        return; 
-    }
-    
-    setUploading(true);
-    setProgress(10);
-    
-    // Simulierter Progress (Supabase hat keinen nativen Progress-Listener im Standard-Client)
-    const progressInterval = setInterval(() => {
-        setProgress(p => Math.min(p + Math.random() * 5, 90));
-    }, 500);
+    if (!player?.user_id || !file) { setErrorMsg("Bitte Profil erst vervollständigen."); return; }
+    setUploading(true); setProgress(10);
+    const progressInterval = setInterval(() => { setProgress(p => Math.min(p + 10, 90)); }, 500);
 
     try { 
         const fileExt = file.name.split('.').pop();
         const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
         const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
         
-        // 1. Thumbnail Generieren & Uploaden
         let thumbUrl = null;
         try {
             const thumbBlob = await generateVideoThumbnail(file);
@@ -624,36 +462,25 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
                 const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
                 thumbUrl = data.publicUrl;
             }
-        } catch (e) {
-            console.warn("Thumbnail failed", e);
-            // Fallback Thumbnail URL
-            thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video";
-        }
+        } catch (e) { console.warn("Thumb fail", e); thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video"; }
 
-        // 2. Video Upload
         const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
         if (upErr) throw upErr; 
         
         const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
         
-        // 3. Datenbank Eintrag (MIT CREATED_AT FIX)
         const { error: dbErr } = await supabase.from('media_highlights').insert({ 
             player_id: player.id, 
             video_url: publicUrl, 
             thumbnail_url: thumbUrl,
             category_tag: category,
-            created_at: new Date().toISOString() // Explizites Datum für Sortierung
+            created_at: new Date().toISOString() 
         }); 
-        
         if (dbErr) throw dbErr; 
         
         clearInterval(progressInterval);
         setProgress(100);
-        setTimeout(() => {
-            onUploadComplete(); 
-            onClose(); 
-        }, 800);
-
+        setTimeout(() => { onUploadComplete(); onClose(); }, 800);
     } catch (error) { 
         console.error(error);
         setErrorMsg('Upload fehlgeschlagen: ' + error.message); 
@@ -662,9 +489,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
     }
   };
 
-  useEffect(() => {
-      return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }
-  }, [previewUrl]);
+  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); } }, [previewUrl]);
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
@@ -673,27 +498,14 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
         
         {uploading ? (
             <div className="text-center py-8 space-y-4">
-                <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
-                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-                </div>
-                <div className="flex items-center justify-center gap-2 text-zinc-400 font-medium text-sm">
-                    <Loader2 className="animate-spin" size={16}/> 
-                    <span>Wird verarbeitet... {Math.round(progress)}%</span>
-                </div>
-                <p className="text-xs text-zinc-600">Bitte Fenster nicht schließen.</p>
+                <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden"><div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div></div>
+                <div className="flex items-center justify-center gap-2 text-zinc-400 font-medium text-sm"><Loader2 className="animate-spin" size={16}/> <span>Wird verarbeitet... {Math.round(progress)}%</span></div>
             </div> 
         ) : (
         <div className="space-y-4">
             {!file ? (
-                <div 
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-700 hover:bg-zinc-800/50 hover:border-blue-500/50'}`}
-                >
-                    <div className={`p-4 rounded-full mb-3 transition-transform shadow-lg ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-zinc-800 text-blue-400 group-hover:scale-110'}`}>
-                        <FileVideo className="w-8 h-8" />
-                    </div>
+                <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-700 hover:bg-zinc-800/50 hover:border-blue-500/50'}`}>
+                    <div className={`p-4 rounded-full mb-3 transition-transform shadow-lg ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-zinc-800 text-blue-400 group-hover:scale-110'}`}><FileVideo className="w-8 h-8" /></div>
                     <p className="text-sm text-zinc-300 font-medium">Video auswählen oder hierher ziehen</p>
                     <p className="text-xs text-zinc-500 mt-1">Max. 50 MB • MP4, MOV</p>
                     <input type="file" accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
@@ -702,49 +514,17 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
                     <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
                         <video src={previewUrl} className="w-full h-full object-cover opacity-80" controls />
-                        <button onClick={() => {setFile(null); setPreviewUrl(null); setErrorMsg("");}} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
-                            <Trash2 size={16} />
-                        </button>
+                        <button onClick={() => {setFile(null); setPreviewUrl(null); setErrorMsg("");}} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition"><Trash2 size={16} /></button>
                     </div>
-                    
-                    {errorMsg && (
-                        <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2">
-                            <AlertTriangle size={14}/> {errorMsg}
-                        </div>
-                    )}
-
+                    {errorMsg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertTriangle size={14}/> {errorMsg}</div>)}
                     <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 space-y-3">
-                         <div>
-                            <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Kategorie</label>
-                            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition">
-                                <option>Training</option>
-                                <option>Match Highlight</option>
-                                <option>Tor</option>
-                                <option>Skill</option>
-                            </select>
-                         </div>
-                         <div>
-                            <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Beschreibung</label>
-                            <input 
-                                type="text" 
-                                placeholder="Was passiert im Video?" 
-                                value={description} 
-                                onChange={(e) => setDescription(e.target.value)} 
-                                className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600" 
-                            />
-                         </div>
+                         <div><label className="text-xs text-zinc-500 font-bold uppercase ml-1">Kategorie</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
+                         <div><label className="text-xs text-zinc-500 font-bold uppercase ml-1">Beschreibung</label><input type="text" placeholder="Was passiert im Video?" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600" /></div>
                     </div>
-                    <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}>
-                        <UploadCloud size={20} /> Jetzt hochladen
-                    </button>
+                    <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}><UploadCloud size={20} /> Jetzt hochladen</button>
                 </div>
             )}
-            
-            {errorMsg && !file && (
-                <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2 animate-in fade-in">
-                    <AlertTriangle size={14}/> {errorMsg}
-                </div>
-            )}
+            {errorMsg && !file && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2 animate-in fade-in"><AlertTriangle size={14}/> {errorMsg}</div>)}
         </div>
         )}
       </div>
@@ -753,7 +533,7 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
 };
 
 const EditProfileModal = ({ player, onClose, onUpdate }) => {
-  const [loading, setLoading] = useState(false); const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '' });
+  const [loading, setLoading] = useState(false); const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '', birth_date: player.birth_date || '', jersey_number: player.jersey_number || '', nationality: player.nationality || '' });
   const [avatarFile, setAvatarFile] = useState(null); const [previewUrl, setPreviewUrl] = useState(player.avatar_url); const [clubSearch, setClubSearch] = useState(''); const [clubResults, setClubResults] = useState([]); const [selectedClub, setSelectedClub] = useState(player.clubs || null); const [showCreateClub, setShowCreateClub] = useState(false); const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
   useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
   const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
@@ -762,7 +542,7 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
         <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
-        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><div className="grid grid-cols-2 gap-3"><input type="number" min="0" placeholder="Größe (cm)" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} /><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div><div className="space-y-3 pt-2"><h3 className="text-xs font-bold text-zinc-500 uppercase">Social Media</h3><div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div><div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div></div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
+        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
       </div>
     </div>
   );
@@ -785,19 +565,7 @@ const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserCl
 
 const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [feed, setFeed] = useState([]);
-    // FIX: Force refresh on mount and session change
-    const fetchFeed = useCallback(async () => {
-        const { data } = await supabase.from('media_highlights')
-            .select('*, players_master(*, clubs(*))')
-            .order('created_at', {ascending:false})
-            .limit(20);
-        setFeed(data||[]);
-    }, []);
-
-    useEffect(() => { fetchFeed(); }, [fetchFeed]);
-    
-    // Optional: Realtime listener for new videos could go here
-
+    useEffect(() => { supabase.from('media_highlights').select('*, players_master(*, clubs(*))').order('created_at', {ascending:false}).limit(20).then(({data}) => setFeed(data||[])) }, []);
     return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
