@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 // --- HINWEIS FÜR LOKALE ENTWICKLUNG ---
 // Wenn Sie diesen Code lokal nutzen, führen Sie `npm install @supabase/supabase-js` aus
 // und entfernen Sie die "//" vor der nächsten Zeile:
-// import { createClient } from '@supabase/supabase-js'; 
+import { createClient } from '@supabase/supabase-js'; 
 
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
@@ -21,7 +21,7 @@ const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
 // Lokaler Client (aktivieren für Production):
-// const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -231,7 +231,8 @@ const createMockClient = () => {
 };
 
 // HIER IST DER SCHALTER: Mock für Vorschau aktiv.
-const supabase = createMockClient(); 
+// const supabase = createMockClient(); // Für Vorschau aktivieren
+// Echte Supabase-Verbindung wird oben initialisiert
 
 // --- 4. HOOKS ---
 const useSmartProfile = (session) => {
