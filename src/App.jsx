@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-// HINWEIS FÜR LOKALE ENTWICKLUNG:
-// 1. Installieren Sie: npm install @supabase/supabase-js
-// 2. Entkommentieren Sie die folgende Zeile:
-// import { createClient } from '@supabase/supabase-js'; 
+import { createClient } from '@supabase/supabase-js';
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -11,15 +8,25 @@ import {
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
-  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck, SlidersHorizontal, ArrowUpRight,
-  Link as LinkIcon, Map, FileSpreadsheet
+  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck, SlidersHorizontal, 
+  BookMarked, Bookmark
 } from 'lucide-react';
 
-// --- 1. HELFER & STYLES ---
+// --- 1. KONFIGURATION ---
+
+// DEINE ECHTEN SUPABASE CREDENTIALS
+const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
+
+// --- 2. HELFER & STYLES ---
+
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
-// OPTIMIERTE THUMBNAIL GENERIERUNG (Mit Error Handling)
+// Generiert ein Thumbnail aus einem Video-File (Client-Side)
 const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
         const video = document.createElement("video");
@@ -31,7 +38,8 @@ const generateVideoThumbnail = (file) => {
         const timeout = setTimeout(() => resolve(null), 3000); // Max 3s warten
 
         video.onloadeddata = () => {
-            video.currentTime = 1; // Snapshot bei Sekunde 1
+            // Springe zu Sekunde 1 oder zum Anfang
+            video.currentTime = Math.min(1, video.duration / 2);
         };
 
         video.onseeked = () => {
@@ -47,6 +55,7 @@ const generateVideoThumbnail = (file) => {
                     resolve(blob);
                 }, "image/jpeg", 0.7);
             } catch (e) {
+                console.error("Thumbnail Error:", e);
                 resolve(null); 
             }
         };
@@ -55,7 +64,6 @@ const generateVideoThumbnail = (file) => {
 };
 
 const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
-const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
 const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
 const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
 const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
@@ -73,204 +81,8 @@ const calculateAge = (birthDate) => {
     return age;
 };
 
-// --- MOCK DATABASE & CLIENT ---
-const MOCK_USER_ID = "user-123";
-const STORAGE_KEY = 'scoutvision_mock_session';
+// --- 3. HOOKS ---
 
-const MOCK_DB = {
-    players_master: [
-        { 
-            id: 99, 
-            user_id: "user-demo", 
-            full_name: "Nico Schlotterbeck", 
-            first_name: "Nico",
-            last_name: "Schlotterbeck",
-            position_primary: "IV", 
-            position_secondary: "LV", // Neu
-            transfer_status: "Gebunden", 
-            contract_end: "2027-06-30", // Neu
-            bio: "Leidenschaftlicher Verteidiger mit Drang nach vorne. Suche immer die spielerische Lösung.", // Neu
-            zip_code: "44137", // Neu
-            city: "Dortmund", // Neu
-            avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
-            clubs: { id: 103, name: "BVB 09", short_name: "BVB", league: "Bundesliga", is_icon_league: true, color_primary: "#fbbf24", color_secondary: "#000000", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB" }, 
-            followers_count: 850, 
-            is_verified: true, 
-            height_user: 191, 
-            weight: 86,
-            strong_foot: "Links",
-            birth_date: "1999-12-01",
-            jersey_number: 4,
-            nationality: "Deutschland",
-            transfermarkt_url: "https://transfermarkt.de", // Neu
-            fupa_url: "" // Neu
-        },
-        // Ein zweiter Mock-Spieler zum Testen der Filter
-        { 
-            id: 100, 
-            user_id: "user-test2", 
-            full_name: "Jamal Musiala", 
-            first_name: "Jamal",
-            last_name: "Musiala",
-            position_primary: "ZOM", 
-            transfer_status: "Vertrag läuft aus", 
-            avatar_url: "https://images.unsplash.com/photo-1511886929837-354d827aae26?w=400&h=400&fit=crop", 
-            clubs: { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", color_primary: "#dc2626" }, 
-            followers_count: 1200, 
-            is_verified: true, 
-            height_user: 184, 
-            weight: 72,
-            strong_foot: "Rechts",
-            birth_date: "2003-02-26",
-            jersey_number: 42,
-            nationality: "Deutschland"
-        },
-    ],
-    clubs: [
-        { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true, color_primary: "#dc2626", color_secondary: "#ffffff" },
-        { id: 102, name: "FC Schalke 04", short_name: "S04", league: "2. Bundesliga", logo_url: "https://placehold.co/100x100/1d4ed8/ffffff?text=S04", is_verified: true, color_primary: "#1d4ed8", color_secondary: "#ffffff" },
-        { id: 103, name: "Borussia Dortmund", short_name: "BVB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true, color_primary: "#fbbf24", color_secondary: "#000000" }
-    ],
-    media_highlights: [
-        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
-    ],
-    follows: [],
-    direct_messages: [],
-    notifications: []
-};
-
-// Simulation des Supabase Clients (Mock)
-const createMockClient = () => {
-    let currentSession = null; 
-    let authListener = null;
-
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) currentSession = JSON.parse(stored);
-    } catch (e) { console.error(e); }
-
-    const notify = (event, session) => {
-        if (authListener) authListener(event, session);
-    };
-
-    return {
-        auth: {
-            getSession: async () => ({ data: { session: currentSession } }),
-            onAuthStateChange: (cb) => { 
-                authListener = cb; 
-                if (currentSession) cb('SIGNED_IN', currentSession);
-                return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
-            },
-            signInWithPassword: async ({ email, password }) => {
-                await new Promise(r => setTimeout(r, 500));
-                currentSession = { user: { id: MOCK_USER_ID, email } };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
-                notify('SIGNED_IN', currentSession);
-                return { data: { user: currentSession.user, session: currentSession }, error: null };
-            },
-            signUp: async ({ email, password }) => {
-                await new Promise(r => setTimeout(r, 500));
-                currentSession = { user: { id: MOCK_USER_ID, email } };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
-                notify('SIGNED_IN', currentSession);
-                return { data: { user: currentSession.user, session: currentSession }, error: null };
-            },
-            signOut: async () => {
-                currentSession = null;
-                localStorage.removeItem(STORAGE_KEY);
-                notify('SIGNED_OUT', null);
-                return { error: null };
-            },
-            resetPasswordForEmail: async () => ({ data: {}, error: null })
-        },
-        from: (table) => {
-            const data = MOCK_DB[table] || [];
-            let filtered = [...data];
-            return {
-                select: (query) => {
-                    if (table === 'media_highlights' && query && query.includes('players_master')) {
-                        filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
-                    }
-                    if (table === 'players_master') {
-                        filtered = filtered.map(p => {
-                            if (p.clubs && typeof p.clubs === 'object') return p; 
-                            return p; 
-                        });
-                    }
-                    if (table === 'clubs') {
-                         // Mock search logic
-                    }
-                    return helper(filtered);
-                },
-                insert: (obj) => { 
-                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; 
-                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); 
-                    const res = { data: [newItem], error: null };
-                    return { 
-                        select: () => ({ single: () => ({ data: newItem, error: null }), data: [newItem] }), 
-                        then: (cb) => cb(res) 
-                    }; 
-                },
-                update: (obj) => ({ eq: (col, val) => { 
-                    const idx = MOCK_DB[table].findIndex(r => r[col] == val);
-                    let res = { data: null, error: "Not found" };
-                    if(idx >= 0) {
-                        MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
-                        res = { data: MOCK_DB[table][idx], error: null };
-                    }
-                    return { 
-                        select: () => ({ single: () => res }),
-                        then: (cb) => cb(res)
-                    }; 
-                }}),
-                delete: () => ({ match: () => ({ then: (cb) => cb({ error: null }) }) }),
-                upsert: (obj) => { 
-                    if (!MOCK_DB[table]) MOCK_DB[table] = [];
-                    const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
-                    let result;
-                    if (existingIdx >= 0) {
-                         MOCK_DB[table][existingIdx] = { ...MOCK_DB[table][existingIdx], ...obj };
-                         result = MOCK_DB[table][existingIdx];
-                    } else {
-                         result = { ...obj, id: Date.now(), followers_count: 0 };
-                         MOCK_DB[table].push(result);
-                    }
-                    const res = { data: result, error: null };
-                    return {
-                        select: () => ({ single: () => res }),
-                        then: (cb) => cb(res)
-                    }
-                }
-            };
-            function helper(d) { return { 
-                eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
-                ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))),
-                in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
-                match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))),
-                or: () => helper(d),
-                order: () => helper(d), 
-                limit: () => helper(d), 
-                maybeSingle: () => ({ data: d[0]||null, error: null }), 
-                single: () => ({ data: d[0]||null, error: null }),
-                then: (cb) => cb({ data: d, error: null }) 
-            };}
-        },
-        storage: { from: () => ({ 
-            upload: async () => ({ error: null }), 
-            getPublicUrl: () => ({ data: { publicUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4" } }) 
-        })},
-        channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
-        removeChannel: () => {}
-    };
-};
-
-// AKTIVIERE MOCK FÜR PREVIEW (Hier im Browser)
-const supabase = createMockClient(); 
-// const supabase = createClient(supabaseUrl, supabaseKey); 
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; 
-
-// --- 2. HOOKS ---
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -282,11 +94,13 @@ const useSmartProfile = (session) => {
         }
         setLoading(true);
         try {
-            let { data } = await supabase.from('players_master')
+            // 1. Versuche existierendes Profil zu laden
+            let { data, error } = await supabase.from('players_master')
                 .select('*, clubs(*)')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
 
+            // 2. Falls keins existiert -> Auto-Create
             if (!data) {
                 const newProfile = { 
                     user_id: session.user.id, 
@@ -297,12 +111,19 @@ const useSmartProfile = (session) => {
                     is_verified: false,
                     is_admin: false
                 };
-                await supabase.from('players_master').upsert(newProfile);
-                data = newProfile;
+                
+                const { data: createdProfile, error: createError } = await supabase
+                    .from('players_master')
+                    .upsert(newProfile)
+                    .select()
+                    .single();
+                
+                if (createError) throw createError;
+                data = createdProfile;
             }
             setProfile(data);
         } catch (e) {
-            console.error("Profile fetch error", e);
+            console.error("Profile fetch error:", e.message);
         } finally {
             setLoading(false);
         }
@@ -315,12 +136,12 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 3. UI KOMPONENTEN ---
+// --- 4. UI KOMPONENTEN ---
 
 class SafeErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
     static getDerivedStateFromError(error) { return { hasError: true }; }
-    componentDidCatch(error, errorInfo) { console.error("Settings Error:", error, errorInfo); }
+    componentDidCatch(error, errorInfo) { console.error("UI Error:", error, errorInfo); }
     render() {
       if (this.state.hasError) {
         return (
@@ -351,8 +172,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
 
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} finally { setLoading(false); } }; f(); }, [userId]);
+    useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} }; f(); }, [userId]);
     return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
 };
 
@@ -383,13 +203,12 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
     );
 };
 
-// --- VERIFICATION MODAL ---
 const VerificationModal = ({ onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
     
     const handleUpload = async () => {
         setUploading(true);
-        // Simulierter Upload für den Prototyp
+        // Simulierter Upload für den Prototyp (hier würde man ein echtes Dokument an einen privaten Bucket senden)
         await new Promise(r => setTimeout(r, 1500));
         alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
         setUploading(false);
@@ -409,14 +228,12 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
                     <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
                         Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
                     </div>
-
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
                         <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
                         <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
                         <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
                         <input type="file" className="hidden" onChange={handleUpload} />
                     </label>
-
                     {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
                 </div>
             </div>
@@ -424,114 +241,180 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
     );
 };
 
-// --- EINSTELLUNGEN OVERLAY ---
+const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
+    const [comments, setComments] = useState([]);
+    const [text, setText] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchComments = async () => {
+            const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true });
+            // In einer echten App würden wir hier die User-Daten (Name, Avatar) über die public.players_master Tabelle joinen.
+            // Der Einfachheit halber zeigen wir hier nur den Text an.
+            setComments(data || []);
+            setLoading(false);
+        };
+        fetchComments();
+        
+        // Realtime Subscription für neue Kommentare
+        const channel = supabase.channel('comments').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, payload => {
+            setComments(prev => [...prev, payload.new]);
+        }).subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [video.id]);
+
+    const sendComment = async (e) => {
+        e.preventDefault();
+        if (!session) return onLoginReq();
+        if (!text.trim()) return;
+        
+        await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text });
+        setText('');
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom">
+            <div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}>
+                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900">
+                    <h3 className="text-white font-bold">Kommentare</h3>
+                    <button onClick={onClose}><X className="text-zinc-400"/></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500"/> : comments.length === 0 ? <p className="text-zinc-500 text-center text-sm">Noch keine Kommentare.</p> : 
+                    comments.map(c => (
+                        <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">
+                            {c.content}
+                        </div>
+                    ))}
+                </div>
+                <form onSubmit={sendComment} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2">
+                    <input className={inputStyle} value={text} onChange={e => setText(e.target.value)} placeholder="Kommentar..." />
+                    <button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const WatchlistModal = ({ session, onClose, onUserClick }) => {
+    const [list, setList] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [editingNote, setEditingNote] = useState(null); 
+    const [noteText, setNoteText] = useState("");
+
+    const fetchWatchlist = async () => {
+        setLoading(true);
+        const { data } = await supabase.from('scout_watchlist')
+            .select('*, players_master(*, clubs(*))')
+            .eq('scout_id', session.user.id)
+            .order('created_at', { ascending: false });
+        setList(data || []);
+        setLoading(false);
+    };
+
+    useEffect(() => { fetchWatchlist(); }, []);
+
+    const handleRemove = async (playerId) => {
+        await supabase.from('scout_watchlist').delete().match({ scout_id: session.user.id, player_id: playerId });
+        setList(prev => prev.filter(item => item.player_id !== playerId));
+    };
+
+    const handleSaveNote = async (itemId) => {
+        await supabase.from('scout_watchlist').update({ note: noteText }).eq('id', itemId);
+        setList(prev => prev.map(item => item.id === itemId ? { ...item, note: noteText } : item));
+        setEditingNote(null);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
+                <div className="flex justify-between items-center p-6 border-b border-white/5">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor" size={20}/> Merkliste</h2>
+                    <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-zinc-500"/></div> : (
+                        list.length === 0 ? <div className="text-center text-zinc-500 py-10">Noch keine Spieler gemerkt.</div> :
+                        list.map(item => (
+                            <div key={item.id} className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
+                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>
+                                    <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden shrink-0">
+                                        {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-3 text-zinc-500"/>}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-white truncate">{item.players_master?.full_name}</h4>
+                                        <div className="flex items-center gap-2 text-xs text-zinc-400">
+                                            <span className="bg-white/10 px-1.5 rounded">{item.players_master?.position_primary}</span>
+                                            <span>{item.players_master?.clubs?.name}</span>
+                                        </div>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-zinc-500 hover:text-red-500"><Trash2 size={16}/></button>
+                                </div>
+                                
+                                {/* Notiz Bereich */}
+                                <div className="mt-3 pt-2 border-t border-white/5">
+                                    {editingNote === item.id ? (
+                                        <div className="flex gap-2">
+                                            <input 
+                                                autoFocus
+                                                className="flex-1 bg-black/30 text-xs text-white p-2 rounded-lg outline-none border border-blue-500/50"
+                                                value={noteText}
+                                                onChange={e => setNoteText(e.target.value)}
+                                                placeholder="Notiz für diesen Spieler..."
+                                            />
+                                            <button onClick={() => handleSaveNote(item.id)} className="text-blue-500 font-bold text-xs">OK</button>
+                                        </div>
+                                    ) : (
+                                        <div 
+                                            onClick={() => { setEditingNote(item.id); setNoteText(item.note || ""); }}
+                                            className="text-xs text-zinc-500 flex items-center gap-2 cursor-pointer hover:text-zinc-300"
+                                        >
+                                            <NotebookPen size={12}/> {item.note || "Notiz hinzufügen..."}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
-
-    // Render-Guard
     if (!user) return null;
-
-    const showFeedback = (msg) => {
-        setShowToast(msg);
-        setTimeout(() => setShowToast(null), 2000);
-    };
-
-    const handleClearCache = () => {
-        try {
-            localStorage.clear();
-            showFeedback('Cache geleert!');
-        } catch (e) {
-            showFeedback('Fehler beim Leeren');
-        }
-    };
-
-    const handleShare = () => { 
-        if(user?.id) {
-            navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); 
-            showFeedback('Link in Zwischenablage!');
-        }
-    };
-
-    const handleDeleteAccount = () => {
-        if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
-            // Echte Löschlogik würde hier eine Cloud Function rufen
-            alert("Bitte kontaktiere den Support für die endgültige Löschung.");
-        }
-    };
-
+    const showFeedback = (msg) => { setShowToast(msg); setTimeout(() => setShowToast(null), 2000); };
+    const handleClearCache = () => { try { localStorage.clear(); showFeedback('Cache geleert!'); } catch (e) { showFeedback('Fehler beim Leeren'); } };
+    const handleShare = () => { if(user?.id) { navigator.clipboard.writeText(`https://scoutvision.app/u/${user.id}`); showFeedback('Link in Zwischenablage!'); } };
+    const handleDeleteAccount = () => { if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); } };
     const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
-        <button 
-            onClick={onClick}
-            className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}
-        >
-            <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}>
-                    <Icon size={18} />
-                </div>
-                <span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span>
-            </div>
+        <button onClick={onClick} className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}>
+            <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div>
             <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
-
     return (
         <div className="fixed inset-0 z-[10000] flex justify-end">
-             {/* Backdrop */}
              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-             
-             {/* Slide-In Panel */}
              <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                 {/* Header */}
                  <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
                      <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2>
-                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition">
-                         <X size={20} />
-                     </button>
+                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
                  </div>
-                 
-                 {/* Content */}
                  <SafeErrorBoundary>
                     <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                        {/* Section 1 */}
-                        <div className="space-y-1">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3>
-                            <SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} />
-                            <SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} />
-                            <SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} />
-                        </div>
-
-                        {/* Section 2 */}
-                        <div className="space-y-1">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3>
-                            <SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />
-                            {!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}
-                            <SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} />
-                            <SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} />
-                        </div>
-
-                        {/* Section 3 */}
-                        <div className="space-y-1">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3>
-                            <SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} />
-                            <SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} />
-                        </div>
-
-                        {/* Danger Zone */}
-                        <div className="pt-4 border-t border-white/10 space-y-2">
-                            <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
-                            <SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger />
-                        </div>
-                        
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.3.0 Live</div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} /><SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div>
+                        <div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div>
+                        <div className="text-center text-zinc-700 text-xs py-4">v2.4.0 Live</div>
                     </div>
                  </SafeErrorBoundary>
-
-                 {/* In-Menu Toast */}
-                 {showToast && (
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">
-                        {showToast}
-                    </div>
-                )}
+                 {showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}
              </div>
         </div>
     );
@@ -559,7 +442,13 @@ const LoginModal = ({ onClose, onSuccess }) => {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+                emailRedirectTo: window.location.origin
+            }
+        });
         if (error) { 
             throw error; 
         }
@@ -617,23 +506,191 @@ const LoginModal = ({ onClose, onSuccess }) => {
 };
 
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
-  const [uploading, setUploading] = useState(false); const [category, setCategory] = useState("Training");
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
-    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
-    try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
+  const [uploading, setUploading] = useState(false); 
+  const [category, setCategory] = useState("Training");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = () => setIsDragOver(false);
+  const handleDrop = (e) => { 
+      e.preventDefault(); 
+      setIsDragOver(false);
+      const droppedFile = e.dataTransfer.files[0];
+      if(droppedFile) processFile(droppedFile);
   };
+
+  const processFile = (selectedFile) => {
+    if (selectedFile.size > MAX_FILE_SIZE) { 
+        setErrorMsg("Datei zu groß! Max 50 MB."); 
+        return; 
+    }
+    if (!selectedFile.type.startsWith('video/')) {
+        setErrorMsg("Nur Videodateien erlaubt (MP4, MOV).");
+        return;
+    }
+    setErrorMsg("");
+    setFile(selectedFile);
+    setPreviewUrl(URL.createObjectURL(selectedFile));
+  };
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) processFile(selectedFile);
+  };
+
+  const handleUpload = async () => {
+    if (!player?.user_id || !file) { 
+        setErrorMsg("Bitte Profil erst vervollständigen."); 
+        return; 
+    }
+    
+    setUploading(true);
+    setProgress(10);
+    
+    // Simulierter Progress (Supabase hat keinen nativen Progress-Listener im Standard-Client)
+    const progressInterval = setInterval(() => {
+        setProgress(p => Math.min(p + Math.random() * 5, 90));
+    }, 500);
+
+    try { 
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
+        const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
+        
+        // 1. Thumbnail Generieren & Uploaden
+        let thumbUrl = null;
+        try {
+            const thumbBlob = await generateVideoThumbnail(file);
+            if (thumbBlob) {
+                await supabase.storage.from('player-videos').upload(thumbName, thumbBlob);
+                const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
+                thumbUrl = data.publicUrl;
+            }
+        } catch (e) {
+            console.warn("Thumbnail failed", e);
+            thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video";
+        }
+
+        // 2. Video Upload
+        const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
+        if (upErr) throw upErr; 
+        
+        const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
+        
+        // 3. Datenbank Eintrag (MIT CREATED_AT FIX)
+        const { error: dbErr } = await supabase.from('media_highlights').insert({ 
+            player_id: player.id, 
+            video_url: publicUrl, 
+            thumbnail_url: thumbUrl,
+            category_tag: category,
+            created_at: new Date().toISOString() 
+        }); 
+        
+        if (dbErr) throw dbErr; 
+        
+        clearInterval(progressInterval);
+        setProgress(100);
+        setTimeout(() => {
+            onUploadComplete(); 
+            onClose(); 
+        }, 800);
+
+    } catch (error) { 
+        console.error(error);
+        setErrorMsg('Upload fehlgeschlagen: ' + error.message); 
+        setUploading(false);
+        clearInterval(progressInterval);
+    }
+  };
+
+  useEffect(() => {
+      return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }
+  }, [previewUrl]);
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}> 
-        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
-        {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
+        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><UploadCloud className="text-blue-500"/> Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
+        
+        {uploading ? (
+            <div className="text-center py-8 space-y-4">
+                <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
+                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-zinc-400 font-medium text-sm">
+                    <Loader2 className="animate-spin" size={16}/> 
+                    <span>Wird verarbeitet... {Math.round(progress)}%</span>
+                </div>
+                <p className="text-xs text-zinc-600">Bitte Fenster nicht schließen.</p>
+            </div> 
+        ) : (
         <div className="space-y-4">
-            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-            </label>
+            {!file ? (
+                <div 
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-700 hover:bg-zinc-800/50 hover:border-blue-500/50'}`}
+                >
+                    <div className={`p-4 rounded-full mb-3 transition-transform shadow-lg ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-zinc-800 text-blue-400 group-hover:scale-110'}`}>
+                        <FileVideo className="w-8 h-8" />
+                    </div>
+                    <p className="text-sm text-zinc-300 font-medium">Video auswählen oder hierher ziehen</p>
+                    <p className="text-xs text-zinc-500 mt-1">Max. 50 MB • MP4, MOV</p>
+                    <input type="file" accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
+                </div>
+            ) : (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
+                        <video src={previewUrl} className="w-full h-full object-cover opacity-80" controls />
+                        <button onClick={() => {setFile(null); setPreviewUrl(null); setErrorMsg("");}} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                    
+                    {errorMsg && (
+                        <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2">
+                            <AlertTriangle size={14}/> {errorMsg}
+                        </div>
+                    )}
+
+                    <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 space-y-3">
+                         <div>
+                            <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Kategorie</label>
+                            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition">
+                                <option>Training</option>
+                                <option>Match Highlight</option>
+                                <option>Tor</option>
+                                <option>Skill</option>
+                            </select>
+                         </div>
+                         <div>
+                            <label className="text-xs text-zinc-500 font-bold uppercase ml-1">Beschreibung</label>
+                            <input 
+                                type="text" 
+                                placeholder="Was passiert im Video?" 
+                                value={description} 
+                                onChange={(e) => setDescription(e.target.value)} 
+                                className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600" 
+                            />
+                         </div>
+                    </div>
+                    <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}>
+                        <UploadCloud size={20} /> Jetzt hochladen
+                    </button>
+                </div>
+            )}
+            
+            {errorMsg && !file && (
+                <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2 animate-in fade-in">
+                    <AlertTriangle size={14}/> {errorMsg}
+                </div>
+            )}
         </div>
         )}
       </div>
@@ -1446,6 +1503,69 @@ const App = () => {
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
     </div>
   );
+};
+
+const AdminDashboard = ({ session }) => {
+    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
+    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
+    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
+    useEffect(() => { fetchPending(); fetchReports(); }, []);
+    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
+    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
+    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
+};
+
+const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
+    const [comments, setComments] = useState([]);
+    const [text, setText] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchComments = async () => {
+            const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true });
+            setComments(data || []);
+            setLoading(false);
+        };
+        fetchComments();
+        
+        const channel = supabase.channel('comments').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, payload => {
+            setComments(prev => [...prev, payload.new]);
+        }).subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [video.id]);
+
+    const sendComment = async (e) => {
+        e.preventDefault();
+        if (!session) return onLoginReq();
+        if (!text.trim()) return;
+        
+        await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text });
+        setText('');
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom">
+            <div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}>
+                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900">
+                    <h3 className="text-white font-bold">Kommentare</h3>
+                    <button onClick={onClose}><X className="text-zinc-400"/></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500"/> : comments.length === 0 ? <p className="text-zinc-500 text-center text-sm">Noch keine Kommentare.</p> : 
+                    comments.map(c => (
+                        <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">
+                            {c.content}
+                        </div>
+                    ))}
+                </div>
+                <form onSubmit={sendComment} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2">
+                    <input className={inputStyle} value={text} onChange={e => setText(e.target.value)} placeholder="Kommentar..." />
+                    <button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button>
+                </form>
+            </div>
+        </div>
+    );
 };
 
 export default App;
