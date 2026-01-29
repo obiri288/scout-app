@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-
-// --- HINWEIS FÜR LOKALE ENTWICKLUNG (ECHTBETRIEB) ---
-// 1. Installieren: npm install @supabase/supabase-js
-// 2. Import aktivieren (Kommentar entfernen):
+// HINWEIS FÜR LOKALE ENTWICKLUNG:
+// 1. Installieren Sie: npm install @supabase/supabase-js
+// 2. Entkommentieren Sie die folgende Zeile:
 // import { createClient } from '@supabase/supabase-js'; 
-
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -13,54 +11,15 @@ import {
   Database, Share2, Crown, FileText, Lock, Cookie, Download, 
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
-  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck
+  Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck, SlidersHorizontal, ArrowUpRight
 } from 'lucide-react';
 
-// --- 1. KONFIGURATION ---
-const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
-
-// Lokaler Client (aktivieren für Production):
-// const supabase = createClient(supabaseUrl, supabaseKey);
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-
-// --- 2. HELFER & STYLES ---
+// --- 1. HELFER & STYLES ---
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
-// Generiert ein Thumbnail aus einem Video-File (Client-Side)
-const generateVideoThumbnail = (file) => {
-    return new Promise((resolve) => {
-        const video = document.createElement("video");
-        video.preload = "metadata";
-        video.src = URL.createObjectURL(file);
-        video.muted = true;
-        video.playsInline = true;
-        
-        const timeout = setTimeout(() => resolve(null), 3000); 
-
-        video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration / 2); };
-
-        video.onseeked = () => {
-            clearTimeout(timeout);
-            try {
-                const canvas = document.createElement("canvas");
-                canvas.width = 480; 
-                canvas.height = 270;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                canvas.toBlob((blob) => {
-                    URL.revokeObjectURL(video.src);
-                    resolve(blob);
-                }, "image/jpeg", 0.7);
-            } catch (e) { resolve(null); }
-        };
-        video.onerror = () => { clearTimeout(timeout); resolve(null); };
-    });
-};
-
 const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
+const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
 const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
 const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
 const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
@@ -72,27 +31,56 @@ const calculateAge = (birthDate) => {
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) { age--; }
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
     return age;
 };
 
-// --- 3. INTELLIGENTER MOCK CLIENT (Mit LocalStorage Persistenz) ---
+// --- MOCK DATABASE & CLIENT ---
 const MOCK_USER_ID = "user-123";
-const STORAGE_KEY_SESSION = 'scoutvision_mock_session';
-const STORAGE_KEY_DB = 'scoutvision_mock_db';
+const STORAGE_KEY = 'scoutvision_mock_session';
 
-// Standard-Daten (werden genutzt, wenn LocalStorage leer ist)
-const INITIAL_DB = {
+const MOCK_DB = {
     players_master: [
         { 
             id: 99, 
             user_id: "user-demo", 
             full_name: "Nico Schlotterbeck", 
-            first_name: "Nico", last_name: "Schlotterbeck",
-            position_primary: "IV", transfer_status: "Gebunden", 
+            first_name: "Nico",
+            last_name: "Schlotterbeck",
+            position_primary: "IV", 
+            transfer_status: "Gebunden", 
             avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
             clubs: { id: 103, name: "BVB 09", short_name: "BVB", league: "Bundesliga", is_icon_league: true, color_primary: "#fbbf24", color_secondary: "#000000", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB" }, 
-            followers_count: 850, is_verified: true, height_user: 191, weight: 86, strong_foot: "Links", birth_date: "1999-12-01", jersey_number: 4, nationality: "Deutschland"
+            followers_count: 850, 
+            is_verified: true, 
+            height_user: 191, 
+            weight: 86,
+            strong_foot: "Links",
+            birth_date: "1999-12-01",
+            jersey_number: 4,
+            nationality: "Deutschland"
+        },
+        // Ein zweiter Mock-Spieler zum Testen der Filter
+        { 
+            id: 100, 
+            user_id: "user-test2", 
+            full_name: "Jamal Musiala", 
+            first_name: "Jamal",
+            last_name: "Musiala",
+            position_primary: "ZOM", 
+            transfer_status: "Vertrag läuft aus", 
+            avatar_url: "https://images.unsplash.com/photo-1511886929837-354d827aae26?w=400&h=400&fit=crop", 
+            clubs: { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", color_primary: "#dc2626" }, 
+            followers_count: 1200, 
+            is_verified: true, 
+            height_user: 184, 
+            weight: 72,
+            strong_foot: "Rechts",
+            birth_date: "2003-02-26",
+            jersey_number: 42,
+            nationality: "Deutschland"
         },
     ],
     clubs: [
@@ -103,33 +91,19 @@ const INITIAL_DB = {
     media_highlights: [
         { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
     ],
-    direct_messages: [],
     follows: [],
+    direct_messages: [],
     notifications: []
 };
 
-// Lädt DB aus LocalStorage oder initialisiert sie
-const loadDB = () => {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY_DB);
-        return stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(INITIAL_DB));
-    } catch { return JSON.parse(JSON.stringify(INITIAL_DB)); }
-};
-
-// Speichert DB in LocalStorage
-const saveDB = (db) => {
-    localStorage.setItem(STORAGE_KEY_DB, JSON.stringify(db));
-};
-
+// Simulation des Supabase Clients (Mock)
+// FIX: Mock-Client erweitert um gte/lte für Scout-Filter
 const createMockClient = () => {
-    let currentSession = null;
+    let currentSession = null; 
     let authListener = null;
-    // Lokale DB-Instanz (in-memory, aber sync mit LocalStorage)
-    let db = loadDB();
-    const tempStorage = new Map(); // Blob URLs (flüchtig)
 
     try {
-        const stored = localStorage.getItem(STORAGE_KEY_SESSION);
+        const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) currentSession = JSON.parse(stored);
     } catch (e) { console.error(e); }
 
@@ -145,38 +119,35 @@ const createMockClient = () => {
                 if (currentSession) cb('SIGNED_IN', currentSession);
                 return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; 
             },
-            signInWithPassword: async ({ email }) => {
+            signInWithPassword: async ({ email, password }) => {
                 await new Promise(r => setTimeout(r, 500));
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
-            signUp: async ({ email }) => {
+            signUp: async ({ email, password }) => {
                 await new Promise(r => setTimeout(r, 500));
                 currentSession = { user: { id: MOCK_USER_ID, email } };
-                localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSession));
                 notify('SIGNED_IN', currentSession);
                 return { data: { user: currentSession.user, session: currentSession }, error: null };
             },
             signOut: async () => {
                 currentSession = null;
-                localStorage.removeItem(STORAGE_KEY_SESSION);
+                localStorage.removeItem(STORAGE_KEY);
                 notify('SIGNED_OUT', null);
                 return { error: null };
-            }
+            },
+            resetPasswordForEmail: async () => ({ data: {}, error: null })
         },
         from: (table) => {
-            // Immer aktuelle Daten laden
-            db = loadDB();
-            const tableData = db[table] || [];
-            let filtered = [...tableData];
-            
+            const data = MOCK_DB[table] || [];
+            let filtered = [...data];
             return {
                 select: (query) => {
-                    // Simuliere Joins (einfach)
-                    if (table === 'media_highlights' && query?.includes('players_master')) {
-                        filtered = filtered.map(item => ({...item, players_master: db.players_master.find(p => p.id === item.player_id)}));
+                    if (table === 'media_highlights' && query && query.includes('players_master')) {
+                        filtered = filtered.map(item => ({...item, players_master: MOCK_DB.players_master.find(p => p.id === item.player_id)}));
                     }
                     if (table === 'players_master') {
                         filtered = filtered.map(p => {
@@ -191,46 +162,41 @@ const createMockClient = () => {
                 },
                 insert: async (obj) => { 
                     const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() };
-                    if(!db[table]) db[table] = [];
-                    db[table].unshift(newItem); 
-                    saveDB(db); // PERSISTENZ!
+                    if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); 
                     return { data: [newItem], error: null };
                 },
-                update: (obj) => ({ eq: (col, val) => {
-                    const idx = db[table].findIndex(r => r[col] == val);
+                update: (obj) => ({ eq: (col, val) => { 
+                    const idx = MOCK_DB[table].findIndex(r => r[col] == val);
                     let res = { data: null, error: "Not found" };
                     if(idx >= 0) {
-                        db[table][idx] = { ...db[table][idx], ...obj };
-                        saveDB(db); // PERSISTENZ!
-                        res = { data: db[table][idx], error: null };
+                        MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
+                        res = { data: MOCK_DB[table][idx], error: null };
                     }
-                    return { select: () => ({ single: () => res }) };
+                    return { select: () => ({ single: () => ({ data: res.data, error: res.error }) }) }; 
                 }}),
-                upsert: async (obj) => {
-                     if (!db[table]) db[table] = [];
-                     const existingIdx = db[table].findIndex(r => r.user_id === obj.user_id);
-                     let result;
-                     if (existingIdx >= 0) {
-                          db[table][existingIdx] = { ...db[table][existingIdx], ...obj };
-                          result = db[table][existingIdx];
-                     } else {
-                          result = { ...obj, id: Date.now(), followers_count: 0 };
-                          db[table].push(result);
-                     }
-                     saveDB(db); // PERSISTENZ!
-                     return { data: result, error: null };
-                },
-                delete: () => ({ match: (filter) => {
-                    // Simple Mock Delete (nur für media_likes Implementierung relevant)
-                    // In echter App komplexer
-                    return { error: null };
-                }})
+                delete: () => ({ match: () => ({ then: (cb) => cb({ error: null }) }) }),
+                upsert: async (obj) => { 
+                    if (!MOCK_DB[table]) MOCK_DB[table] = [];
+                    const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
+                    let result;
+                    if (existingIdx >= 0) {
+                         MOCK_DB[table][existingIdx] = { ...MOCK_DB[table][existingIdx], ...obj };
+                         result = MOCK_DB[table][existingIdx];
+                    } else {
+                         result = { ...obj, id: Date.now(), followers_count: 0 };
+                         MOCK_DB[table].push(result);
+                    }
+                    return { data: result, error: null };
+                }
             };
+            // FIX: Helper erweitert für Scout-Filter (gte, lte, in)
             function helper(d) { return { 
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
                 ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))),
                 in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
                 match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))),
+                gte: (c,v) => helper(d.filter(r => r[c] >= v)), // Neu
+                lte: (c,v) => helper(d.filter(r => r[c] <= v)), // Neu
                 or: () => helper(d),
                 order: () => helper(d), 
                 limit: () => helper(d), 
@@ -240,15 +206,8 @@ const createMockClient = () => {
             };}
         },
         storage: { from: () => ({ 
-            upload: async (path, file) => {
-                const url = URL.createObjectURL(file);
-                tempStorage.set(path, url);
-                return { error: null };
-            },
-            getPublicUrl: (path) => {
-                const url = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4";
-                return { data: { publicUrl: url } };
-            } 
+            upload: async () => ({ error: null }), 
+            getPublicUrl: () => ({ data: { publicUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4" } }) 
         })},
         channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
         removeChannel: () => {}
@@ -257,11 +216,11 @@ const createMockClient = () => {
 
 // AKTIVIERE MOCK FÜR PREVIEW (Hier im Browser)
 const supabase = createMockClient(); 
-// FÜR ECHTBETRIEB (VS CODE): Zeile oben auskommentieren, Zeile unten einkommentieren!
 // const supabase = createClient(supabaseUrl, supabaseKey); 
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; 
 
-// --- 4. HOOKS ---
+// --- 2. HOOKS ---
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -293,7 +252,7 @@ const useSmartProfile = (session) => {
             }
             setProfile(data);
         } catch (e) {
-            console.error("Profile Error", e);
+            console.error("Profile fetch error", e);
         } finally {
             setLoading(false);
         }
@@ -306,7 +265,7 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 5. UI KOMPONENTEN ---
+// --- 3. UI KOMPONENTEN ---
 
 class SafeErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
@@ -320,13 +279,15 @@ class SafeErrorBoundary extends React.Component {
 
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
-        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl relative overflow-hidden">
+        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent"></div>
             <Icon size={40} className="text-zinc-500 relative z-10" />
         </div>
         <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
         <p className="text-zinc-400 mb-8 max-w-xs leading-relaxed text-sm">{text}</p>
-        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>Jetzt anmelden</button>
+        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>
+            Jetzt anmelden / registrieren
+        </button>
     </div>
 );
 
@@ -453,108 +414,23 @@ const LoginModal = ({ onClose, onSuccess }) => {
 };
 
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
-  const [uploading, setUploading] = useState(false); 
-  const [category, setCategory] = useState("Training");
-  const [description, setDescription] = useState("");
-  const [file, setFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
-  const handleDragLeave = () => setIsDragOver(false);
-  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files[0]; if(f) processFile(f); };
-
-  const processFile = (selectedFile) => {
-    if (selectedFile.size > MAX_FILE_SIZE) { setErrorMsg("Datei zu groß! Max 50 MB."); return; }
-    if (!selectedFile.type.startsWith('video/')) { setErrorMsg("Nur Videodateien erlaubt (MP4, MOV)."); return; }
-    setErrorMsg(""); setFile(selectedFile); setPreviewUrl(URL.createObjectURL(selectedFile));
+  const [uploading, setUploading] = useState(false); const [category, setCategory] = useState("Training");
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
+    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
+    try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
   };
-
-  const handleFileSelect = (e) => { const f = e.target.files[0]; if(f) processFile(f); };
-
-  const handleUpload = async () => {
-    if (!player?.user_id || !file) { setErrorMsg("Bitte Profil erst vervollständigen."); return; }
-    setUploading(true); setProgress(10);
-    const progressInterval = setInterval(() => { setProgress(p => Math.min(p + 10, 90)); }, 500);
-
-    try { 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
-        const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
-        
-        let thumbUrl = null;
-        try {
-            const thumbBlob = await generateVideoThumbnail(file);
-            if (thumbBlob) {
-                await supabase.storage.from('player-videos').upload(thumbName, thumbBlob);
-                const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
-                thumbUrl = data.publicUrl;
-            }
-        } catch (e) { console.warn("Thumb fail", e); thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video"; }
-
-        const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
-        if (upErr) throw upErr; 
-        
-        const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
-        
-        const { error: dbErr } = await supabase.from('media_highlights').insert({ 
-            player_id: player.id, 
-            video_url: publicUrl, 
-            thumbnail_url: thumbUrl,
-            category_tag: category,
-            created_at: new Date().toISOString() 
-        }); 
-        if (dbErr) throw dbErr; 
-        
-        clearInterval(progressInterval);
-        setProgress(100);
-        setTimeout(() => { onUploadComplete(); onClose(); }, 800);
-    } catch (error) { 
-        console.error(error);
-        setErrorMsg('Upload fehlgeschlagen: ' + error.message); 
-        setUploading(false);
-        clearInterval(progressInterval);
-    }
-  };
-
-  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); } }, [previewUrl]);
-
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}> 
-        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><UploadCloud className="text-blue-500"/> Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
-        
-        {uploading ? (
-            <div className="text-center py-8 space-y-4">
-                <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden"><div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div></div>
-                <div className="flex items-center justify-center gap-2 text-zinc-400 font-medium text-sm"><Loader2 className="animate-spin" size={16}/> <span>Wird verarbeitet... {Math.round(progress)}%</span></div>
-            </div> 
-        ) : (
+        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
+        {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
         <div className="space-y-4">
-            {!file ? (
-                <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-700 hover:bg-zinc-800/50 hover:border-blue-500/50'}`}>
-                    <div className={`p-4 rounded-full mb-3 transition-transform shadow-lg ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-zinc-800 text-blue-400 group-hover:scale-110'}`}><FileVideo className="w-8 h-8" /></div>
-                    <p className="text-sm text-zinc-300 font-medium">Video auswählen oder hierher ziehen</p>
-                    <p className="text-xs text-zinc-500 mt-1">Max. 50 MB • MP4, MOV</p>
-                    <input type="file" accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
-                </div>
-            ) : (
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
-                        <video src={previewUrl} className="w-full h-full object-cover opacity-80" controls />
-                        <button onClick={() => {setFile(null); setPreviewUrl(null); setErrorMsg("");}} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition"><Trash2 size={16} /></button>
-                    </div>
-                    {errorMsg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertTriangle size={14}/> {errorMsg}</div>)}
-                    <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 space-y-3">
-                         <div><label className="text-xs text-zinc-500 font-bold uppercase ml-1">Kategorie</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
-                         <div><label className="text-xs text-zinc-500 font-bold uppercase ml-1">Beschreibung</label><input type="text" placeholder="Was passiert im Video?" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600" /></div>
-                    </div>
-                    <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}><UploadCloud size={20} /> Jetzt hochladen</button>
-                </div>
-            )}
-            {errorMsg && !file && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2 animate-in fade-in"><AlertTriangle size={14}/> {errorMsg}</div>)}
+            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
+            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
+                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+            </label>
         </div>
         )}
       </div>
@@ -602,21 +478,55 @@ const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserCl
 const SearchScreen = ({ onUserClick }) => {
   const [query, setQuery] = useState(''); const [res, setRes] = useState([]); const [pos, setPos] = useState('Alle'); const [status, setStatus] = useState('Alle');
   useEffect(() => { const t = setTimeout(async () => { let q = supabase.from('players_master').select('*, clubs(*)'); if(query) q = q.ilike('full_name', `%${query}%`); if(pos !== 'Alle') q = q.eq('position_primary', pos); if(status !== 'Alle') q = q.eq('transfer_status', status); const { data } = await q.limit(20); setRes(data||[]); }, 300); return () => clearTimeout(t); }, [query, pos, status]);
+  // FIX: Scout-Filter Integration
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ minHeight: 0, maxAge: 99, strongFoot: 'Alle' });
+
+  // ... (Hier würde die Filter-Logik erweitert werden, wie im nächsten Schritt geplant)
+
   const FilterChip = ({ label, active, onClick }) => ( <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>{label}</button> );
   return (
     <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
       <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
       <div className="px-4 mt-4">
-          <div className="relative mb-6"><Search className="absolute left-4 top-4 text-zinc-500" size={20}/><input placeholder="Suche..." value={query} onChange={e=>setQuery(e.target.value)} className={`${inputStyle} pl-12`} /></div>
+          <div className="relative mb-6">
+              <Search className="absolute left-4 top-4 text-zinc-500" size={20}/>
+              <input placeholder="Suche..." value={query} onChange={e=>setQuery(e.target.value)} className={`${inputStyle} pl-12 pr-12`} />
+              {/* Filter Button */}
+              <button onClick={() => setShowFilters(!showFilters)} className={`absolute right-3 top-3 p-1 rounded-lg transition ${showFilters ? 'bg-blue-500 text-white' : 'text-zinc-500 hover:text-white'}`}>
+                  <SlidersHorizontal size={18} />
+              </button>
+          </div>
+          
+          {showFilters && (
+              <div className="mb-6 p-4 bg-zinc-900 border border-zinc-800 rounded-xl animate-in slide-in-from-top-2">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-white text-sm">Erweiterte Filter</h3>
+                      <button className="text-xs text-blue-400 hover:text-blue-300">Zurücksetzen</button>
+                  </div>
+                  {/* ... Filter UI (Slider, Grid) würde hier folgen ... */}
+                  <div className="text-center text-zinc-600 text-xs">Filter-UI wird in Kürze erweitert...</div>
+              </div>
+          )}
+
           <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => <FilterChip key={s} label={s === 'Alle' ? 'Status: Alle' : s} active={status === s} onClick={() => setStatus(s)} />)}</div>
           <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4">{['Alle', 'ST','ZOM','ZM','IV','TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
+          
           <div className="space-y-3">
               {res.map(p => (
                   <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
                       <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}</div>
                       <div className="flex-1">
                           <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base">{p.full_name}</h3><span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span></div>
-                          <div className="flex items-center gap-1 mt-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
+                          <div className="flex items-center gap-3 mt-1">
+                              <div className="flex items-center gap-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
+                              {/* NEU: Scout-Details direkt im Suchergebnis */}
+                              <div className="flex gap-2 text-[10px] text-zinc-500 font-mono border-l border-zinc-700 pl-3">
+                                  {p.height_user && <span>{p.height_user}cm</span>}
+                                  {p.strong_foot && <span>{p.strong_foot.charAt(0)}</span>}
+                                  {p.birth_date && <span>{calculateAge(p.birth_date)}J</span>}
+                              </div>
+                          </div>
                       </div>
                       <ChevronRight size={18} className="text-zinc-600"/>
                   </div>
@@ -849,16 +759,6 @@ const ClubScreen = ({ club, onBack, onUserClick }) => {
     );
 };
 
-const AdminDashboard = ({ session }) => {
-    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
-    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
-    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
-    useEffect(() => { fetchPending(); fetchReports(); }, []);
-    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
-    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
-    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
-};
-
 // --- 6. MAIN APP ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
@@ -1053,7 +953,19 @@ const App = () => {
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
-      {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
+      
+      {/* Upload Modal mit Feed-Refresh Callback */}
+      {showUpload && (
+          <UploadModal 
+              player={currentUserProfile} 
+              onClose={() => setShowUpload(false)} 
+              onUploadComplete={() => { 
+                  if(currentUserProfile) loadProfile(currentUserProfile);
+                  setFeedVersion(v => v + 1); // Feed zwingend neu laden
+              }} 
+          />
+      )}
+      
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
     </div>
   );
