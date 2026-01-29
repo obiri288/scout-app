@@ -18,6 +18,41 @@ import {
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
+// OPTIMIERTE THUMBNAIL GENERIERUNG (Mit Error Handling)
+const generateVideoThumbnail = (file) => {
+    return new Promise((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.src = URL.createObjectURL(file);
+        video.muted = true;
+        video.playsInline = true;
+        
+        const timeout = setTimeout(() => resolve(null), 3000); // Max 3s warten
+
+        video.onloadeddata = () => {
+            video.currentTime = 1; // Snapshot bei Sekunde 1
+        };
+
+        video.onseeked = () => {
+            clearTimeout(timeout);
+            try {
+                const canvas = document.createElement("canvas");
+                canvas.width = 480; // Performance: Kleineres Thumbnail
+                canvas.height = 270;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    URL.revokeObjectURL(video.src);
+                    resolve(blob);
+                }, "image/jpeg", 0.7);
+            } catch (e) {
+                resolve(null); 
+            }
+        };
+        video.onerror = () => { clearTimeout(timeout); resolve(null); };
+    });
+};
+
 const btnPrimary = "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 disabled:cursor-not-allowed";
 const btnSecondary = "bg-zinc-800/80 hover:bg-zinc-700 text-white font-semibold py-3 rounded-xl border border-white/10 transition-all active:scale-95 disabled:opacity-50";
 const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition placeholder:text-zinc-600";
@@ -97,7 +132,6 @@ const MOCK_DB = {
 };
 
 // Simulation des Supabase Clients (Mock)
-// FIX: Mock-Client erweitert um gte/lte für Scout-Filter
 const createMockClient = () => {
     let currentSession = null; 
     let authListener = null;
@@ -155,15 +189,19 @@ const createMockClient = () => {
                             return p; 
                         });
                     }
-                    if (query?.includes('order')) {
-                         filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    if (table === 'clubs') {
+                         // Mock search logic
                     }
                     return helper(filtered);
                 },
-                insert: async (obj) => { 
-                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() };
+                insert: (obj) => { 
+                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; 
                     if(MOCK_DB[table]) MOCK_DB[table].unshift(newItem); 
-                    return { data: [newItem], error: null };
+                    const res = { data: [newItem], error: null };
+                    return { 
+                        select: () => ({ single: () => ({ data: newItem, error: null }), data: [newItem] }), 
+                        then: (cb) => cb(res) 
+                    }; 
                 },
                 update: (obj) => ({ eq: (col, val) => { 
                     const idx = MOCK_DB[table].findIndex(r => r[col] == val);
@@ -172,10 +210,13 @@ const createMockClient = () => {
                         MOCK_DB[table][idx] = { ...MOCK_DB[table][idx], ...obj };
                         res = { data: MOCK_DB[table][idx], error: null };
                     }
-                    return { select: () => ({ single: () => ({ data: res.data, error: res.error }) }) }; 
+                    return { 
+                        select: () => ({ single: () => res }),
+                        then: (cb) => cb(res)
+                    }; 
                 }}),
                 delete: () => ({ match: () => ({ then: (cb) => cb({ error: null }) }) }),
-                upsert: async (obj) => { 
+                upsert: (obj) => { 
                     if (!MOCK_DB[table]) MOCK_DB[table] = [];
                     const existingIdx = MOCK_DB[table].findIndex(r => r.user_id === obj.user_id);
                     let result;
@@ -186,17 +227,18 @@ const createMockClient = () => {
                          result = { ...obj, id: Date.now(), followers_count: 0 };
                          MOCK_DB[table].push(result);
                     }
-                    return { data: result, error: null };
+                    const res = { data: result, error: null };
+                    return {
+                        select: () => ({ single: () => res }),
+                        then: (cb) => cb(res)
+                    }
                 }
             };
-            // FIX: Helper erweitert für Scout-Filter (gte, lte, in)
             function helper(d) { return { 
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
                 ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))),
                 in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
                 match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))),
-                gte: (c,v) => helper(d.filter(r => r[c] >= v)), // Neu
-                lte: (c,v) => helper(d.filter(r => r[c] <= v)), // Neu
                 or: () => helper(d),
                 order: () => helper(d), 
                 limit: () => helper(d), 
@@ -294,6 +336,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
     useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} }; f(); }, [userId]);
+    // FIX: z-Index auf 10000
     return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
 };
 
@@ -308,7 +351,21 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
         setLoading(true);
         try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
-    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className={`w-full max-w-xs ${cardStyle} p-5`}><h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3><div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5"><select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select></div><div className="flex gap-3"><button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button><button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button></div></div></div>);
+    return (
+        // FIX: z-Index auf 10000
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className={`w-full max-w-xs ${cardStyle} p-5`}>
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3>
+                <div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5">
+                    <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select>
+                </div>
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button>
+                    <button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const VerificationModal = ({ onClose, onUploadComplete }) => {
@@ -359,7 +416,7 @@ const LoginModal = ({ onClose, onSuccess }) => {
             password,
             options: { emailRedirectTo: window.location.origin }
         });
-        if (error) throw error;
+        if (error) { throw error; }
         
         if (data.user && !data.session) {
              setSuccessMsg('📧 E-Mail gesendet! Bitte Link bestätigen.');
@@ -414,23 +471,108 @@ const LoginModal = ({ onClose, onSuccess }) => {
 };
 
 const UploadModal = ({ player, onClose, onUploadComplete }) => {
-  const [uploading, setUploading] = useState(false); const [category, setCategory] = useState("Training");
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    if (file.size > MAX_FILE_SIZE) { alert("Datei zu groß! Max 50 MB."); return; }
-    if (!player?.user_id) { alert("Bitte Profil erst vervollständigen."); return; }
-    try { setUploading(true); const filePath = `${player.user_id}/${Date.now()}.${file.name.split('.').pop()}`; const { error: upErr } = await supabase.storage.from('player-videos').upload(filePath, file); if (upErr) throw upErr; const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(filePath); const { error: dbErr } = await supabase.from('media_highlights').insert({ player_id: player.id, video_url: publicUrl, thumbnail_url: "https://placehold.co/600x400/18181b/ffffff/png?text=Video", category_tag: category }); if (dbErr) throw dbErr; onUploadComplete(); onClose(); } catch (error) { alert('Upload Fehler: ' + error.message); } finally { setUploading(false); }
+  const [uploading, setUploading] = useState(false); 
+  const [category, setCategory] = useState("Training");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = () => setIsDragOver(false);
+  const handleDrop = (e) => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files[0]; if(f) processFile(f); };
+
+  const processFile = (selectedFile) => {
+    if (selectedFile.size > MAX_FILE_SIZE) { setErrorMsg("Datei zu groß! Max 50 MB."); return; }
+    if (!selectedFile.type.startsWith('video/')) { setErrorMsg("Nur Videodateien erlaubt (MP4, MOV)."); return; }
+    setErrorMsg(""); setFile(selectedFile); setPreviewUrl(URL.createObjectURL(selectedFile));
   };
+
+  const handleFileSelect = (e) => { const f = e.target.files[0]; if(f) processFile(f); };
+
+  const handleUpload = async () => {
+    if (!player?.user_id || !file) { setErrorMsg("Bitte Profil erst vervollständigen."); return; }
+    setUploading(true); setProgress(10);
+    const progressInterval = setInterval(() => { setProgress(p => Math.min(p + 10, 90)); }, 500);
+
+    try { 
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
+        const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
+        
+        let thumbUrl = null;
+        try {
+            const thumbBlob = await generateVideoThumbnail(file);
+            if (thumbBlob) {
+                await supabase.storage.from('player-videos').upload(thumbName, thumbBlob);
+                const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
+                thumbUrl = data.publicUrl;
+            }
+        } catch (e) { console.warn("Thumb fail", e); thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video"; }
+
+        const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
+        if (upErr) throw upErr; 
+        
+        const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
+        
+        const { error: dbErr } = await supabase.from('media_highlights').insert({ 
+            player_id: player.id, 
+            video_url: publicUrl, 
+            thumbnail_url: thumbUrl,
+            category_tag: category,
+            created_at: new Date().toISOString() 
+        }); 
+        if (dbErr) throw dbErr; 
+        
+        clearInterval(progressInterval);
+        setProgress(100);
+        setTimeout(() => { onUploadComplete(); onClose(); }, 800);
+    } catch (error) { 
+        console.error(error);
+        setErrorMsg('Upload fehlgeschlagen: ' + error.message); 
+        setUploading(false);
+        clearInterval(progressInterval);
+    }
+  };
+
+  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); } }, [previewUrl]);
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative mb-20 sm:mb-0`}> 
-        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
-        {uploading ? <div className="text-center py-12"><Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Dein Highlight wird verarbeitet...</p></div> : (
+        <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><UploadCloud className="text-blue-500"/> Clip hochladen</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div>
+        
+        {uploading ? (
+            <div className="text-center py-8 space-y-4">
+                <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden"><div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div></div>
+                <div className="flex items-center justify-center gap-2 text-zinc-400 font-medium text-sm"><Loader2 className="animate-spin" size={16}/> <span>Wird verarbeitet... {Math.round(progress)}%</span></div>
+            </div> 
+        ) : (
         <div className="space-y-4">
-            <div className="bg-zinc-900/50 p-2 rounded-xl border border-white/5"><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-white p-2 outline-none font-medium"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><UploadCloud className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Video auswählen</p><p className="text-xs text-zinc-500 mt-1">Max. 50 MB</p><input type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-            </label>
+            {!file ? (
+                <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-zinc-700 hover:bg-zinc-800/50 hover:border-blue-500/50'}`}>
+                    <div className={`p-4 rounded-full mb-3 transition-transform shadow-lg ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-zinc-800 text-blue-400 group-hover:scale-110'}`}><FileVideo className="w-8 h-8" /></div>
+                    <p className="text-sm text-zinc-300 font-medium">Video auswählen oder hierher ziehen</p>
+                    <p className="text-xs text-zinc-500 mt-1">Max. 50 MB • MP4, MOV</p>
+                    <input type="file" accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
+                </div>
+            ) : (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
+                        <video src={previewUrl} className="w-full h-full object-cover opacity-80" controls />
+                        <button onClick={() => {setFile(null); setPreviewUrl(null); setErrorMsg("");}} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition"><Trash2 size={16} /></button>
+                    </div>
+                    {errorMsg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertTriangle size={14}/> {errorMsg}</div>)}
+                    <div className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 space-y-3">
+                         <div><label className="text-xs text-zinc-500 font-bold uppercase ml-1">Kategorie</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition"><option>Training</option><option>Match Highlight</option><option>Tor</option><option>Skill</option></select></div>
+                         <div><label className="text-xs text-zinc-500 font-bold uppercase ml-1">Beschreibung</label><input type="text" placeholder="Was passiert im Video?" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-zinc-800 text-white p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-zinc-600" /></div>
+                    </div>
+                    <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}><UploadCloud size={20} /> Jetzt hochladen</button>
+                </div>
+            )}
+            {errorMsg && !file && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2 animate-in fade-in"><AlertTriangle size={14}/> {errorMsg}</div>)}
         </div>
         )}
       </div>
@@ -444,8 +586,10 @@ const EditProfileModal = ({ player, onClose, onUpdate }) => {
   useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
   const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
   const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
+  
+  // FIX: z-[10000]
   return (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
         <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
         <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><div className="grid grid-cols-2 gap-3"><input type="number" min="0" placeholder="Größe (cm)" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} /><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div><div className="space-y-3 pt-2"><h3 className="text-xs font-bold text-zinc-500 uppercase">Social Media</h3><div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div><div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div></div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
@@ -458,7 +602,7 @@ const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
   const [messages, setMessages] = useState([]); const [txt, setTxt] = useState(''); const endRef = useRef(null);
   useEffect(() => { const f = async () => { const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true}); setMessages((data||[]).filter(m => (m.sender_id===session.user.id && m.receiver_id===partner.user_id) || (m.sender_id===partner.user_id && m.receiver_id===session.user.id))); endRef.current?.scrollIntoView(); }; f(); const i = setInterval(f, 3000); return () => clearInterval(i); }, [partner]);
   const send = async (e) => { e.preventDefault(); if(!txt.trim()) return; await supabase.from('direct_messages').insert({sender_id:session.user.id, receiver_id:partner.user_id, content:txt}); setMessages([...messages, {sender_id:session.user.id, content:txt, id:Date.now()}]); setTxt(''); endRef.current?.scrollIntoView(); };
-  return (<div className="fixed inset-0 z-[90] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
+  return (<div className="fixed inset-0 z-[10000] bg-black flex flex-col animate-in slide-in-from-right duration-300"><div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10"><button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white"/></button><div onClick={()=>{onClose(); onUserClick(partner)}} className="flex items-center gap-3 cursor-pointer group"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">{partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="m-2.5 text-zinc-500"/>}</div><div className="font-bold text-white">{partner.full_name}</div></div></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">{messages.map(m=><div key={m.id} className={`flex ${m.sender_id===session.user.id?'justify-end':'justify-start'}`}><div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id===session.user.id?'bg-blue-600 text-white rounded-br-none':'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>{m.content}</div></div>)}<div ref={endRef}/></div><form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4"><input value={txt} onChange={e=>setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition"/><button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20}/></button></form></div>);
 };
 
 const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
