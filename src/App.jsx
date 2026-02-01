@@ -18,17 +18,49 @@ import {
 } from 'lucide-react';
 
 // --- 1. KONFIGURATION ---
-
-// DEINE ECHTEN SUPABASE CREDENTIALS (Wichtig für lokal)
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
-
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
 
 // --- 2. HELFER & STYLES ---
 
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
+
+// NEU: DUAL RANGE SLIDER KOMPONENTE (Wichtig für Suchfilter)
+const DualRangeSlider = ({ min, max, value, onChange, formatLabel }) => {
+  const [minVal, maxVal] = value;
+  const minRef = useRef(null);
+  const maxRef = useRef(null);
+  const range = useRef(null);
+  const getPercent = useCallback((value) => Math.round(((value - min) / (max - min)) * 100), [min, max]);
+
+  useEffect(() => {
+    const minPercent = getPercent(minVal);
+    const maxPercent = getPercent(maxVal); 
+    if (range.current) {
+      range.current.style.left = `${minPercent}%`;
+      range.current.style.width = `${maxPercent - minPercent}%`;
+    }
+  }, [minVal, getPercent, maxVal]);
+
+  const sliderStyles = `
+    .thumb { pointer-events: none; position: absolute; height: 0; width: 100%; outline: none; z-index: 20; }
+    .thumb::-webkit-slider-thumb { -webkit-appearance: none; -webkit-tap-highlight-color: transparent; background-color: white; border: 2px solid #2563eb; border-radius: 50%; cursor: pointer; height: 18px; width: 18px; margin-top: 4px; pointer-events: all; position: relative; }
+    .thumb::-moz-range-thumb { -webkit-appearance: none; -webkit-tap-highlight-color: transparent; background-color: white; border: 2px solid #2563eb; border-radius: 50%; cursor: pointer; height: 18px; width: 18px; margin-top: 4px; pointer-events: all; position: relative; }
+    .slider-track-bg { position: absolute; width: 100%; height: 4px; background-color: #3f3f46; border-radius: 3px; z-index: 1; }
+    .slider-track-fill { position: absolute; height: 4px; background-color: #2563eb; border-radius: 3px; z-index: 2; }
+  `;
+
+  return (
+    <div className="relative w-full h-12 flex items-center justify-center select-none touch-none">
+      <style>{sliderStyles}</style>
+      <input type="range" min={min} max={max} value={minVal} ref={minRef} onChange={(event) => { const value = Math.min(Number(event.target.value), maxVal - 1); onChange([value, maxVal]); }} className="thumb" style={{ zIndex: minVal > max - 100 ? "5" : "3" }} />
+      <input type="range" min={min} max={max} value={maxVal} ref={maxRef} onChange={(event) => { const value = Math.max(Number(event.target.value), minVal + 1); onChange([minVal, value]); }} className="thumb" style={{ zIndex: 4 }} />
+      <div className="relative w-full"><div className="slider-track-bg" /><div ref={range} className="slider-track-fill" /><div className="absolute top-4 left-0 text-xs text-zinc-400 font-mono font-bold mt-1">{formatLabel ? formatLabel(minVal) : minVal}</div><div className="absolute top-4 right-0 text-xs text-zinc-400 font-mono font-bold mt-1">{formatLabel ? formatLabel(maxVal) : maxVal}</div></div>
+    </div>
+  );
+};
 
 const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
@@ -37,28 +69,17 @@ const generateVideoThumbnail = (file) => {
         video.src = URL.createObjectURL(file);
         video.muted = true;
         video.playsInline = true;
-        
         const timeout = setTimeout(() => resolve(null), 3000); 
-
-        video.onloadeddata = () => {
-            video.currentTime = Math.min(1, video.duration / 2);
-        };
-
+        video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration / 2); };
         video.onseeked = () => {
             clearTimeout(timeout);
             try {
                 const canvas = document.createElement("canvas");
-                canvas.width = 480; 
-                canvas.height = 270;
+                canvas.width = 480; canvas.height = 270;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                canvas.toBlob((blob) => {
-                    URL.revokeObjectURL(video.src);
-                    resolve(blob);
-                }, "image/jpeg", 0.7);
-            } catch (e) {
-                resolve(null); 
-            }
+                canvas.toBlob((blob) => { URL.revokeObjectURL(video.src); resolve(blob); }, "image/jpeg", 0.7);
+            } catch (e) { resolve(null); }
         };
         video.onerror = () => { clearTimeout(timeout); resolve(null); };
     });
@@ -75,14 +96,11 @@ const calculateAge = (birthDate) => {
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) { age--; }
     return age;
 };
 
-// --- 3. DATENBANK LOGIK (Mock für Vorschau, Real für Local) ---
-
+// --- 3. DATENBANK LOGIK ---
 const MOCK_USER_ID = "user-123";
 const STORAGE_KEY_SESSION = 'scoutvision_mock_session';
 const STORAGE_KEY_DB = 'scoutvision_mock_db';
@@ -90,23 +108,14 @@ const STORAGE_KEY_DB = 'scoutvision_mock_db';
 const INITIAL_DB = {
     players_master: [
         { 
-            id: 99, 
-            user_id: "user-demo", 
-            full_name: "Nico Schlotterbeck", 
-            first_name: "Nico", last_name: "Schlotterbeck",
-            position_primary: "IV", transfer_status: "Gebunden", 
-            avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
+            id: 99, user_id: "user-demo", full_name: "Nico Schlotterbeck", first_name: "Nico", last_name: "Schlotterbeck",
+            position_primary: "IV", transfer_status: "Gebunden", avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
             clubs: { id: 103, name: "BVB 09", short_name: "BVB", league: "Bundesliga", is_icon_league: true, color_primary: "#fbbf24", color_secondary: "#000000", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB" }, 
-            club_id: 103, club_role: 'coach',
-            followers_count: 850, is_verified: true, height_user: 191, weight: 86, strong_foot: "Links", birth_date: "1999-12-01", jersey_number: 4, nationality: "Deutschland"
+            club_id: 103, club_role: 'coach', followers_count: 850, is_verified: true, height_user: 191, weight: 86, strong_foot: "Links", birth_date: "1999-12-01", jersey_number: 4, nationality: "Deutschland"
         },
         { 
-            id: 100, 
-            user_id: "user-test2", 
-            full_name: "Jamal Musiala", 
-            first_name: "Jamal", last_name: "Musiala",
-            position_primary: "ZOM", transfer_status: "Vertrag läuft aus", 
-            avatar_url: "https://images.unsplash.com/photo-1511886929837-354d827aae26?w=400&h=400&fit=crop", 
+            id: 100, user_id: "user-test2", full_name: "Jamal Musiala", first_name: "Jamal", last_name: "Musiala",
+            position_primary: "ZOM", transfer_status: "Vertrag läuft aus", avatar_url: "https://images.unsplash.com/photo-1511886929837-354d827aae26?w=400&h=400&fit=crop", 
             clubs: { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", color_primary: "#dc2626" }, 
             followers_count: 1200, is_verified: true, height_user: 184, weight: 72, strong_foot: "Rechts", birth_date: "2003-02-26", jersey_number: 42, nationality: "Deutschland"
         },
@@ -116,38 +125,21 @@ const INITIAL_DB = {
         { id: 102, name: "FC Schalke 04", short_name: "S04", league: "2. Bundesliga", logo_url: "https://placehold.co/100x100/1d4ed8/ffffff?text=S04", is_verified: true, color_primary: "#1d4ed8", color_secondary: "#ffffff" },
         { id: 103, name: "Borussia Dortmund", short_name: "BVB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true, color_primary: "#fbbf24", color_secondary: "#000000" }
     ],
-    media_highlights: [
-        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
-    ],
+    media_highlights: [{ id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() }],
     club_events: [
         { id: 1, club_id: 103, title: "Abschlusstraining", type: "training", start_time: new Date(Date.now() + 86400000).toISOString(), location: "Trainingsplatz 1" },
         { id: 2, club_id: 103, title: "Heimspiel vs. FCB", type: "match", start_time: new Date(Date.now() + 172800000).toISOString(), location: "Stadion" }
     ],
-    club_news: [
-        { id: 1, club_id: 103, title: "Kaderbekanntgabe", content: "Treffpunkt am Samstag um 13:00 Uhr.", created_at: new Date().toISOString() }
-    ],
-    club_event_responses: [], 
-    scout_watchlist: [],
-    direct_messages: [],
-    media_likes: [],
-    media_comments: [],
-    follows: [],
-    notifications: []
+    club_news: [{ id: 1, club_id: 103, title: "Kaderbekanntgabe", content: "Treffpunkt am Samstag um 13:00 Uhr.", created_at: new Date().toISOString() }],
+    club_event_responses: [], scout_watchlist: [], direct_messages: [], media_likes: [], media_comments: [], follows: [], notifications: []
 };
 
-// Lädt DB aus LocalStorage
-const loadDB = () => {
-    try { const s = localStorage.getItem(STORAGE_KEY_DB); return s ? JSON.parse(s) : JSON.parse(JSON.stringify(INITIAL_DB)); } catch { return JSON.parse(JSON.stringify(INITIAL_DB)); }
-};
+const loadDB = () => { try { const s = localStorage.getItem(STORAGE_KEY_DB); return s ? JSON.parse(s) : JSON.parse(JSON.stringify(INITIAL_DB)); } catch { return JSON.parse(JSON.stringify(INITIAL_DB)); } };
 const saveDB = (db) => localStorage.setItem(STORAGE_KEY_DB, JSON.stringify(db));
 
-// Simulation des Supabase Clients
+// FIX: Mock-Client unterstützt jetzt Chaining für upsert/insert/update
 const createMockClient = () => {
-    let currentSession = null; 
-    let authListener = null;
-    let db = loadDB();
-    const tempStorage = new Map();
-
+    let currentSession = null; let authListener = null; let db = loadDB(); const tempStorage = new Map();
     try { const s = localStorage.getItem(STORAGE_KEY_SESSION); if (s) currentSession = JSON.parse(s); } catch (e) {}
     const notify = (event, session) => { if (authListener) authListener(event, session); };
 
@@ -163,37 +155,24 @@ const createMockClient = () => {
             db = loadDB(); const tableData = db[table] || []; let filtered = [...tableData];
             return {
                 select: (query) => {
-                    // Simuliere Joins (einfach)
-                    if (table === 'media_highlights' && query?.includes('players_master')) {
-                        filtered = filtered.map(item => ({...item, players_master: db.players_master.find(p => p.id === item.player_id)}));
-                    }
-                    if (table === 'media_comments' && query?.includes('auth.users')) {
-                         filtered = filtered.map(item => ({...item, users: {id: item.user_id}}));
-                    }
-                    if (table === 'players_master') {
-                        filtered = filtered.map(p => {
-                            if (p.clubs && typeof p.clubs === 'object') return p; 
-                            return p; 
-                        });
-                    }
-                    if (table === 'scout_watchlist' && query?.includes('players_master')) {
-                         filtered = filtered.map(item => { const p = db.players_master.find(pm => pm.id === item.player_id); return { ...item, players_master: p }; }).filter(item => item.players_master); 
-                    }
-                    // NEU: Join für Event Responses
-                    if (table === 'club_event_responses' && query?.includes('players_master')) {
-                         filtered = filtered.map(item => { 
-                             const p = db.players_master.find(pm => pm.user_id === item.user_id); 
-                             return { ...item, players_master: p }; 
-                         });
-                    }
+                    if (table === 'media_highlights' && query?.includes('players_master')) { filtered = filtered.map(item => ({...item, players_master: db.players_master.find(p => p.id === item.player_id)})); }
+                    if (table === 'media_comments' && query?.includes('auth.users')) { filtered = filtered.map(item => ({...item, users: {id: item.user_id}})); }
+                    if (table === 'players_master') { filtered = filtered.map(p => { if (p.clubs && typeof p.clubs === 'object') return p; return p; }); }
+                    if (table === 'scout_watchlist' && query?.includes('players_master')) { filtered = filtered.map(item => { const p = db.players_master.find(pm => pm.id === item.player_id); return { ...item, players_master: p }; }).filter(item => item.players_master); }
+                    if (table === 'club_event_responses' && query?.includes('players_master')) { filtered = filtered.map(item => { const p = db.players_master.find(pm => pm.user_id === item.user_id); return { ...item, players_master: p }; }); }
                     if (query?.includes('order')) { filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); }
                     return helper(filtered);
                 },
-                insert: async (obj) => { const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; if(!db[table]) db[table] = []; db[table].unshift(newItem); saveDB(db); return { data: [newItem], error: null }; },
-                update: (obj) => ({ eq: (col, val) => { const idx = db[table].findIndex(r => r[col] == val); let res = { data: null, error: "Not found" }; if(idx >= 0) { db[table][idx] = { ...db[table][idx], ...obj }; saveDB(db); res = { data: db[table][idx], error: null }; } return { select: () => ({ single: () => res }) }; }}),
+                insert: (obj) => { 
+                    const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; if(!db[table]) db[table] = []; db[table].unshift(newItem); saveDB(db); 
+                    return { select: () => ({ single: () => ({ data: newItem, error: null }) }), then: (cb) => cb({ data: [newItem], error: null }) }; 
+                },
+                update: (obj) => ({ eq: (col, val) => { 
+                    const idx = db[table].findIndex(r => r[col] == val); let res = { data: null, error: "Not found" }; if(idx >= 0) { db[table][idx] = { ...db[table][idx], ...obj }; saveDB(db); res = { data: db[table][idx], error: null }; } 
+                    return { select: () => ({ single: () => res }), then: (cb) => cb(res) }; 
+                }}),
                 delete: () => ({ match: (filter) => { if (!db[table]) return { error: null }; db[table] = db[table].filter(row => !Object.keys(filter).every(key => row[key] === filter[key])); saveDB(db); return { error: null }; }}),
-                // FIX: Upsert Logik
-                upsert: async (obj) => { 
+                upsert: (obj) => { 
                     if (!db[table]) db[table] = []; 
                     let existingIdx = -1;
                     if(table === 'club_event_responses') existingIdx = db[table].findIndex(r => r.user_id === obj.user_id && r.event_id === obj.event_id);
@@ -206,20 +185,7 @@ const createMockClient = () => {
                     return { select: () => ({ single: () => res }), then: (cb) => cb(res) }; 
                 }
             };
-            function helper(d) { return { 
-                eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
-                ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))), 
-                in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
-                match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))), 
-                gte: (c,v) => helper(d.filter(r => r[c] >= v)),
-                lte: (c,v) => helper(d.filter(r => r[c] <= v)),
-                or: () => helper(d), 
-                order: () => helper(d), 
-                limit: () => helper(d), 
-                maybeSingle: () => ({ data: d[0]||null, error: null }), 
-                single: () => ({ data: d[0]||null, error: null }), 
-                then: (cb) => cb({ data: d, error: null }) 
-            };}
+            function helper(d) { return { eq: (c,v) => helper(d.filter(r=>r[c]==v)), ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))), in: (c,v) => helper(d.filter(r=>v.includes(r[c]))), match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))), gte: (c,v) => helper(d.filter(r => r[c] >= v)), lte: (c,v) => helper(d.filter(r => r[c] <= v)), or: () => helper(d), order: () => helper(d), limit: () => helper(d), maybeSingle: () => ({ data: d[0]||null, error: null }), single: () => ({ data: d[0]||null, error: null }), then: (cb) => cb({ data: d, error: null }) };}
         },
         storage: { from: () => ({ upload: async (path, file) => { const url = URL.createObjectURL(file); tempStorage.set(path, url); return { error: null }; }, getPublicUrl: (path) => { const url = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"; return { data: { publicUrl: url } }; } })},
         channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
@@ -227,7 +193,6 @@ const createMockClient = () => {
     };
 };
 
-// --- HIER WIRD UMGESCHALTET ---
 const supabase = createMockClient(); 
 // const supabase = createClient(supabaseUrl, supabaseKey); 
 
@@ -242,7 +207,7 @@ const useSmartProfile = (session) => {
             let { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', session.user.id).maybeSingle();
             if (!data) {
                 const newProfile = { user_id: session.user.id, full_name: 'Neuer Spieler', position_primary: 'ZM', transfer_status: 'Gebunden', followers_count: 0, is_verified: false, is_admin: false, club_role: 'player' };
-                await supabase.from('players_master').upsert(newProfile);
+                await supabase.from('players_master').upsert(newProfile).select().single();
                 data = newProfile;
             }
             setProfile(data);
@@ -275,7 +240,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
     useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} }; f(); }, [userId]);
-    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
+    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
 };
 
 const ToastContainer = ({ toasts, removeToast }) => (<div className="fixed top-6 left-0 right-0 z-[120] flex flex-col items-center gap-3 pointer-events-none px-4">{toasts.map(t => (<div key={t.id} onClick={()=>removeToast(t.id)} className={`bg-zinc-900/90 backdrop-blur-md border border-white/10 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-4 pointer-events-auto max-w-sm w-full cursor-pointer animate-in slide-in-from-top-2`}><div className={`p-3 rounded-full ${t.type==='error'?'bg-red-500/20 text-red-400':'bg-blue-500/20 text-blue-400'}`}>{t.type==='error'?<AlertCircle size={20}/>:<Bell size={20}/>}</div><div className="flex-1 text-sm font-medium">{t.content}</div></div>))}</div>);
@@ -304,7 +269,7 @@ const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [loading, setLoading] = useState(true);
     useEffect(() => { const f = async () => { const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true }); setComments(data || []); setLoading(false); }; f(); const c = supabase.channel('c').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, p => setComments(pre => [...pre, p.new])).subscribe(); return () => { supabase.removeChannel(c); }; }, [video.id]);
     const s = async (e) => { e.preventDefault(); if (!session) return onLoginReq(); if (!text.trim()) return; await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text }); setText(''); };
-    return (<div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom"><div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}><div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900"><h3 className="text-white font-bold">Kommentare</h3><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="flex-1 overflow-y-auto p-4 space-y-3">{loading?<Loader2 className="animate-spin mx-auto text-zinc-500"/>:comments.map(c=><div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white">{c.content}</div>)}</div><form onSubmit={s} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2"><input className={inputStyle} value={text} onChange={e=>setText(e.target.value)} placeholder="..." /><button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button></form></div></div>);
+    return (<div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom"><div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}><div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900"><h3 className="text-white font-bold">Kommentare</h3><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="flex-1 overflow-y-auto p-4 space-y-3">{loading?<Loader2 className="animate-spin mx-auto text-zinc-500"/>:comments.map(c=><div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">{c.content}</div>)}</div><form onSubmit={s} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2"><input className={inputStyle} value={text} onChange={e=>setText(e.target.value)} placeholder="..." /><button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button></form></div></div>);
 };
 
 const WatchlistModal = ({ session, onClose, onUserClick }) => {
@@ -646,95 +611,485 @@ const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserCl
     return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
-const SearchScreen = ({ onUserClick, onOpenWatchlist }) => {
-  const [query, setQuery] = useState(''); const [res, setRes] = useState([]); const [pos, setPos] = useState('Alle'); const [status, setStatus] = useState('Alle');
-  useEffect(() => { const t = setTimeout(async () => { let q = supabase.from('players_master').select('*, clubs(*)'); if(query) q = q.ilike('full_name', `%${query}%`); if(pos !== 'Alle') q = q.eq('position_primary', pos); if(status !== 'Alle') q = q.eq('transfer_status', status); const { data } = await q.limit(20); setRes(data||[]); }, 300); return () => clearTimeout(t); }, [query, pos, status]);
-  const FilterChip = ({ label, active, onClick }) => ( <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>{label}</button> );
-  return (
-    <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
-      <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
-      <div className="px-4 mt-4">
-          <div className="relative mb-6"><Search className="absolute left-4 top-4 text-zinc-500" size={20}/><input placeholder="Suche..." value={query} onChange={e=>setQuery(e.target.value)} className={`${inputStyle} pl-12`} /></div>
-          <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => <FilterChip key={s} label={s === 'Alle' ? 'Status: Alle' : s} active={status === s} onClick={() => setStatus(s)} />)}</div>
-          <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4">{['Alle', 'ST','ZOM','ZM','IV','TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
-          <div className="space-y-3">
-              {res.map(p => (
-                  <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}</div>
-                      <div className="flex-1">
-                          <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base">{p.full_name}</h3><span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span></div>
-                          <div className="flex items-center gap-1 mt-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
-                      </div>
-                      <ChevronRight size={18} className="text-zinc-600"/>
-                  </div>
-              ))}
-              {res.length === 0 && <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20"/><p>Keine Ergebnisse</p></div>}
-          </div>
-      </div>
-    </div>
-  );
-};
+// --- KOMPLETT NEU: SEARCH SCREEN MIT SCOUT ENGINE ---
 
-// FIX: INBOX SCREEN REPARIERT
-const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
-    const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]); const [chats, setChats] = useState([]);
-    if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
+const SearchScreen = ({ onUserClick, onOpenWatchlist }) => {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [showFilters, setShowFilters] = useState(false);
+    const [loading, setLoading] = useState(false);
+  
+    // Filter State
+    const [filters, setFilters] = useState({
+        minHeight: 0,
+        maxHeight: 220,
+        minAge: 16,
+        maxAge: 40,
+        positions: [], // Array von Strings, z.B. ['IV', 'ZDM']
+        strongFoot: 'Alle',
+        transferStatus: 'Alle'
+    });
+  
+    const positionsList = ['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'];
+  
+    // --- SCOUTING QUERY LOGIC ---
     useEffect(() => {
-        if(subTab==='notifications') supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[]));
-        else if (subTab === 'messages' && session?.user?.id) {
-            (async () => {
-                const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).order('created_at',{ascending:true});
-                const map = new Map();
-                // FIX: 'partner' entfernt, Logik für User-Findung angepasst
-                (data||[]).forEach(m => { 
-                    const pid = m.sender_id===session.user.id ? m.receiver_id : m.sender_id; 
-                    if(!map.has(pid)) map.set(pid, m); 
-                });
-                if(map.size>0) { 
-                    const {data:users} = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]); 
-                    setChats(users.map(u=>({...u, lastMsg: map.get(u.user_id).content, time: map.get(u.user_id).created_at})).sort((a,b)=>new Date(b.time)-new Date(a.time))); 
-                }
-            })();
-        }
-    }, [subTab, session]);
+        const fetchResults = async () => {
+            setLoading(true);
+            let dbQuery = supabase.from('players_master').select('*, clubs(*)');
+  
+            // 1. Textsuche (Name)
+            if (query.trim()) {
+                dbQuery = dbQuery.ilike('full_name', `%${query}%`);
+            }
+  
+            // 2. Position Filter (Multi-Select)
+            if (filters.positions.length > 0) {
+                // Sucht Spieler, deren Hauptposition in der Liste ist
+                dbQuery = dbQuery.in('position_primary', filters.positions);
+            }
+  
+            // 3. Größen Filter
+            if (filters.minHeight > 0) {
+                dbQuery = dbQuery.gte('height_user', filters.minHeight);
+            }
+            if (filters.maxHeight < 220) {
+                 dbQuery = dbQuery.lte('height_user', filters.maxHeight);
+            }
+  
+            // 4. Alter Filter (Berechnung über Geburtsdatum)
+            const today = new Date();
+            if (filters.maxAge < 40) {
+                const minBirthDate = new Date(today.getFullYear() - filters.maxAge - 1, today.getMonth(), today.getDate()).toISOString();
+                dbQuery = dbQuery.gte('birth_date', minBirthDate);
+            }
+            if (filters.minAge > 16) {
+                const maxBirthDate = new Date(today.getFullYear() - filters.minAge, today.getMonth(), today.getDate()).toISOString();
+                dbQuery = dbQuery.lte('birth_date', maxBirthDate);
+            }
+  
+            // 5. Fuß
+            if (filters.strongFoot !== 'Alle') {
+                dbQuery = dbQuery.eq('strong_foot', filters.strongFoot);
+            }
+  
+            // 6. Status
+            if (filters.transferStatus !== 'Alle') {
+                dbQuery = dbQuery.eq('transfer_status', filters.transferStatus);
+            }
+  
+            const { data } = await dbQuery.limit(20);
+            setResults(data || []);
+            setLoading(false);
+        };
+  
+        // Debounce für Performance
+        const timer = setTimeout(fetchResults, 400);
+        return () => clearTimeout(timer);
+    }, [query, filters]);
+  
+    // Helper für Multi-Select Toggle
+    const togglePosition = (pos) => {
+        setFilters(prev => {
+            const newPos = prev.positions.includes(pos)
+                ? prev.positions.filter(p => p !== pos) // Entfernen
+                : [...prev.positions, pos]; // Hinzufügen
+            return { ...prev, positions: newPos };
+        });
+    };
+  
+    const FilterChip = ({ label, active, onClick }) => (
+        <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition border ${active ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+            {label}
+        </button>
+    );
+  
     return (
-        <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
-            <div className={glassHeader}><h2 className="text-2xl font-black text-white">Inbox</h2></div>
-            <div className="px-4 mt-4">
-                <div className="flex bg-zinc-900/50 rounded-xl p-1 mb-6 border border-white/5 relative">
-                    <button onClick={()=>setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab==='notifications'?'bg-zinc-800 text-white shadow-lg':'text-zinc-500 hover:text-zinc-300'}`}>Mitteilungen</button>
-                    <button onClick={()=>setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab==='messages'?'bg-zinc-800 text-white shadow-lg':'text-zinc-500 hover:text-zinc-300'}`}>Nachrichten</button>
+      <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
+        <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
+        
+        <div className="px-4 mt-4">
+            {/* Suchleiste & Filter-Toggle */}
+            <div className="relative mb-4 flex gap-2">
+                <div className="relative flex-1">
+                    <Search className="absolute left-4 top-3.5 text-zinc-500" size={20}/>
+                    <input 
+                        placeholder="Spieler suchen..." 
+                        value={query} 
+                        onChange={e=>setQuery(e.target.value)} 
+                        className={`${inputStyle} pl-12 pr-12`} 
+                    />
+                    <button 
+                        onClick={() => setShowFilters(!showFilters)} 
+                        className={`absolute right-2 top-2 p-2 rounded-lg transition ${showFilters ? 'bg-blue-500 text-white' : 'text-zinc-400 hover:bg-white/10'}`}
+                    >
+                        <SlidersHorizontal size={18} />
+                    </button>
                 </div>
-                <div className="space-y-3">
-                    {subTab === 'notifications' && (notis.length > 0 ? notis.map(n => (
-                        <div key={n.id} className={`flex items-start gap-4 p-4 ${cardStyle}`}>
-                            <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 shrink-0 mt-1">{n.actor?.avatar_url?<img src={n.actor.avatar_url} className="w-full h-full object-cover"/>:<User size={16} className="text-zinc-500 m-2.5"/>}</div>
-                            <div className="flex-1 text-sm text-white pt-1"><span className="font-bold">{n.actor?.full_name||"Jemand"}</span> <span className="text-zinc-400">{n.type==='like'?'hat dein Video geliked.':n.type==='follow'?'folgt dir jetzt.':'hat kommentiert.'}</span></div>
-                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
+                {/* Watchlist Button */}
+                <button onClick={onOpenWatchlist} className="bg-zinc-800 p-3.5 rounded-xl border border-white/10 text-white hover:bg-zinc-700">
+                    <Bookmark size={22} />
+                </button>
+            </div>
+            
+            {/* --- DIE SCOUT ENGINE (FILTER UI) --- */}
+            {showFilters && (
+                <div className="mb-6 p-5 bg-zinc-900 border border-zinc-800 rounded-2xl animate-in slide-in-from-top-2 space-y-6 shadow-2xl">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-white text-sm flex items-center gap-2"><SlidersHorizontal size={14}/> Erweiterte Filter</h3>
+                        <button 
+                            onClick={() => setFilters({ minHeight: 0, maxHeight: 220, minAge: 16, maxAge: 40, positions: [], strongFoot: 'Alle', transferStatus: 'Alle' })}
+                            className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                        >
+                            Zurücksetzen
+                        </button>
+                    </div>
+  
+                    {/* Positionen Grid */}
+                    <div className="space-y-2">
+                        <label className="text-xs text-zinc-500 font-bold uppercase">Positionen</label>
+                        <div className="flex flex-wrap gap-2">
+                            {positionsList.map(pos => (
+                                <button 
+                                    key={pos}
+                                    onClick={() => togglePosition(pos)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filters.positions.includes(pos) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-black border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}
+                                >
+                                    {pos}
+                                </button>
+                            ))}
                         </div>
-                    )) : <div className="text-center text-zinc-500 py-20 flex flex-col items-center"><Bell size={40} className="mb-4 opacity-20"/><p>Alles ruhig hier.</p></div>)}
-                    {subTab === 'messages' && (chats.length > 0 ? chats.map(c => (
-                        <div key={c.id} onClick={() => onSelectChat(c)} className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition ${cardStyle}`}>
-                            <div onClick={(e) => { e.stopPropagation(); onUserClick(c); }} className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition border border-white/10">{c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-500"/>}</div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-1"><h4 className="text-base font-bold text-white truncate">{c.full_name}</h4><span className="text-[10px] text-zinc-500">{new Date(c.time).toLocaleDateString()}</span></div>
-                                <p className="text-sm text-zinc-400 truncate">{c.lastMsg}</p>
+                    </div>
+  
+                    {/* Range Sliders (Simuliert durch Inputs für Stabilität) */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                             <label className="text-xs text-zinc-500 font-bold uppercase">Größe (cm)</label>
+                             <div className="flex items-center gap-2">
+                                 <input type="number" value={filters.minHeight || ''} onChange={e => setFilters({...filters, minHeight: parseInt(e.target.value) || 0})} placeholder="Min" className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                                 <span className="text-zinc-600">-</span>
+                                 <input type="number" value={filters.maxHeight || ''} onChange={e => setFilters({...filters, maxHeight: parseInt(e.target.value) || 220})} placeholder="Max" className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                             </div>
+                        </div>
+                        <div className="space-y-2">
+                             <label className="text-xs text-zinc-500 font-bold uppercase">Alter</label>
+                             <div className="flex items-center gap-2">
+                                 <input type="number" value={filters.minAge} onChange={e => setFilters({...filters, minAge: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                                 <span className="text-zinc-600">-</span>
+                                 <input type="number" value={filters.maxAge} onChange={e => setFilters({...filters, maxAge: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                             </div>
+                        </div>
+                    </div>
+  
+                    {/* Dropdowns für Fuß & Status */}
+                    <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                            <label className="text-xs text-zinc-500 font-bold uppercase">Starker Fuß</label>
+                            <select value={filters.strongFoot} onChange={e => setFilters({...filters, strongFoot: e.target.value})} className="w-full bg-black border border-zinc-800 text-white p-2 rounded-lg text-sm outline-none">
+                                <option>Alle</option>
+                                <option>Rechts</option>
+                                <option>Links</option>
+                                <option>Beidfüßig</option>
+                            </select>
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs text-zinc-500 font-bold uppercase">Status</label>
+                            <select value={filters.transferStatus} onChange={e => setFilters({...filters, transferStatus: e.target.value})} className="w-full bg-black border border-zinc-800 text-white p-2 rounded-lg text-sm outline-none">
+                                <option>Alle</option>
+                                <option>Gebunden</option>
+                                <option>Suche Verein</option>
+                                <option>Vertrag läuft aus</option>
+                            </select>
+                         </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Quick Filter (Status) wenn Hauptfilter zu sind */}
+            {!showFilters && (
+                <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">
+                    {['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => (
+                        <FilterChip 
+                            key={s} 
+                            label={s} 
+                            active={filters.transferStatus === s} 
+                            onClick={() => setFilters(prev => ({...prev, transferStatus: s}))} 
+                        />
+                    ))}
+                </div>
+            )}
+  
+            {/* Ergebnisliste */}
+            <div className="space-y-3">
+                {loading ? <div className="py-10 text-center"><Loader2 className="animate-spin mx-auto text-blue-500"/></div> : 
+                results.length === 0 ? <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20"/><p>Keine Spieler gefunden.</p></div> :
+                results.map(p => (
+                    <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
+                        <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">
+                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-white text-base">{p.full_name}</h3>
+                                <span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span>
                             </div>
-                            <ChevronRight size={16} className="text-zinc-600"/>
+                            <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
+                                {/* Scout Details */}
+                                <div className="flex gap-2 text-[10px] text-zinc-500 font-mono border-l border-zinc-700 pl-3">
+                                    {p.height_user && <span>{p.height_user}cm</span>}
+                                    {p.strong_foot && <span>{p.strong_foot.charAt(0)}</span>}
+                                    {p.birth_date && <span>{calculateAge(p.birth_date)}J</span>}
+                                </div>
+                            </div>
                         </div>
-                    )) : <div className="text-center text-zinc-500 py-20 flex flex-col items-center"><Mail size={40} className="mb-4 opacity-20"/><p>Keine Chats vorhanden.</p></div>)}
+                        <ChevronRight size={18} className="text-zinc-600"/>
+                    </div>
+                ))}
+            </div>
+        </div>
+      </div>
+    );
+  };
+  
+  // --- ENDE SEARCH SCREEN ---
+
+const ClubDashboard = ({ club, session, onBack }) => {
+    const [activeTab, setActiveTab] = useState('squad'); // 'squad', 'events', 'news'
+    const [events, setEvents] = useState([]);
+    const [news, setNews] = useState([]);
+    const [squad, setSquad] = useState([]);
+    const [showAddEvent, setShowAddEvent] = useState(false);
+    
+    // NEU: RSVP State
+    const [expandedEvent, setExpandedEvent] = useState(null);
+    const [responses, setResponses] = useState([]);
+    
+    // Prüfen ob User Trainer/Admin ist (simuliert durch Mock DB Eintrag oder echte Rolle)
+    const [isCoach, setIsCoach] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        // 1. Kader laden
+        const { data: squadData } = await supabase.from('players_master').select('*').eq('club_id', club.id);
+        setSquad(squadData || []);
+        
+        // Check Role
+        const me = squadData?.find(p => p.user_id === session.user.id);
+        if (me && (me.club_role === 'coach' || me.club_role === 'admin')) setIsCoach(true);
+
+        // 2. Events laden
+        const { data: eventData } = await supabase.from('club_events').select('*').eq('club_id', club.id).gte('start_time', new Date().toISOString()).order('start_time', { ascending: true });
+        setEvents(eventData || []);
+        
+        // NEU: Antworten laden für alle Events
+        if (eventData && eventData.length > 0) {
+            const eventIds = eventData.map(e => e.id);
+            // In Mock-Umgebung ist 'in' manchmal eingeschränkt, daher einfacher Mock-Fix
+            const { data: respData } = await supabase.from('club_event_responses')
+                .select('*, players_master(*)')
+                //.in('event_id', eventIds); // Echte API
+            setResponses(respData || []);
+        }
+
+        // 3. News laden
+        const { data: newsData } = await supabase.from('club_news').select('*').eq('club_id', club.id).order('created_at', { ascending: false });
+        setNews(newsData || []);
+
+    }, [club.id, session.user.id]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    // NEU: RSVP Handler
+    const handleResponse = async (eventId, status) => {
+        // Optimistic Update im UI
+        const newResponse = { event_id: eventId, user_id: session.user.id, status };
+        // Im echten Backend würde Upsert das erledigen
+        await supabase.from('club_event_responses').upsert({
+            event_id: eventId,
+            user_id: session.user.id,
+            status: status
+        });
+        fetchData(); // Reload um sicher zu gehen
+    };
+
+    // Helper: Get user's response for an event
+    const getUserResponse = (eventId) => {
+        return responses.find(r => r.event_id === eventId && r.user_id === session.user.id)?.status;
+    };
+
+    // Helper: Count responses
+    const getResponseCounts = (eventId) => {
+        const eventResponses = responses.filter(r => r.event_id === eventId);
+        return {
+            attending: eventResponses.filter(r => r.status === 'attending').length,
+            declined: eventResponses.filter(r => r.status === 'declined').length,
+            maybe: eventResponses.filter(r => r.status === 'maybe').length,
+            list: eventResponses
+        };
+    };
+
+    const TabButton = ({ id, label, icon: Icon }) => (
+        <button onClick={() => setActiveTab(id)} className={`flex-1 py-3 border-b-2 flex items-center justify-center gap-2 text-sm font-bold ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500'}`}>
+            <Icon size={16} /> {label}
+        </button>
+    );
+
+    return (
+        <div className="min-h-screen bg-black pb-20">
+            {/* Header */}
+            <div className="relative h-40 bg-zinc-900">
+                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                <button onClick={onBack} className="absolute top-4 left-4 p-2 bg-black/50 rounded-full text-white"><ArrowLeft size={20}/></button>
+                <div className="absolute bottom-4 left-4">
+                    <h1 className="text-2xl font-bold text-white">{club.name}</h1>
+                    <p className="text-zinc-400 text-xs">{club.league}</p>
                 </div>
             </div>
+
+            {/* Navigation */}
+            <div className="flex bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
+                <TabButton id="squad" label="Kader" icon={Users} />
+                <TabButton id="events" label="Termine" icon={CalendarDays} />
+                <TabButton id="news" label="News" icon={Megaphone} />
+            </div>
+
+            <div className="p-4 space-y-4">
+                {/* TAB: KADER */}
+                {activeTab === 'squad' && (
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-zinc-500 text-xs font-bold uppercase">{squad.length} Spieler</span>
+                            {/* Gamification: Spielerzähler */}
+                            {squad.length < 11 && <span className="text-amber-500 text-xs bg-amber-500/10 px-2 py-1 rounded">Noch {11-squad.length} bis Offiziell</span>}
+                        </div>
+                        {squad.map(p => (
+                            <div key={p.id} className="flex items-center gap-3 p-3 bg-zinc-900 rounded-xl border border-white/5">
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url && <img src={p.avatar_url} className="w-full h-full object-cover"/>}</div>
+                                <div>
+                                    <div className="text-white font-bold text-sm">{p.full_name} {p.club_role === 'coach' && '👑'}</div>
+                                    <div className="text-zinc-500 text-xs">{p.position_primary}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* TAB: EVENTS */}
+                {activeTab === 'events' && (
+                    <div className="space-y-3">
+                        {isCoach && (
+                            <button onClick={() => setShowAddEvent(true)} className="w-full py-3 border border-dashed border-zinc-700 text-zinc-400 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-900 transition">
+                                <Plus size={16} /> Termin hinzufügen
+                            </button>
+                        )}
+                        {events.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine anstehenden Termine.</div> : 
+                            events.map(ev => {
+                                const myStatus = getUserResponse(ev.id);
+                                const stats = getResponseCounts(ev.id);
+                                const isExpanded = expandedEvent === ev.id;
+                                
+                                return (
+                                    <div key={ev.id} className="bg-zinc-900 rounded-xl overflow-hidden border border-white/5">
+                                        <div className="flex gap-4 p-4 border-l-4 border-blue-500">
+                                            <div className="text-center min-w-[50px]">
+                                                <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
+                                                <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-white font-bold">{ev.title}</div>
+                                                <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
+                                                    <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                                                    • {ev.location}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* RSVP Buttons */}
+                                        <div className="flex border-t border-white/5 divide-x divide-white/5">
+                                            <button 
+                                                onClick={() => handleResponse(ev.id, 'attending')}
+                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'attending' ? 'bg-green-500/20 text-green-500' : 'text-zinc-400 hover:bg-white/5'}`}
+                                            >
+                                                <ThumbsUp size={14}/> Dabei
+                                            </button>
+                                            <button 
+                                                onClick={() => handleResponse(ev.id, 'maybe')}
+                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'maybe' ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-400 hover:bg-white/5'}`}
+                                            >
+                                                <HelpCircle size={14}/> Vllt.
+                                            </button>
+                                            <button 
+                                                onClick={() => handleResponse(ev.id, 'declined')}
+                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'declined' ? 'bg-red-500/20 text-red-500' : 'text-zinc-400 hover:bg-white/5'}`}
+                                            >
+                                                <ThumbsDown size={14}/> Absage
+                                            </button>
+                                        </div>
+
+                                        {/* Attendance Summary */}
+                                        <div 
+                                            onClick={() => setExpandedEvent(isExpanded ? null : ev.id)}
+                                            className="px-4 py-2 bg-black/20 flex justify-between items-center text-xs text-zinc-500 cursor-pointer hover:bg-black/40"
+                                        >
+                                            <div className="flex gap-3">
+                                                <span className="text-green-500">{stats.attending} zugesagt</span>
+                                                <span className="text-red-500">{stats.declined} abgesagt</span>
+                                            </div>
+                                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                        </div>
+
+                                        {/* Detail List (Only visible when expanded) */}
+                                        {isExpanded && (
+                                            <div className="p-3 bg-black/40 space-y-2 text-xs border-t border-white/5 animate-in slide-in-from-top-2">
+                                                {stats.list.length === 0 && <div className="text-zinc-600 italic">Noch keine Rückmeldungen.</div>}
+                                                {stats.list.map(resp => (
+                                                    <div key={resp.user_id} className="flex items-center justify-between">
+                                                        <span className="text-zinc-300">{resp.players_master?.full_name || "Unbekannt"}</span>
+                                                        {resp.status === 'attending' && <CheckCheck size={14} className="text-green-500"/>}
+                                                        {resp.status === 'declined' && <X size={14} className="text-red-500"/>}
+                                                        {resp.status === 'maybe' && <HelpCircle size={14} className="text-amber-500"/>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        }
+                    </div>
+                )}
+
+                {/* TAB: NEWS */}
+                {activeTab === 'news' && (
+                    <div className="space-y-4">
+                        {isCoach && (
+                            <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
+                                <input placeholder="Was gibt's Neues, Coach?" className="w-full bg-transparent text-white text-sm outline-none" />
+                            </div>
+                        )}
+                        {news.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine Neuigkeiten.</div> :
+                            news.map(n => (
+                                <div key={n.id} className="bg-zinc-900 p-4 rounded-xl border border-white/5">
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-blue-400 font-bold text-xs uppercase">{n.title}</span>
+                                        <span className="text-zinc-600 text-xs">{new Date(n.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-zinc-300 text-sm">{n.content}</p>
+                                </div>
+                            ))
+                        }
+                    </div>
+                )}
+            </div>
+
+            {/* Modals */}
+            {showAddEvent && <AddEventModal clubId={club.id} onClose={() => setShowAddEvent(false)} onRefresh={fetchData} />}
         </div>
     );
 };
 
-// ... ProfileScreen, ClubDashboard, AdminDashboard ... 
-// (Diese Komponenten werden hier der Kürze halber nicht erneut vollständig gezeigt, sind aber im Gesamtcode enthalten)
-
-// HINWEIS: Hier ist der vollständige Code für ClubDashboard und die restlichen Komponenten,
-// damit alles in einer Datei ist.
-
+// ... AddEventModal Component (Missing in snippet but logically present in flow, I'll add it for completeness)
 const AddEventModal = ({ clubId, onClose, onRefresh }) => {
     const [title, setTitle] = useState('');
     const [type, setType] = useState('training');
@@ -772,211 +1127,10 @@ const AddEventModal = ({ clubId, onClose, onRefresh }) => {
     );
 };
 
-const ClubDashboard = ({ club, session, onBack }) => {
-    const [activeTab, setActiveTab] = useState('squad'); 
-    const [events, setEvents] = useState([]);
-    const [news, setNews] = useState([]);
-    const [squad, setSquad] = useState([]);
-    const [showAddEvent, setShowAddEvent] = useState(false);
-    
-    // NEU: RSVP State
-    const [expandedEvent, setExpandedEvent] = useState(null);
-    const [responses, setResponses] = useState([]);
-    
-    const [isCoach, setIsCoach] = useState(false);
-
-    const fetchData = useCallback(async () => {
-        const { data: squadData } = await supabase.from('players_master').select('*').eq('club_id', club.id);
-        setSquad(squadData || []);
-        
-        const me = squadData?.find(p => p.user_id === session.user.id);
-        if (me && (me.club_role === 'coach' || me.club_role === 'admin')) setIsCoach(true);
-
-        const { data: eventData } = await supabase.from('club_events').select('*').eq('club_id', club.id).gte('start_time', new Date().toISOString()).order('start_time', { ascending: true });
-        setEvents(eventData || []);
-        
-        if (eventData && eventData.length > 0) {
-            const eventIds = eventData.map(e => e.id);
-            // In Mock-Umgebung ist 'in' manchmal eingeschränkt, daher einfacher Mock-Fix
-            const { data: respData } = await supabase.from('club_event_responses')
-                .select('*, players_master(*)')
-                //.in('event_id', eventIds); // Echte API
-            setResponses(respData || []);
-        }
-
-        const { data: newsData } = await supabase.from('club_news').select('*').eq('club_id', club.id).order('created_at', { ascending: false });
-        setNews(newsData || []);
-
-    }, [club.id, session.user.id]);
-
-    useEffect(() => { fetchData(); }, [fetchData]);
-
-    const handleResponse = async (eventId, status) => {
-        // Optimistic Update
-        const newResponse = { event_id: eventId, user_id: session.user.id, status };
-        // Upsert Logic
-        await supabase.from('club_event_responses').upsert(newResponse);
-        fetchData();
-    };
-
-    const getUserResponse = (eventId) => {
-        return responses.find(r => r.event_id === eventId && r.user_id === session.user.id)?.status;
-    };
-
-    const getResponseCounts = (eventId) => {
-        const eventResponses = responses.filter(r => r.event_id === eventId);
-        return {
-            attending: eventResponses.filter(r => r.status === 'attending').length,
-            declined: eventResponses.filter(r => r.status === 'declined').length,
-            maybe: eventResponses.filter(r => r.status === 'maybe').length,
-            list: eventResponses
-        };
-    };
-
-    const TabButton = ({ id, label, icon: Icon }) => (
-        <button onClick={() => setActiveTab(id)} className={`flex-1 py-3 border-b-2 flex items-center justify-center gap-2 text-sm font-bold ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500'}`}>
-            <Icon size={16} /> {label}
-        </button>
-    );
-
-    return (
-        <div className="min-h-screen bg-black pb-20">
-            <div className="relative h-40 bg-zinc-900">
-                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30" />}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <button onClick={onBack} className="absolute top-4 left-4 p-2 bg-black/50 rounded-full text-white"><ArrowLeft size={20}/></button>
-                <div className="absolute bottom-4 left-4">
-                    <h1 className="text-2xl font-bold text-white">{club.name}</h1>
-                    <p className="text-zinc-400 text-xs">{club.league}</p>
-                </div>
-            </div>
-
-            <div className="flex bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
-                <TabButton id="squad" label="Kader" icon={Users} />
-                <TabButton id="events" label="Termine" icon={CalendarDays} />
-                <TabButton id="news" label="News" icon={Megaphone} />
-            </div>
-
-            <div className="p-4 space-y-4">
-                {activeTab === 'squad' && (
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-zinc-500 text-xs font-bold uppercase">{squad.length} Spieler</span>
-                            {squad.length < 11 && <span className="text-amber-500 text-xs bg-amber-500/10 px-2 py-1 rounded">Noch {11-squad.length} bis Offiziell</span>}
-                        </div>
-                        {squad.map(p => (
-                            <div key={p.id} className="flex items-center gap-3 p-3 bg-zinc-900 rounded-xl border border-white/5">
-                                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url && <img src={p.avatar_url} className="w-full h-full object-cover"/>}</div>
-                                <div>
-                                    <div className="text-white font-bold text-sm">{p.full_name} {p.club_role === 'coach' && '👑'}</div>
-                                    <div className="text-zinc-500 text-xs">{p.position_primary}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {activeTab === 'events' && (
-                    <div className="space-y-3">
-                        {isCoach && (
-                            <button onClick={() => setShowAddEvent(true)} className="w-full py-3 border border-dashed border-zinc-700 text-zinc-400 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-900 transition">
-                                <Plus size={16} /> Termin hinzufügen
-                            </button>
-                        )}
-                        {events.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine anstehenden Termine.</div> : 
-                            events.map(ev => {
-                                const myStatus = getUserResponse(ev.id);
-                                const stats = getResponseCounts(ev.id);
-                                const isExpanded = expandedEvent === ev.id;
-                                
-                                return (
-                                    <div key={ev.id} className="bg-zinc-900 rounded-xl overflow-hidden border border-white/5">
-                                        <div className="flex gap-4 p-4 border-l-4 border-blue-500">
-                                            <div className="text-center min-w-[50px]">
-                                                <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
-                                                <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-white font-bold">{ev.title}</div>
-                                                <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
-                                                    <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                                                    • {ev.location}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex border-t border-white/5 divide-x divide-white/5">
-                                            <button onClick={() => handleResponse(ev.id, 'attending')} className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'attending' ? 'bg-green-500/20 text-green-500' : 'text-zinc-400 hover:bg-white/5'}`}><ThumbsUp size={14}/> Dabei</button>
-                                            <button onClick={() => handleResponse(ev.id, 'maybe')} className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'maybe' ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-400 hover:bg-white/5'}`}><HelpCircle size={14}/> Vllt.</button>
-                                            <button onClick={() => handleResponse(ev.id, 'declined')} className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'declined' ? 'bg-red-500/20 text-red-500' : 'text-zinc-400 hover:bg-white/5'}`}><ThumbsDown size={14}/> Absage</button>
-                                        </div>
-
-                                        <div onClick={() => setExpandedEvent(isExpanded ? null : ev.id)} className="px-4 py-2 bg-black/20 flex justify-between items-center text-xs text-zinc-500 cursor-pointer hover:bg-black/40">
-                                            <div className="flex gap-3">
-                                                <span className="text-green-500">{stats.attending} zugesagt</span>
-                                                <span className="text-red-500">{stats.declined} abgesagt</span>
-                                            </div>
-                                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className="p-3 bg-black/40 space-y-2 text-xs border-t border-white/5 animate-in slide-in-from-top-2">
-                                                {stats.list.length === 0 && <div className="text-zinc-600 italic">Noch keine Rückmeldungen.</div>}
-                                                {stats.list.map(resp => (
-                                                    <div key={resp.user_id} className="flex items-center justify-between">
-                                                        <span className="text-zinc-300">{resp.players_master?.full_name || "Unbekannt"}</span>
-                                                        {resp.status === 'attending' && <CheckCheck size={14} className="text-green-500"/>}
-                                                        {resp.status === 'declined' && <X size={14} className="text-red-500"/>}
-                                                        {resp.status === 'maybe' && <HelpCircle size={14} className="text-amber-500"/>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        }
-                    </div>
-                )}
-
-                {activeTab === 'news' && (
-                    <div className="space-y-4">
-                        {isCoach && (
-                            <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
-                                <input placeholder="Was gibt's Neues, Coach?" className="w-full bg-transparent text-white text-sm outline-none" />
-                            </div>
-                        )}
-                        {news.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine Neuigkeiten.</div> :
-                            news.map(n => (
-                                <div key={n.id} className="bg-zinc-900 p-4 rounded-xl border border-white/5">
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-blue-400 font-bold text-xs uppercase">{n.title}</span>
-                                        <span className="text-zinc-600 text-xs">{new Date(n.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-zinc-300 text-sm">{n.content}</p>
-                                </div>
-                            ))
-                        }
-                    </div>
-                )}
-            </div>
-
-            {showAddEvent && <AddEventModal clubId={club.id} onClose={() => setShowAddEvent(false)} onRefresh={fetchData} />}
-        </div>
-    );
-};
-
-const AdminDashboard = ({ session }) => {
-    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
-    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
-    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
-    useEffect(() => { fetchPending(); fetchReports(); }, []);
-    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
-    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
-    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
-};
-
 // --- 6. MAIN APP UPDATE ---
+// Der App-Komponente bleibt weitestgehend gleich, wir müssen nur das Routing für den ClubScreen anpassen,
+// damit er jetzt das 'ClubDashboard' rendert, wenn man draufklickt.
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [session, setSession] = useState(null);
