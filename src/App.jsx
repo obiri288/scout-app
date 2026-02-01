@@ -29,6 +29,77 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
+// NEU: DUAL RANGE SLIDER KOMPONENTE
+const DualRangeSlider = ({ min, max, value, onChange, formatLabel }) => {
+  const [minVal, maxVal] = value;
+  const minRef = useRef(null);
+  const maxRef = useRef(null);
+  const range = useRef(null);
+
+  // Prozentberechnung für den blauen Balken
+  const getPercent = useCallback((value) => Math.round(((value - min) / (max - min)) * 100), [min, max]);
+
+  // Setzt die linke Seite des Balkens
+  useEffect(() => {
+    const minPercent = getPercent(minVal);
+    const maxPercent = getPercent(maxVal); 
+
+    if (range.current) {
+      range.current.style.left = `${minPercent}%`;
+      range.current.style.width = `${maxPercent - minPercent}%`;
+    }
+  }, [minVal, getPercent, maxVal]);
+
+  // Styles direkt injizieren für Webkit-Thumb Styling
+  const sliderStyles = `
+    .thumb { pointer-events: none; position: absolute; height: 0; width: 100%; outline: none; z-index: 20; }
+    .thumb::-webkit-slider-thumb { -webkit-appearance: none; -webkit-tap-highlight-color: transparent; background-color: white; border: 2px solid #2563eb; border-radius: 50%; cursor: pointer; height: 18px; width: 18px; margin-top: 4px; pointer-events: all; position: relative; }
+    .thumb::-moz-range-thumb { -webkit-appearance: none; -webkit-tap-highlight-color: transparent; background-color: white; border: 2px solid #2563eb; border-radius: 50%; cursor: pointer; height: 18px; width: 18px; margin-top: 4px; pointer-events: all; position: relative; }
+    .slider-track-bg { position: absolute; width: 100%; height: 4px; background-color: #3f3f46; border-radius: 3px; z-index: 1; }
+    .slider-track-fill { position: absolute; height: 4px; background-color: #2563eb; border-radius: 3px; z-index: 2; }
+  `;
+
+  return (
+    <div className="relative w-full h-12 flex items-center justify-center select-none touch-none">
+      <style>{sliderStyles}</style>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={minVal}
+        ref={minRef}
+        onChange={(event) => {
+          const value = Math.min(Number(event.target.value), maxVal - 1);
+          onChange([value, maxVal]);
+        }}
+        className="thumb"
+        style={{ zIndex: minVal > max - 100 ? "5" : "3" }}
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={maxVal}
+        ref={maxRef}
+        onChange={(event) => {
+          const value = Math.max(Number(event.target.value), minVal + 1);
+          onChange([minVal, value]);
+        }}
+        className="thumb"
+        style={{ zIndex: 4 }}
+      />
+
+      <div className="relative w-full">
+        <div className="slider-track-bg" />
+        <div ref={range} className="slider-track-fill" />
+        <div className="absolute top-4 left-0 text-xs text-zinc-400 font-mono font-bold mt-1">{formatLabel ? formatLabel(minVal) : minVal}</div>
+        <div className="absolute top-4 right-0 text-xs text-zinc-400 font-mono font-bold mt-1">{formatLabel ? formatLabel(maxVal) : maxVal}</div>
+      </div>
+    </div>
+  );
+};
+
+
 // Generiert ein Thumbnail aus einem Video-File (Client-Side)
 const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
@@ -358,8 +429,6 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
     );
 };
 
-// --- FEHLENDE MODALS WIEDER EINGEFÜGT ---
-
 const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
     const [text, setText] = useState('');
@@ -481,8 +550,6 @@ const WatchlistModal = ({ session, onClose, onUserClick }) => {
         </div>
     );
 };
-
-// ... ENDE DER EINGEFÜGTEN MODALS
 
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
