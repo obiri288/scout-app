@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
+// HINWEIS FÜR LOKALE ENTWICKLUNG (VS CODE):
+// 1. Führen Sie im Terminal aus: npm install @supabase/supabase-js
+// 2. Entfernen Sie die zwei Slashes (//) vor dem Import unten:
+// import { createClient } from '@supabase/supabase-js'; 
+
 import { 
   Loader2, Play, CheckCircle, X, Plus, LogIn, LogOut, User, Home, Search, 
   Activity, MoreHorizontal, Heart, MessageCircle, Send, ArrowLeft, Settings, 
@@ -9,16 +13,15 @@ import {
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
   Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck, SlidersHorizontal, 
-  BookMarked, Bookmark
+  BookMarked, Bookmark, CalendarDays, Megaphone, Clock
 } from 'lucide-react';
 
 // --- 1. KONFIGURATION ---
 
-// DEINE ECHTEN SUPABASE CREDENTIALS
+// DEINE ECHTEN SUPABASE CREDENTIALS (Wichtig für lokal)
 const supabaseUrl = "https://wwdfagjgnliwraqrwusc.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3ZGZhZ2pnbmxpd3JhcXJ3dXNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3MjIwOTksImV4cCI6MjA4MTI5ODA5OX0.CqYfeZG_qrqeHE5PvqVviA-XYMcO0DhG51sKdIKAmJM";
 
-const supabase = createClient(supabaseUrl, supabaseKey);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
 
 // --- 2. HELFER & STYLES ---
@@ -81,7 +84,143 @@ const calculateAge = (birthDate) => {
     return age;
 };
 
-// --- 3. HOOKS ---
+// --- 3. DATENBANK LOGIK (Mock für Vorschau, Real für Local) ---
+
+const MOCK_USER_ID = "user-123";
+const STORAGE_KEY_SESSION = 'scoutvision_mock_session';
+const STORAGE_KEY_DB = 'scoutvision_mock_db';
+
+const INITIAL_DB = {
+    players_master: [
+        { 
+            id: 99, 
+            user_id: "user-demo", 
+            full_name: "Nico Schlotterbeck", 
+            first_name: "Nico", last_name: "Schlotterbeck",
+            position_primary: "IV", transfer_status: "Gebunden", 
+            avatar_url: "https://images.unsplash.com/photo-1522778119026-d647f0565c6a?w=400&h=400&fit=crop", 
+            clubs: { id: 103, name: "BVB 09", short_name: "BVB", league: "Bundesliga", is_icon_league: true, color_primary: "#fbbf24", color_secondary: "#000000", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB" }, 
+            club_id: 103, club_role: 'coach',
+            followers_count: 850, is_verified: true, height_user: 191, weight: 86, strong_foot: "Links", birth_date: "1999-12-01", jersey_number: 4, nationality: "Deutschland"
+        },
+        { 
+            id: 100, 
+            user_id: "user-test2", 
+            full_name: "Jamal Musiala", 
+            first_name: "Jamal", last_name: "Musiala",
+            position_primary: "ZOM", transfer_status: "Vertrag läuft aus", 
+            avatar_url: "https://images.unsplash.com/photo-1511886929837-354d827aae26?w=400&h=400&fit=crop", 
+            clubs: { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", color_primary: "#dc2626" }, 
+            followers_count: 1200, is_verified: true, height_user: 184, weight: 72, strong_foot: "Rechts", birth_date: "2003-02-26", jersey_number: 42, nationality: "Deutschland"
+        },
+    ],
+    clubs: [
+        { id: 101, name: "FC Bayern München", short_name: "FCB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/dc2626/ffffff?text=FCB", is_verified: true, color_primary: "#dc2626", color_secondary: "#ffffff" },
+        { id: 102, name: "FC Schalke 04", short_name: "S04", league: "2. Bundesliga", logo_url: "https://placehold.co/100x100/1d4ed8/ffffff?text=S04", is_verified: true, color_primary: "#1d4ed8", color_secondary: "#ffffff" },
+        { id: 103, name: "Borussia Dortmund", short_name: "BVB", league: "Bundesliga", logo_url: "https://placehold.co/100x100/fbbf24/000000?text=BVB", is_verified: true, color_primary: "#fbbf24", color_secondary: "#000000" }
+    ],
+    media_highlights: [
+        { id: 1001, player_id: 99, video_url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", thumbnail_url: "", category_tag: "Training", likes_count: 124, created_at: new Date().toISOString() },
+    ],
+    club_events: [
+        { id: 1, club_id: 103, title: "Abschlusstraining", type: "training", start_time: new Date(Date.now() + 86400000).toISOString(), location: "Trainingsplatz 1" },
+        { id: 2, club_id: 103, title: "Heimspiel vs. FCB", type: "match", start_time: new Date(Date.now() + 172800000).toISOString(), location: "Stadion" }
+    ],
+    club_news: [
+        { id: 1, club_id: 103, title: "Kaderbekanntgabe", content: "Treffpunkt am Samstag um 13:00 Uhr.", created_at: new Date().toISOString() }
+    ],
+    scout_watchlist: [],
+    direct_messages: [],
+    media_likes: [],
+    media_comments: [],
+    follows: [],
+    notifications: []
+};
+
+// Lädt DB aus LocalStorage
+const loadDB = () => {
+    try { const s = localStorage.getItem(STORAGE_KEY_DB); return s ? JSON.parse(s) : JSON.parse(JSON.stringify(INITIAL_DB)); } catch { return JSON.parse(JSON.stringify(INITIAL_DB)); }
+};
+const saveDB = (db) => localStorage.setItem(STORAGE_KEY_DB, JSON.stringify(db));
+
+// Simulation des Supabase Clients
+const createMockClient = () => {
+    let currentSession = null; 
+    let authListener = null;
+    let db = loadDB();
+    const tempStorage = new Map();
+
+    try { const s = localStorage.getItem(STORAGE_KEY_SESSION); if (s) currentSession = JSON.parse(s); } catch (e) {}
+    const notify = (event, session) => { if (authListener) authListener(event, session); };
+
+    return {
+        auth: {
+            getSession: async () => ({ data: { session: currentSession } }),
+            onAuthStateChange: (cb) => { authListener = cb; if (currentSession) cb('SIGNED_IN', currentSession); return { data: { subscription: { unsubscribe: () => { authListener = null; } } } }; },
+            signInWithPassword: async ({ email }) => { await new Promise(r => setTimeout(r, 500)); currentSession = { user: { id: MOCK_USER_ID, email } }; localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession)); notify('SIGNED_IN', currentSession); return { data: { user: currentSession.user, session: currentSession }, error: null }; },
+            signUp: async ({ email }) => { await new Promise(r => setTimeout(r, 500)); currentSession = { user: { id: MOCK_USER_ID, email } }; localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(currentSession)); notify('SIGNED_IN', currentSession); return { data: { user: currentSession.user, session: currentSession }, error: null }; },
+            signOut: async () => { currentSession = null; localStorage.removeItem(STORAGE_KEY_SESSION); notify('SIGNED_OUT', null); return { error: null }; }
+        },
+        from: (table) => {
+            db = loadDB(); const tableData = db[table] || []; let filtered = [...tableData];
+            return {
+                select: (query) => {
+                    // Simuliere Joins (einfach)
+                    if (table === 'media_highlights' && query?.includes('players_master')) {
+                        filtered = filtered.map(item => ({...item, players_master: db.players_master.find(p => p.id === item.player_id)}));
+                    }
+                    if (table === 'media_comments' && query?.includes('auth.users')) {
+                         filtered = filtered.map(item => ({...item, users: {id: item.user_id}}));
+                    }
+                    if (table === 'players_master') {
+                        filtered = filtered.map(p => {
+                            if (p.clubs && typeof p.clubs === 'object') return p; 
+                            return p; 
+                        });
+                    }
+                    if (table === 'scout_watchlist' && query?.includes('players_master')) {
+                         filtered = filtered.map(item => { const p = db.players_master.find(pm => pm.id === item.player_id); return { ...item, players_master: p }; }).filter(item => item.players_master); 
+                    }
+                    if (query?.includes('order')) { filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); }
+                    return helper(filtered);
+                },
+                insert: async (obj) => { const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; if(!db[table]) db[table] = []; db[table].unshift(newItem); saveDB(db); return { data: [newItem], error: null }; },
+                update: (obj) => ({ eq: (col, val) => { const idx = db[table].findIndex(r => r[col] == val); let res = { data: null, error: "Not found" }; if(idx >= 0) { db[table][idx] = { ...db[table][idx], ...obj }; saveDB(db); res = { data: db[table][idx], error: null }; } return { select: () => ({ single: () => res }) }; }}),
+                delete: () => ({ match: (filter) => { if (!db[table]) return { error: null }; db[table] = db[table].filter(row => !Object.keys(filter).every(key => row[key] === filter[key])); saveDB(db); return { error: null }; }}),
+                upsert: async (obj) => { if (!db[table]) db[table] = []; const existingIdx = db[table].findIndex(r => r.user_id === obj.user_id); let result; if (existingIdx >= 0) { db[table][existingIdx] = { ...db[table][existingIdx], ...obj }; result = db[table][existingIdx]; } else { result = { ...obj, id: Date.now(), followers_count: 0 }; db[table].push(result); } saveDB(db); return { data: result, error: null }; }
+            };
+            function helper(d) { return { 
+                eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
+                ilike: (c,v) => helper(d.filter(r=>r[c]?.toLowerCase().includes(v.replace(/%/g,'').toLowerCase()))), 
+                in: (c,v) => helper(d.filter(r=>v.includes(r[c]))),
+                match: (obj) => helper(d.filter(r => Object.keys(obj).every(k => r[k] === obj[k]))), 
+                gte: (c,v) => helper(d.filter(r => r[c] >= v)),
+                lte: (c,v) => helper(d.filter(r => r[c] <= v)),
+                or: () => helper(d), 
+                order: () => helper(d), 
+                limit: () => helper(d), 
+                maybeSingle: () => ({ data: d[0]||null, error: null }), 
+                single: () => ({ data: d[0]||null, error: null }), 
+                then: (cb) => cb({ data: d, error: null }) 
+            };}
+        },
+        storage: { from: () => ({ upload: async (path, file) => { const url = URL.createObjectURL(file); tempStorage.set(path, url); return { error: null }; }, getPublicUrl: (path) => { const url = tempStorage.get(path) || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"; return { data: { publicUrl: url } }; } })},
+        channel: () => ({ on: () => ({ subscribe: () => {} }), subscribe: () => {} }),
+        removeChannel: () => {}
+    };
+};
+
+// --- HIER WIRD UMGESCHALTET ---
+
+// 1. FÜR VORSCHAU IM BROWSER: Mock Client verwenden (Standard)
+const supabase = createMockClient();
+
+// 2. FÜR LOKALE ENTWICKLUNG (VS Code):
+// Kommentieren Sie die Zeile oben aus und aktivieren Sie die Zeile unten:
+// const supabase = createClient(supabaseUrl, supabaseKey); 
+
+
+// --- 4. HOOKS ---
 
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
@@ -136,37 +275,27 @@ const useSmartProfile = (session) => {
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
-// --- 4. UI KOMPONENTEN ---
+// --- 5. UI KOMPONENTEN ---
 
 class SafeErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
     static getDerivedStateFromError(error) { return { hasError: true }; }
     componentDidCatch(error, errorInfo) { console.error("UI Error:", error, errorInfo); }
     render() {
-      if (this.state.hasError) {
-        return (
-          <div className="p-6 text-center text-white bg-zinc-900 rounded-xl m-4 border border-red-500/30">
-            <AlertTriangle className="mx-auto text-red-500 mb-2" size={32} />
-            <h3 className="font-bold mb-2">Ein Fehler ist aufgetreten</h3>
-            <button onClick={() => this.setState({ hasError: false })} className="px-4 py-2 bg-zinc-800 rounded-lg text-sm">Neustarten</button>
-          </div>
-        );
-      }
+      if (this.state.hasError) return <div className="p-4 text-red-500 bg-red-500/10 rounded-xl m-4">Ein Fehler ist aufgetreten.</div>;
       return this.props.children; 
     }
 }
 
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-in fade-in zoom-in-95">
-        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl shadow-blue-900/10 relative overflow-hidden">
+        <div className="w-24 h-24 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 border border-white/10 shadow-2xl relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent"></div>
             <Icon size={40} className="text-zinc-500 relative z-10" />
         </div>
         <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
         <p className="text-zinc-400 mb-8 max-w-xs leading-relaxed text-sm">{text}</p>
-        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>
-            Jetzt anmelden / registrieren
-        </button>
+        <button onClick={onLogin} className={`${btnPrimary} w-full max-w-xs`}>Anmelden</button>
     </div>
 );
 
@@ -205,17 +334,7 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
 
 const VerificationModal = ({ onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
-    
-    const handleUpload = async () => {
-        setUploading(true);
-        // Simulierter Upload für den Prototyp (hier würde man ein echtes Dokument an einen privaten Bucket senden)
-        await new Promise(r => setTimeout(r, 1500));
-        alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.");
-        setUploading(false);
-        onUploadComplete();
-        onClose();
-    };
-
+    const handleUpload = async () => { setUploading(true); await new Promise(r => setTimeout(r, 1500)); alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status."); setUploading(false); onUploadComplete(); onClose(); };
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
             <div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}>
@@ -223,7 +342,6 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
                     <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
                     <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
                 </div>
-                
                 <div className="space-y-6">
                     <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
                         Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
@@ -231,7 +349,6 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
                         <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
                         <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
-                        <p className="text-xs text-zinc-500 mt-1">JPG, PNG oder PDF</p>
                         <input type="file" className="hidden" onChange={handleUpload} />
                     </label>
                     {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
@@ -241,6 +358,8 @@ const VerificationModal = ({ onClose, onUploadComplete }) => {
     );
 };
 
+// --- FEHLENDE MODALS WIEDER EINGEFÜGT ---
+
 const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
     const [text, setText] = useState('');
@@ -249,18 +368,14 @@ const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     useEffect(() => {
         const fetchComments = async () => {
             const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true });
-            // In einer echten App würden wir hier die User-Daten (Name, Avatar) über die public.players_master Tabelle joinen.
-            // Der Einfachheit halber zeigen wir hier nur den Text an.
             setComments(data || []);
             setLoading(false);
         };
         fetchComments();
         
-        // Realtime Subscription für neue Kommentare
         const channel = supabase.channel('comments').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, payload => {
             setComments(prev => [...prev, payload.new]);
         }).subscribe();
-
         return () => { supabase.removeChannel(channel); };
     }, [video.id]);
 
@@ -268,7 +383,6 @@ const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         e.preventDefault();
         if (!session) return onLoginReq();
         if (!text.trim()) return;
-        
         await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text });
         setText('');
     };
@@ -283,9 +397,7 @@ const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500"/> : comments.length === 0 ? <p className="text-zinc-500 text-center text-sm">Noch keine Kommentare.</p> : 
                     comments.map(c => (
-                        <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">
-                            {c.content}
-                        </div>
+                        <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">{c.content}</div>
                     ))}
                 </div>
                 <form onSubmit={sendComment} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2">
@@ -303,17 +415,15 @@ const WatchlistModal = ({ session, onClose, onUserClick }) => {
     const [editingNote, setEditingNote] = useState(null); 
     const [noteText, setNoteText] = useState("");
 
-    const fetchWatchlist = async () => {
-        setLoading(true);
-        const { data } = await supabase.from('scout_watchlist')
-            .select('*, players_master(*, clubs(*))')
-            .eq('scout_id', session.user.id)
-            .order('created_at', { ascending: false });
-        setList(data || []);
-        setLoading(false);
-    };
-
-    useEffect(() => { fetchWatchlist(); }, []);
+    useEffect(() => {
+        const fetchWatchlist = async () => {
+            setLoading(true);
+            const { data } = await supabase.from('scout_watchlist').select('*, players_master(*, clubs(*))').eq('scout_id', session.user.id).order('created_at', { ascending: false });
+            setList(data || []);
+            setLoading(false);
+        };
+        fetchWatchlist();
+    }, []);
 
     const handleRemove = async (playerId) => {
         await supabase.from('scout_watchlist').delete().match({ scout_id: session.user.id, player_id: playerId });
@@ -333,7 +443,6 @@ const WatchlistModal = ({ session, onClose, onUserClick }) => {
                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor" size={20}/> Merkliste</h2>
                     <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-zinc-500"/></div> : (
                         list.length === 0 ? <div className="text-center text-zinc-500 py-10">Noch keine Spieler gemerkt.</div> :
@@ -352,25 +461,14 @@ const WatchlistModal = ({ session, onClose, onUserClick }) => {
                                     </div>
                                     <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-zinc-500 hover:text-red-500"><Trash2 size={16}/></button>
                                 </div>
-                                
-                                {/* Notiz Bereich */}
                                 <div className="mt-3 pt-2 border-t border-white/5">
                                     {editingNote === item.id ? (
                                         <div className="flex gap-2">
-                                            <input 
-                                                autoFocus
-                                                className="flex-1 bg-black/30 text-xs text-white p-2 rounded-lg outline-none border border-blue-500/50"
-                                                value={noteText}
-                                                onChange={e => setNoteText(e.target.value)}
-                                                placeholder="Notiz für diesen Spieler..."
-                                            />
+                                            <input autoFocus className="flex-1 bg-black/30 text-xs text-white p-2 rounded-lg outline-none border border-blue-500/50" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Notiz..." />
                                             <button onClick={() => handleSaveNote(item.id)} className="text-blue-500 font-bold text-xs">OK</button>
                                         </div>
                                     ) : (
-                                        <div 
-                                            onClick={() => { setEditingNote(item.id); setNoteText(item.note || ""); }}
-                                            className="text-xs text-zinc-500 flex items-center gap-2 cursor-pointer hover:text-zinc-300"
-                                        >
+                                        <div onClick={() => { setEditingNote(item.id); setNoteText(item.note || ""); }} className="text-xs text-zinc-500 flex items-center gap-2 cursor-pointer hover:text-zinc-300">
                                             <NotebookPen size={12}/> {item.note || "Notiz hinzufügen..."}
                                         </div>
                                     )}
@@ -384,6 +482,8 @@ const WatchlistModal = ({ session, onClose, onUserClick }) => {
     );
 };
 
+// ... ENDE DER EINGEFÜGTEN MODALS
+
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
     if (!user) return null;
@@ -393,31 +493,10 @@ const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onReque
     const handleDeleteAccount = () => { if(confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) { onLogout(); alert("Account gelöscht."); } };
     const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
         <button onClick={onClick} className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-white/5'}`}>
-            <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div>
-            <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
+            <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-100' : 'text-zinc-200 group-hover:text-white'}`}>{label}</span></div><ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-zinc-600 group-hover:text-zinc-400'} />
         </button>
     );
-    return (
-        <div className="fixed inset-0 z-[10000] flex justify-end">
-             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-             <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                 <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
-                     <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2>
-                     <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
-                 </div>
-                 <SafeErrorBoundary>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} /><SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div>
-                        <div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div>
-                        <div className="text-center text-zinc-700 text-xs py-4">v2.4.0 Live</div>
-                    </div>
-                 </SafeErrorBoundary>
-                 {showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}
-             </div>
-        </div>
-    );
+    return (<div className="fixed inset-0 z-[10000] flex justify-end"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div><div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"><div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10"><h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18}/> Einstellungen</h2><button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button></div><SafeErrorBoundary><div className="flex-1 overflow-y-auto p-4 space-y-6"><div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label="App installieren" onClick={onInstallApp} /><SettingsItem icon={Bell} label="Benachrichtigungen" onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div><div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div><div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div><div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div></div></SafeErrorBoundary>{showToast && (<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2 whitespace-nowrap z-20">{showToast}</div>)}</div></div>);
 };
 
 const LoginModal = ({ onClose, onSuccess }) => {
@@ -552,7 +631,6 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
     setUploading(true);
     setProgress(10);
     
-    // Simulierter Progress (Supabase hat keinen nativen Progress-Listener im Standard-Client)
     const progressInterval = setInterval(() => {
         setProgress(p => Math.min(p + Math.random() * 5, 90));
     }, 500);
@@ -562,7 +640,6 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
         const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
         const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
         
-        // 1. Thumbnail Generieren & Uploaden
         let thumbUrl = null;
         try {
             const thumbBlob = await generateVideoThumbnail(file);
@@ -576,13 +653,11 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
             thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video";
         }
 
-        // 2. Video Upload
         const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file); 
         if (upErr) throw upErr; 
         
         const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName); 
         
-        // 3. Datenbank Eintrag (MIT CREATED_AT FIX)
         const { error: dbErr } = await supabase.from('media_highlights').insert({ 
             player_id: player.id, 
             video_url: publicUrl, 
@@ -699,336 +774,18 @@ const UploadModal = ({ player, onClose, onUploadComplete }) => {
 };
 
 const EditProfileModal = ({ player, onClose, onUpdate }) => {
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('general'); // 'general', 'sport', 'social'
+  const [loading, setLoading] = useState(false); const [formData, setFormData] = useState({ full_name: player.full_name || '', position_primary: player.position_primary || 'ZOM', height_user: player.height_user || '', strong_foot: player.strong_foot || 'Rechts', club_id: player.club_id || '', transfer_status: player.transfer_status || 'Gebunden', instagram_handle: player.instagram_handle || '', tiktok_handle: player.tiktok_handle || '', youtube_handle: player.youtube_handle || '', birth_date: player.birth_date || '', jersey_number: player.jersey_number || '', nationality: player.nationality || '' });
+  const [avatarFile, setAvatarFile] = useState(null); const [previewUrl, setPreviewUrl] = useState(player.avatar_url); const [clubSearch, setClubSearch] = useState(''); const [clubResults, setClubResults] = useState([]); const [selectedClub, setSelectedClub] = useState(player.clubs || null); const [showCreateClub, setShowCreateClub] = useState(false); const [newClubData, setNewClubData] = useState({ name: '', league: 'Kreisliga' });
+  useEffect(() => { if (clubSearch.length < 2) { setClubResults([]); return; } const t = setTimeout(async () => { const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5); setClubResults(data || []); }, 300); return () => clearTimeout(t); }, [clubSearch]);
+  const handleCreateClub = async () => { if(!newClubData.name) return; setLoading(true); try { const { data } = await supabase.from('clubs').insert({ name: newClubData.name, league: newClubData.league }).select().single(); setSelectedClub(data); setShowCreateClub(false); } catch(e){} finally { setLoading(false); } }
+  const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { let av = player.avatar_url; if (avatarFile) { const p = `${player.user_id}/${Date.now()}.jpg`; await supabase.storage.from('avatars').upload(p, avatarFile); const { data } = supabase.storage.from('avatars').getPublicUrl(p); av = data.publicUrl; } const { data } = await supabase.from('players_master').update({ ...formData, height_user: formData.height_user ? parseInt(formData.height_user) : null, avatar_url: av, club_id: selectedClub?.id || null }).eq('id', player.id).select('*, clubs(*)').single(); onUpdate(data); onClose(); } catch(e){ alert(e.message); } finally { setLoading(false); } };
   
-  // Intelligente Initialisierung: Versucht Namen zu splitten, falls keine separaten Felder existieren
-  const initialFirstName = player.first_name || (player.full_name ? player.full_name.split(' ')[0] : '');
-  const initialLastName = player.last_name || (player.full_name ? player.full_name.split(' ').slice(1).join(' ') : '');
-
-  const [formData, setFormData] = useState({ 
-      first_name: initialFirstName,
-      last_name: initialLastName,
-      position_primary: player.position_primary || 'ZOM', 
-      position_secondary: player.position_secondary || '', 
-      height_user: player.height_user || '', 
-      weight: player.weight || '',
-      strong_foot: player.strong_foot || 'Rechts', 
-      transfer_status: player.transfer_status || 'Gebunden',
-      contract_end: player.contract_end || '',
-      bio: player.bio || '',
-      zip_code: player.zip_code || '',
-      city: player.city || '',
-      instagram_handle: player.instagram_handle || '', 
-      tiktok_handle: player.tiktok_handle || '', 
-      youtube_handle: player.youtube_handle || '',
-      transfermarkt_url: player.transfermarkt_url || '',
-      fupa_url: player.fupa_url || '',
-      birth_date: player.birth_date || '',
-      jersey_number: player.jersey_number || '',
-      nationality: player.nationality || ''
-  });
-
-  const [avatarFile, setAvatarFile] = useState(null); 
-  const [previewUrl, setPreviewUrl] = useState(player.avatar_url); 
-  
-  // Club Search
-  const [clubSearch, setClubSearch] = useState(''); 
-  const [clubResults, setClubResults] = useState([]); 
-  const [selectedClub, setSelectedClub] = useState(player.clubs || null); 
-  const [isSearching, setIsSearching] = useState(false);
-
-  // Suche Logik (Mock-Simulation für Preview, in echter App supabase query)
-  useEffect(() => { 
-      if (clubSearch.length < 2) { setClubResults([]); return; } 
-      const t = setTimeout(async () => { 
-          // Hier würde die echte Supabase-Suche stehen
-          const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5);
-          setClubResults(data || []);
-      }, 300); 
-      return () => clearTimeout(t); 
-  }, [clubSearch]);
-
-  const handleCreateClub = async () => {
-    if(!clubSearch.trim()) return; 
-    setLoading(true); 
-    try { 
-        const { data } = await supabase.from('clubs').insert({ name: clubSearch, league: 'Kreisliga', is_verified: false }).select().single(); 
-        setSelectedClub(data); 
-        setClubSearch('');
-        setClubResults([]);
-    } catch(e){ alert(e.message); } 
-    finally { setLoading(false); } 
-  };
-
-  const handleSave = async (e) => { 
-      e.preventDefault(); 
-      setLoading(true); 
-      try { 
-          let av = player.avatar_url; 
-          if (avatarFile) { 
-              const p = `${player.user_id}/${Date.now()}.jpg`; 
-              await supabase.storage.from('avatars').upload(p, avatarFile); 
-              const { data } = supabase.storage.from('avatars').getPublicUrl(p); 
-              av = data.publicUrl; 
-          } 
-          
-          // ZUSAMMENBAUEN
-          const full_name = `${formData.first_name} ${formData.last_name}`.trim();
-          
-          const updates = { 
-            ...formData, 
-            full_name, // Wichtig für DB Kompatibilität
-            height_user: formData.height_user ? parseInt(formData.height_user) : null,
-            weight: formData.weight ? parseInt(formData.weight) : null,
-            jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
-            avatar_url: av, 
-            club_id: selectedClub?.id || null 
-          };
-          
-          const { data } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*)').single(); 
-          onUpdate(data); 
-          onClose(); 
-      } catch(e){ 
-          alert(e.message); 
-      } finally { 
-          setLoading(false); 
-      } 
-  };
-
-  const TabButton = ({ id, label, icon: Icon }) => (
-      <button 
-          type="button"
-          onClick={() => setActiveTab(id)}
-          className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
-      >
-          <Icon size={16} /> {label}
-      </button>
-  );
-
+  // FIX: z-[10000]
   return (
     <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
       <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
-        
-        {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-white/5 bg-zinc-900">
-            <h2 className="text-lg font-bold text-white">Profil bearbeiten</h2>
-            <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-white/5 bg-zinc-900">
-            <TabButton id="general" label="Allgemein" icon={User} />
-            <TabButton id="sport" label="Sportlich" icon={Activity} />
-            <TabButton id="social" label="Socials & Links" icon={Share2} />
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 bg-zinc-900/50">
-            <form id="edit-form" onSubmit={handleSave} className="space-y-6">
-                
-                {/* TAB 1: ALLGEMEIN */}
-                {activeTab === 'general' && (
-                    <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                        {/* Avatar */}
-                        <div className="flex justify-center">
-                            <div className="relative group cursor-pointer">
-                                <div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">
-                                    {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}
-                                </div>
-                                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
-                                    <Camera size={28} className="text-white" />
-                                </div>
-                                <input type="file" accept="image/*" onChange={e => {
-                                    const f = e.target.files[0]; 
-                                    if(f){ setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f)); }
-                                }} className="absolute inset-0 opacity-0 cursor-pointer" />
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Persönliche Daten</h3>
-                            
-                            {/* Vorname & Nachname Split */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Vorname</label>
-                                    <input value={formData.first_name} onChange={e=>setFormData({...formData, first_name: e.target.value})} className={inputStyle} placeholder="Max" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nachname</label>
-                                    <input value={formData.last_name} onChange={e=>setFormData({...formData, last_name: e.target.value})} className={inputStyle} placeholder="Mustermann" />
-                                </div>
-                            </div>
-
-                            {/* Geburtstag & Nationalität */}
-                             <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
-                                    <div className="relative">
-                                        <Calendar className="absolute left-3 top-3.5 text-zinc-500" size={16}/>
-                                        <input type="date" value={formData.birth_date} onChange={e=>setFormData({...formData, birth_date: e.target.value})} className={`${inputStyle} pl-10`} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nationalität</label>
-                                    <div className="relative">
-                                        <Globe className="absolute left-3 top-3.5 text-zinc-500" size={16}/>
-                                        <input placeholder="z.B. Deutschland" value={formData.nationality} onChange={e=>setFormData({...formData, nationality: e.target.value})} className={`${inputStyle} pl-10`} />
-                                    </div>
-                                </div>
-                             </div>
-
-                             {/* Wohnort */}
-                             <div className="grid grid-cols-3 gap-3">
-                                <div className="col-span-1">
-                                     <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">PLZ</label>
-                                     <input placeholder="12345" value={formData.zip_code} onChange={e=>setFormData({...formData, zip_code: e.target.value})} className={inputStyle} />
-                                </div>
-                                <div className="col-span-2">
-                                     <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Ort</label>
-                                     <div className="relative">
-                                        <MapPin className="absolute left-3 top-3.5 text-zinc-500" size={16}/>
-                                        <input placeholder="Berlin" value={formData.city} onChange={e=>setFormData({...formData, city: e.target.value})} className={`${inputStyle} pl-10`} />
-                                     </div>
-                                </div>
-                             </div>
-
-                             {/* Bio */}
-                             <div>
-                                 <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Über mich / Motto</label>
-                                 <textarea rows={3} placeholder="Erzähl etwas über deinen Spielstil..." value={formData.bio} onChange={e=>setFormData({...formData, bio: e.target.value})} className={`${inputStyle} resize-none`} />
-                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* TAB 2: SPORTLICH */}
-                {activeTab === 'sport' && (
-                    <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                        {/* Verein */}
-                        <div>
-                            <label className="text-xs text-zinc-500 font-bold uppercase ml-1 mb-1 block">Aktueller Verein</label>
-                            {selectedClub ? (
-                                <div className="bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10" style={{ borderColor: getClubBorderColor(selectedClub) }}>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
-                                            {selectedClub.logo_url ? <img src={selectedClub.logo_url} className="w-full h-full rounded-full object-cover"/> : <Shield size={14}/>}
-                                        </div>
-                                        <div>
-                                            <span className="font-bold text-white block text-sm">{selectedClub.name}</span>
-                                            <span className="text-xs text-zinc-500">{selectedClub.league}</span>
-                                        </div>
-                                    </div>
-                                    <button type="button" onClick={()=>setSelectedClub(null)} className="p-2 hover:bg-white/10 rounded-full transition"><X size={16} className="text-zinc-400"/></button>
-                                </div>
-                            ) : (
-                                <div className="relative">
-                                    <Search className="absolute left-4 top-4 text-zinc-500" size={18}/>
-                                    <input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`} />
-                                    {/* (Suchergebnisse Overlay Logik hier wenn aktiv) */}
-                                    {clubResults.length > 0 && (
-                                        <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
-                                            {clubResults.map(c => (
-                                                <div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('');}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 flex items-center gap-3">
-                                                    {c.logo_url && <img src={c.logo_url} className="w-6 h-6 rounded-full"/>}
-                                                    <span className="text-sm">{c.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {clubSearch.length > 2 && clubResults.length === 0 && (
-                                        <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl p-2">
-                                            <div onClick={handleCreateClub} className="p-3 bg-blue-600/10 text-blue-400 cursor-pointer font-bold text-xs hover:bg-blue-600/20 flex items-center gap-2 rounded-lg">
-                                                <Plus size={14}/> "{clubSearch}" als neuen Verein anlegen
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Hauptposition</label>
-                                <select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>
-                                    {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nebenposition</label>
-                                <select value={formData.position_secondary} onChange={e=>setFormData({...formData, position_secondary: e.target.value})} className={inputStyle}>
-                                    <option value="">Keine</option>
-                                    {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                             <div>
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Transfer-Status</label>
-                                <select value={formData.transfer_status} onChange={e=>setFormData({...formData, transfer_status: e.target.value})} className={inputStyle}>
-                                    <option>Gebunden</option>
-                                    <option>Suche Verein</option>
-                                    <option>Vertrag läuft aus</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Vertrag bis</label>
-                                <input type="date" value={formData.contract_end} onChange={e=>setFormData({...formData, contract_end: e.target.value})} className={inputStyle} />
-                            </div>
-                        </div>
-
-                        {/* Physische Daten + Trikotnummer */}
-                        <div className="grid grid-cols-4 gap-2">
-                            <div className="col-span-1">
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nr.</label>
-                                <input type="number" min="0" placeholder="#" value={formData.jersey_number} onChange={e=>setFormData({...formData, jersey_number: e.target.value})} className={`${inputStyle} text-center`} />
-                            </div>
-                            <div className="col-span-1">
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Größe</label>
-                                <input type="number" min="0" placeholder="cm" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} />
-                            </div>
-                            <div className="col-span-1">
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Gewicht</label>
-                                <input type="number" min="0" placeholder="kg" value={formData.weight} onChange={e=>setFormData({...formData, weight: e.target.value})} className={inputStyle} />
-                            </div>
-                            <div className="col-span-1">
-                                <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Fuß</label>
-                                <select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={`${inputStyle} px-1 text-xs`}>
-                                    <option>Rechts</option>
-                                    <option>Links</option>
-                                    <option>Beidfüßig</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* TAB 3: SOCIALS & LINKS */}
-                {activeTab === 'social' && (
-                    <div className="space-y-4 animate-in slide-in-from-right-4 fade-in duration-300">
-                        <div className="bg-zinc-800/30 p-4 rounded-xl border border-white/5 text-center mb-2">
-                             <p className="text-sm text-zinc-400">Verbinde deine Accounts, damit Scouts mehr von dir sehen können.</p>
-                        </div>
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Social Media</h3>
-                        <div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram Username" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
-                        <div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok Username" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
-                        <div className="relative"><Youtube className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="YouTube Channel" value={formData.youtube_handle} onChange={e=>setFormData({...formData, youtube_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div>
-                        
-                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider pt-4">Externe Profile</h3>
-                        <div className="relative"><ArrowUpRight className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Transfermarkt Link" value={formData.transfermarkt_url} onChange={e=>setFormData({...formData, transfermarkt_url: e.target.value})} className={`${inputStyle} pl-12`}/></div>
-                        <div className="relative"><FileSpreadsheet className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="FuPa Link" value={formData.fupa_url} onChange={e=>setFormData({...formData, fupa_url: e.target.value})} className={`${inputStyle} pl-12`}/></div>
-                    </div>
-                )}
-            </form>
-        </div>
-
-        <div className="p-6 border-t border-zinc-800 bg-zinc-900">
-            <button form="edit-form" disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
-                {loading ? <Loader2 className="animate-spin" /> : <><Save size={18}/> Speichern</>}
-            </button>
-        </div>
-
+        <div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white">Profil bearbeiten</h2><button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button></div>
+        <div className="flex-1 overflow-y-auto p-6"><form onSubmit={handleSave} className="space-y-6"><div className="flex justify-center"><div className="relative group cursor-pointer"><div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">{previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}</div><div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><Camera size={28} className="text-white" /></div><input type="file" accept="image/*" onChange={e => {const f=e.target.files[0]; if(f){setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f));}}} className="absolute inset-0 opacity-0 cursor-pointer" /></div></div><div className="space-y-4"><input value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className={inputStyle} placeholder="Name" /><select value={formData.position_primary} onChange={e=>setFormData({...formData, position_primary: e.target.value})} className={inputStyle}>{['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p=><option key={p}>{p}</option>)}</select>{selectedClub ? <div className="bg-zinc-800 p-4 rounded-xl flex justify-between items-center border border-white/10"><span className="font-bold text-white">{selectedClub.name}</span><button type="button" onClick={()=>setSelectedClub(null)} className="p-1 hover:bg-white/10 rounded"><X size={16} className="text-zinc-400"/></button></div> : <div className="relative"><Search className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Verein suchen..." value={clubSearch} onChange={e=>setClubSearch(e.target.value)} className={`${inputStyle} pl-12`}/>{clubResults.length > 0 && <div className="absolute z-10 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl">{clubResults.map(c=><div key={c.id} onClick={()=>{setSelectedClub(c); setClubSearch('')}} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 last:border-0">{c.name}</div>)}<div onClick={()=>setShowCreateClub(true)} className="p-3 bg-blue-500/10 text-blue-400 cursor-pointer font-bold text-sm">+ "{clubSearch}" neu anlegen</div></div>}</div>}{showCreateClub && <div className="mt-2 bg-zinc-800/50 p-4 rounded-xl border border-white/10 space-y-3 animate-in fade-in"><input placeholder="Name" value={newClubData.name} onChange={e=>setNewClubData({...newClubData, name:e.target.value})} className={inputStyle}/><button type="button" onClick={handleCreateClub} className="bg-white text-black font-bold text-xs px-4 py-2 rounded-lg">Erstellen</button></div>}</div><div className="grid grid-cols-2 gap-3"><input type="number" min="0" placeholder="Größe (cm)" value={formData.height_user} onChange={e=>setFormData({...formData, height_user: e.target.value})} className={inputStyle} /><select value={formData.strong_foot} onChange={e=>setFormData({...formData, strong_foot: e.target.value})} className={inputStyle}><option>Rechts</option><option>Links</option><option>Beidfüßig</option></select></div><div className="space-y-3 pt-2"><h3 className="text-xs font-bold text-zinc-500 uppercase">Social Media</h3><div className="relative"><Instagram className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="Instagram" value={formData.instagram_handle} onChange={e=>setFormData({...formData, instagram_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div><div className="relative"><Video className="absolute left-4 top-4 text-zinc-500" size={18}/><input placeholder="TikTok" value={formData.tiktok_handle} onChange={e=>setFormData({...formData, tiktok_handle: e.target.value})} className={`${inputStyle} pl-12`}/></div></div><button disabled={loading} className={`${btnPrimary} w-full mt-6`}>{loading ? <Loader2 className="animate-spin mx-auto"/> : "Speichern & Schließen"}</button></form></div>
       </div>
     </div>
   );
@@ -1055,257 +812,388 @@ const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserCl
     return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
-const SearchScreen = ({ onUserClick }) => {
-  const [query, setQuery] = useState(''); const [res, setRes] = useState([]); const [pos, setPos] = useState('Alle'); const [status, setStatus] = useState('Alle');
-  useEffect(() => { const t = setTimeout(async () => { let q = supabase.from('players_master').select('*, clubs(*)'); if(query) q = q.ilike('full_name', `%${query}%`); if(pos !== 'Alle') q = q.eq('position_primary', pos); if(status !== 'Alle') q = q.eq('transfer_status', status); const { data } = await q.limit(20); setRes(data||[]); }, 300); return () => clearTimeout(t); }, [query, pos, status]);
-  const FilterChip = ({ label, active, onClick }) => ( <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>{label}</button> );
-  return (
-    <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
-      <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
-      <div className="px-4 mt-4">
-          <div className="relative mb-6"><Search className="absolute left-4 top-4 text-zinc-500" size={20}/><input placeholder="Suche..." value={query} onChange={e=>setQuery(e.target.value)} className={`${inputStyle} pl-12`} /></div>
-          <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => <FilterChip key={s} label={s === 'Alle' ? 'Status: Alle' : s} active={status === s} onClick={() => setStatus(s)} />)}</div>
-          <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4">{['Alle', 'ST','ZOM','ZM','IV','TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
-          <div className="space-y-3">
-              {res.map(p => (
-                  <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}</div>
-                      <div className="flex-1">
-                          <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base">{p.full_name}</h3><span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span></div>
-                          <div className="flex items-center gap-1 mt-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
-                      </div>
-                      <ChevronRight size={18} className="text-zinc-600"/>
-                  </div>
-              ))}
-              {res.length === 0 && <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20"/><p>Keine Ergebnisse</p></div>}
-          </div>
-      </div>
-    </div>
-  );
-};
+// --- KOMPLETT NEU: SEARCH SCREEN MIT SCOUT ENGINE ---
 
-const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
-    const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]); const [chats, setChats] = useState([]);
-    if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
+const SearchScreen = ({ onUserClick, onOpenWatchlist }) => {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [showFilters, setShowFilters] = useState(false);
+    const [loading, setLoading] = useState(false);
+  
+    // Filter State
+    const [filters, setFilters] = useState({
+        minHeight: 0,
+        maxHeight: 220,
+        minAge: 16,
+        maxAge: 40,
+        positions: [], // Array von Strings, z.B. ['IV', 'ZDM']
+        strongFoot: 'Alle',
+        transferStatus: 'Alle'
+    });
+  
+    const positionsList = ['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'];
+  
+    // --- SCOUTING QUERY LOGIC ---
     useEffect(() => {
-        if(subTab==='notifications') supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[]));
-        else if (subTab === 'messages' && session?.user?.id) {
-            (async () => {
-                const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true});
-                const map = new Map();
-                (data||[]).forEach(m => { const pid = m.sender_id===session.user.id?m.receiver_id:m.sender_id; if(!map.has(pid)) map.set(pid, m); });
-                if(map.size>0) { const {data:users} = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]); setChats(users.map(u=>({...u, lastMsg: map.get(u.user_id).content, time: map.get(u.user_id).created_at})).sort((a,b)=>new Date(b.time)-new Date(a.time))); }
-            })();
-        }
-    }, [subTab, session]);
-    return (
-        <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
-            <div className={glassHeader}><h2 className="text-2xl font-black text-white">Inbox</h2></div>
-            <div className="px-4 mt-4">
-                <div className="flex bg-zinc-900/50 rounded-xl p-1 mb-6 border border-white/5 relative">
-                    <button onClick={()=>setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab==='notifications'?'bg-zinc-800 text-white shadow-lg':'text-zinc-500 hover:text-zinc-300'}`}>Mitteilungen</button>
-                    <button onClick={()=>setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab==='messages'?'bg-zinc-800 text-white shadow-lg':'text-zinc-500 hover:text-zinc-300'}`}>Nachrichten</button>
-                </div>
-                <div className="space-y-3">
-                    {subTab === 'notifications' && (notis.length > 0 ? notis.map(n => (
-                        <div key={n.id} className={`flex items-start gap-4 p-4 ${cardStyle}`}>
-                            <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 shrink-0 mt-1">{n.actor?.avatar_url?<img src={n.actor.avatar_url} className="w-full h-full object-cover"/>:<User size={16} className="text-zinc-500 m-2.5"/>}</div>
-                            <div className="flex-1 text-sm text-white pt-1"><span className="font-bold">{n.actor?.full_name||"Jemand"}</span> <span className="text-zinc-400">{n.type==='like'?'hat dein Video geliked.':n.type==='follow'?'folgt dir jetzt.':'hat kommentiert.'}</span></div>
-                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                        </div>
-                    )) : <div className="text-center text-zinc-500 py-20 flex flex-col items-center"><Bell size={40} className="mb-4 opacity-20"/><p>Alles ruhig hier.</p></div>)}
-                    {subTab === 'messages' && (chats.length > 0 ? chats.map(c => (
-                        <div key={c.id} onClick={() => onSelectChat(c)} className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition ${cardStyle}`}>
-                            <div onClick={(e) => { e.stopPropagation(); onUserClick(c); }} className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition border border-white/10">{c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-500"/>}</div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-1"><h4 className="text-base font-bold text-white truncate">{c.full_name}</h4><span className="text-[10px] text-zinc-500">{new Date(c.time).toLocaleDateString()}</span></div>
-                                <p className="text-sm text-zinc-400 truncate">{c.lastMsg}</p>
-                            </div>
-                            <ChevronRight size={16} className="text-zinc-600"/>
-                        </div>
-                    )) : <div className="text-center text-zinc-500 py-20 flex flex-col items-center"><Mail size={40} className="mb-4 opacity-20"/><p>Keine Chats vorhanden.</p></div>)}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// 4. PROFILE SCREEN (Überarbeitet: Neues Design & Auto-Loading)
-const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq }) => {
-    // Falls ein User eingeloggt ist, aber noch kein Profil hat (wird im Hintergrund erstellt),
-    // zeigen wir kurz einen Lade-Indikator, bis das Profil da ist.
-    if (isOwnProfile && !player) return <div className="min-h-screen flex items-center justify-center text-zinc-500"><Loader2 className="animate-spin mr-2"/> Profil wird geladen...</div>;
-    // Falls es ein fremdes Profil ist, das nicht lädt
-    if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Profil nicht gefunden.</div>;
-    
-    // Status Farben
-    const statusColors = { 
-        'Gebunden': 'bg-red-500 shadow-red-500/50', 
-        'Vertrag läuft aus': 'bg-amber-500 shadow-amber-500/50', 
-        'Suche Verein': 'bg-emerald-500 shadow-emerald-500/50' 
+        const fetchResults = async () => {
+            setLoading(true);
+            let dbQuery = supabase.from('players_master').select('*, clubs(*)');
+  
+            // 1. Textsuche (Name)
+            if (query.trim()) {
+                dbQuery = dbQuery.ilike('full_name', `%${query}%`);
+            }
+  
+            // 2. Position Filter (Multi-Select)
+            if (filters.positions.length > 0) {
+                // Sucht Spieler, deren Hauptposition in der Liste ist
+                dbQuery = dbQuery.in('position_primary', filters.positions);
+            }
+  
+            // 3. Größen Filter
+            if (filters.minHeight > 0) {
+                dbQuery = dbQuery.gte('height_user', filters.minHeight);
+            }
+            if (filters.maxHeight < 220) {
+                 dbQuery = dbQuery.lte('height_user', filters.maxHeight);
+            }
+  
+            // 4. Alter Filter (Berechnung über Geburtsdatum)
+            const today = new Date();
+            if (filters.maxAge < 40) {
+                const minBirthDate = new Date(today.getFullYear() - filters.maxAge - 1, today.getMonth(), today.getDate()).toISOString();
+                dbQuery = dbQuery.gte('birth_date', minBirthDate);
+            }
+            if (filters.minAge > 16) {
+                const maxBirthDate = new Date(today.getFullYear() - filters.minAge, today.getMonth(), today.getDate()).toISOString();
+                dbQuery = dbQuery.lte('birth_date', maxBirthDate);
+            }
+  
+            // 5. Fuß
+            if (filters.strongFoot !== 'Alle') {
+                dbQuery = dbQuery.eq('strong_foot', filters.strongFoot);
+            }
+  
+            // 6. Status
+            if (filters.transferStatus !== 'Alle') {
+                dbQuery = dbQuery.eq('transfer_status', filters.transferStatus);
+            }
+  
+            const { data } = await dbQuery.limit(20);
+            setResults(data || []);
+            setLoading(false);
+        };
+  
+        // Debounce für Performance
+        const timer = setTimeout(fetchResults, 400);
+        return () => clearTimeout(timer);
+    }, [query, filters]);
+  
+    // Helper für Multi-Select Toggle
+    const togglePosition = (pos) => {
+        setFilters(prev => {
+            const newPos = prev.positions.includes(pos)
+                ? prev.positions.filter(p => p !== pos) // Entfernen
+                : [...prev.positions, pos]; // Hinzufügen
+            return { ...prev, positions: newPos };
+        });
     };
-    const statusColor = statusColors[player.transfer_status] || 'bg-zinc-500';
-    const statusTextClass = player.transfer_status === 'Suche Verein' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : player.transfer_status === 'Vertrag läuft aus' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20';
-
+  
+    const FilterChip = ({ label, active, onClick }) => (
+        <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition border ${active ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+            {label}
+        </button>
+    );
+  
     return (
-        <div className="pb-24 animate-in fade-in">
-             <div className="relative bg-zinc-900 pb-6 rounded-b-[2rem] overflow-hidden shadow-2xl border-b border-white/5">
-                 {/* Top Cover / Header */}
-                 <div className="absolute inset-0 h-40 bg-gradient-to-br from-blue-900/40 via-purple-900/20 to-black pointer-events-none"></div>
-                 
-                 {/* Nav */}
-                 <div className="pt-6 px-6 flex justify-between items-center relative z-10">
-                    {!isOwnProfile ? <button onClick={onBack} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white border border-white/10"><ArrowLeft size={20}/></button> : <div></div>}
-                    {isOwnProfile && <button onClick={onSettingsReq} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white border border-white/10"><Settings size={20}/></button>}
-                 </div>
-
-                 <div className="flex flex-col items-center pt-2 relative z-10 px-6">
-                     {/* Avatar */}
-                     <div className={`relative mb-4 group`}>
-                        <div className={`absolute -inset-1 rounded-full blur opacity-40 bg-gradient-to-tr from-blue-600 to-purple-600`}></div>
-                        <div className={`relative w-32 h-32 rounded-full bg-zinc-900 overflow-hidden border-4 border-zinc-900 shadow-2xl`}>
-                            {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={56} className="text-zinc-600 m-8"/>}
-                        </div>
-                     </div>
-                     
-                     {/* Name & Badge */}
-                     <h1 className="text-3xl font-black text-white flex items-center justify-center gap-2 mb-1 text-center leading-tight">
-                         {player.full_name} 
-                         {player.is_verified && <CheckCircle size={20} className="text-blue-500 fill-blue-500/10"/>}
-                     </h1>
-                     
-                     {/* Club & Position */}
-                     <div className="flex items-center gap-2 text-zinc-400 text-sm font-medium mb-4">
-                        {player.clubs?.is_icon_league && <Crown size={14} className="text-amber-400"/>}
-                        <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-white transition cursor-pointer">{player.clubs?.name || "Vereinslos"}</span>
-                        <span className="w-1 h-1 bg-zinc-600 rounded-full"></span>
-                        <span className="text-zinc-300 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
-                     </div>
-
-                     {/* Transfer Status Pill */}
-                     <div className={`mb-6 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide ${statusTextClass}`}>
-                        {player.transfer_status}
-                     </div>
-
-                     {/* Stats Grid - Cards */}
-                     <div className="grid grid-cols-3 gap-3 w-full mb-6">
-                        <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition" onClick={onShowFollowers}>
-                            <span className="text-xl font-black text-white">{player.followers_count || 0}</span>
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">Follower</span>
-                        </div>
-                         <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <span className="text-xl font-black text-white">{highlights.length}</span>
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">Clips</span>
-                        </div>
-                        <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center">
-                             <div className="text-white font-bold text-sm">{player.strong_foot || '-'}</div>
-                             <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">{player.height_user ? `${player.height_user} cm` : 'Größe'}</span>
-                        </div>
-                     </div>
-
-                     {/* Action Buttons */}
-                     <div className="w-full flex gap-3">
-                         {isOwnProfile ? (
-                             <>
-                                <button onClick={onEditReq} className="flex-1 bg-zinc-800 text-white font-bold py-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition flex items-center justify-center gap-2">
-                                    <Edit size={18}/> Profil
+      <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
+        <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
+        
+        <div className="px-4 mt-4">
+            {/* Suchleiste & Filter-Toggle */}
+            <div className="relative mb-4 flex gap-2">
+                <div className="relative flex-1">
+                    <Search className="absolute left-4 top-3.5 text-zinc-500" size={20}/>
+                    <input 
+                        placeholder="Spieler suchen..." 
+                        value={query} 
+                        onChange={e=>setQuery(e.target.value)} 
+                        className={`${inputStyle} pl-12 pr-12`} 
+                    />
+                    <button 
+                        onClick={() => setShowFilters(!showFilters)} 
+                        className={`absolute right-2 top-2 p-2 rounded-lg transition ${showFilters ? 'bg-blue-500 text-white' : 'text-zinc-400 hover:bg-white/10'}`}
+                    >
+                        <SlidersHorizontal size={18} />
+                    </button>
+                </div>
+                {/* Watchlist Button */}
+                <button onClick={onOpenWatchlist} className="bg-zinc-800 p-3.5 rounded-xl border border-white/10 text-white hover:bg-zinc-700">
+                    <Bookmark size={22} />
+                </button>
+            </div>
+            
+            {/* --- DIE SCOUT ENGINE (FILTER UI) --- */}
+            {showFilters && (
+                <div className="mb-6 p-5 bg-zinc-900 border border-zinc-800 rounded-2xl animate-in slide-in-from-top-2 space-y-6 shadow-2xl">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-white text-sm flex items-center gap-2"><SlidersHorizontal size={14}/> Erweiterte Filter</h3>
+                        <button 
+                            onClick={() => setFilters({ minHeight: 0, maxHeight: 220, minAge: 16, maxAge: 40, positions: [], strongFoot: 'Alle', transferStatus: 'Alle' })}
+                            className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                        >
+                            Zurücksetzen
+                        </button>
+                    </div>
+  
+                    {/* Positionen Grid */}
+                    <div className="space-y-2">
+                        <label className="text-xs text-zinc-500 font-bold uppercase">Positionen</label>
+                        <div className="flex flex-wrap gap-2">
+                            {positionsList.map(pos => (
+                                <button 
+                                    key={pos}
+                                    onClick={() => togglePosition(pos)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filters.positions.includes(pos) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-black border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}
+                                >
+                                    {pos}
                                 </button>
-                                <button className="bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition">
-                                    <Share2 size={20}/>
-                                </button>
-                                {player.is_admin && <button onClick={onAdminReq} className="bg-blue-900/30 text-blue-400 p-3 rounded-xl border border-blue-500/30 hover:bg-blue-900/50"><Database size={20}/></button>}
-                             </>
-                         ) : (
-                            <>
-                                <button onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'} border py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
-                                    {player.isFollowing ? <Check size={18}/> : <Plus size={18}/>}
-                                    {player.isFollowing ? 'Gefolgt' : 'Folgen'}
-                                </button>
-                                <button onClick={onChatReq} className="bg-zinc-800 text-white px-5 py-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition">
-                                    <MessageCircle size={20}/>
-                                </button>
-                            </>
-                         )}
-                     </div>
-                 </div>
-             </div>
-
-             {/* Social Links Row */}
-             <div className="flex justify-center gap-6 py-6 border-b border-white/5">
-                {player.instagram_handle ? <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-pink-500 transition"><Instagram size={24}/></a> : <Instagram size={24} className="text-zinc-800"/>}
-                {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-white transition"><Video size={24}/></a> : <Video size={24} className="text-zinc-800"/>}
-                {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-red-500 transition"><Youtube size={24}/></a> : <Youtube size={24} className="text-zinc-800"/>}
-             </div>
-             
-             {/* Content Tabs (Visual only for now) */}
-             <div className="flex px-4 pt-4 pb-2 gap-6 text-sm font-bold text-zinc-500 border-b border-white/5">
-                 <span className="text-white border-b-2 border-blue-500 pb-2">Highlights</span>
-                 <span className="hover:text-zinc-300 cursor-pointer">Stats</span>
-                 <span className="hover:text-zinc-300 cursor-pointer">Über</span>
-             </div>
-
-             {/* Video Grid */}
-             <div className="grid grid-cols-3 gap-0.5 mt-0.5">
-                {highlights.map(v => (
-                    <div key={v.id} onClick={() => onVideoClick(v)} className="aspect-[3/4] bg-zinc-900 relative cursor-pointer group overflow-hidden">
-                        <video src={v.video_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-500" />
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="absolute bottom-2 left-2 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"><Play size={8} fill="white"/> {v.likes_count}</div>
+                            ))}
+                        </div>
+                    </div>
+  
+                    {/* Range Sliders (Simuliert durch Inputs für Stabilität) */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                             <label className="text-xs text-zinc-500 font-bold uppercase">Größe (cm)</label>
+                             <div className="flex items-center gap-2">
+                                 <input type="number" value={filters.minHeight || ''} onChange={e => setFilters({...filters, minHeight: parseInt(e.target.value) || 0})} placeholder="Min" className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                                 <span className="text-zinc-600">-</span>
+                                 <input type="number" value={filters.maxHeight || ''} onChange={e => setFilters({...filters, maxHeight: parseInt(e.target.value) || 220})} placeholder="Max" className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                             </div>
+                        </div>
+                        <div className="space-y-2">
+                             <label className="text-xs text-zinc-500 font-bold uppercase">Alter</label>
+                             <div className="flex items-center gap-2">
+                                 <input type="number" value={filters.minAge} onChange={e => setFilters({...filters, minAge: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                                 <span className="text-zinc-600">-</span>
+                                 <input type="number" value={filters.maxAge} onChange={e => setFilters({...filters, maxAge: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
+                             </div>
+                        </div>
+                    </div>
+  
+                    {/* Dropdowns für Fuß & Status */}
+                    <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                            <label className="text-xs text-zinc-500 font-bold uppercase">Starker Fuß</label>
+                            <select value={filters.strongFoot} onChange={e => setFilters({...filters, strongFoot: e.target.value})} className="w-full bg-black border border-zinc-800 text-white p-2 rounded-lg text-sm outline-none">
+                                <option>Alle</option>
+                                <option>Rechts</option>
+                                <option>Links</option>
+                                <option>Beidfüßig</option>
+                            </select>
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs text-zinc-500 font-bold uppercase">Status</label>
+                            <select value={filters.transferStatus} onChange={e => setFilters({...filters, transferStatus: e.target.value})} className="w-full bg-black border border-zinc-800 text-white p-2 rounded-lg text-sm outline-none">
+                                <option>Alle</option>
+                                <option>Gebunden</option>
+                                <option>Suche Verein</option>
+                                <option>Vertrag läuft aus</option>
+                            </select>
+                         </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Quick Filter (Status) wenn Hauptfilter zu sind */}
+            {!showFilters && (
+                <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">
+                    {['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => (
+                        <FilterChip 
+                            key={s} 
+                            label={s} 
+                            active={filters.transferStatus === s} 
+                            onClick={() => setFilters(prev => ({...prev, transferStatus: s}))} 
+                        />
+                    ))}
+                </div>
+            )}
+  
+            {/* Ergebnisliste */}
+            <div className="space-y-3">
+                {loading ? <div className="py-10 text-center"><Loader2 className="animate-spin mx-auto text-blue-500"/></div> : 
+                results.length === 0 ? <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20"/><p>Keine Spieler gefunden.</p></div> :
+                results.map(p => (
+                    <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
+                        <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">
+                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-bold text-white text-base">{p.full_name}</h3>
+                                <span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
+                                {/* Scout Details */}
+                                <div className="flex gap-2 text-[10px] text-zinc-500 font-mono border-l border-zinc-700 pl-3">
+                                    {p.height_user && <span>{p.height_user}cm</span>}
+                                    {p.strong_foot && <span>{p.strong_foot.charAt(0)}</span>}
+                                    {p.birth_date && <span>{calculateAge(p.birth_date)}J</span>}
+                                </div>
+                            </div>
+                        </div>
+                        <ChevronRight size={18} className="text-zinc-600"/>
                     </div>
                 ))}
-             </div>
-             {highlights.length === 0 && <div className="py-20 text-center text-zinc-600 text-sm">Noch keine Highlights hochgeladen.</div>}
+            </div>
         </div>
-    )
-}
+      </div>
+    );
+  };
+  
+  // --- ENDE SEARCH SCREEN ---
 
-// 5. CLUB SCREEN
-const ClubScreen = ({ club, onBack, onUserClick }) => {
-    const [players, setPlayers] = useState([]);
-    useEffect(() => {
-        const fetchPlayers = async () => {
-            const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id);
-            setPlayers(data || []);
-        };
-        fetchPlayers();
-    }, [club]);
+const ClubDashboard = ({ club, session, onBack }) => {
+    const [activeTab, setActiveTab] = useState('squad'); // 'squad', 'events', 'news'
+    const [events, setEvents] = useState([]);
+    const [news, setNews] = useState([]);
+    const [squad, setSquad] = useState([]);
+    const [showAddEvent, setShowAddEvent] = useState(false);
+    
+    // Prüfen ob User Trainer/Admin ist (simuliert durch Mock DB Eintrag oder echte Rolle)
+    const [isCoach, setIsCoach] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        // 1. Kader laden
+        const { data: squadData } = await supabase.from('players_master').select('*').eq('club_id', club.id);
+        setSquad(squadData || []);
+        
+        // Check Role
+        const me = squadData?.find(p => p.user_id === session.user.id);
+        if (me && (me.club_role === 'coach' || me.club_role === 'admin')) setIsCoach(true);
+
+        // 2. Events laden
+        const { data: eventData } = await supabase.from('club_events').select('*').eq('club_id', club.id).gte('start_time', new Date().toISOString()).order('start_time', { ascending: true });
+        setEvents(eventData || []);
+
+        // 3. News laden
+        const { data: newsData } = await supabase.from('club_news').select('*').eq('club_id', club.id).order('created_at', { ascending: false });
+        setNews(newsData || []);
+
+    }, [club.id, session.user.id]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    const TabButton = ({ id, label, icon: Icon }) => (
+        <button onClick={() => setActiveTab(id)} className={`flex-1 py-3 border-b-2 flex items-center justify-center gap-2 text-sm font-bold ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500'}`}>
+            <Icon size={16} /> {label}
+        </button>
+    );
 
     return (
-        <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
-             <div className="relative h-40 bg-zinc-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
-                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30 blur-sm"/>}
-                <button onClick={onBack} className="absolute top-6 left-6 p-2 bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition z-10"><ArrowLeft size={20}/></button>
-             </div>
-             <div className="px-6 -mt-12 relative z-10">
-                 <div className="w-24 h-24 bg-zinc-900 rounded-2xl p-1 border border-zinc-800 shadow-2xl mb-4">
-                     {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-contain rounded-xl"/> : <Shield size={40} className="text-zinc-600 m-6"/>}
-                 </div>
-                 <h1 className="text-3xl font-black text-white mb-1">{club.name}</h1>
-                 <p className="text-zinc-400 text-sm font-medium mb-6">{club.league}</p>
+        <div className="min-h-screen bg-black pb-20">
+            {/* Header */}
+            <div className="relative h-40 bg-zinc-900">
+                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                <button onClick={onBack} className="absolute top-4 left-4 p-2 bg-black/50 rounded-full text-white"><ArrowLeft size={20}/></button>
+                <div className="absolute bottom-4 left-4">
+                    <h1 className="text-2xl font-bold text-white">{club.name}</h1>
+                    <p className="text-zinc-400 text-xs">{club.league}</p>
+                </div>
+            </div>
 
-                 <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-blue-500"/> Kader ({players.length})</h3>
-                 <div className="space-y-3">
-                     {players.map(p => (
-                         <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                             <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10">
-                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={20} className="text-zinc-500 m-3"/>}
-                             </div>
-                             <div>
-                                 <h4 className="font-bold text-white text-sm">{p.full_name}</h4>
-                                 <span className="text-xs text-zinc-500 bg-white/10 px-2 py-0.5 rounded">{p.position_primary}</span>
-                             </div>
-                             <ChevronRight size={16} className="ml-auto text-zinc-600"/>
-                         </div>
-                     ))}
-                     {players.length === 0 && <p className="text-zinc-500 text-sm">Keine Spieler gefunden.</p>}
-                 </div>
-             </div>
+            {/* Navigation */}
+            <div className="flex bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
+                <TabButton id="squad" label="Kader" icon={Users} />
+                <TabButton id="events" label="Termine" icon={CalendarDays} />
+                <TabButton id="news" label="News" icon={Megaphone} />
+            </div>
+
+            <div className="p-4 space-y-4">
+                {/* TAB: KADER */}
+                {activeTab === 'squad' && (
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-zinc-500 text-xs font-bold uppercase">{squad.length} Spieler</span>
+                            {/* Gamification: Spielerzähler */}
+                            {squad.length < 11 && <span className="text-amber-500 text-xs bg-amber-500/10 px-2 py-1 rounded">Noch {11-squad.length} bis Offiziell</span>}
+                        </div>
+                        {squad.map(p => (
+                            <div key={p.id} className="flex items-center gap-3 p-3 bg-zinc-900 rounded-xl border border-white/5">
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url && <img src={p.avatar_url} className="w-full h-full object-cover"/>}</div>
+                                <div>
+                                    <div className="text-white font-bold text-sm">{p.full_name} {p.club_role === 'coach' && '👑'}</div>
+                                    <div className="text-zinc-500 text-xs">{p.position_primary}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* TAB: EVENTS */}
+                {activeTab === 'events' && (
+                    <div className="space-y-3">
+                        {isCoach && (
+                            <button onClick={() => setShowAddEvent(true)} className="w-full py-3 border border-dashed border-zinc-700 text-zinc-400 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-900 transition">
+                                <Plus size={16} /> Termin hinzufügen
+                            </button>
+                        )}
+                        {events.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine anstehenden Termine.</div> : 
+                            events.map(ev => (
+                                <div key={ev.id} className="flex gap-4 p-4 bg-zinc-900 rounded-xl border-l-4 border-blue-500">
+                                    <div className="text-center min-w-[50px]">
+                                        <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
+                                        <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-white font-bold">{ev.title}</div>
+                                        <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
+                                            <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                                            • {ev.location}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        }
+                    </div>
+                )}
+
+                {/* TAB: NEWS */}
+                {activeTab === 'news' && (
+                    <div className="space-y-4">
+                        {isCoach && (
+                            <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
+                                <input placeholder="Was gibt's Neues, Coach?" className="w-full bg-transparent text-white text-sm outline-none" />
+                            </div>
+                        )}
+                        {news.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine Neuigkeiten.</div> :
+                            news.map(n => (
+                                <div key={n.id} className="bg-zinc-900 p-4 rounded-xl border border-white/5">
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-blue-400 font-bold text-xs uppercase">{n.title}</span>
+                                        <span className="text-zinc-600 text-xs">{new Date(n.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-zinc-300 text-sm">{n.content}</p>
+                                </div>
+                            ))
+                        }
+                    </div>
+                )}
+            </div>
+
+            {/* Modals */}
+            {showAddEvent && <AddEventModal clubId={club.id} onClose={() => setShowAddEvent(false)} onRefresh={fetchData} />}
         </div>
     );
 };
 
-// --- 6. MAIN APP ---
+// --- 6. MAIN APP UPDATE ---
+// Der App-Komponente bleibt weitestgehend gleich, wir müssen nur das Routing für den ClubScreen anpassen,
+// damit er jetzt das 'ClubDashboard' rendert, wenn man draufklickt.
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [session, setSession] = useState(null);
@@ -1321,19 +1209,18 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [activeChatPartner, setActiveChatPartner] = useState(null);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showWatchlist, setShowWatchlist] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [feedVersion, setFeedVersion] = useState(0); // NEU: Trigger für Feed-Refresh
+  const [feedVersion, setFeedVersion] = useState(0); 
 
   const activeChatPartnerRef = useRef(activeChatPartner);
   const [reportTarget, setReportTarget] = useState(null);
 
-  // Smart Profile Hook (Auto-Load & Auto-Create)
   const { profile: smartProfile, loading: profileLoading, refresh: refreshProfile } = useSmartProfile(session);
 
-  // Sync smart profile with app state
   useEffect(() => {
     if (smartProfile) setCurrentUserProfile(smartProfile);
   }, [smartProfile]);
@@ -1344,74 +1231,38 @@ const App = () => {
     supabase.auth.getSession().then(({ data: { session } }) => { 
         setSession(session); 
     });
-    
-    // Auth Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { 
         setSession(session); 
         if (!session) setCurrentUserProfile(null); 
     });
-    
     return () => subscription.unsubscribe();
   }, []);
 
   const handleLoginSuccess = async (sessionData) => {
     setSession(sessionData);
     setShowLogin(false);
-    refreshProfile(); // Trigger profile load explicitly
-    setViewedProfile(null); // Clear any previous view
-    setActiveTab('profile'); // Switch tab
+    refreshProfile(); 
+    setViewedProfile(null); 
+    setActiveTab('profile'); 
   };
   
-  // Fehlende Handler für Settings Menü ergänzt:
-  const handleInstallApp = () => {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        setDeferredPrompt(null);
-    } else {
-        alert("App ist bereits installiert oder wird nicht unterstützt.");
-    }
-  };
-
-  const handlePushRequest = () => {
-      // Mock Implementation
-      if ("Notification" in window) {
-          Notification.requestPermission().then(permission => {
-              if (permission === "granted") alert("Push-Benachrichtigungen aktiviert!");
-          });
-      } else {
-          alert("Push wird nicht unterstützt.");
-      }
-  };
+  const handleInstallApp = () => { if (deferredPrompt) { deferredPrompt.prompt(); setDeferredPrompt(null); } else { alert("App ist bereits installiert oder wird nicht unterstützt."); } };
+  const handlePushRequest = () => { if ("Notification" in window) { Notification.requestPermission().then(permission => { if (permission === "granted") alert("Push-Benachrichtigungen aktiviert!"); }); } else { alert("Push wird nicht unterstützt."); } };
 
   const loadProfile = async (targetPlayer) => { 
       let p = { ...targetPlayer };
       if (session) { const { data } = await supabase.from('follows').select('*').match({ follower_id: session.user.id, following_id: p.user_id }).maybeSingle(); p.isFollowing = !!data; }
-      // Echte Follower-Zahl holen
       const { count } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', p.user_id);
       p.followers_count = count || 0;
-
       setViewedProfile(p); 
       const { data } = await supabase.from('media_highlights').select('*').eq('player_id', p.id).order('created_at', { ascending: false }); 
       setProfileHighlights(data || []); 
       setActiveTab('profile'); 
   };
   
-  // Tab-Logik angepasst
   const handleProfileTabClick = () => { 
-      if (!session) {
-          setShowLogin(true);
-          return;
-      }
-
-      // Wenn wir ein Profil haben, laden wir es. Wenn nicht (noch am Laden), zeigen wir den Ladescreen
-      if (currentUserProfile) {
-          loadProfile(currentUserProfile); 
-      } else {
-          // Trigger reload if needed, show loading state by setting null viewedProfile
-          refreshProfile();
-          setViewedProfile(null); 
-          setActiveTab('profile'); 
-      }
+      if (!session) { setShowLogin(true); return; }
+      if (currentUserProfile) { loadProfile(currentUserProfile); } else { refreshProfile(); setViewedProfile(null); setActiveTab('profile'); }
   };
 
   return (
@@ -1419,30 +1270,16 @@ const App = () => {
       {!session && <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 hover:bg-white/20 transition hover:scale-105 active:scale-95"><LogIn size={14} /> Login</button>}
       
       {activeTab === 'home' && <HomeScreen key={feedVersion} onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({id, type})} />}
-      {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
+      {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} onOpenWatchlist={() => { if(!session) setShowLogin(true); else setShowWatchlist(true); }} />}
       {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} onLoginReq={() => setShowLogin(true)} />}
       
       {activeTab === 'profile' && (
-          <ProfileScreen 
-            player={viewedProfile} 
-            highlights={profileHighlights} 
-            onVideoClick={setActiveVideo}
-            isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)}
-            onBack={() => setActiveTab('home')}
-            onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))}
-            onEditReq={() => setShowEditProfile(true)}
-            onSettingsReq={() => setShowSettings(true)} // Öffnet SettingsOverlay
-            onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
-            onClubClick={(c) => { setViewedClub(c); setActiveTab('club'); }}
-            onAdminReq={()=>setActiveTab('admin')}
-            onFollow={() => {}}
-            onShowFollowers={() => setShowFollowersModal(true)}
-            onLoginReq={() => setShowLogin(true)}
-            onCreateProfile={() => {}} // Legacy prop
-          />
+          <ProfileScreen player={viewedProfile} highlights={profileHighlights} onVideoClick={setActiveVideo} isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)} onBack={() => setActiveTab('home')} onLogout={() => supabase.auth.signOut().then(() => setActiveTab('home'))} onEditReq={() => setShowEditProfile(true)} onSettingsReq={() => setShowSettings(true)} onChatReq={() => { if(!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }} onClubClick={(c) => { setViewedClub(c); setActiveTab('club'); }} onAdminReq={()=>setActiveTab('admin')} onFollow={() => {}} onShowFollowers={() => setShowFollowersModal(true)} onLoginReq={() => setShowLogin(true)} onCreateProfile={() => {}} />
       )}
       
-      {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
+      {/* UPDATE: ClubScreen durch ClubDashboard ersetzt */}
+      {activeTab === 'club' && viewedClub && <ClubDashboard club={viewedClub} session={session} onBack={() => setActiveTab('home')} />}
+      
       {activeTab === 'admin' && <AdminDashboard session={session} />}
       
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-[9999] rounded-3xl shadow-2xl shadow-black/50 pointer-events-auto">
@@ -1457,115 +1294,18 @@ const App = () => {
       <ToastContainer toasts={toasts} removeToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       {activeVideo && <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4 animate-in fade-in duration-300"><button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/10 rounded-full hover:bg-white/20 backdrop-blur-md transition"><X size={24} className="text-white"/></button><video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl" /></div>}
       {showEditProfile && currentUserProfile && <EditProfileModal player={currentUserProfile} onClose={() => setShowEditProfile(false)} onUpdate={(updated) => { setCurrentUserProfile(updated); setViewedProfile(updated); }} />}
-      
-      {/* Settings Overlay - Integration */}
-      {showSettings && (
-          <SettingsModal 
-              onClose={() => setShowSettings(false)} 
-              onLogout={() => { 
-                  supabase.auth.signOut(); 
-                  setShowSettings(false); 
-                  setSession(null); 
-                  setCurrentUserProfile(null);
-                  setActiveTab('home'); 
-              }} 
-              installPrompt={deferredPrompt} 
-              onInstallApp={handleInstallApp} 
-              onRequestPush={handlePushRequest}
-              user={currentUserProfile}
-              onEditReq={() => {
-                  setShowSettings(false);
-                  setShowEditProfile(true);
-              }}
-              onVerifyReq={() => {
-                  setShowSettings(false);
-                  setShowVerificationModal(true);
-              }}
-          />
-      )}
-      
-      {/* Verification Modal */}
-      {showVerificationModal && (
-          <VerificationModal 
-              onClose={() => setShowVerificationModal(false)}
-              onUploadComplete={() => {
-                  // Hier könnte man den User neu laden, um den Status anzuzeigen
-                  refreshProfile();
-              }}
-          />
-      )}
-
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={() => { supabase.auth.signOut(); setShowSettings(false); setSession(null); setCurrentUserProfile(null); setActiveTab('home'); }} installPrompt={deferredPrompt} onInstallApp={handleInstallApp} onRequestPush={handlePushRequest} user={currentUserProfile} onEditReq={() => { setShowSettings(false); setShowEditProfile(true); }} onVerifyReq={() => { setShowSettings(false); setShowVerificationModal(true); }} />}
+      {showVerificationModal && <VerificationModal onClose={() => setShowVerificationModal(false)} onUploadComplete={() => { refreshProfile(); }} />}
       {showFollowersModal && viewedProfile && <FollowerListModal userId={viewedProfile.user_id} onClose={() => setShowFollowersModal(false)} onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }} />}
+      {/* NEU: Watchlist Modal Integration */}
+      {showWatchlist && session && <WatchlistModal session={session} onClose={() => setShowWatchlist(false)} onUserClick={(p) => { setShowWatchlist(false); loadProfile(p); }} />}
       {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
       {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
-      {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); }} />}
+      {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if(currentUserProfile) loadProfile(currentUserProfile); setFeedVersion(v => v + 1); }} />}
       {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
     </div>
   );
-};
-
-const AdminDashboard = ({ session }) => {
-    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
-    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
-    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
-    useEffect(() => { fetchPending(); fetchReports(); }, []);
-    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
-    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
-    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
-};
-
-const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
-    const [comments, setComments] = useState([]);
-    const [text, setText] = useState('');
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchComments = async () => {
-            const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true });
-            setComments(data || []);
-            setLoading(false);
-        };
-        fetchComments();
-        
-        const channel = supabase.channel('comments').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, payload => {
-            setComments(prev => [...prev, payload.new]);
-        }).subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [video.id]);
-
-    const sendComment = async (e) => {
-        e.preventDefault();
-        if (!session) return onLoginReq();
-        if (!text.trim()) return;
-        
-        await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text });
-        setText('');
-    };
-
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom">
-            <div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}>
-                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900">
-                    <h3 className="text-white font-bold">Kommentare</h3>
-                    <button onClick={onClose}><X className="text-zinc-400"/></button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500"/> : comments.length === 0 ? <p className="text-zinc-500 text-center text-sm">Noch keine Kommentare.</p> : 
-                    comments.map(c => (
-                        <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">
-                            {c.content}
-                        </div>
-                    ))}
-                </div>
-                <form onSubmit={sendComment} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2">
-                    <input className={inputStyle} value={text} onChange={e => setText(e.target.value)} placeholder="Kommentar..." />
-                    <button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button>
-                </form>
-            </div>
-        </div>
-    );
 };
 
 export default App;
