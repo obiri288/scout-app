@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-// HINWEIS FÜR LOKALE ENTWICKLUNG (VS CODE):
+
+// --- HINWEIS FÜR LOKALE ENTWICKLUNG (VS CODE) ---
 // 1. Führen Sie im Terminal aus: npm install @supabase/supabase-js
 // 2. Entfernen Sie die zwei Slashes (//) vor dem Import unten:
 // import { createClient } from '@supabase/supabase-js'; 
@@ -29,7 +30,6 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
 
-// Generiert ein Thumbnail aus einem Video-File (Client-Side)
 const generateVideoThumbnail = (file) => {
     return new Promise((resolve) => {
         const video = document.createElement("video");
@@ -38,10 +38,9 @@ const generateVideoThumbnail = (file) => {
         video.muted = true;
         video.playsInline = true;
         
-        const timeout = setTimeout(() => resolve(null), 3000); // Max 3s warten
+        const timeout = setTimeout(() => resolve(null), 3000); 
 
         video.onloadeddata = () => {
-            // Springe zu Sekunde 1 oder zum Anfang
             video.currentTime = Math.min(1, video.duration / 2);
         };
 
@@ -49,7 +48,7 @@ const generateVideoThumbnail = (file) => {
             clearTimeout(timeout);
             try {
                 const canvas = document.createElement("canvas");
-                canvas.width = 480; // Performance: Kleineres Thumbnail
+                canvas.width = 480; 
                 canvas.height = 270;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -70,7 +69,6 @@ const inputStyle = "w-full bg-zinc-900/50 border border-white/10 text-white p-4 
 const cardStyle = "bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden";
 const glassHeader = "bg-black/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-30 px-4 py-4 pt-12 flex items-center justify-between transition-all";
 
-// Helper um Alter zu berechnen
 const calculateAge = (birthDate) => {
     if (!birthDate) return null;
     const today = new Date();
@@ -181,7 +179,7 @@ const createMockClient = () => {
                     if (table === 'scout_watchlist' && query?.includes('players_master')) {
                          filtered = filtered.map(item => { const p = db.players_master.find(pm => pm.id === item.player_id); return { ...item, players_master: p }; }).filter(item => item.players_master); 
                     }
-                    // NEU: Join für Event Responses (Trainer sieht Spieler)
+                    // NEU: Join für Event Responses
                     if (table === 'club_event_responses' && query?.includes('players_master')) {
                          filtered = filtered.map(item => { 
                              const p = db.players_master.find(pm => pm.user_id === item.user_id); 
@@ -194,20 +192,18 @@ const createMockClient = () => {
                 insert: async (obj) => { const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; if(!db[table]) db[table] = []; db[table].unshift(newItem); saveDB(db); return { data: [newItem], error: null }; },
                 update: (obj) => ({ eq: (col, val) => { const idx = db[table].findIndex(r => r[col] == val); let res = { data: null, error: "Not found" }; if(idx >= 0) { db[table][idx] = { ...db[table][idx], ...obj }; saveDB(db); res = { data: db[table][idx], error: null }; } return { select: () => ({ single: () => res }) }; }}),
                 delete: () => ({ match: (filter) => { if (!db[table]) return { error: null }; db[table] = db[table].filter(row => !Object.keys(filter).every(key => row[key] === filter[key])); saveDB(db); return { error: null }; }}),
+                // FIX: Upsert Logik
                 upsert: async (obj) => { 
                     if (!db[table]) db[table] = []; 
-                    // Für Responses suchen wir nach composite key (user_id + event_id)
                     let existingIdx = -1;
-                    if(table === 'club_event_responses') {
-                        existingIdx = db[table].findIndex(r => r.user_id === obj.user_id && r.event_id === obj.event_id);
-                    } else {
-                        existingIdx = db[table].findIndex(r => r.user_id === obj.user_id);
-                    }
-
+                    if(table === 'club_event_responses') existingIdx = db[table].findIndex(r => r.user_id === obj.user_id && r.event_id === obj.event_id);
+                    else existingIdx = db[table].findIndex(r => r.user_id === obj.user_id);
                     let result; 
                     if (existingIdx >= 0) { db[table][existingIdx] = { ...db[table][existingIdx], ...obj }; result = db[table][existingIdx]; } 
                     else { result = { ...obj, id: Date.now(), followers_count: 0 }; db[table].push(result); } 
-                    saveDB(db); return { data: result, error: null }; 
+                    saveDB(db); 
+                    const res = { data: result, error: null };
+                    return { select: () => ({ single: () => res }), then: (cb) => cb(res) }; 
                 }
             };
             function helper(d) { return { 
@@ -232,80 +228,36 @@ const createMockClient = () => {
 };
 
 // --- HIER WIRD UMGESCHALTET ---
-
-// 1. FÜR VORSCHAU IM BROWSER: Mock Client verwenden (Standard)
-const supabase = createMockClient();
-
-// 2. FÜR LOKALE ENTWICKLUNG (VS Code):
-// Kommentieren Sie die Zeile oben aus und aktivieren Sie die Zeile unten:
+const supabase = createMockClient(); 
 // const supabase = createClient(supabaseUrl, supabaseKey); 
 
-
 // --- 4. HOOKS ---
-
 const useSmartProfile = (session) => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
-
     const fetchOrCreateIndex = useCallback(async () => {
-        if (!session?.user?.id) {
-            setProfile(null);
-            return;
-        }
+        if (!session?.user?.id) { setProfile(null); return; }
         setLoading(true);
         try {
-            // 1. Versuche existierendes Profil zu laden
-            let { data, error } = await supabase.from('players_master')
-                .select('*, clubs(*)')
-                .eq('user_id', session.user.id)
-                .maybeSingle();
-
-            // 2. Falls keins existiert -> Auto-Create
+            let { data } = await supabase.from('players_master').select('*, clubs(*)').eq('user_id', session.user.id).maybeSingle();
             if (!data) {
-                const newProfile = { 
-                    user_id: session.user.id, 
-                    full_name: 'Neuer Spieler', 
-                    position_primary: 'ZM', 
-                    transfer_status: 'Gebunden',
-                    followers_count: 0,
-                    is_verified: false,
-                    is_admin: false
-                };
-                
-                const { data: createdProfile, error: createError } = await supabase
-                    .from('players_master')
-                    .upsert(newProfile)
-                    .select()
-                    .single();
-                
-                if (createError) throw createError;
-                data = createdProfile;
+                const newProfile = { user_id: session.user.id, full_name: 'Neuer Spieler', position_primary: 'ZM', transfer_status: 'Gebunden', followers_count: 0, is_verified: false, is_admin: false, club_role: 'player' };
+                await supabase.from('players_master').upsert(newProfile);
+                data = newProfile;
             }
             setProfile(data);
-        } catch (e) {
-            console.error("Profile fetch error:", e.message);
-        } finally {
-            setLoading(false);
-        }
+        } catch (e) { console.error("Profile fetch error:", e.message); } finally { setLoading(false); }
     }, [session]);
-
-    useEffect(() => {
-        fetchOrCreateIndex();
-    }, [fetchOrCreateIndex]);
-
+    useEffect(() => { fetchOrCreateIndex(); }, [fetchOrCreateIndex]);
     return { profile, loading, refresh: fetchOrCreateIndex, setProfile };
 };
 
 // --- 5. UI KOMPONENTEN ---
-
 class SafeErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
     static getDerivedStateFromError(error) { return { hasError: true }; }
     componentDidCatch(error, errorInfo) { console.error("UI Error:", error, errorInfo); }
-    render() {
-      if (this.state.hasError) return <div className="p-4 text-red-500 bg-red-500/10 rounded-xl m-4">Ein Fehler ist aufgetreten.</div>;
-      return this.props.children; 
-    }
+    render() { if (this.state.hasError) return <div className="p-4 text-red-500 bg-red-500/10 rounded-xl m-4">Ein Fehler ist aufgetreten.</div>; return this.props.children; }
 }
 
 const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
@@ -323,7 +275,7 @@ const GuestFallback = ({ icon: Icon, title, text, onLogin }) => (
 const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
     useEffect(() => { const f = async () => { try { const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId); if (data?.length) { const ids = data.map(f => f.follower_id); const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids); setFollowers(u||[]); } } catch(e){} }; f(); }, [userId]);
-    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
+    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"><div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}><div className="flex justify-between mb-4"><h2 className="font-bold text-white">Follower</h2><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="space-y-2">{followers.map(p=><div key={p.id} onClick={()=>{onClose();onUserClick(p)}} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer"><div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url?<img src={p.avatar_url} className="w-full h-full object-cover"/>:<User className="m-2"/>}</div><div><div className="text-white font-bold">{p.full_name}</div><div className="text-zinc-500 text-xs">{p.clubs?.name}</div></div></div>)}</div></div></div>);
 };
 
 const ToastContainer = ({ toasts, removeToast }) => (<div className="fixed top-6 left-0 right-0 z-[120] flex flex-col items-center gap-3 pointer-events-none px-4">{toasts.map(t => (<div key={t.id} onClick={()=>removeToast(t.id)} className={`bg-zinc-900/90 backdrop-blur-md border border-white/10 text-white px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-4 pointer-events-auto max-w-sm w-full cursor-pointer animate-in slide-in-from-top-2`}><div className={`p-3 rounded-full ${t.type==='error'?'bg-red-500/20 text-red-400':'bg-blue-500/20 text-blue-400'}`}>{t.type==='error'?<AlertCircle size={20}/>:<Bell size={20}/>}</div><div className="flex-1 text-sm font-medium">{t.content}</div></div>))}</div>);
@@ -337,95 +289,22 @@ const ReportModal = ({ targetId, targetType, onClose, session }) => {
         setLoading(true);
         try { await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: targetId, target_type: targetType, reason: reason, status: 'pending' }).catch(() => {}); alert("Vielen Dank! Wir prüfen die Meldung."); onClose(); } catch (e) { alert("Fehler beim Melden."); } finally { setLoading(false); }
     };
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className={`w-full max-w-xs ${cardStyle} p-5`}>
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3>
-                <div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5">
-                    <select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select>
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button>
-                    <button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button>
-                </div>
-            </div>
-        </div>
-    );
+    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className={`w-full max-w-xs ${cardStyle} p-5`}><h3 className="font-bold text-white mb-4 flex items-center gap-2"><Flag size={18} className="text-red-500"/> Inhalt melden</h3><div className="bg-zinc-900/50 p-1 rounded-xl mb-4 border border-white/5"><select value={reason} onChange={e => setReason(e.target.value)} className="w-full bg-transparent text-white p-2 text-sm outline-none"><option>Spam / Werbung</option><option>Unangemessener Inhalt</option><option>Beleidigung</option><option>Fake Profil</option></select></div><div className="flex gap-3"><button onClick={onClose} className="flex-1 bg-white/5 text-zinc-400 py-2.5 rounded-xl font-bold text-xs hover:text-white transition">Abbruch</button><button onClick={handleReport} disabled={loading} className="flex-1 bg-red-600/90 hover:bg-red-600 text-white py-2.5 rounded-xl font-bold text-xs transition">Melden</button></div></div></div>);
 };
 
 const VerificationModal = ({ onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
     const handleUpload = async () => { setUploading(true); await new Promise(r => setTimeout(r, 1500)); alert("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status."); setUploading(false); onUploadComplete(); onClose(); };
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}>
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3>
-                    <button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button>
-                </div>
-                <div className="space-y-6">
-                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">
-                        Lade ein Foto deines Spielerpasses oder Personalausweises hoch, um das "Verifiziert"-Badge zu erhalten.
-                    </div>
-                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group">
-                        <div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div>
-                        <p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p>
-                        <input type="file" className="hidden" onChange={handleUpload} />
-                    </label>
-                    {uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}
-                </div>
-            </div>
-        </div>
-    );
+    return (<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"><div className={`w-full max-w-md ${cardStyle} p-6 border-t border-zinc-700 shadow-2xl relative`}><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24}/> Verifizierung</h3><button onClick={onClose}><X className="text-zinc-400 hover:text-white" /></button></div><div className="space-y-6"><div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-200">Lade ein Foto deines Spielerpasses oder Personalausweises hoch.</div><label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-800/50 hover:border-blue-500/50 transition-all group"><div className="p-4 bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform"><FileBadge className="w-8 h-8 text-blue-400" /></div><p className="text-sm text-zinc-300 font-medium">Dokument auswählen</p><input type="file" className="hidden" onChange={handleUpload} /></label>{uploading && <div className="text-center text-zinc-400 text-xs flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Upload läuft...</div>}</div></div></div>);
 };
 
 const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchComments = async () => {
-            const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true });
-            setComments(data || []);
-            setLoading(false);
-        };
-        fetchComments();
-        
-        const channel = supabase.channel('comments').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, payload => {
-            setComments(prev => [...prev, payload.new]);
-        }).subscribe();
-        return () => { supabase.removeChannel(channel); };
-    }, [video.id]);
-
-    const sendComment = async (e) => {
-        e.preventDefault();
-        if (!session) return onLoginReq();
-        if (!text.trim()) return;
-        await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text });
-        setText('');
-    };
-
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom">
-            <div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}>
-                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900">
-                    <h3 className="text-white font-bold">Kommentare</h3>
-                    <button onClick={onClose}><X className="text-zinc-400"/></button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500"/> : comments.length === 0 ? <p className="text-zinc-500 text-center text-sm">Noch keine Kommentare.</p> : 
-                    comments.map(c => (
-                        <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">{c.content}</div>
-                    ))}
-                </div>
-                <form onSubmit={sendComment} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2">
-                    <input className={inputStyle} value={text} onChange={e => setText(e.target.value)} placeholder="Kommentar..." />
-                    <button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button>
-                </form>
-            </div>
-        </div>
-    );
+    useEffect(() => { const f = async () => { const { data } = await supabase.from('media_comments').select('*, users:auth.users(id)').eq('video_id', video.id).order('created_at', { ascending: true }); setComments(data || []); setLoading(false); }; f(); const c = supabase.channel('c').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'media_comments', filter: `video_id=eq.${video.id}` }, p => setComments(pre => [...pre, p.new])).subscribe(); return () => { supabase.removeChannel(c); }; }, [video.id]);
+    const s = async (e) => { e.preventDefault(); if (!session) return onLoginReq(); if (!text.trim()) return; await supabase.from('media_comments').insert({ video_id: video.id, user_id: session.user.id, content: text }); setText(''); };
+    return (<div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in slide-in-from-bottom"><div className={`w-full sm:max-w-md ${cardStyle} h-[60vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl`}><div className="p-4 border-b border-white/5 flex justify-between items-center bg-zinc-900"><h3 className="text-white font-bold">Kommentare</h3><button onClick={onClose}><X className="text-zinc-400"/></button></div><div className="flex-1 overflow-y-auto p-4 space-y-3">{loading?<Loader2 className="animate-spin mx-auto text-zinc-500"/>:comments.map(c=><div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white">{c.content}</div>)}</div><form onSubmit={s} className="p-4 border-t border-white/5 bg-zinc-900 flex gap-2"><input className={inputStyle} value={text} onChange={e=>setText(e.target.value)} placeholder="..." /><button className={`${btnPrimary} w-auto px-4`}><Send size={18}/></button></form></div></div>);
 };
 
 const WatchlistModal = ({ session, onClose, onUserClick }) => {
@@ -433,72 +312,10 @@ const WatchlistModal = ({ session, onClose, onUserClick }) => {
     const [loading, setLoading] = useState(true);
     const [editingNote, setEditingNote] = useState(null); 
     const [noteText, setNoteText] = useState("");
-
-    useEffect(() => {
-        const fetchWatchlist = async () => {
-            setLoading(true);
-            const { data } = await supabase.from('scout_watchlist').select('*, players_master(*, clubs(*))').eq('scout_id', session.user.id).order('created_at', { ascending: false });
-            setList(data || []);
-            setLoading(false);
-        };
-        fetchWatchlist();
-    }, []);
-
-    const handleRemove = async (playerId) => {
-        await supabase.from('scout_watchlist').delete().match({ scout_id: session.user.id, player_id: playerId });
-        setList(prev => prev.filter(item => item.player_id !== playerId));
-    };
-
-    const handleSaveNote = async (itemId) => {
-        await supabase.from('scout_watchlist').update({ note: noteText }).eq('id', itemId);
-        setList(prev => prev.map(item => item.id === itemId ? { ...item, note: noteText } : item));
-        setEditingNote(null);
-    };
-
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-            <div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
-                <div className="flex justify-between items-center p-6 border-b border-white/5">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor" size={20}/> Merkliste</h2>
-                    <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-zinc-500"/></div> : (
-                        list.length === 0 ? <div className="text-center text-zinc-500 py-10">Noch keine Spieler gemerkt.</div> :
-                        list.map(item => (
-                            <div key={item.id} className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
-                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>
-                                    <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden shrink-0">
-                                        {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover"/> : <User className="m-3 text-zinc-500"/>}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-white truncate">{item.players_master?.full_name}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-zinc-400">
-                                            <span className="bg-white/10 px-1.5 rounded">{item.players_master?.position_primary}</span>
-                                            <span>{item.players_master?.clubs?.name}</span>
-                                        </div>
-                                    </div>
-                                    <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-zinc-500 hover:text-red-500"><Trash2 size={16}/></button>
-                                </div>
-                                <div className="mt-3 pt-2 border-t border-white/5">
-                                    {editingNote === item.id ? (
-                                        <div className="flex gap-2">
-                                            <input autoFocus className="flex-1 bg-black/30 text-xs text-white p-2 rounded-lg outline-none border border-blue-500/50" value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Notiz..." />
-                                            <button onClick={() => handleSaveNote(item.id)} className="text-blue-500 font-bold text-xs">OK</button>
-                                        </div>
-                                    ) : (
-                                        <div onClick={() => { setEditingNote(item.id); setNoteText(item.note || ""); }} className="text-xs text-zinc-500 flex items-center gap-2 cursor-pointer hover:text-zinc-300">
-                                            <NotebookPen size={12}/> {item.note || "Notiz hinzufügen..."}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+    useEffect(() => { const f = async () => { setLoading(true); const { data } = await supabase.from('scout_watchlist').select('*, players_master(*, clubs(*))').eq('scout_id', session.user.id).order('created_at', { ascending: false }); setList(data || []); setLoading(false); }; f(); }, []);
+    const handleRemove = async (pid) => { await supabase.from('scout_watchlist').delete().match({ scout_id: session.user.id, player_id: pid }); setList(p => p.filter(i => i.player_id !== pid)); };
+    const handleSaveNote = async (id) => { await supabase.from('scout_watchlist').update({ note: noteText }).eq('id', id); setList(p => p.map(i => i.id === id ? { ...i, note: noteText } : i)); setEditingNote(null); };
+    return (<div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in"><div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}><div className="flex justify-between items-center p-6 border-b border-white/5"><h2 className="text-xl font-bold text-white flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor"/> Merkliste</h2><button onClick={onClose}><X className="text-zinc-500"/></button></div><div className="flex-1 overflow-y-auto p-4 space-y-3">{loading?<Loader2 className="animate-spin mx-auto text-zinc-500"/>:list.map(i=><div key={i.id} className="bg-zinc-800/50 p-3 rounded-xl border border-white/5"><div className="flex items-center gap-3 cursor-pointer" onClick={()=>onUserClick(i.players_master)}><div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden shrink-0">{i.players_master?.avatar_url?<img src={i.players_master.avatar_url} className="w-full h-full object-cover"/>:<User className="m-3 text-zinc-500"/>}</div><div className="flex-1 min-w-0"><h4 className="font-bold text-white truncate">{i.players_master?.full_name}</h4><div className="text-xs text-zinc-400">{i.players_master?.position_primary} • {i.players_master?.clubs?.name}</div></div><button onClick={(e)=>{e.stopPropagation();handleRemove(i.player_id)}} className="p-2 text-zinc-500 hover:text-red-500"><Trash2 size={16}/></button></div><div className="mt-3 pt-2 border-t border-white/5">{editingNote===i.id?<div className="flex gap-2"><input autoFocus className="flex-1 bg-black/30 text-xs text-white p-2 rounded-lg outline-none border border-blue-500/50" value={noteText} onChange={e=>setNoteText(e.target.value)}/><button onClick={()=>handleSaveNote(i.id)} className="text-blue-500 font-bold text-xs">OK</button></div>:<div onClick={()=>{setEditingNote(i.id);setNoteText(i.note||"")}} className="text-xs text-zinc-500 flex items-center gap-2 cursor-pointer hover:text-zinc-300"><NotebookPen size={12}/>{i.note||"Notiz..."}</div>}</div></div>)}</div></div></div>);
 };
 
 const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
@@ -858,6 +675,7 @@ const SearchScreen = ({ onUserClick, onOpenWatchlist }) => {
   );
 };
 
+// FIX: INBOX SCREEN REPARIERT
 const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
     const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]); const [chats, setChats] = useState([]);
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
@@ -865,10 +683,17 @@ const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
         if(subTab==='notifications') supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[]));
         else if (subTab === 'messages' && session?.user?.id) {
             (async () => {
-                const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true});
+                const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).order('created_at',{ascending:true});
                 const map = new Map();
-                (data||[]).forEach(m => { const pid = m.sender_id===session.user.id?m.receiver_id:m.sender_id; if(!map.has(pid)) map.set(pid, m); });
-                if(map.size>0) { const {data:users} = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]); setChats(users.map(u=>({...u, lastMsg: map.get(u.user_id).content, time: map.get(u.user_id).created_at})).sort((a,b)=>new Date(b.time)-new Date(a.time))); }
+                // FIX: 'partner' entfernt, Logik für User-Findung angepasst
+                (data||[]).forEach(m => { 
+                    const pid = m.sender_id===session.user.id ? m.receiver_id : m.sender_id; 
+                    if(!map.has(pid)) map.set(pid, m); 
+                });
+                if(map.size>0) { 
+                    const {data:users} = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]); 
+                    setChats(users.map(u=>({...u, lastMsg: map.get(u.user_id).content, time: map.get(u.user_id).created_at})).sort((a,b)=>new Date(b.time)-new Date(a.time))); 
+                }
             })();
         }
     }, [subTab, session]);
@@ -904,242 +729,12 @@ const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
     );
 };
 
-const ClubDashboard = ({ club, session, onBack }) => {
-    const [activeTab, setActiveTab] = useState('squad'); // 'squad', 'events', 'news'
-    const [events, setEvents] = useState([]);
-    const [news, setNews] = useState([]);
-    const [squad, setSquad] = useState([]);
-    const [showAddEvent, setShowAddEvent] = useState(false);
-    
-    // NEU: State für RSVP
-    const [expandedEvent, setExpandedEvent] = useState(null);
-    const [responses, setResponses] = useState([]);
-    
-    // Prüfen ob User Trainer/Admin ist (simuliert durch Mock DB Eintrag oder echte Rolle)
-    const [isCoach, setIsCoach] = useState(false);
+// ... ProfileScreen, ClubDashboard, AdminDashboard ... 
+// (Diese Komponenten werden hier der Kürze halber nicht erneut vollständig gezeigt, sind aber im Gesamtcode enthalten)
 
-    const fetchData = useCallback(async () => {
-        // 1. Kader laden
-        const { data: squadData } = await supabase.from('players_master').select('*').eq('club_id', club.id);
-        setSquad(squadData || []);
-        
-        // Check Role
-        const me = squadData?.find(p => p.user_id === session.user.id);
-        if (me && (me.club_role === 'coach' || me.club_role === 'admin')) setIsCoach(true);
+// HINWEIS: Hier ist der vollständige Code für ClubDashboard und die restlichen Komponenten,
+// damit alles in einer Datei ist.
 
-        // 2. Events laden
-        const { data: eventData } = await supabase.from('club_events').select('*').eq('club_id', club.id).gte('start_time', new Date().toISOString()).order('start_time', { ascending: true });
-        setEvents(eventData || []);
-        
-        // NEU: Antworten laden für alle Events
-        if (eventData && eventData.length > 0) {
-            const eventIds = eventData.map(e => e.id);
-            // Mock-Client 'in' Fix beachten
-            const { data: respData } = await supabase.from('club_event_responses')
-                .select('*, players_master(*)')
-                .in('event_id', eventIds);
-            setResponses(respData || []);
-        }
-
-        // 3. News laden
-        const { data: newsData } = await supabase.from('club_news').select('*').eq('club_id', club.id).order('created_at', { ascending: false });
-        setNews(newsData || []);
-
-    }, [club.id, session.user.id]);
-
-    useEffect(() => { fetchData(); }, [fetchData]);
-
-    // NEU: RSVP Handler
-    const handleResponse = async (eventId, status) => {
-        // Optimistic Update im UI
-        const newResponse = { event_id: eventId, user_id: session.user.id, status };
-        // Im echten Backend würde Upsert das erledigen
-        await supabase.from('club_event_responses').upsert({
-            event_id: eventId,
-            user_id: session.user.id,
-            status: status
-        });
-        fetchData(); // Reload um sicher zu gehen
-    };
-
-    // Helper: Get user's response for an event
-    const getUserResponse = (eventId) => {
-        return responses.find(r => r.event_id === eventId && r.user_id === session.user.id)?.status;
-    };
-
-    // Helper: Count responses
-    const getResponseCounts = (eventId) => {
-        const eventResponses = responses.filter(r => r.event_id === eventId);
-        return {
-            attending: eventResponses.filter(r => r.status === 'attending').length,
-            declined: eventResponses.filter(r => r.status === 'declined').length,
-            maybe: eventResponses.filter(r => r.status === 'maybe').length,
-            list: eventResponses
-        };
-    };
-
-    const TabButton = ({ id, label, icon: Icon }) => (
-        <button onClick={() => setActiveTab(id)} className={`flex-1 py-3 border-b-2 flex items-center justify-center gap-2 text-sm font-bold ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500'}`}>
-            <Icon size={16} /> {label}
-        </button>
-    );
-
-    return (
-        <div className="min-h-screen bg-black pb-20">
-            {/* Header */}
-            <div className="relative h-40 bg-zinc-900">
-                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30" />}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <button onClick={onBack} className="absolute top-4 left-4 p-2 bg-black/50 rounded-full text-white"><ArrowLeft size={20}/></button>
-                <div className="absolute bottom-4 left-4">
-                    <h1 className="text-2xl font-bold text-white">{club.name}</h1>
-                    <p className="text-zinc-400 text-xs">{club.league}</p>
-                </div>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
-                <TabButton id="squad" label="Kader" icon={Users} />
-                <TabButton id="events" label="Termine" icon={CalendarDays} />
-                <TabButton id="news" label="News" icon={Megaphone} />
-            </div>
-
-            <div className="p-4 space-y-4">
-                {/* TAB: KADER */}
-                {activeTab === 'squad' && (
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="text-zinc-500 text-xs font-bold uppercase">{squad.length} Spieler</span>
-                            {/* Gamification: Spielerzähler */}
-                            {squad.length < 11 && <span className="text-amber-500 text-xs bg-amber-500/10 px-2 py-1 rounded">Noch {11-squad.length} bis Offiziell</span>}
-                        </div>
-                        {squad.map(p => (
-                            <div key={p.id} className="flex items-center gap-3 p-3 bg-zinc-900 rounded-xl border border-white/5">
-                                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url && <img src={p.avatar_url} className="w-full h-full object-cover"/>}</div>
-                                <div>
-                                    <div className="text-white font-bold text-sm">{p.full_name} {p.club_role === 'coach' && '👑'}</div>
-                                    <div className="text-zinc-500 text-xs">{p.position_primary}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* TAB: EVENTS */}
-                {activeTab === 'events' && (
-                    <div className="space-y-3">
-                        {isCoach && (
-                            <button onClick={() => setShowAddEvent(true)} className="w-full py-3 border border-dashed border-zinc-700 text-zinc-400 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-900 transition">
-                                <Plus size={16} /> Termin hinzufügen
-                            </button>
-                        )}
-                        {events.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine anstehenden Termine.</div> : 
-                            events.map(ev => {
-                                const myStatus = getUserResponse(ev.id);
-                                const stats = getResponseCounts(ev.id);
-                                const isExpanded = expandedEvent === ev.id;
-                                
-                                return (
-                                    <div key={ev.id} className="bg-zinc-900 rounded-xl overflow-hidden border border-white/5">
-                                        <div className="flex gap-4 p-4 border-l-4 border-blue-500">
-                                            <div className="text-center min-w-[50px]">
-                                                <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
-                                                <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="text-white font-bold">{ev.title}</div>
-                                                <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
-                                                    <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                                                    • {ev.location}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* RSVP Buttons */}
-                                        <div className="flex border-t border-white/5 divide-x divide-white/5">
-                                            <button 
-                                                onClick={() => handleResponse(ev.id, 'attending')}
-                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'attending' ? 'bg-green-500/20 text-green-500' : 'text-zinc-400 hover:bg-white/5'}`}
-                                            >
-                                                <ThumbsUp size={14}/> Dabei
-                                            </button>
-                                            <button 
-                                                onClick={() => handleResponse(ev.id, 'maybe')}
-                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'maybe' ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-400 hover:bg-white/5'}`}
-                                            >
-                                                <HelpCircle size={14}/> Vllt.
-                                            </button>
-                                            <button 
-                                                onClick={() => handleResponse(ev.id, 'declined')}
-                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'declined' ? 'bg-red-500/20 text-red-500' : 'text-zinc-400 hover:bg-white/5'}`}
-                                            >
-                                                <ThumbsDown size={14}/> Absage
-                                            </button>
-                                        </div>
-
-                                        {/* Attendance Summary */}
-                                        <div 
-                                            onClick={() => setExpandedEvent(isExpanded ? null : ev.id)}
-                                            className="px-4 py-2 bg-black/20 flex justify-between items-center text-xs text-zinc-500 cursor-pointer hover:bg-black/40"
-                                        >
-                                            <div className="flex gap-3">
-                                                <span className="text-green-500">{stats.attending} zugesagt</span>
-                                                <span className="text-red-500">{stats.declined} abgesagt</span>
-                                            </div>
-                                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
-                                        </div>
-
-                                        {/* Detail List (Only visible when expanded) */}
-                                        {isExpanded && (
-                                            <div className="p-3 bg-black/40 space-y-2 text-xs border-t border-white/5 animate-in slide-in-from-top-2">
-                                                {stats.list.length === 0 && <div className="text-zinc-600 italic">Noch keine Rückmeldungen.</div>}
-                                                {stats.list.map(resp => (
-                                                    <div key={resp.user_id} className="flex items-center justify-between">
-                                                        <span className="text-zinc-300">{resp.players_master?.full_name || "Unbekannt"}</span>
-                                                        {resp.status === 'attending' && <CheckCheck size={14} className="text-green-500"/>}
-                                                        {resp.status === 'declined' && <X size={14} className="text-red-500"/>}
-                                                        {resp.status === 'maybe' && <HelpCircle size={14} className="text-amber-500"/>}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        }
-                    </div>
-                )}
-
-                {/* TAB: NEWS */}
-                {activeTab === 'news' && (
-                    <div className="space-y-4">
-                        {isCoach && (
-                            <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
-                                <input placeholder="Was gibt's Neues, Coach?" className="w-full bg-transparent text-white text-sm outline-none" />
-                            </div>
-                        )}
-                        {news.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine Neuigkeiten.</div> :
-                            news.map(n => (
-                                <div key={n.id} className="bg-zinc-900 p-4 rounded-xl border border-white/5">
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-blue-400 font-bold text-xs uppercase">{n.title}</span>
-                                        <span className="text-zinc-600 text-xs">{new Date(n.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-zinc-300 text-sm">{n.content}</p>
-                                </div>
-                            ))
-                        }
-                    </div>
-                )}
-            </div>
-
-            {/* Modals */}
-            {showAddEvent && <AddEventModal clubId={club.id} onClose={() => setShowAddEvent(false)} onRefresh={fetchData} />}
-        </div>
-    );
-};
-
-// ... AddEventModal Component (Missing in snippet but logically present in flow, I'll add it for completeness)
 const AddEventModal = ({ clubId, onClose, onRefresh }) => {
     const [title, setTitle] = useState('');
     const [type, setType] = useState('training');
@@ -1177,10 +772,211 @@ const AddEventModal = ({ clubId, onClose, onRefresh }) => {
     );
 };
 
-// --- 6. MAIN APP UPDATE ---
-// Der App-Komponente bleibt weitestgehend gleich, wir müssen nur das Routing für den ClubScreen anpassen,
-// damit er jetzt das 'ClubDashboard' rendert, wenn man draufklickt.
+const ClubDashboard = ({ club, session, onBack }) => {
+    const [activeTab, setActiveTab] = useState('squad'); 
+    const [events, setEvents] = useState([]);
+    const [news, setNews] = useState([]);
+    const [squad, setSquad] = useState([]);
+    const [showAddEvent, setShowAddEvent] = useState(false);
+    
+    // NEU: RSVP State
+    const [expandedEvent, setExpandedEvent] = useState(null);
+    const [responses, setResponses] = useState([]);
+    
+    const [isCoach, setIsCoach] = useState(false);
 
+    const fetchData = useCallback(async () => {
+        const { data: squadData } = await supabase.from('players_master').select('*').eq('club_id', club.id);
+        setSquad(squadData || []);
+        
+        const me = squadData?.find(p => p.user_id === session.user.id);
+        if (me && (me.club_role === 'coach' || me.club_role === 'admin')) setIsCoach(true);
+
+        const { data: eventData } = await supabase.from('club_events').select('*').eq('club_id', club.id).gte('start_time', new Date().toISOString()).order('start_time', { ascending: true });
+        setEvents(eventData || []);
+        
+        if (eventData && eventData.length > 0) {
+            const eventIds = eventData.map(e => e.id);
+            // In Mock-Umgebung ist 'in' manchmal eingeschränkt, daher einfacher Mock-Fix
+            const { data: respData } = await supabase.from('club_event_responses')
+                .select('*, players_master(*)')
+                //.in('event_id', eventIds); // Echte API
+            setResponses(respData || []);
+        }
+
+        const { data: newsData } = await supabase.from('club_news').select('*').eq('club_id', club.id).order('created_at', { ascending: false });
+        setNews(newsData || []);
+
+    }, [club.id, session.user.id]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    const handleResponse = async (eventId, status) => {
+        // Optimistic Update
+        const newResponse = { event_id: eventId, user_id: session.user.id, status };
+        // Upsert Logic
+        await supabase.from('club_event_responses').upsert(newResponse);
+        fetchData();
+    };
+
+    const getUserResponse = (eventId) => {
+        return responses.find(r => r.event_id === eventId && r.user_id === session.user.id)?.status;
+    };
+
+    const getResponseCounts = (eventId) => {
+        const eventResponses = responses.filter(r => r.event_id === eventId);
+        return {
+            attending: eventResponses.filter(r => r.status === 'attending').length,
+            declined: eventResponses.filter(r => r.status === 'declined').length,
+            maybe: eventResponses.filter(r => r.status === 'maybe').length,
+            list: eventResponses
+        };
+    };
+
+    const TabButton = ({ id, label, icon: Icon }) => (
+        <button onClick={() => setActiveTab(id)} className={`flex-1 py-3 border-b-2 flex items-center justify-center gap-2 text-sm font-bold ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500'}`}>
+            <Icon size={16} /> {label}
+        </button>
+    );
+
+    return (
+        <div className="min-h-screen bg-black pb-20">
+            <div className="relative h-40 bg-zinc-900">
+                {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                <button onClick={onBack} className="absolute top-4 left-4 p-2 bg-black/50 rounded-full text-white"><ArrowLeft size={20}/></button>
+                <div className="absolute bottom-4 left-4">
+                    <h1 className="text-2xl font-bold text-white">{club.name}</h1>
+                    <p className="text-zinc-400 text-xs">{club.league}</p>
+                </div>
+            </div>
+
+            <div className="flex bg-zinc-900/50 sticky top-0 z-10 backdrop-blur-md">
+                <TabButton id="squad" label="Kader" icon={Users} />
+                <TabButton id="events" label="Termine" icon={CalendarDays} />
+                <TabButton id="news" label="News" icon={Megaphone} />
+            </div>
+
+            <div className="p-4 space-y-4">
+                {activeTab === 'squad' && (
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-zinc-500 text-xs font-bold uppercase">{squad.length} Spieler</span>
+                            {squad.length < 11 && <span className="text-amber-500 text-xs bg-amber-500/10 px-2 py-1 rounded">Noch {11-squad.length} bis Offiziell</span>}
+                        </div>
+                        {squad.map(p => (
+                            <div key={p.id} className="flex items-center gap-3 p-3 bg-zinc-900 rounded-xl border border-white/5">
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">{p.avatar_url && <img src={p.avatar_url} className="w-full h-full object-cover"/>}</div>
+                                <div>
+                                    <div className="text-white font-bold text-sm">{p.full_name} {p.club_role === 'coach' && '👑'}</div>
+                                    <div className="text-zinc-500 text-xs">{p.position_primary}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {activeTab === 'events' && (
+                    <div className="space-y-3">
+                        {isCoach && (
+                            <button onClick={() => setShowAddEvent(true)} className="w-full py-3 border border-dashed border-zinc-700 text-zinc-400 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-900 transition">
+                                <Plus size={16} /> Termin hinzufügen
+                            </button>
+                        )}
+                        {events.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine anstehenden Termine.</div> : 
+                            events.map(ev => {
+                                const myStatus = getUserResponse(ev.id);
+                                const stats = getResponseCounts(ev.id);
+                                const isExpanded = expandedEvent === ev.id;
+                                
+                                return (
+                                    <div key={ev.id} className="bg-zinc-900 rounded-xl overflow-hidden border border-white/5">
+                                        <div className="flex gap-4 p-4 border-l-4 border-blue-500">
+                                            <div className="text-center min-w-[50px]">
+                                                <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
+                                                <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-white font-bold">{ev.title}</div>
+                                                <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
+                                                    <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                                                    • {ev.location}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex border-t border-white/5 divide-x divide-white/5">
+                                            <button onClick={() => handleResponse(ev.id, 'attending')} className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'attending' ? 'bg-green-500/20 text-green-500' : 'text-zinc-400 hover:bg-white/5'}`}><ThumbsUp size={14}/> Dabei</button>
+                                            <button onClick={() => handleResponse(ev.id, 'maybe')} className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'maybe' ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-400 hover:bg-white/5'}`}><HelpCircle size={14}/> Vllt.</button>
+                                            <button onClick={() => handleResponse(ev.id, 'declined')} className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'declined' ? 'bg-red-500/20 text-red-500' : 'text-zinc-400 hover:bg-white/5'}`}><ThumbsDown size={14}/> Absage</button>
+                                        </div>
+
+                                        <div onClick={() => setExpandedEvent(isExpanded ? null : ev.id)} className="px-4 py-2 bg-black/20 flex justify-between items-center text-xs text-zinc-500 cursor-pointer hover:bg-black/40">
+                                            <div className="flex gap-3">
+                                                <span className="text-green-500">{stats.attending} zugesagt</span>
+                                                <span className="text-red-500">{stats.declined} abgesagt</span>
+                                            </div>
+                                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                        </div>
+
+                                        {isExpanded && (
+                                            <div className="p-3 bg-black/40 space-y-2 text-xs border-t border-white/5 animate-in slide-in-from-top-2">
+                                                {stats.list.length === 0 && <div className="text-zinc-600 italic">Noch keine Rückmeldungen.</div>}
+                                                {stats.list.map(resp => (
+                                                    <div key={resp.user_id} className="flex items-center justify-between">
+                                                        <span className="text-zinc-300">{resp.players_master?.full_name || "Unbekannt"}</span>
+                                                        {resp.status === 'attending' && <CheckCheck size={14} className="text-green-500"/>}
+                                                        {resp.status === 'declined' && <X size={14} className="text-red-500"/>}
+                                                        {resp.status === 'maybe' && <HelpCircle size={14} className="text-amber-500"/>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        }
+                    </div>
+                )}
+
+                {activeTab === 'news' && (
+                    <div className="space-y-4">
+                        {isCoach && (
+                            <div className="bg-zinc-900 p-3 rounded-xl border border-white/5">
+                                <input placeholder="Was gibt's Neues, Coach?" className="w-full bg-transparent text-white text-sm outline-none" />
+                            </div>
+                        )}
+                        {news.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine Neuigkeiten.</div> :
+                            news.map(n => (
+                                <div key={n.id} className="bg-zinc-900 p-4 rounded-xl border border-white/5">
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-blue-400 font-bold text-xs uppercase">{n.title}</span>
+                                        <span className="text-zinc-600 text-xs">{new Date(n.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-zinc-300 text-sm">{n.content}</p>
+                                </div>
+                            ))
+                        }
+                    </div>
+                )}
+            </div>
+
+            {showAddEvent && <AddEventModal clubId={club.id} onClose={() => setShowAddEvent(false)} onRefresh={fetchData} />}
+        </div>
+    );
+};
+
+const AdminDashboard = ({ session }) => {
+    const [tab, setTab] = useState('clubs'); const [pendingClubs, setPendingClubs] = useState([]); const [reports, setReports] = useState([]); const [editingClub, setEditingClub] = useState(null); const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
+    const fetchPending = async () => { const { data } = await supabase.from('clubs').select('*').eq('is_verified', false); setPendingClubs(data || []); };
+    const fetchReports = async () => { const { data } = await supabase.from('reports').select('*').eq('status', 'pending'); setReports(data || []); };
+    useEffect(() => { fetchPending(); fetchReports(); }, []);
+    const handleVerify = async (club) => { if(!editForm.logo_url || !editForm.league) return alert("Bitte Logo und Liga ausfüllen"); const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id); if(error) alert(error.message); else { setEditingClub(null); fetchPending(); } };
+    const handleResolveReport = async (id) => { const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id); if(error) alert(error.message); else fetchReports(); };
+    return (<div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen"><h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500"/> Admin</h2><div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2"><button onClick={()=>setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab==='clubs'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button><button onClick={()=>setTab('reports')} className={`text-sm font-bold pb-2 px-2 ${tab==='reports'?'text-white border-b-2 border-blue-500':'text-zinc-500'}`}>Meldungen ({reports.length})</button></div>{tab === 'clubs' && (<div className="space-y-4">{pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}{pendingClubs.map(c => (<div key={c.id} className={`p-4 ${cardStyle}`}><div className="flex justify-between items-start mb-4"><div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0,8)}</span></div><ShieldAlert className="text-amber-500" size={20}/></div>{editingClub === c.id ? (<div className="space-y-3"><input placeholder="Logo URL" value={editForm.logo_url} onChange={e=>setEditForm({...editForm, logo_url: e.target.value})} className={inputStyle}/><select value={editForm.league} onChange={e=>setEditForm({...editForm, league: e.target.value})} className={inputStyle}><option value="">Liga wählen...</option><option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option><option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option><option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option></select><div className="flex gap-2"><button onClick={()=>handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button><button onClick={()=>setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button></div></div>) : (<div className="flex gap-2"><button onClick={()=>{setEditingClub(c.id); setEditForm({logo_url: c.logo_url||'', league: c.league||''})}} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button><button onClick={()=>handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16}/></button></div>)}</div>))}</div>)}{tab === 'reports' && (<div className="space-y-4">{reports.map(r => (<div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}><div className="flex justify-between items-start mb-3"><span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span><span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span></div><p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0,6)}...</span></p><div className="flex gap-2"><button onClick={()=>handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button></div></div>))}</div>)}</div>);
+};
+
+// --- 6. MAIN APP UPDATE ---
 const App = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [session, setSession] = useState(null);
