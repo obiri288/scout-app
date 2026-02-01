@@ -13,7 +13,7 @@ import {
   Flag, Bell, AlertCircle, Wifi, WifiOff, UserPlus, MapPin, Grid, List, UserCheck,
   Eye, EyeOff, Edit, Pencil, Smartphone, Key, RefreshCw, AlertTriangle, FileVideo, Film,
   Calendar, Weight, Hash, Globe, Maximize2, CheckCheck, FileBadge, BadgeCheck, SlidersHorizontal, 
-  BookMarked, Bookmark, CalendarDays, Megaphone, Clock
+  BookMarked, Bookmark, CalendarDays, Megaphone, Clock, ThumbsUp, ThumbsDown, HelpCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // --- 1. KONFIGURATION ---
@@ -28,77 +28,6 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
 
 const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 const getClubBorderColor = (club) => club?.color_primary || "#ffffff"; 
-
-// NEU: DUAL RANGE SLIDER KOMPONENTE
-const DualRangeSlider = ({ min, max, value, onChange, formatLabel }) => {
-  const [minVal, maxVal] = value;
-  const minRef = useRef(null);
-  const maxRef = useRef(null);
-  const range = useRef(null);
-
-  // Prozentberechnung für den blauen Balken
-  const getPercent = useCallback((value) => Math.round(((value - min) / (max - min)) * 100), [min, max]);
-
-  // Setzt die linke Seite des Balkens
-  useEffect(() => {
-    const minPercent = getPercent(minVal);
-    const maxPercent = getPercent(maxVal); 
-
-    if (range.current) {
-      range.current.style.left = `${minPercent}%`;
-      range.current.style.width = `${maxPercent - minPercent}%`;
-    }
-  }, [minVal, getPercent, maxVal]);
-
-  // Styles direkt injizieren für Webkit-Thumb Styling
-  const sliderStyles = `
-    .thumb { pointer-events: none; position: absolute; height: 0; width: 100%; outline: none; z-index: 20; }
-    .thumb::-webkit-slider-thumb { -webkit-appearance: none; -webkit-tap-highlight-color: transparent; background-color: white; border: 2px solid #2563eb; border-radius: 50%; cursor: pointer; height: 18px; width: 18px; margin-top: 4px; pointer-events: all; position: relative; }
-    .thumb::-moz-range-thumb { -webkit-appearance: none; -webkit-tap-highlight-color: transparent; background-color: white; border: 2px solid #2563eb; border-radius: 50%; cursor: pointer; height: 18px; width: 18px; margin-top: 4px; pointer-events: all; position: relative; }
-    .slider-track-bg { position: absolute; width: 100%; height: 4px; background-color: #3f3f46; border-radius: 3px; z-index: 1; }
-    .slider-track-fill { position: absolute; height: 4px; background-color: #2563eb; border-radius: 3px; z-index: 2; }
-  `;
-
-  return (
-    <div className="relative w-full h-12 flex items-center justify-center select-none touch-none">
-      <style>{sliderStyles}</style>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={minVal}
-        ref={minRef}
-        onChange={(event) => {
-          const value = Math.min(Number(event.target.value), maxVal - 1);
-          onChange([value, maxVal]);
-        }}
-        className="thumb"
-        style={{ zIndex: minVal > max - 100 ? "5" : "3" }}
-      />
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={maxVal}
-        ref={maxRef}
-        onChange={(event) => {
-          const value = Math.max(Number(event.target.value), minVal + 1);
-          onChange([minVal, value]);
-        }}
-        className="thumb"
-        style={{ zIndex: 4 }}
-      />
-
-      <div className="relative w-full">
-        <div className="slider-track-bg" />
-        <div ref={range} className="slider-track-fill" />
-        <div className="absolute top-4 left-0 text-xs text-zinc-400 font-mono font-bold mt-1">{formatLabel ? formatLabel(minVal) : minVal}</div>
-        <div className="absolute top-4 right-0 text-xs text-zinc-400 font-mono font-bold mt-1">{formatLabel ? formatLabel(maxVal) : maxVal}</div>
-      </div>
-    </div>
-  );
-};
-
 
 // Generiert ein Thumbnail aus einem Video-File (Client-Side)
 const generateVideoThumbnail = (file) => {
@@ -129,7 +58,6 @@ const generateVideoThumbnail = (file) => {
                     resolve(blob);
                 }, "image/jpeg", 0.7);
             } catch (e) {
-                console.error("Thumbnail Error:", e);
                 resolve(null); 
             }
         };
@@ -200,6 +128,7 @@ const INITIAL_DB = {
     club_news: [
         { id: 1, club_id: 103, title: "Kaderbekanntgabe", content: "Treffpunkt am Samstag um 13:00 Uhr.", created_at: new Date().toISOString() }
     ],
+    club_event_responses: [], 
     scout_watchlist: [],
     direct_messages: [],
     media_likes: [],
@@ -252,13 +181,34 @@ const createMockClient = () => {
                     if (table === 'scout_watchlist' && query?.includes('players_master')) {
                          filtered = filtered.map(item => { const p = db.players_master.find(pm => pm.id === item.player_id); return { ...item, players_master: p }; }).filter(item => item.players_master); 
                     }
+                    // NEU: Join für Event Responses (Trainer sieht Spieler)
+                    if (table === 'club_event_responses' && query?.includes('players_master')) {
+                         filtered = filtered.map(item => { 
+                             const p = db.players_master.find(pm => pm.user_id === item.user_id); 
+                             return { ...item, players_master: p }; 
+                         });
+                    }
                     if (query?.includes('order')) { filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); }
                     return helper(filtered);
                 },
                 insert: async (obj) => { const newItem = { ...obj, id: Date.now(), created_at: new Date().toISOString() }; if(!db[table]) db[table] = []; db[table].unshift(newItem); saveDB(db); return { data: [newItem], error: null }; },
                 update: (obj) => ({ eq: (col, val) => { const idx = db[table].findIndex(r => r[col] == val); let res = { data: null, error: "Not found" }; if(idx >= 0) { db[table][idx] = { ...db[table][idx], ...obj }; saveDB(db); res = { data: db[table][idx], error: null }; } return { select: () => ({ single: () => res }) }; }}),
                 delete: () => ({ match: (filter) => { if (!db[table]) return { error: null }; db[table] = db[table].filter(row => !Object.keys(filter).every(key => row[key] === filter[key])); saveDB(db); return { error: null }; }}),
-                upsert: async (obj) => { if (!db[table]) db[table] = []; const existingIdx = db[table].findIndex(r => r.user_id === obj.user_id); let result; if (existingIdx >= 0) { db[table][existingIdx] = { ...db[table][existingIdx], ...obj }; result = db[table][existingIdx]; } else { result = { ...obj, id: Date.now(), followers_count: 0 }; db[table].push(result); } saveDB(db); return { data: result, error: null }; }
+                upsert: async (obj) => { 
+                    if (!db[table]) db[table] = []; 
+                    // Für Responses suchen wir nach composite key (user_id + event_id)
+                    let existingIdx = -1;
+                    if(table === 'club_event_responses') {
+                        existingIdx = db[table].findIndex(r => r.user_id === obj.user_id && r.event_id === obj.event_id);
+                    } else {
+                        existingIdx = db[table].findIndex(r => r.user_id === obj.user_id);
+                    }
+
+                    let result; 
+                    if (existingIdx >= 0) { db[table][existingIdx] = { ...db[table][existingIdx], ...obj }; result = db[table][existingIdx]; } 
+                    else { result = { ...obj, id: Date.now(), followers_count: 0 }; db[table].push(result); } 
+                    saveDB(db); return { data: result, error: null }; 
+                }
             };
             function helper(d) { return { 
                 eq: (c,v) => helper(d.filter(r=>r[c]==v)), 
@@ -879,248 +829,80 @@ const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserCl
     return <div className="pb-24 pt-0 max-w-md mx-auto">{feed.map(v => <FeedItem key={v.id} video={v} onClick={onVideoClick} session={session} onLikeReq={onLikeReq} onCommentClick={onCommentClick} onUserClick={onUserClick} onReportReq={onReportReq} />)}</div>;
 };
 
-// --- KOMPLETT NEU: SEARCH SCREEN MIT SCOUT ENGINE ---
-
 const SearchScreen = ({ onUserClick, onOpenWatchlist }) => {
-    const [query, setQuery] = useState('');
-    const [results, setResults] = useState([]);
-    const [showFilters, setShowFilters] = useState(false);
-    const [loading, setLoading] = useState(false);
-  
-    // Filter State
-    const [filters, setFilters] = useState({
-        minHeight: 0,
-        maxHeight: 220,
-        minAge: 16,
-        maxAge: 40,
-        positions: [], // Array von Strings, z.B. ['IV', 'ZDM']
-        strongFoot: 'Alle',
-        transferStatus: 'Alle'
-    });
-  
-    const positionsList = ['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'];
-  
-    // --- SCOUTING QUERY LOGIC ---
+  const [query, setQuery] = useState(''); const [res, setRes] = useState([]); const [pos, setPos] = useState('Alle'); const [status, setStatus] = useState('Alle');
+  useEffect(() => { const t = setTimeout(async () => { let q = supabase.from('players_master').select('*, clubs(*)'); if(query) q = q.ilike('full_name', `%${query}%`); if(pos !== 'Alle') q = q.eq('position_primary', pos); if(status !== 'Alle') q = q.eq('transfer_status', status); const { data } = await q.limit(20); setRes(data||[]); }, 300); return () => clearTimeout(t); }, [query, pos, status]);
+  const FilterChip = ({ label, active, onClick }) => ( <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>{label}</button> );
+  return (
+    <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
+      <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
+      <div className="px-4 mt-4">
+          <div className="relative mb-6"><Search className="absolute left-4 top-4 text-zinc-500" size={20}/><input placeholder="Suche..." value={query} onChange={e=>setQuery(e.target.value)} className={`${inputStyle} pl-12`} /></div>
+          <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => <FilterChip key={s} label={s === 'Alle' ? 'Status: Alle' : s} active={status === s} onClick={() => setStatus(s)} />)}</div>
+          <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4">{['Alle', 'ST','ZOM','ZM','IV','TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
+          <div className="space-y-3">
+              {res.map(p => (
+                  <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
+                      <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}</div>
+                      <div className="flex-1">
+                          <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base">{p.full_name}</h3><span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span></div>
+                          <div className="flex items-center gap-1 mt-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
+                      </div>
+                      <ChevronRight size={18} className="text-zinc-600"/>
+                  </div>
+              ))}
+              {res.length === 0 && <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20"/><p>Keine Ergebnisse</p></div>}
+          </div>
+      </div>
+    </div>
+  );
+};
+
+const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
+    const [subTab, setSubTab] = useState('notifications'); const [notis, setNotis] = useState([]); const [chats, setChats] = useState([]);
+    if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
     useEffect(() => {
-        const fetchResults = async () => {
-            setLoading(true);
-            let dbQuery = supabase.from('players_master').select('*, clubs(*)');
-  
-            // 1. Textsuche (Name)
-            if (query.trim()) {
-                dbQuery = dbQuery.ilike('full_name', `%${query}%`);
-            }
-  
-            // 2. Position Filter (Multi-Select)
-            if (filters.positions.length > 0) {
-                // Sucht Spieler, deren Hauptposition in der Liste ist
-                dbQuery = dbQuery.in('position_primary', filters.positions);
-            }
-  
-            // 3. Größen Filter
-            if (filters.minHeight > 0) {
-                dbQuery = dbQuery.gte('height_user', filters.minHeight);
-            }
-            if (filters.maxHeight < 220) {
-                 dbQuery = dbQuery.lte('height_user', filters.maxHeight);
-            }
-  
-            // 4. Alter Filter (Berechnung über Geburtsdatum)
-            const today = new Date();
-            if (filters.maxAge < 40) {
-                const minBirthDate = new Date(today.getFullYear() - filters.maxAge - 1, today.getMonth(), today.getDate()).toISOString();
-                dbQuery = dbQuery.gte('birth_date', minBirthDate);
-            }
-            if (filters.minAge > 16) {
-                const maxBirthDate = new Date(today.getFullYear() - filters.minAge, today.getMonth(), today.getDate()).toISOString();
-                dbQuery = dbQuery.lte('birth_date', maxBirthDate);
-            }
-  
-            // 5. Fuß
-            if (filters.strongFoot !== 'Alle') {
-                dbQuery = dbQuery.eq('strong_foot', filters.strongFoot);
-            }
-  
-            // 6. Status
-            if (filters.transferStatus !== 'Alle') {
-                dbQuery = dbQuery.eq('transfer_status', filters.transferStatus);
-            }
-  
-            const { data } = await dbQuery.limit(20);
-            setResults(data || []);
-            setLoading(false);
-        };
-  
-        // Debounce für Performance
-        const timer = setTimeout(fetchResults, 400);
-        return () => clearTimeout(timer);
-    }, [query, filters]);
-  
-    // Helper für Multi-Select Toggle
-    const togglePosition = (pos) => {
-        setFilters(prev => {
-            const newPos = prev.positions.includes(pos)
-                ? prev.positions.filter(p => p !== pos) // Entfernen
-                : [...prev.positions, pos]; // Hinzufügen
-            return { ...prev, positions: newPos };
-        });
-    };
-  
-    const FilterChip = ({ label, active, onClick }) => (
-        <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition border ${active ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'}`}>
-            {label}
-        </button>
-    );
-  
+        if(subTab==='notifications') supabase.from('notifications').select('*, actor:players_master!actor_id(full_name, avatar_url)').order('created_at', {ascending:false}).limit(20).then(({data}) => setNotis(data||[]));
+        else if (subTab === 'messages' && session?.user?.id) {
+            (async () => {
+                const { data } = await supabase.from('direct_messages').select('*').or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`).or(`sender_id.eq.${partner.user_id},receiver_id.eq.${partner.user_id}`).order('created_at',{ascending:true});
+                const map = new Map();
+                (data||[]).forEach(m => { const pid = m.sender_id===session.user.id?m.receiver_id:m.sender_id; if(!map.has(pid)) map.set(pid, m); });
+                if(map.size>0) { const {data:users} = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]); setChats(users.map(u=>({...u, lastMsg: map.get(u.user_id).content, time: map.get(u.user_id).created_at})).sort((a,b)=>new Date(b.time)-new Date(a.time))); }
+            })();
+        }
+    }, [subTab, session]);
     return (
-      <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
-        <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
-        
-        <div className="px-4 mt-4">
-            {/* Suchleiste & Filter-Toggle */}
-            <div className="relative mb-4 flex gap-2">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-3.5 text-zinc-500" size={20}/>
-                    <input 
-                        placeholder="Spieler suchen..." 
-                        value={query} 
-                        onChange={e=>setQuery(e.target.value)} 
-                        className={`${inputStyle} pl-12 pr-12`} 
-                    />
-                    <button 
-                        onClick={() => setShowFilters(!showFilters)} 
-                        className={`absolute right-2 top-2 p-2 rounded-lg transition ${showFilters ? 'bg-blue-500 text-white' : 'text-zinc-400 hover:bg-white/10'}`}
-                    >
-                        <SlidersHorizontal size={18} />
-                    </button>
+        <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
+            <div className={glassHeader}><h2 className="text-2xl font-black text-white">Inbox</h2></div>
+            <div className="px-4 mt-4">
+                <div className="flex bg-zinc-900/50 rounded-xl p-1 mb-6 border border-white/5 relative">
+                    <button onClick={()=>setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab==='notifications'?'bg-zinc-800 text-white shadow-lg':'text-zinc-500 hover:text-zinc-300'}`}>Mitteilungen</button>
+                    <button onClick={()=>setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab==='messages'?'bg-zinc-800 text-white shadow-lg':'text-zinc-500 hover:text-zinc-300'}`}>Nachrichten</button>
                 </div>
-                {/* Watchlist Button */}
-                <button onClick={onOpenWatchlist} className="bg-zinc-800 p-3.5 rounded-xl border border-white/10 text-white hover:bg-zinc-700">
-                    <Bookmark size={22} />
-                </button>
-            </div>
-            
-            {/* --- DIE SCOUT ENGINE (FILTER UI) --- */}
-            {showFilters && (
-                <div className="mb-6 p-5 bg-zinc-900 border border-zinc-800 rounded-2xl animate-in slide-in-from-top-2 space-y-6 shadow-2xl">
-                    <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-white text-sm flex items-center gap-2"><SlidersHorizontal size={14}/> Erweiterte Filter</h3>
-                        <button 
-                            onClick={() => setFilters({ minHeight: 0, maxHeight: 220, minAge: 16, maxAge: 40, positions: [], strongFoot: 'Alle', transferStatus: 'Alle' })}
-                            className="text-xs text-blue-400 hover:text-blue-300 font-medium"
-                        >
-                            Zurücksetzen
-                        </button>
-                    </div>
-  
-                    {/* Positionen Grid */}
-                    <div className="space-y-2">
-                        <label className="text-xs text-zinc-500 font-bold uppercase">Positionen</label>
-                        <div className="flex flex-wrap gap-2">
-                            {positionsList.map(pos => (
-                                <button 
-                                    key={pos}
-                                    onClick={() => togglePosition(pos)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filters.positions.includes(pos) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-black border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}
-                                >
-                                    {pos}
-                                </button>
-                            ))}
+                <div className="space-y-3">
+                    {subTab === 'notifications' && (notis.length > 0 ? notis.map(n => (
+                        <div key={n.id} className={`flex items-start gap-4 p-4 ${cardStyle}`}>
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 shrink-0 mt-1">{n.actor?.avatar_url?<img src={n.actor.avatar_url} className="w-full h-full object-cover"/>:<User size={16} className="text-zinc-500 m-2.5"/>}</div>
+                            <div className="flex-1 text-sm text-white pt-1"><span className="font-bold">{n.actor?.full_name||"Jemand"}</span> <span className="text-zinc-400">{n.type==='like'?'hat dein Video geliked.':n.type==='follow'?'folgt dir jetzt.':'hat kommentiert.'}</span></div>
+                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
                         </div>
-                    </div>
-  
-                    {/* Range Sliders (Simuliert durch Inputs für Stabilität) */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                             <label className="text-xs text-zinc-500 font-bold uppercase">Größe (cm)</label>
-                             <div className="flex items-center gap-2">
-                                 <input type="number" value={filters.minHeight || ''} onChange={e => setFilters({...filters, minHeight: parseInt(e.target.value) || 0})} placeholder="Min" className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
-                                 <span className="text-zinc-600">-</span>
-                                 <input type="number" value={filters.maxHeight || ''} onChange={e => setFilters({...filters, maxHeight: parseInt(e.target.value) || 220})} placeholder="Max" className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
-                             </div>
-                        </div>
-                        <div className="space-y-2">
-                             <label className="text-xs text-zinc-500 font-bold uppercase">Alter</label>
-                             <div className="flex items-center gap-2">
-                                 <input type="number" value={filters.minAge} onChange={e => setFilters({...filters, minAge: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
-                                 <span className="text-zinc-600">-</span>
-                                 <input type="number" value={filters.maxAge} onChange={e => setFilters({...filters, maxAge: parseInt(e.target.value)})} className="w-full bg-black border border-zinc-800 rounded-lg p-2 text-white text-sm text-center"/>
-                             </div>
-                        </div>
-                    </div>
-  
-                    {/* Dropdowns für Fuß & Status */}
-                    <div className="grid grid-cols-2 gap-4">
-                         <div className="space-y-2">
-                            <label className="text-xs text-zinc-500 font-bold uppercase">Starker Fuß</label>
-                            <select value={filters.strongFoot} onChange={e => setFilters({...filters, strongFoot: e.target.value})} className="w-full bg-black border border-zinc-800 text-white p-2 rounded-lg text-sm outline-none">
-                                <option>Alle</option>
-                                <option>Rechts</option>
-                                <option>Links</option>
-                                <option>Beidfüßig</option>
-                            </select>
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-xs text-zinc-500 font-bold uppercase">Status</label>
-                            <select value={filters.transferStatus} onChange={e => setFilters({...filters, transferStatus: e.target.value})} className="w-full bg-black border border-zinc-800 text-white p-2 rounded-lg text-sm outline-none">
-                                <option>Alle</option>
-                                <option>Gebunden</option>
-                                <option>Suche Verein</option>
-                                <option>Vertrag läuft aus</option>
-                            </select>
-                         </div>
-                    </div>
-                </div>
-            )}
-            
-            {/* Quick Filter (Status) wenn Hauptfilter zu sind */}
-            {!showFilters && (
-                <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">
-                    {['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => (
-                        <FilterChip 
-                            key={s} 
-                            label={s} 
-                            active={filters.transferStatus === s} 
-                            onClick={() => setFilters(prev => ({...prev, transferStatus: s}))} 
-                        />
-                    ))}
-                </div>
-            )}
-  
-            {/* Ergebnisliste */}
-            <div className="space-y-3">
-                {loading ? <div className="py-10 text-center"><Loader2 className="animate-spin mx-auto text-blue-500"/></div> : 
-                results.length === 0 ? <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20"/><p>Keine Spieler gefunden.</p></div> :
-                results.map(p => (
-                    <div key={p.id} onClick={()=>onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                        <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">
-                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-600 m-4"/>}
-                        </div>
-                        <div className="flex-1">
-                            <div className="flex justify-between items-center">
-                                <h3 className="font-bold text-white text-base">{p.full_name}</h3>
-                                <span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span>
+                    )) : <div className="text-center text-zinc-500 py-20 flex flex-col items-center"><Bell size={40} className="mb-4 opacity-20"/><p>Alles ruhig hier.</p></div>)}
+                    {subTab === 'messages' && (chats.length > 0 ? chats.map(c => (
+                        <div key={c.id} onClick={() => onSelectChat(c)} className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition ${cardStyle}`}>
+                            <div onClick={(e) => { e.stopPropagation(); onUserClick(c); }} className="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition border border-white/10">{c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover"/> : <User size={24} className="text-zinc-500"/>}</div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1"><h4 className="text-base font-bold text-white truncate">{c.full_name}</h4><span className="text-[10px] text-zinc-500">{new Date(c.time).toLocaleDateString()}</span></div>
+                                <p className="text-sm text-zinc-400 truncate">{c.lastMsg}</p>
                             </div>
-                            <div className="flex items-center gap-3 mt-1">
-                                <div className="flex items-center gap-1 text-xs text-zinc-400"><Shield size={10} /> {p.clubs?.name || "Vereinslos"}</div>
-                                {/* Scout Details */}
-                                <div className="flex gap-2 text-[10px] text-zinc-500 font-mono border-l border-zinc-700 pl-3">
-                                    {p.height_user && <span>{p.height_user}cm</span>}
-                                    {p.strong_foot && <span>{p.strong_foot.charAt(0)}</span>}
-                                    {p.birth_date && <span>{calculateAge(p.birth_date)}J</span>}
-                                </div>
-                            </div>
+                            <ChevronRight size={16} className="text-zinc-600"/>
                         </div>
-                        <ChevronRight size={18} className="text-zinc-600"/>
-                    </div>
-                ))}
+                    )) : <div className="text-center text-zinc-500 py-20 flex flex-col items-center"><Mail size={40} className="mb-4 opacity-20"/><p>Keine Chats vorhanden.</p></div>)}
+                </div>
             </div>
         </div>
-      </div>
     );
-  };
-  
-  // --- ENDE SEARCH SCREEN ---
+};
 
 const ClubDashboard = ({ club, session, onBack }) => {
     const [activeTab, setActiveTab] = useState('squad'); // 'squad', 'events', 'news'
@@ -1128,6 +910,10 @@ const ClubDashboard = ({ club, session, onBack }) => {
     const [news, setNews] = useState([]);
     const [squad, setSquad] = useState([]);
     const [showAddEvent, setShowAddEvent] = useState(false);
+    
+    // NEU: State für RSVP
+    const [expandedEvent, setExpandedEvent] = useState(null);
+    const [responses, setResponses] = useState([]);
     
     // Prüfen ob User Trainer/Admin ist (simuliert durch Mock DB Eintrag oder echte Rolle)
     const [isCoach, setIsCoach] = useState(false);
@@ -1144,6 +930,16 @@ const ClubDashboard = ({ club, session, onBack }) => {
         // 2. Events laden
         const { data: eventData } = await supabase.from('club_events').select('*').eq('club_id', club.id).gte('start_time', new Date().toISOString()).order('start_time', { ascending: true });
         setEvents(eventData || []);
+        
+        // NEU: Antworten laden für alle Events
+        if (eventData && eventData.length > 0) {
+            const eventIds = eventData.map(e => e.id);
+            // Mock-Client 'in' Fix beachten
+            const { data: respData } = await supabase.from('club_event_responses')
+                .select('*, players_master(*)')
+                .in('event_id', eventIds);
+            setResponses(respData || []);
+        }
 
         // 3. News laden
         const { data: newsData } = await supabase.from('club_news').select('*').eq('club_id', club.id).order('created_at', { ascending: false });
@@ -1152,6 +948,35 @@ const ClubDashboard = ({ club, session, onBack }) => {
     }, [club.id, session.user.id]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    // NEU: RSVP Handler
+    const handleResponse = async (eventId, status) => {
+        // Optimistic Update im UI
+        const newResponse = { event_id: eventId, user_id: session.user.id, status };
+        // Im echten Backend würde Upsert das erledigen
+        await supabase.from('club_event_responses').upsert({
+            event_id: eventId,
+            user_id: session.user.id,
+            status: status
+        });
+        fetchData(); // Reload um sicher zu gehen
+    };
+
+    // Helper: Get user's response for an event
+    const getUserResponse = (eventId) => {
+        return responses.find(r => r.event_id === eventId && r.user_id === session.user.id)?.status;
+    };
+
+    // Helper: Count responses
+    const getResponseCounts = (eventId) => {
+        const eventResponses = responses.filter(r => r.event_id === eventId);
+        return {
+            attending: eventResponses.filter(r => r.status === 'attending').length,
+            declined: eventResponses.filter(r => r.status === 'declined').length,
+            maybe: eventResponses.filter(r => r.status === 'maybe').length,
+            list: eventResponses
+        };
+    };
 
     const TabButton = ({ id, label, icon: Icon }) => (
         <button onClick={() => setActiveTab(id)} className={`flex-1 py-3 border-b-2 flex items-center justify-center gap-2 text-sm font-bold ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500'}`}>
@@ -1209,21 +1034,78 @@ const ClubDashboard = ({ club, session, onBack }) => {
                             </button>
                         )}
                         {events.length === 0 ? <div className="text-center text-zinc-600 py-8 text-sm">Keine anstehenden Termine.</div> : 
-                            events.map(ev => (
-                                <div key={ev.id} className="flex gap-4 p-4 bg-zinc-900 rounded-xl border-l-4 border-blue-500">
-                                    <div className="text-center min-w-[50px]">
-                                        <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
-                                        <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-white font-bold">{ev.title}</div>
-                                        <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
-                                            <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                                            • {ev.location}
+                            events.map(ev => {
+                                const myStatus = getUserResponse(ev.id);
+                                const stats = getResponseCounts(ev.id);
+                                const isExpanded = expandedEvent === ev.id;
+                                
+                                return (
+                                    <div key={ev.id} className="bg-zinc-900 rounded-xl overflow-hidden border border-white/5">
+                                        <div className="flex gap-4 p-4 border-l-4 border-blue-500">
+                                            <div className="text-center min-w-[50px]">
+                                                <div className="text-blue-500 font-bold text-xl">{new Date(ev.start_time).getDate()}</div>
+                                                <div className="text-zinc-500 text-xs uppercase">{new Date(ev.start_time).toLocaleString('de-DE', { month: 'short' })}</div>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="text-white font-bold">{ev.title}</div>
+                                                <div className="text-zinc-400 text-xs flex items-center gap-2 mt-1">
+                                                    <Clock size={12}/> {new Date(ev.start_time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                                                    • {ev.location}
+                                                </div>
+                                            </div>
                                         </div>
+                                        
+                                        {/* RSVP Buttons */}
+                                        <div className="flex border-t border-white/5 divide-x divide-white/5">
+                                            <button 
+                                                onClick={() => handleResponse(ev.id, 'attending')}
+                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'attending' ? 'bg-green-500/20 text-green-500' : 'text-zinc-400 hover:bg-white/5'}`}
+                                            >
+                                                <ThumbsUp size={14}/> Dabei
+                                            </button>
+                                            <button 
+                                                onClick={() => handleResponse(ev.id, 'maybe')}
+                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'maybe' ? 'bg-amber-500/20 text-amber-500' : 'text-zinc-400 hover:bg-white/5'}`}
+                                            >
+                                                <HelpCircle size={14}/> Vllt.
+                                            </button>
+                                            <button 
+                                                onClick={() => handleResponse(ev.id, 'declined')}
+                                                className={`flex-1 py-3 flex justify-center items-center gap-1 text-xs font-bold transition ${myStatus === 'declined' ? 'bg-red-500/20 text-red-500' : 'text-zinc-400 hover:bg-white/5'}`}
+                                            >
+                                                <ThumbsDown size={14}/> Absage
+                                            </button>
+                                        </div>
+
+                                        {/* Attendance Summary */}
+                                        <div 
+                                            onClick={() => setExpandedEvent(isExpanded ? null : ev.id)}
+                                            className="px-4 py-2 bg-black/20 flex justify-between items-center text-xs text-zinc-500 cursor-pointer hover:bg-black/40"
+                                        >
+                                            <div className="flex gap-3">
+                                                <span className="text-green-500">{stats.attending} zugesagt</span>
+                                                <span className="text-red-500">{stats.declined} abgesagt</span>
+                                            </div>
+                                            {isExpanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                        </div>
+
+                                        {/* Detail List (Only visible when expanded) */}
+                                        {isExpanded && (
+                                            <div className="p-3 bg-black/40 space-y-2 text-xs border-t border-white/5 animate-in slide-in-from-top-2">
+                                                {stats.list.length === 0 && <div className="text-zinc-600 italic">Noch keine Rückmeldungen.</div>}
+                                                {stats.list.map(resp => (
+                                                    <div key={resp.user_id} className="flex items-center justify-between">
+                                                        <span className="text-zinc-300">{resp.players_master?.full_name || "Unbekannt"}</span>
+                                                        {resp.status === 'attending' && <CheckCheck size={14} className="text-green-500"/>}
+                                                        {resp.status === 'declined' && <X size={14} className="text-red-500"/>}
+                                                        {resp.status === 'maybe' && <HelpCircle size={14} className="text-amber-500"/>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         }
                     </div>
                 )}
@@ -1253,6 +1135,44 @@ const ClubDashboard = ({ club, session, onBack }) => {
 
             {/* Modals */}
             {showAddEvent && <AddEventModal clubId={club.id} onClose={() => setShowAddEvent(false)} onRefresh={fetchData} />}
+        </div>
+    );
+};
+
+// ... AddEventModal Component (Missing in snippet but logically present in flow, I'll add it for completeness)
+const AddEventModal = ({ clubId, onClose, onRefresh }) => {
+    const [title, setTitle] = useState('');
+    const [type, setType] = useState('training');
+    const [date, setDate] = useState('');
+    const [time, setTime] = useState('');
+    
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const start_time = new Date(`${date}T${time}`).toISOString();
+        await supabase.from('club_events').insert({ club_id: clubId, title, type, start_time });
+        onRefresh();
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4">
+            <div className={`w-full max-w-sm ${cardStyle} p-6`}>
+                <h3 className="text-white font-bold mb-4">Termin erstellen</h3>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <input placeholder="Titel (z.B. Abschlusstraining)" value={title} onChange={e=>setTitle(e.target.value)} className={inputStyle} required />
+                    <select value={type} onChange={e=>setType(e.target.value)} className={inputStyle}>
+                        <option value="training">Training</option>
+                        <option value="match">Spiel</option>
+                        <option value="meeting">Sitzung</option>
+                    </select>
+                    <div className="flex gap-2">
+                        <input type="date" value={date} onChange={e=>setDate(e.target.value)} className={inputStyle} required />
+                        <input type="time" value={time} onChange={e=>setTime(e.target.value)} className={inputStyle} required />
+                    </div>
+                    <button className={`${btnPrimary} w-full`}>Erstellen</button>
+                    <button type="button" onClick={onClose} className="w-full text-zinc-500 text-sm mt-2">Abbrechen</button>
+                </form>
+            </div>
         </div>
     );
 };
