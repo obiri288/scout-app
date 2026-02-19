@@ -1,29 +1,39 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Home, Search, Plus, Mail, User, LogIn, X, MapPin } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { useUser } from './contexts/UserContext';
 import { useToast } from './contexts/ToastContext';
 
-// Components
+// Eagerly loaded — visible on first render
 import { CookieBanner } from './components/CookieBanner';
 import { HomeScreen } from './components/HomeScreen';
 import { SearchScreen } from './components/SearchScreen';
 import { InboxScreen } from './components/InboxScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ClubScreen } from './components/ClubScreen';
-import { AdminDashboard } from './components/AdminDashboard';
-import { LoginModal } from './components/LoginModal';
-import { UploadModal } from './components/UploadModal';
-import { EditProfileModal } from './components/EditProfileModal';
-import { SettingsModal } from './components/SettingsModal';
-import { CommentsModal } from './components/CommentsModal';
-import { ChatWindow } from './components/ChatWindow';
-import { FollowerListModal } from './components/FollowerListModal';
-import { ReportModal } from './components/ReportModal';
-import { VerificationModal } from './components/VerificationModal';
-import { WatchlistModal } from './components/WatchlistModal';
-import { CompareModal } from './components/CompareModal';
-import { MapScreen } from './components/MapScreen';
+
+// Lazy loaded — only fetched when needed
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const LoginModal = lazy(() => import('./components/LoginModal').then(m => ({ default: m.LoginModal })));
+const UploadModal = lazy(() => import('./components/UploadModal').then(m => ({ default: m.UploadModal })));
+const EditProfileModal = lazy(() => import('./components/EditProfileModal').then(m => ({ default: m.EditProfileModal })));
+const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const CommentsModal = lazy(() => import('./components/CommentsModal').then(m => ({ default: m.CommentsModal })));
+const ChatWindow = lazy(() => import('./components/ChatWindow').then(m => ({ default: m.ChatWindow })));
+const FollowerListModal = lazy(() => import('./components/FollowerListModal').then(m => ({ default: m.FollowerListModal })));
+const ReportModal = lazy(() => import('./components/ReportModal').then(m => ({ default: m.ReportModal })));
+const VerificationModal = lazy(() => import('./components/VerificationModal').then(m => ({ default: m.VerificationModal })));
+const WatchlistModal = lazy(() => import('./components/WatchlistModal').then(m => ({ default: m.WatchlistModal })));
+const CompareModal = lazy(() => import('./components/CompareModal').then(m => ({ default: m.CompareModal })));
+const MapScreen = lazy(() => import('./components/MapScreen').then(m => ({ default: m.MapScreen })));
+
+// Suspense fallback
+const LazyFallback = () => (
+    <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+);
+
 
 const App = () => {
     const {
@@ -338,7 +348,7 @@ const App = () => {
             )}
 
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
-            {activeTab === 'admin' && <AdminDashboard session={session} />}
+            {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} /></Suspense>}
 
             {/* Bottom Navigation */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-[9999] rounded-3xl shadow-2xl shadow-black/50 pointer-events-auto">
@@ -369,50 +379,52 @@ const App = () => {
                 </div>
             )}
 
-            {/* Modals */}
-            {showEditProfile && currentUserProfile && (
-                <EditProfileModal
-                    player={currentUserProfile}
-                    onClose={() => setShowEditProfile(false)}
-                    onUpdate={(updated) => { updateProfile(updated); setViewedProfile(updated); }}
-                />
-            )}
+            {/* Lazy-loaded Modals */}
+            <Suspense fallback={<LazyFallback />}>
+                {showEditProfile && currentUserProfile && (
+                    <EditProfileModal
+                        player={currentUserProfile}
+                        onClose={() => setShowEditProfile(false)}
+                        onUpdate={(updated) => { updateProfile(updated); setViewedProfile(updated); }}
+                    />
+                )}
 
-            {showSettings && (
-                <SettingsModal
-                    onClose={() => setShowSettings(false)}
-                    onLogout={() => { logout(); setShowSettings(false); setActiveTab('home'); }}
-                    installPrompt={deferredPrompt}
-                    onInstallApp={handleInstallApp}
-                    onRequestPush={handlePushRequest}
-                    user={currentUserProfile}
-                    onEditReq={() => { setShowSettings(false); setShowEditProfile(true); }}
-                    onVerifyReq={() => { setShowSettings(false); setShowVerificationModal(true); }}
-                />
-            )}
+                {showSettings && (
+                    <SettingsModal
+                        onClose={() => setShowSettings(false)}
+                        onLogout={() => { logout(); setShowSettings(false); setActiveTab('home'); }}
+                        installPrompt={deferredPrompt}
+                        onInstallApp={handleInstallApp}
+                        onRequestPush={handlePushRequest}
+                        user={currentUserProfile}
+                        onEditReq={() => { setShowSettings(false); setShowEditProfile(true); }}
+                        onVerifyReq={() => { setShowSettings(false); setShowVerificationModal(true); }}
+                    />
+                )}
 
-            {showVerificationModal && (
-                <VerificationModal
-                    onClose={() => setShowVerificationModal(false)}
-                    onUploadComplete={() => refreshProfile()}
-                />
-            )}
+                {showVerificationModal && (
+                    <VerificationModal
+                        onClose={() => setShowVerificationModal(false)}
+                        onUploadComplete={() => refreshProfile()}
+                    />
+                )}
 
-            {showFollowersModal && viewedProfile && (
-                <FollowerListModal
-                    userId={viewedProfile.user_id}
-                    onClose={() => setShowFollowersModal(false)}
-                    onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }}
-                />
-            )}
+                {showFollowersModal && viewedProfile && (
+                    <FollowerListModal
+                        userId={viewedProfile.user_id}
+                        onClose={() => setShowFollowersModal(false)}
+                        onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }}
+                    />
+                )}
 
-            {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
-            {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
-            {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
-            {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
-            {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
-            {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
-            {showMap && <MapScreen onClose={() => setShowMap(false)} onUserClick={loadProfile} />}
+                {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
+                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
+                {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
+                {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
+                {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
+                {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
+                {showMap && <MapScreen onClose={() => setShowMap(false)} onUserClick={loadProfile} />}
+            </Suspense>
         </div>
     );
 };
