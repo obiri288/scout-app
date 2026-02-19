@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Home, Search, Plus, Mail, User, LogIn, X } from 'lucide-react';
+import { Home, Search, Plus, Mail, User, LogIn, X, MapPin } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { useUser } from './contexts/UserContext';
 import { useToast } from './contexts/ToastContext';
@@ -23,6 +23,7 @@ import { ReportModal } from './components/ReportModal';
 import { VerificationModal } from './components/VerificationModal';
 import { WatchlistModal } from './components/WatchlistModal';
 import { CompareModal } from './components/CompareModal';
+import { MapScreen } from './components/MapScreen';
 
 const App = () => {
     const {
@@ -49,6 +50,7 @@ const App = () => {
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [isOnWatchlist, setIsOnWatchlist] = useState(false);
     const [comparePlayer, setComparePlayer] = useState(undefined); // undefined=closed, null=open empty, player=open with player
+    const [showMap, setShowMap] = useState(false);
 
     // --- Deep Linking via Hash ---
     const navigateToHash = useCallback((hash) => {
@@ -341,6 +343,7 @@ const App = () => {
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-[9999] rounded-3xl shadow-2xl shadow-black/50 pointer-events-auto">
                 <button onClick={() => switchTab('home')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'home' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Home size={24} /></button>
                 <button onClick={() => switchTab('search')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'search' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Search size={24} /></button>
+                <button onClick={() => setShowMap(true)} className="flex flex-col items-center gap-1 transition duration-300 text-zinc-500 hover:text-zinc-300"><MapPin size={22} /></button>
                 <div className="relative -top-8">
                     <button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40 border-4 border-black transition-transform hover:scale-105 active:scale-95">
                         <Plus size={28} className="text-white" strokeWidth={3} />
@@ -408,6 +411,7 @@ const App = () => {
             {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
             {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
             {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
+            {showMap && <MapScreen onClose={() => setShowMap(false)} onUserClick={loadProfile} />}
         </div>
     );
 };
