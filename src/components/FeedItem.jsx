@@ -97,7 +97,18 @@ export const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, o
                 <button onClick={(e) => { e.stopPropagation(); onCommentClick(video); }} className="flex items-center gap-2 text-white hover:text-blue-400 transition">
                     <MessageCircle size={26} /> <span className="font-bold text-sm">Chat</span>
                 </button>
-                <div className="ml-auto"><Share2 size={24} className="text-zinc-500 hover:text-white transition cursor-pointer" /></div>
+                <div className="ml-auto">
+                    <Share2 size={24} className="text-zinc-500 hover:text-white transition cursor-pointer" onClick={(e) => {
+                        e.stopPropagation();
+                        const shareUrl = `${window.location.origin}/#profile/${video.players_master?.user_id}`;
+                        if (navigator.share) {
+                            navigator.share({ title: `${video.players_master?.full_name} – Highlight`, url: shareUrl }).catch(() => { });
+                        } else {
+                            navigator.clipboard.writeText(shareUrl);
+                            addToast('Link kopiert!', 'success');
+                        }
+                    }} />
+                </div>
             </div>
         </div>
     );

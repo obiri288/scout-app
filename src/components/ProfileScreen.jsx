@@ -4,6 +4,7 @@ import {
     Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { calculateAge } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { ProfileSkeleton } from './SkeletonScreens';
 import { useToast } from '../contexts/ToastContext';
@@ -176,19 +177,129 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
             </div>
 
             {/* Content Tabs */}
-            <div className="flex px-4 pt-4 pb-2 gap-6 text-sm font-bold text-zinc-500 border-b border-white/5">
-                <span className="text-white border-b-2 border-blue-500 pb-2">Highlights</span>
-                <span className="hover:text-zinc-300 cursor-pointer">Stats</span>
-                <span className="hover:text-zinc-300 cursor-pointer">Über</span>
-            </div>
-
-            {/* Video Grid with lazy loading */}
-            <div className="grid grid-cols-3 gap-0.5 mt-0.5">
-                {highlights.map(v => (
-                    <VideoTile key={v.id} video={v} onClick={onVideoClick} isOwnProfile={isOwnProfile} onDelete={onDeleteVideo} />
-                ))}
-            </div>
-            {highlights.length === 0 && <div className="py-20 text-center text-zinc-600 text-sm">Noch keine Highlights hochgeladen.</div>}
+            <ProfileTabs player={player} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} />
         </div>
     );
 };
+
+// --- Profile Tabs Component ---
+const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteVideo }) => {
+    const [activeTab, setActiveTab] = useState('highlights');
+
+    const TabBtn = ({ id, label }) => (
+        <button
+            onClick={() => setActiveTab(id)}
+            className={`pb-2 text-sm font-bold transition ${activeTab === id ? 'text-white border-b-2 border-blue-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <>
+            <div className="flex px-4 pt-4 pb-2 gap-6 border-b border-white/5">
+                <TabBtn id="highlights" label="Highlights" />
+                <TabBtn id="stats" label="Stats" />
+                <TabBtn id="about" label="Über" />
+            </div>
+
+            {/* TAB: Highlights */}
+            {activeTab === 'highlights' && (
+                <>
+                    <div className="grid grid-cols-3 gap-0.5 mt-0.5">
+                        {highlights.map(v => (
+                            <VideoTile key={v.id} video={v} onClick={onVideoClick} isOwnProfile={isOwnProfile} onDelete={onDeleteVideo} />
+                        ))}
+                    </div>
+                    {highlights.length === 0 && <div className="py-20 text-center text-zinc-600 text-sm">Noch keine Highlights hochgeladen.</div>}
+                </>
+            )}
+
+            {/* TAB: Stats */}
+            {activeTab === 'stats' && (
+                <div className="px-4 py-6 space-y-4 animate-in fade-in slide-in-from-right-2">
+                    <div className="grid grid-cols-2 gap-3">
+                        <StatCard label="Position" value={player.position_primary || '-'} sub={player.position_secondary ? `Neben: ${player.position_secondary}` : null} />
+                        <StatCard label="Starker Fuß" value={player.strong_foot || '-'} />
+                        <StatCard label="Größe" value={player.height_user ? `${player.height_user} cm` : '-'} />
+                        <StatCard label="Gewicht" value={player.weight ? `${player.weight} kg` : '-'} />
+                        <StatCard label="Trikotnummer" value={player.jersey_number ? `#${player.jersey_number}` : '-'} />
+                        <StatCard label="Alter" value={player.birth_date ? `${calculateAge(player.birth_date)} Jahre` : '-'} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <StatCard label="Transfer-Status" value={player.transfer_status || '-'} highlight={player.transfer_status === 'Suche Verein'} />
+                        <StatCard label="Vertrag bis" value={player.contract_end ? new Date(player.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 pt-2">
+                        <StatCard label="Follower" value={player.followers_count || 0} />
+                        <StatCard label="Clips" value={highlights.length} />
+                        <StatCard label="Verein" value={player.clubs?.name || 'Vereinslos'} small />
+                    </div>
+                </div>
+            )}
+
+            {/* TAB: Über */}
+            {activeTab === 'about' && (
+                <div className="px-4 py-6 space-y-6 animate-in fade-in slide-in-from-right-2">
+                    {/* Bio */}
+                    {player.bio ? (
+                        <div>
+                            <h4 className="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-2">Über mich</h4>
+                            <p className="text-zinc-300 text-sm leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">{player.bio}</p>
+                        </div>
+                    ) : (
+                        <div className="text-zinc-600 text-sm text-center py-4">Keine Bio vorhanden.</div>
+                    )}
+
+                    {/* Personal Info */}
+                    <div>
+                        <h4 className="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-3">Persönliche Daten</h4>
+                        <div className="space-y-2">
+                            {player.birth_date && <InfoRow icon="📅" label="Geburtsdatum" value={new Date(player.birth_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })} />}
+                            {player.nationality && <InfoRow icon="🌍" label="Nationalität" value={player.nationality} />}
+                            {(player.city || player.zip_code) && <InfoRow icon="📍" label="Standort" value={[player.zip_code, player.city].filter(Boolean).join(' ')} />}
+                        </div>
+                    </div>
+
+                    {/* External Links */}
+                    {(player.transfermarkt_url || player.fupa_url) && (
+                        <div>
+                            <h4 className="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-3">Externe Profile</h4>
+                            <div className="space-y-2">
+                                {player.transfermarkt_url && (
+                                    <a href={player.transfermarkt_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 p-3 rounded-xl text-sm text-blue-400 hover:bg-white/10 transition border border-white/5">
+                                        🔗 Transfermarkt Profil
+                                    </a>
+                                )}
+                                {player.fupa_url && (
+                                    <a href={player.fupa_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 p-3 rounded-xl text-sm text-blue-400 hover:bg-white/10 transition border border-white/5">
+                                        🔗 FuPa Profil
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </>
+    );
+};
+
+// Helper components
+const StatCard = ({ label, value, sub, highlight, small }) => (
+    <div className={`bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}>
+        <div className={`font-black text-white ${small ? 'text-xs' : 'text-lg'}`}>{value}</div>
+        <div className="text-[10px] text-zinc-500 uppercase font-bold mt-1">{label}</div>
+        {sub && <div className="text-[10px] text-zinc-400 mt-0.5">{sub}</div>}
+    </div>
+);
+
+const InfoRow = ({ icon, label, value }) => (
+    <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+        <span className="text-lg">{icon}</span>
+        <div>
+            <div className="text-[10px] text-zinc-500 uppercase font-bold">{label}</div>
+            <div className="text-sm text-white">{value}</div>
+        </div>
+    </div>
+);
