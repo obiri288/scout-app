@@ -61,6 +61,43 @@ export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 20
     return data || [];
 };
 
+export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200 }) => {
+    let q = supabase.from('players_master').select('*, clubs(*)')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+    if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
+    if (statusFilter && statusFilter !== 'Alle') q = q.eq('transfer_status', statusFilter);
+    const { data } = await q.limit(limit);
+    return data || [];
+};
+
+// ============================================================
+// GEOCODING
+// ============================================================
+
+const geoCache = {};
+
+export const geocodeCity = async (city) => {
+    if (!city) return null;
+    const key = city.toLowerCase().trim();
+    if (geoCache[key]) return geoCache[key];
+
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', Deutschland')}&format=json&limit=1`
+        );
+        const data = await res.json();
+        if (data && data.length > 0) {
+            const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+            geoCache[key] = result;
+            return result;
+        }
+    } catch (e) {
+        console.warn("Geocoding failed for:", city, e);
+    }
+    return null;
+};
+
 // ============================================================
 // HIGHLIGHTS / VIDEOS
 // ============================================================

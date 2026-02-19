@@ -5,6 +5,7 @@ import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { getClubBorderColor } from '../lib/helpers';
 import { useToast } from '../contexts/ToastContext';
 import { ImageCropModal } from './ImageCropModal';
+import { geocodeCity } from '../lib/api';
 
 export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
@@ -85,6 +86,17 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 av = data.publicUrl;
             }
 
+            // Geocode city if changed
+            let latitude = player.latitude || null;
+            let longitude = player.longitude || null;
+            if (formData.city && formData.city !== player.city) {
+                const coords = await geocodeCity(formData.city);
+                if (coords) {
+                    latitude = coords.lat;
+                    longitude = coords.lng;
+                }
+            }
+
             const full_name = `${formData.first_name} ${formData.last_name}`.trim();
             const updates = {
                 ...formData,
@@ -93,7 +105,9 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 weight: formData.weight ? parseInt(formData.weight) : null,
                 jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
                 avatar_url: av,
-                club_id: selectedClub?.id || null
+                club_id: selectedClub?.id || null,
+                latitude,
+                longitude
             };
 
             const { data, error } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*)').single();

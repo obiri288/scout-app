@@ -1,31 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, User, Shield, MapPin, Loader2, ChevronRight, Filter } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { X, User, Shield, MapPin, Loader2, ChevronRight } from 'lucide-react';
 import { cardStyle } from '../lib/styles';
+import { fetchPlayersWithCoords, fetchPlayersWithCity, geocodeCity } from '../lib/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-// Simple geocoding cache to avoid repeated requests
-const geoCache = {};
-
-const geocodeCity = async (city) => {
-    if (!city) return null;
-    const key = city.toLowerCase().trim();
-    if (geoCache[key]) return geoCache[key];
-
-    try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', Deutschland')}&format=json&limit=1`);
-        const data = await res.json();
-        if (data && data.length > 0) {
-            const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-            geoCache[key] = result;
-            return result;
-        }
-    } catch (e) {
-        console.warn("Geocoding failed for:", city, e);
-    }
-    return null;
-};
 
 export const MapScreen = ({ onClose, onUserClick }) => {
     const mapRef = useRef(null);
@@ -33,24 +11,51 @@ export const MapScreen = ({ onClose, onUserClick }) => {
     const markersRef = useRef([]);
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [geocodingProgress, setGeocodingProgress] = useState('');
+    const [status, setStatus] = useState('Spieler laden...');
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [posFilter, setPosFilter] = useState('Alle');
     const [statusFilter, setStatusFilter] = useState('Alle');
 
-    // Load players with city
+    // Load players — prefer stored coords, fallback to geocoding
     useEffect(() => {
         const load = async () => {
+            setLoading(true);
+            setStatus('Spieler laden...');
             try {
-                let q = supabase.from('players_master').select('*, clubs(*)').not('city', 'is', null);
-                if (posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
-                if (statusFilter !== 'Alle') q = q.eq('transfer_status', statusFilter);
-                const { data } = await q.limit(200);
-                setPlayers(data || []);
+                // First: players with stored coordinates (instant)
+                const withCoords = await fetchPlayersWithCoords({ posFilter, statusFilter });
+
+                // Second: players with city but no coords (need geocoding)
+                const allWithCity = await fetchPlayersWithCity({ posFilter, statusFilter });
+                const needsGeo = allWithCity.filter(p => !p.latitude && p.city);
+
+                // Start with coord-having players
+                setPlayers(withCoords);
+
+                // Geocode remaining in background
+                if (needsGeo.length > 0) {
+                    setStatus(`${withCoords.length} sofort, ${needsGeo.length} werden geocodiert...`);
+                    const geocoded = [];
+                    const cities = [...new Set(needsGeo.map(p => p.city?.toLowerCase().trim()).filter(Boolean))];
+
+                    for (let i = 0; i < cities.length; i++) {
+                        const city = cities[i];
+                        const coords = await geocodeCity(city);
+                        if (coords) {
+                            needsGeo.filter(p => p.city?.toLowerCase().trim() === city).forEach(p => {
+                                geocoded.push({ ...p, latitude: coords.lat, longitude: coords.lng });
+                            });
+                        }
+                        setStatus(`Geocoding ${i + 1}/${cities.length}...`);
+                    }
+
+                    setPlayers(prev => [...prev, ...geocoded]);
+                }
             } catch (e) {
                 console.error("Map load error:", e);
             } finally {
                 setLoading(false);
+                setStatus('');
             }
         };
         load();
@@ -61,7 +66,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
         if (!mapRef.current || mapInstance.current) return;
 
         mapInstance.current = L.map(mapRef.current, {
-            center: [51.1657, 10.4515], // Center of Germany
+            center: [51.1657, 10.4515],
             zoom: 6,
             zoomControl: false
         });
@@ -82,70 +87,40 @@ export const MapScreen = ({ onClose, onUserClick }) => {
         };
     }, []);
 
-    // Add markers
+    // Add markers — now uses stored lat/lng directly
     useEffect(() => {
-        if (!mapInstance.current || loading) return;
+        if (!mapInstance.current) return;
 
-        // Clear old markers
         markersRef.current.forEach(m => m.remove());
         markersRef.current = [];
 
-        const addMarkers = async () => {
-            const cities = [...new Set(players.map(p => p.city).filter(Boolean))];
-            setGeocodingProgress(`Standorte laden (0/${cities.length})...`);
+        const jitter = () => (Math.random() - 0.5) * 0.005;
 
-            // Group players by city
-            const cityPlayers = {};
-            players.forEach(p => {
-                if (!p.city) return;
-                const key = p.city.toLowerCase().trim();
-                if (!cityPlayers[key]) cityPlayers[key] = { city: p.city, players: [] };
-                cityPlayers[key].players.push(p);
+        players.forEach(p => {
+            if (!p.latitude || !p.longitude) return;
+
+            const icon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="
+                    width: 36px; height: 36px; border-radius: 50%;
+                    background: ${p.avatar_url ? `url(${p.avatar_url})` : '#27272a'};
+                    background-size: cover; background-position: center;
+                    border: 3px solid ${p.transfer_status === 'Suche Verein' ? '#22c55e' : p.transfer_status === 'Vertrag läuft aus' ? '#f59e0b' : '#3b82f6'};
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                    display: flex; align-items: center; justify-content: center;
+                    color: #71717a; font-size: 14px;
+                ">${!p.avatar_url ? '👤' : ''}</div>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
             });
 
-            let done = 0;
-            for (const key of Object.keys(cityPlayers)) {
-                const group = cityPlayers[key];
-                const coords = await geocodeCity(group.city);
-                done++;
-                setGeocodingProgress(`Standorte laden (${done}/${Object.keys(cityPlayers).length})...`);
+            const marker = L.marker([p.latitude + jitter(), p.longitude + jitter()], { icon })
+                .addTo(mapInstance.current)
+                .on('click', () => setSelectedPlayer(p));
 
-                if (!coords || !mapInstance.current) continue;
-
-                // Small random offset for overlapping markers
-                const jitter = () => (Math.random() - 0.5) * 0.005;
-
-                group.players.forEach(p => {
-                    const lat = coords.lat + jitter();
-                    const lng = coords.lng + jitter();
-
-                    const icon = L.divIcon({
-                        className: 'custom-marker',
-                        html: `<div style="
-                            width: 36px; height: 36px; border-radius: 50%;
-                            background: ${p.avatar_url ? `url(${p.avatar_url})` : '#27272a'};
-                            background-size: cover; background-position: center;
-                            border: 3px solid ${p.transfer_status === 'Suche Verein' ? '#22c55e' : p.transfer_status === 'Vertrag läuft aus' ? '#f59e0b' : '#3b82f6'};
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                            display: flex; align-items: center; justify-content: center;
-                            color: #71717a; font-size: 14px;
-                        ">${!p.avatar_url ? '👤' : ''}</div>`,
-                        iconSize: [36, 36],
-                        iconAnchor: [18, 18]
-                    });
-
-                    const marker = L.marker([lat, lng], { icon })
-                        .addTo(mapInstance.current)
-                        .on('click', () => setSelectedPlayer(p));
-
-                    markersRef.current.push(marker);
-                });
-            }
-            setGeocodingProgress('');
-        };
-
-        addMarkers();
-    }, [players, loading]);
+            markersRef.current.push(marker);
+        });
+    }, [players]);
 
     const FilterChip = ({ label, active, onClick }) => (
         <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-black/50 text-zinc-400 hover:bg-zinc-800'}`}>{label}</button>
@@ -176,10 +151,10 @@ export const MapScreen = ({ onClose, onUserClick }) => {
                     ))}
                 </div>
 
-                {/* Geocoding progress */}
-                {geocodingProgress && (
+                {/* Status */}
+                {status && (
                     <div className="mt-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl text-xs text-zinc-400 flex items-center gap-2 pointer-events-auto w-fit">
-                        <Loader2 size={14} className="animate-spin" /> {geocodingProgress}
+                        <Loader2 size={14} className="animate-spin" /> {status}
                     </div>
                 )}
             </div>
@@ -196,7 +171,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
 
             {/* Player count */}
             <div className="absolute bottom-20 right-4 z-[1000] bg-black/70 backdrop-blur-md rounded-xl px-3 py-2 text-xs text-zinc-400">
-                {players.filter(p => p.city).length} Spieler
+                {players.length} Spieler
             </div>
 
             {/* Selected player card */}
