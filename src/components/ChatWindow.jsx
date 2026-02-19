@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, Send } from 'lucide-react';
+import { ArrowLeft, User, Send, Check, CheckCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
@@ -8,6 +8,32 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
     const [txt, setTxt] = useState('');
     const endRef = useRef(null);
     const { addToast } = useToast();
+
+    // Mark all unread messages from partner as read
+    const markAsRead = async (msgs) => {
+        const unread = (msgs || []).filter(m =>
+            m.sender_id === partner.user_id &&
+            m.receiver_id === session.user.id &&
+            !m.is_read
+        );
+        if (unread.length === 0) return;
+
+        const ids = unread.map(m => m.id).filter(id => !String(id).startsWith('temp-'));
+        if (ids.length === 0) return;
+
+        try {
+            await supabase.from('direct_messages')
+                .update({ is_read: true })
+                .in('id', ids);
+
+            // Update local state
+            setMessages(prev => prev.map(m =>
+                ids.includes(m.id) ? { ...m, is_read: true } : m
+            ));
+        } catch (e) {
+            console.warn("Failed to mark as read:", e);
+        }
+    };
 
     useEffect(() => {
         // Initial message load
@@ -24,13 +50,16 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
                 );
                 setMessages(filtered);
                 setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+                // Mark incoming messages as read
+                markAsRead(filtered);
             } catch (e) {
                 console.error("Failed to load messages:", e);
             }
         };
         loadMessages();
 
-        // Realtime subscription - replaces polling
+        // Realtime subscription for new messages AND read status updates
         const channelName = [session.user.id, partner.user_id].sort().join('-');
         const channel = supabase
             .channel(`chat-${channelName}`)
@@ -40,17 +69,36 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
                 table: 'direct_messages',
             }, (payload) => {
                 const msg = payload.new;
-                // Only add messages that belong to this conversation
                 if (
                     (msg.sender_id === session.user.id && msg.receiver_id === partner.user_id) ||
                     (msg.sender_id === partner.user_id && msg.receiver_id === session.user.id)
                 ) {
                     setMessages(prev => {
-                        // Avoid duplicates (from optimistic update)
                         if (prev.some(m => m.id === msg.id)) return prev;
                         return [...prev, msg];
                     });
                     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+                    // If incoming message, mark as read immediately
+                    if (msg.sender_id === partner.user_id) {
+                        markAsRead([msg]);
+                    }
+                }
+            })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'direct_messages',
+            }, (payload) => {
+                const updated = payload.new;
+                // Update local message state with new is_read status
+                if (
+                    (updated.sender_id === session.user.id && updated.receiver_id === partner.user_id) ||
+                    (updated.sender_id === partner.user_id && updated.receiver_id === session.user.id)
+                ) {
+                    setMessages(prev => prev.map(m =>
+                        m.id === updated.id ? { ...m, is_read: updated.is_read } : m
+                    ));
                 }
             })
             .subscribe();
@@ -69,10 +117,10 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
             sender_id: session.user.id,
             receiver_id: partner.user_id,
             content: txt,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            is_read: false
         };
 
-        // Optimistic update
         setMessages(prev => [...prev, optimisticMsg]);
         setTxt('');
         setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
@@ -86,9 +134,14 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
             if (error) throw error;
         } catch (e) {
             addToast("Nachricht konnte nicht gesendet werden.", 'error');
-            // Remove optimistic message on failure
             setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
         }
+    };
+
+    // Format time
+    const formatTime = (iso) => {
+        const d = new Date(iso);
+        return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     };
 
     return (
@@ -102,14 +155,41 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick }) => {
                     <div className="font-bold text-white">{partner.full_name}</div>
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-black to-zinc-950">
-                {messages.map(m => (
-                    <div key={m.id} className={`flex ${m.sender_id === session.user.id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`px-5 py-3 rounded-2xl max-w-[75%] text-sm shadow-sm ${m.sender_id === session.user.id ? 'bg-blue-600 text-white rounded-br-none' : 'bg-zinc-800 text-zinc-200 rounded-bl-none border border-white/5'}`}>
-                            {m.content}
-                        </div>
-                    </div>
-                ))}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gradient-to-b from-black to-zinc-950">
+                {messages.map((m, i) => {
+                    const isMine = m.sender_id === session.user.id;
+                    const showTime = i === 0 || (new Date(m.created_at) - new Date(messages[i - 1].created_at)) > 300000;
+
+                    return (
+                        <React.Fragment key={m.id}>
+                            {showTime && (
+                                <div className="text-center text-[10px] text-zinc-600 py-2 font-medium">
+                                    {formatTime(m.created_at)}
+                                </div>
+                            )}
+                            <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`relative max-w-[75%] ${isMine ? '' : ''}`}>
+                                    <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm ${isMine
+                                            ? 'bg-blue-600 text-white rounded-br-sm'
+                                            : 'bg-zinc-800 text-zinc-200 rounded-bl-sm border border-white/5'
+                                        }`}>
+                                        {m.content}
+                                    </div>
+                                    {/* Read receipt for own messages */}
+                                    {isMine && (
+                                        <div className="flex justify-end mt-0.5 mr-1">
+                                            {m.is_read ? (
+                                                <CheckCheck size={14} className="text-blue-400" />
+                                            ) : (
+                                                <Check size={14} className="text-zinc-500" />
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </React.Fragment>
+                    );
+                })}
                 <div ref={endRef} />
             </div>
             <form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4">
