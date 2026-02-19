@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { getClubBorderColor } from '../lib/helpers';
 import { useToast } from '../contexts/ToastContext';
+import { ImageCropModal } from './ImageCropModal';
 
 export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
     const [avatarFile, setAvatarFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(player.avatar_url);
+    const [cropImageSrc, setCropImageSrc] = useState(null);
     const [clubSearch, setClubSearch] = useState('');
     const [clubResults, setClubResults] = useState([]);
     const [selectedClub, setSelectedClub] = useState(player.clubs || null);
@@ -147,7 +149,8 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                         </div>
                                         <input type="file" accept="image/*" onChange={e => {
                                             const f = e.target.files[0];
-                                            if (f) { setAvatarFile(f); setPreviewUrl(URL.createObjectURL(f)); }
+                                            if (f) { setCropImageSrc(URL.createObjectURL(f)); }
+                                            e.target.value = '';
                                         }} className="absolute inset-0 opacity-0 cursor-pointer" />
                                     </div>
                                 </div>
@@ -331,6 +334,19 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Image Crop Modal */}
+            {cropImageSrc && (
+                <ImageCropModal
+                    imageSrc={cropImageSrc}
+                    onClose={() => setCropImageSrc(null)}
+                    onCrop={(blob) => {
+                        setAvatarFile(blob);
+                        setPreviewUrl(URL.createObjectURL(blob));
+                        setCropImageSrc(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
