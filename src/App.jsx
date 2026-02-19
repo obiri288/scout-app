@@ -255,6 +255,38 @@ const App = () => {
         }
     };
 
+    // --- Delete Video ---
+    const handleDeleteVideo = async (video) => {
+        // Optimistic UI update
+        setProfileHighlights(prev => prev.filter(v => v.id !== video.id));
+
+        try {
+            // Delete DB row
+            const { error } = await supabase.from('media_highlights').delete().eq('id', video.id);
+            if (error) throw error;
+
+            // Delete storage file
+            if (video.video_url) {
+                const path = video.video_url.split('/player-videos/').pop();
+                if (path) {
+                    await supabase.storage.from('player-videos').remove([decodeURIComponent(path)]);
+                }
+            }
+            if (video.thumbnail_url && !video.thumbnail_url.includes('placehold.co')) {
+                const thumbPath = video.thumbnail_url.split('/player-videos/').pop();
+                if (thumbPath) {
+                    await supabase.storage.from('player-videos').remove([decodeURIComponent(thumbPath)]);
+                }
+            }
+
+            addToast('Video gelöscht.', 'success');
+        } catch (e) {
+            // Revert optimistic update
+            setProfileHighlights(prev => [...prev, video].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+            addToast('Video konnte nicht gelöscht werden.', 'error');
+        }
+    };
+
     // --- Tab Navigation ---
     const switchTab = (tab) => {
         setActiveTab(tab);
@@ -280,6 +312,7 @@ const App = () => {
                     player={viewedProfile}
                     highlights={profileHighlights}
                     onVideoClick={setActiveVideo}
+                    onDeleteVideo={handleDeleteVideo}
                     isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)}
                     onBack={() => { setActiveTab('home'); navigateToHash(''); }}
                     onLogout={() => { logout(); setActiveTab('home'); }}

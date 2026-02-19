@@ -4,30 +4,58 @@ import { supabase } from '../lib/supabase';
 import { FeedItem } from './FeedItem';
 import { FeedSkeleton } from './SkeletonScreens';
 
+const PAGE_SIZE = 10;
+
 export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [feed, setFeed] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const containerRef = useRef(null);
     const touchStartY = useRef(0);
     const [pullDistance, setPullDistance] = useState(0);
+    const sentinelRef = useRef(null);
 
-    const fetchFeed = useCallback(async () => {
+    const fetchFeed = useCallback(async (offset = 0, reset = false) => {
         try {
             const { data } = await supabase.from('media_highlights')
                 .select('*, players_master(*, clubs(*))')
                 .order('created_at', { ascending: false })
-                .limit(20);
-            setFeed(data || []);
+                .range(offset, offset + PAGE_SIZE - 1);
+
+            const newItems = data || [];
+            if (reset) {
+                setFeed(newItems);
+            } else {
+                setFeed(prev => [...prev, ...newItems]);
+            }
+            setHasMore(newItems.length === PAGE_SIZE);
         } catch (e) {
             console.error("Feed load failed:", e);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
             setRefreshing(false);
         }
     }, []);
 
-    useEffect(() => { fetchFeed(); }, [fetchFeed]);
+    useEffect(() => { fetchFeed(0, true); }, [fetchFeed]);
+
+    // Infinite scroll via IntersectionObserver on sentinel element
+    useEffect(() => {
+        if (!sentinelRef.current || !hasMore) return;
+
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting && !loadingMore && !loading && hasMore) {
+                setLoadingMore(true);
+                fetchFeed(feed.length);
+            }
+        }, { rootMargin: '400px' });
+
+        observer.observe(sentinelRef.current);
+        return () => observer.disconnect();
+    }, [feed.length, hasMore, loadingMore, loading, fetchFeed]);
 
     // Pull-to-Refresh handlers
     const handleTouchStart = (e) => {
@@ -47,7 +75,8 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     const handleTouchEnd = () => {
         if (pullDistance > 80) {
             setRefreshing(true);
-            fetchFeed();
+            setHasMore(true);
+            fetchFeed(0, true);
         }
         setPullDistance(0);
     };
@@ -92,6 +121,16 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             ))}
             {feed.length === 0 && !loading && (
                 <div className="text-center text-zinc-500 py-20">Noch keine Videos im Feed.</div>
+            )}
+
+            {/* Infinite scroll sentinel */}
+            {hasMore && (
+                <div ref={sentinelRef} className="flex justify-center py-8">
+                    {loadingMore && <Loader2 className="animate-spin text-zinc-500" size={24} />}
+                </div>
+            )}
+            {!hasMore && feed.length > 0 && (
+                <div className="text-center text-zinc-700 text-xs py-8">Du hast alles gesehen 🎉</div>
             )}
         </div>
     );

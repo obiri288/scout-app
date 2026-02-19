@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
     Loader2, User, CheckCircle, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
@@ -9,9 +9,21 @@ import { ProfileSkeleton } from './SkeletonScreens';
 import { useToast } from '../contexts/ToastContext';
 
 // Lazy-loaded video tile for profile grid
-const VideoTile = ({ video, onClick }) => {
+const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
     const { ref, isIntersecting } = useIntersectionObserver({ threshold: 0.1, rootMargin: '200px' });
     const [loaded, setLoaded] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+
+    const handleDelete = (e) => {
+        e.stopPropagation();
+        if (confirmDelete) {
+            onDelete(video);
+            setConfirmDelete(false);
+        } else {
+            setConfirmDelete(true);
+            setTimeout(() => setConfirmDelete(false), 3000);
+        }
+    };
 
     return (
         <div ref={ref} onClick={() => onClick(video)} className="aspect-[3/4] bg-zinc-900 relative cursor-pointer group overflow-hidden">
@@ -33,6 +45,22 @@ const VideoTile = ({ video, onClick }) => {
                             ))}
                         </div>
                     )}
+                    {isOwnProfile && (
+                        <button
+                            onClick={handleDelete}
+                            className={`absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all z-10 ${confirmDelete
+                                ? 'bg-red-600 text-white opacity-100 scale-110'
+                                : 'bg-black/60 backdrop-blur-sm text-zinc-300 hover:bg-red-600 hover:text-white'
+                                }`}
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    )}
+                    {confirmDelete && (
+                        <div className="absolute inset-x-0 bottom-0 bg-red-600/90 text-white text-[10px] font-bold text-center py-1.5 z-10 animate-in fade-in">
+                            Nochmal tippen zum Löschen
+                        </div>
+                    )}
                 </>
             ) : (
                 <div className="w-full h-full bg-zinc-800 animate-pulse" />
@@ -41,7 +69,7 @@ const VideoTile = ({ video, onClick }) => {
     );
 };
 
-export const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session }) => {
+export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session }) => {
     if (isOwnProfile && !player) return <ProfileSkeleton />;
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Profil nicht gefunden.</div>;
 
@@ -157,7 +185,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, isOwnProfile, 
             {/* Video Grid with lazy loading */}
             <div className="grid grid-cols-3 gap-0.5 mt-0.5">
                 {highlights.map(v => (
-                    <VideoTile key={v.id} video={v} onClick={onVideoClick} />
+                    <VideoTile key={v.id} video={v} onClick={onVideoClick} isOwnProfile={isOwnProfile} onDelete={onDeleteVideo} />
                 ))}
             </div>
             {highlights.length === 0 && <div className="py-20 text-center text-zinc-600 text-sm">Noch keine Highlights hochgeladen.</div>}

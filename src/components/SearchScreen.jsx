@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Shield, ChevronRight, User, Filter } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Search, Shield, ChevronRight, User, Filter, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
 import { SearchSkeleton } from './SkeletonScreens';
+
+const PAGE_SIZE = 15;
 
 // Available skill tags for filtering
 const SKILL_FILTER_TAGS = ['Schnelligkeit', 'Beidfüßig', 'Kopfball', 'Technik', 'Spielverständnis', 'Dribbling', 'Schusskraft'];
@@ -13,27 +15,59 @@ export const SearchScreen = ({ onUserClick }) => {
     const [pos, setPos] = useState('Alle');
     const [status, setStatus] = useState('Alle');
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const [showTagFilter, setShowTagFilter] = useState(false);
     const [selectedTag, setSelectedTag] = useState(null);
+    const sentinelRef = useRef(null);
 
+    const fetchResults = useCallback(async (offset = 0, reset = false) => {
+        try {
+            let q = supabase.from('players_master').select('*, clubs(*)');
+            if (query) q = q.ilike('full_name', `%${query}%`);
+            if (pos !== 'Alle') q = q.eq('position_primary', pos);
+            if (status !== 'Alle') q = q.eq('transfer_status', status);
+            const { data } = await q.range(offset, offset + PAGE_SIZE - 1);
+
+            const newItems = data || [];
+            if (reset) {
+                setRes(newItems);
+            } else {
+                setRes(prev => [...prev, ...newItems]);
+            }
+            setHasMore(newItems.length === PAGE_SIZE);
+        } catch (e) {
+            console.error("Search error:", e);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, [query, pos, status]);
+
+    // Reset and refetch when filters change
     useEffect(() => {
         setLoading(true);
-        const t = setTimeout(async () => {
-            try {
-                let q = supabase.from('players_master').select('*, clubs(*)');
-                if (query) q = q.ilike('full_name', `%${query}%`);
-                if (pos !== 'Alle') q = q.eq('position_primary', pos);
-                if (status !== 'Alle') q = q.eq('transfer_status', status);
-                const { data } = await q.limit(20);
-                setRes(data || []);
-            } catch (e) {
-                console.error("Search error:", e);
-            } finally {
-                setLoading(false);
-            }
+        setHasMore(true);
+        const t = setTimeout(() => {
+            fetchResults(0, true);
         }, 300);
         return () => clearTimeout(t);
     }, [query, pos, status]);
+
+    // Infinite scroll via IntersectionObserver
+    useEffect(() => {
+        if (!sentinelRef.current || !hasMore) return;
+
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting && !loadingMore && !loading && hasMore) {
+                setLoadingMore(true);
+                fetchResults(res.length);
+            }
+        }, { rootMargin: '400px' });
+
+        observer.observe(sentinelRef.current);
+        return () => observer.disconnect();
+    }, [res.length, hasMore, loadingMore, loading, fetchResults]);
 
     const FilterChip = ({ label, active, onClick }) => (
         <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>{label}</button>
@@ -78,6 +112,16 @@ export const SearchScreen = ({ onUserClick }) => {
                             </div>
                         ))}
                         {res.length === 0 && <div className="text-center py-20 text-zinc-600"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
+
+                        {/* Infinite scroll sentinel */}
+                        {hasMore && (
+                            <div ref={sentinelRef} className="flex justify-center py-6">
+                                {loadingMore && <Loader2 className="animate-spin text-zinc-500" size={24} />}
+                            </div>
+                        )}
+                        {!hasMore && res.length > 0 && (
+                            <div className="text-center text-zinc-700 text-xs py-6">Alle Ergebnisse geladen.</div>
+                        )}
                     </div>
                 )}
             </div>
