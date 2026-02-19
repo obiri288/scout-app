@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Home, Search, Plus, Mail, User, LogIn, X, MapPin } from 'lucide-react';
-import { supabase } from './lib/supabase';
 import { useUser } from './contexts/UserContext';
 import { useToast } from './contexts/ToastContext';
+import * as api from './lib/api';
 
 // Eagerly loaded — visible on first render
 import { CookieBanner } from './components/CookieBanner';
@@ -79,13 +79,8 @@ const App = () => {
             case 'profile':
                 if (param) {
                     try {
-                        const { data } = await supabase.from('players_master')
-                            .select('*, clubs(*)')
-                            .eq('user_id', param)
-                            .maybeSingle();
-                        if (data) {
-                            await loadProfile(data);
-                        }
+                        const player = await api.fetchPlayerByUserId(param);
+                        if (player) await loadProfile(player);
                     } catch (e) {
                         console.error("Deep link profile load failed:", e);
                     }
@@ -148,29 +143,13 @@ const App = () => {
         let p = { ...targetPlayer };
         try {
             if (session) {
-                const { data } = await supabase.from('follows').select('*')
-                    .match({ follower_id: session.user.id, following_id: p.user_id })
-                    .maybeSingle();
-                p.isFollowing = !!data;
-
-                // Check watchlist status
-                const { data: wlData } = await supabase.from('scout_watchlist')
-                    .select('id')
-                    .match({ scout_id: session.user.id, player_id: p.id })
-                    .maybeSingle();
-                setIsOnWatchlist(!!wlData);
+                p.isFollowing = await api.checkIsFollowing(session.user.id, p.user_id);
+                setIsOnWatchlist(await api.checkIsOnWatchlist(session.user.id, p.id));
             }
-            const { count } = await supabase.from('follows')
-                .select('*', { count: 'exact', head: true })
-                .eq('following_id', p.user_id);
-            p.followers_count = count || 0;
+            p.followers_count = await api.getFollowersCount(p.user_id);
 
             setViewedProfile(p);
-            const { data } = await supabase.from('media_highlights')
-                .select('*')
-                .eq('player_id', p.id)
-                .order('created_at', { ascending: false });
-            setProfileHighlights(data || []);
+            setProfileHighlights(await api.fetchPlayerHighlights(p.id));
             setActiveTab('profile');
             navigateToHash(`profile/${p.user_id}`);
         } catch (e) {
@@ -209,29 +188,18 @@ const App = () => {
 
         try {
             if (wasFollowing) {
-                // Unfollow
-                const { error } = await supabase.from('follows')
-                    .delete()
-                    .match({ follower_id: session.user.id, following_id: viewedProfile.user_id });
-                if (error) throw error;
+                await api.unfollow(session.user.id, viewedProfile.user_id);
             } else {
-                // Follow
-                const { error } = await supabase.from('follows')
-                    .insert({ follower_id: session.user.id, following_id: viewedProfile.user_id });
-                if (error) throw error;
-
-                // Create notification for target user
+                await api.follow(session.user.id, viewedProfile.user_id);
                 try {
-                    await supabase.from('notifications').insert({
-                        user_id: viewedProfile.user_id,
-                        actor_id: session.user.id,
-                        type: 'follow',
-                        is_read: false,
+                    await api.createNotification({
+                        userId: viewedProfile.user_id,
+                        actorId: session.user.id,
+                        type: 'follow'
                     });
                 } catch (notifErr) {
                     console.warn("Notification insert failed:", notifErr);
                 }
-
                 addToast(`Du folgst jetzt ${viewedProfile.full_name}!`, 'success');
             }
         } catch (e) {
@@ -251,16 +219,11 @@ const App = () => {
 
         try {
             if (isOnWatchlist) {
-                const { error } = await supabase.from('scout_watchlist')
-                    .delete()
-                    .match({ scout_id: session.user.id, player_id: viewedProfile.id });
-                if (error) throw error;
+                await api.removeFromWatchlist(session.user.id, viewedProfile.id);
                 setIsOnWatchlist(false);
                 addToast("Von Merkliste entfernt.", 'info');
             } else {
-                const { error } = await supabase.from('scout_watchlist')
-                    .insert({ scout_id: session.user.id, player_id: viewedProfile.id });
-                if (error) throw error;
+                await api.addToWatchlist(session.user.id, viewedProfile.id);
                 setIsOnWatchlist(true);
                 addToast(`${viewedProfile.full_name} zur Merkliste hinzugefügt! 📋`, 'success');
             }
@@ -275,24 +238,8 @@ const App = () => {
         setProfileHighlights(prev => prev.filter(v => v.id !== video.id));
 
         try {
-            // Delete DB row
-            const { error } = await supabase.from('media_highlights').delete().eq('id', video.id);
-            if (error) throw error;
-
-            // Delete storage file
-            if (video.video_url) {
-                const path = video.video_url.split('/player-videos/').pop();
-                if (path) {
-                    await supabase.storage.from('player-videos').remove([decodeURIComponent(path)]);
-                }
-            }
-            if (video.thumbnail_url && !video.thumbnail_url.includes('placehold.co')) {
-                const thumbPath = video.thumbnail_url.split('/player-videos/').pop();
-                if (thumbPath) {
-                    await supabase.storage.from('player-videos').remove([decodeURIComponent(thumbPath)]);
-                }
-            }
-
+            await api.deleteHighlight(video.id);
+            await api.deleteVideoFiles(video.video_url, video.thumbnail_url);
             addToast('Video gelöscht.', 'success');
         } catch (e) {
             // Revert optimistic update
