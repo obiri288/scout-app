@@ -22,6 +22,7 @@ import { FollowerListModal } from './components/FollowerListModal';
 import { ReportModal } from './components/ReportModal';
 import { VerificationModal } from './components/VerificationModal';
 import { WatchlistModal } from './components/WatchlistModal';
+import { CompareModal } from './components/CompareModal';
 
 const App = () => {
     const {
@@ -47,6 +48,7 @@ const App = () => {
     const [reportTarget, setReportTarget] = useState(null);
     const [deferredPrompt, setDeferredPrompt] = useState(null);
     const [isOnWatchlist, setIsOnWatchlist] = useState(false);
+    const [comparePlayer, setComparePlayer] = useState(undefined); // undefined=closed, null=open empty, player=open with player
 
     // --- Deep Linking via Hash ---
     const navigateToHash = useCallback((hash) => {
@@ -328,6 +330,7 @@ const App = () => {
                     onWatchlistToggle={handleWatchlistToggle}
                     isOnWatchlist={isOnWatchlist}
                     session={session}
+                    onCompare={() => setComparePlayer(viewedProfile)}
                 />
             )}
 
@@ -404,6 +407,7 @@ const App = () => {
             {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
             {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
             {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
+            {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
         </div>
     );
 };

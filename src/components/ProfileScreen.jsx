@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
     Loader2, User, CheckCircle, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { calculateAge } from '../lib/helpers';
@@ -70,7 +70,7 @@ const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
     );
 };
 
-export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session }) => {
+export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, onCompare }) => {
     if (isOwnProfile && !player) return <ProfileSkeleton />;
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Profil nicht gefunden.</div>;
 
@@ -157,10 +157,15 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                 <button onClick={onChatReq} className="bg-zinc-800 text-white px-5 py-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition">
                                     <MessageCircle size={20} />
                                 </button>
-                                {/* Watchlist button for scouts */}
                                 {session && onWatchlistToggle && (
                                     <button onClick={onWatchlistToggle} className={`p-3 rounded-xl border transition ${isOnWatchlist ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'}`}>
                                         {isOnWatchlist ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+                                    </button>
+                                )}
+                                {/* Compare button */}
+                                {session && onCompare && (
+                                    <button onClick={onCompare} className="p-3 rounded-xl border border-zinc-700 bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition" title="Vergleichen">
+                                        <ArrowLeftRight size={20} />
                                     </button>
                                 )}
                             </>
