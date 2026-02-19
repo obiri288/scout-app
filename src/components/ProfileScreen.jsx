@@ -8,6 +8,7 @@ import { calculateAge } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { ProfileSkeleton } from './SkeletonScreens';
 import { useToast } from '../contexts/ToastContext';
+import { PlayerRating } from './PlayerRating';
 
 // Lazy-loaded video tile for profile grid
 const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
@@ -131,8 +132,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">Clips</span>
                         </div>
                         <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <div className="text-white font-bold text-sm">{player.strong_foot || '-'}</div>
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">{player.height_user ? `${player.height_user} cm` : 'Größe'}</span>
+                            <PlayerRating playerId={player.id} session={session} compact />
                         </div>
                     </div>
 
@@ -180,6 +180,13 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                 {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-white transition"><Video size={24} /></a> : <Video size={24} className="text-zinc-800" />}
                 {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-red-500 transition"><Youtube size={24} /></a> : <Youtube size={24} className="text-zinc-800" />}
             </div>
+
+            {/* Scout Rating (non-own profiles) */}
+            {!isOwnProfile && session && (
+                <div className="px-4 py-4 border-b border-white/5">
+                    <PlayerRating playerId={player.id} session={session} />
+                </div>
+            )}
 
             {/* Content Tabs */}
             <ProfileTabs player={player} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} />
