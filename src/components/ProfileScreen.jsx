@@ -9,6 +9,7 @@ import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { ProfileSkeleton } from './SkeletonScreens';
 import { useToast } from '../contexts/ToastContext';
 import { PlayerRating } from './PlayerRating';
+import { SimilarPlayers } from './SimilarPlayers';
 
 // Lazy-loaded video tile for profile grid
 const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
@@ -71,7 +72,7 @@ const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
     );
 };
 
-export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, onCompare }) => {
+export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, onCompare, onPlayerClick }) => {
     if (isOwnProfile && !player) return <ProfileSkeleton />;
     if (!player) return <div className="min-h-screen flex items-center justify-center text-zinc-500">Profil nicht gefunden.</div>;
 
@@ -190,6 +191,11 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
 
             {/* Content Tabs */}
             <ProfileTabs player={player} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} />
+
+            {/* Similar Players */}
+            {!isOwnProfile && onPlayerClick && (
+                <SimilarPlayers player={player} onUserClick={onPlayerClick} />
+            )}
         </div>
     );
 };

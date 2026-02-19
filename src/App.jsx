@@ -333,6 +333,7 @@ const App = () => {
                     isOnWatchlist={isOnWatchlist}
                     session={session}
                     onCompare={() => setComparePlayer(viewedProfile)}
+                    onPlayerClick={loadProfile}
                 />
             )}
 
