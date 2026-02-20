@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { X, Settings, ChevronRight, Download, Bell, RefreshCw, Edit, BadgeCheck, Share2, Key, Lock, FileText, LogOut, Trash2, Globe } from 'lucide-react';
+import { X, Settings, ChevronRight, Download, Bell, RefreshCw, Edit, BadgeCheck, Share2, Key, Lock, FileText, LogOut, Trash2, Globe, Sun, Moon } from 'lucide-react';
 import { SafeErrorBoundary } from './SafeErrorBoundary';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
     const [showToast, setShowToast] = useState(null);
     const { addToast } = useToast();
     const { lang, toggleLanguage, t } = useLanguage();
+    const { isDark, toggleTheme } = useTheme();
 
     if (!user) return null;
 
@@ -53,6 +55,12 @@ export const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, 
                             <button onClick={toggleLanguage} className="w-full p-3 flex items-center justify-between group transition-all rounded-xl hover:bg-white/5">
                                 <div className="flex items-center gap-3"><div className="p-2 rounded-lg bg-white/5 text-zinc-400 group-hover:text-white"><Globe size={18} /></div><span className="font-medium text-sm text-zinc-200 group-hover:text-white">{lang === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'}</span></div>
                                 <span className="text-xs text-zinc-500 bg-white/5 px-2 py-1 rounded-full">{lang === 'de' ? 'EN →' : 'DE →'}</span>
+                            </button>
+                        </div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">{t('settings_theme')}</h3>
+                            <button onClick={toggleTheme} className="w-full p-3 flex items-center justify-between group transition-all rounded-xl hover:bg-white/5">
+                                <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-amber-500/20 text-amber-400'}`}>{isDark ? <Moon size={18} /> : <Sun size={18} />}</div><span className="font-medium text-sm text-zinc-200 group-hover:text-white">{isDark ? t('settings_dark') : t('settings_light')}</span></div>
+                                <span className="text-xs text-zinc-500 bg-white/5 px-2 py-1 rounded-full">{isDark ? '☀️' : '🌙'}</span>
                             </button>
                         </div>
                         <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label={t('settings_install')} onClick={onInstallApp} /><SettingsItem icon={Bell} label={t('settings_push')} onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div>
