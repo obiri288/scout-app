@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import * as api from '../lib/api';
 
 /**
@@ -13,6 +14,7 @@ export const useAppState = () => {
         refreshProfile, unreadCount, resetUnreadCount, logout
     } = useUser();
     const { addToast } = useToast();
+    const { t } = useLanguage();
 
     // --- Navigation State ---
     const [activeTab, setActiveTab] = useState('home');
@@ -106,17 +108,17 @@ export const useAppState = () => {
             deferredPrompt.prompt();
             setDeferredPrompt(null);
         } else {
-            addToast("App ist bereits installiert oder wird nicht unterstützt.", 'info');
+            addToast(t('toast_app_installed'), 'info');
         }
     };
 
     const handlePushRequest = () => {
         if ("Notification" in window) {
             Notification.requestPermission().then(permission => {
-                if (permission === "granted") addToast("Push-Benachrichtigungen aktiviert!", 'success');
+                if (permission === "granted") addToast(t('toast_push_enabled'), 'success');
             });
         } else {
-            addToast("Push wird nicht unterstützt.", 'error');
+            addToast(t('toast_push_unsupported'), 'error');
         }
     };
 
@@ -135,7 +137,7 @@ export const useAppState = () => {
             navigateToHash(`profile/${p.user_id}`);
         } catch (e) {
             console.error("Load profile failed:", e);
-            addToast("Profil konnte nicht geladen werden.", 'error');
+            addToast(t('toast_profile_error'), 'error');
         }
     };
 
@@ -179,7 +181,7 @@ export const useAppState = () => {
                 } catch (notifErr) {
                     console.warn("Notification insert failed:", notifErr);
                 }
-                addToast(`Du folgst jetzt ${viewedProfile.full_name}!`, 'success');
+                addToast(`${t('toast_follow')} ${viewedProfile.full_name}!`, 'success');
             }
         } catch (e) {
             setViewedProfile(prev => ({
@@ -187,7 +189,7 @@ export const useAppState = () => {
                 isFollowing: wasFollowing,
                 followers_count: wasFollowing ? (prev.followers_count + 1) : (prev.followers_count - 1)
             }));
-            addToast("Follow-Aktion fehlgeschlagen.", 'error');
+            addToast(t('toast_follow_error'), 'error');
         }
     };
 
@@ -198,14 +200,14 @@ export const useAppState = () => {
             if (isOnWatchlist) {
                 await api.removeFromWatchlist(session.user.id, viewedProfile.id);
                 setIsOnWatchlist(false);
-                addToast("Von Merkliste entfernt.", 'info');
+                addToast(t('toast_watchlist_removed'), 'info');
             } else {
                 await api.addToWatchlist(session.user.id, viewedProfile.id);
                 setIsOnWatchlist(true);
-                addToast(`${viewedProfile.full_name} zur Merkliste hinzugefügt! 📋`, 'success');
+                addToast(`${viewedProfile.full_name} ${t('toast_watchlist_added')}`, 'success');
             }
         } catch (e) {
-            addToast("Merkliste-Aktion fehlgeschlagen.", 'error');
+            addToast(t('toast_watchlist_error'), 'error');
         }
     };
 
@@ -215,10 +217,10 @@ export const useAppState = () => {
         try {
             await api.deleteHighlight(video.id);
             await api.deleteVideoFiles(video.video_url, video.thumbnail_url);
-            addToast('Video gelöscht.', 'success');
+            addToast(t('toast_video_deleted'), 'success');
         } catch (e) {
             setProfileHighlights(prev => [...prev, video].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-            addToast('Video konnte nicht gelöscht werden.', 'error');
+            addToast(t('toast_video_delete_error'), 'error');
         }
     };
 
