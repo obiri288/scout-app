@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Home, Search, Plus, Mail, User, LogIn, X, MapPin } from 'lucide-react';
-import { useUser } from './contexts/UserContext';
-import { useToast } from './contexts/ToastContext';
-import * as api from './lib/api';
+import { useAppState } from './hooks/useAppState';
 
 // Eagerly loaded — visible on first render
 import { CookieBanner } from './components/CookieBanner';
@@ -27,234 +25,36 @@ const WatchlistModal = lazy(() => import('./components/WatchlistModal').then(m =
 const CompareModal = lazy(() => import('./components/CompareModal').then(m => ({ default: m.CompareModal })));
 const MapScreen = lazy(() => import('./components/MapScreen').then(m => ({ default: m.MapScreen })));
 
-// Suspense fallback
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
 );
 
-
 const App = () => {
     const {
-        session, setSession, currentUserProfile, updateProfile,
-        refreshProfile, unreadCount, resetUnreadCount, logout
-    } = useUser();
-    const { addToast } = useToast();
-
-    const [activeTab, setActiveTab] = useState('home');
-    const [viewedProfile, setViewedProfile] = useState(null);
-    const [viewedClub, setViewedClub] = useState(null);
-    const [profileHighlights, setProfileHighlights] = useState([]);
-    const [activeVideo, setActiveVideo] = useState(null);
-    const [showUpload, setShowUpload] = useState(false);
-    const [showLogin, setShowLogin] = useState(false);
-    const [activeCommentsVideo, setActiveCommentsVideo] = useState(null);
-    const [showEditProfile, setShowEditProfile] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [activeChatPartner, setActiveChatPartner] = useState(null);
-    const [showFollowersModal, setShowFollowersModal] = useState(false);
-    const [showVerificationModal, setShowVerificationModal] = useState(false);
-    const [showWatchlist, setShowWatchlist] = useState(false);
-    const [reportTarget, setReportTarget] = useState(null);
-    const [deferredPrompt, setDeferredPrompt] = useState(null);
-    const [isOnWatchlist, setIsOnWatchlist] = useState(false);
-    const [comparePlayer, setComparePlayer] = useState(undefined); // undefined=closed, null=open empty, player=open with player
-    const [showMap, setShowMap] = useState(false);
-
-    // --- Deep Linking via Hash ---
-    const navigateToHash = useCallback((hash) => {
-        window.location.hash = hash;
-    }, []);
-
-    const handleHashRoute = useCallback(async () => {
-        const hash = window.location.hash;
-        if (!hash) return;
-
-        const parts = hash.replace('#', '').split('/');
-        const route = parts[0];
-        const param = parts[1];
-
-        switch (route) {
-            case 'profile':
-                if (param) {
-                    try {
-                        const player = await api.fetchPlayerByUserId(param);
-                        if (player) await loadProfile(player);
-                    } catch (e) {
-                        console.error("Deep link profile load failed:", e);
-                    }
-                }
-                break;
-            case 'search':
-                setActiveTab('search');
-                break;
-            case 'inbox':
-                setActiveTab('inbox');
-                break;
-            default:
-                break;
-        }
-    }, []);
-
-    useEffect(() => {
-        handleHashRoute();
-        window.addEventListener('hashchange', handleHashRoute);
-        return () => window.removeEventListener('hashchange', handleHashRoute);
-    }, [handleHashRoute]);
-
-    // PWA install prompt
-    useEffect(() => {
-        const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
-        window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
-    }, []);
-
-    // --- Handlers ---
-    const handleLoginSuccess = async (sessionData) => {
-        setSession(sessionData);
-        setShowLogin(false);
-        refreshProfile();
-        setViewedProfile(null);
-        setActiveTab('profile');
-        navigateToHash('profile');
-    };
-
-    const handleInstallApp = () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            setDeferredPrompt(null);
-        } else {
-            addToast("App ist bereits installiert oder wird nicht unterstützt.", 'info');
-        }
-    };
-
-    const handlePushRequest = () => {
-        if ("Notification" in window) {
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") addToast("Push-Benachrichtigungen aktiviert!", 'success');
-            });
-        } else {
-            addToast("Push wird nicht unterstützt.", 'error');
-        }
-    };
-
-    const loadProfile = async (targetPlayer) => {
-        let p = { ...targetPlayer };
-        try {
-            if (session) {
-                p.isFollowing = await api.checkIsFollowing(session.user.id, p.user_id);
-                setIsOnWatchlist(await api.checkIsOnWatchlist(session.user.id, p.id));
-            }
-            p.followers_count = await api.getFollowersCount(p.user_id);
-
-            setViewedProfile(p);
-            setProfileHighlights(await api.fetchPlayerHighlights(p.id));
-            setActiveTab('profile');
-            navigateToHash(`profile/${p.user_id}`);
-        } catch (e) {
-            console.error("Load profile failed:", e);
-            addToast("Profil konnte nicht geladen werden.", 'error');
-        }
-    };
-
-    const handleProfileTabClick = () => {
-        if (!session) {
-            setShowLogin(true);
-            return;
-        }
-        if (currentUserProfile) {
-            loadProfile(currentUserProfile);
-        } else {
-            refreshProfile();
-            setViewedProfile(null);
-            setActiveTab('profile');
-        }
-    };
-
-    // --- Follow System ---
-    const handleFollow = async () => {
-        if (!session) { setShowLogin(true); return; }
-        if (!viewedProfile) return;
-
-        const wasFollowing = viewedProfile.isFollowing;
-
-        // Optimistic update
-        setViewedProfile(prev => ({
-            ...prev,
-            isFollowing: !wasFollowing,
-            followers_count: wasFollowing ? (prev.followers_count - 1) : (prev.followers_count + 1)
-        }));
-
-        try {
-            if (wasFollowing) {
-                await api.unfollow(session.user.id, viewedProfile.user_id);
-            } else {
-                await api.follow(session.user.id, viewedProfile.user_id);
-                try {
-                    await api.createNotification({
-                        userId: viewedProfile.user_id,
-                        actorId: session.user.id,
-                        type: 'follow'
-                    });
-                } catch (notifErr) {
-                    console.warn("Notification insert failed:", notifErr);
-                }
-                addToast(`Du folgst jetzt ${viewedProfile.full_name}!`, 'success');
-            }
-        } catch (e) {
-            // Revert optimistic update
-            setViewedProfile(prev => ({
-                ...prev,
-                isFollowing: wasFollowing,
-                followers_count: wasFollowing ? (prev.followers_count + 1) : (prev.followers_count - 1)
-            }));
-            addToast("Follow-Aktion fehlgeschlagen.", 'error');
-        }
-    };
-
-    // --- Watchlist Toggle ---
-    const handleWatchlistToggle = async () => {
-        if (!session || !viewedProfile) return;
-
-        try {
-            if (isOnWatchlist) {
-                await api.removeFromWatchlist(session.user.id, viewedProfile.id);
-                setIsOnWatchlist(false);
-                addToast("Von Merkliste entfernt.", 'info');
-            } else {
-                await api.addToWatchlist(session.user.id, viewedProfile.id);
-                setIsOnWatchlist(true);
-                addToast(`${viewedProfile.full_name} zur Merkliste hinzugefügt! 📋`, 'success');
-            }
-        } catch (e) {
-            addToast("Merkliste-Aktion fehlgeschlagen.", 'error');
-        }
-    };
-
-    // --- Delete Video ---
-    const handleDeleteVideo = async (video) => {
-        // Optimistic UI update
-        setProfileHighlights(prev => prev.filter(v => v.id !== video.id));
-
-        try {
-            await api.deleteHighlight(video.id);
-            await api.deleteVideoFiles(video.video_url, video.thumbnail_url);
-            addToast('Video gelöscht.', 'success');
-        } catch (e) {
-            // Revert optimistic update
-            setProfileHighlights(prev => [...prev, video].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
-            addToast('Video konnte nicht gelöscht werden.', 'error');
-        }
-    };
-
-    // --- Tab Navigation ---
-    const switchTab = (tab) => {
-        setActiveTab(tab);
-        if (tab === 'home') navigateToHash('');
-        else if (tab === 'search') navigateToHash('search');
-        else if (tab === 'inbox') navigateToHash('inbox');
-    };
+        session, currentUserProfile, updateProfile, refreshProfile,
+        unreadCount, resetUnreadCount, logout,
+        activeTab, switchTab, navigateToHash,
+        viewedProfile, setViewedProfile, profileHighlights,
+        loadProfile, handleProfileTabClick, isOnWatchlist,
+        viewedClub, setViewedClub,
+        activeVideo, setActiveVideo,
+        activeCommentsVideo, setActiveCommentsVideo,
+        showUpload, setShowUpload,
+        showLogin, setShowLogin,
+        showEditProfile, setShowEditProfile,
+        showSettings, setShowSettings,
+        showFollowersModal, setShowFollowersModal,
+        showVerificationModal, setShowVerificationModal,
+        showMap, setShowMap,
+        activeChatPartner, setActiveChatPartner,
+        reportTarget, setReportTarget,
+        comparePlayer, setComparePlayer,
+        handleLoginSuccess, handleFollow, handleWatchlistToggle,
+        handleDeleteVideo, handleInstallApp, handlePushRequest,
+        deferredPrompt,
+    } = useAppState();
 
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 pb-20">
@@ -275,13 +75,13 @@ const App = () => {
                     onVideoClick={setActiveVideo}
                     onDeleteVideo={handleDeleteVideo}
                     isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)}
-                    onBack={() => { setActiveTab('home'); navigateToHash(''); }}
-                    onLogout={() => { logout(); setActiveTab('home'); }}
+                    onBack={() => { switchTab('home'); }}
+                    onLogout={() => { logout(); switchTab('home'); }}
                     onEditReq={() => setShowEditProfile(true)}
                     onSettingsReq={() => setShowSettings(true)}
                     onChatReq={() => { if (!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
-                    onClubClick={(c) => { setViewedClub(c); setActiveTab('club'); }}
-                    onAdminReq={() => setActiveTab('admin')}
+                    onClubClick={(c) => { setViewedClub(c); switchTab('club'); }}
+                    onAdminReq={() => switchTab('admin')}
                     onFollow={handleFollow}
                     onShowFollowers={() => setShowFollowersModal(true)}
                     onLoginReq={() => setShowLogin(true)}
@@ -294,7 +94,7 @@ const App = () => {
                 />
             )}
 
-            {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => setActiveTab('home')} onUserClick={loadProfile} />}
+            {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
             {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} /></Suspense>}
 
             {/* Bottom Navigation */}
@@ -339,7 +139,7 @@ const App = () => {
                 {showSettings && (
                     <SettingsModal
                         onClose={() => setShowSettings(false)}
-                        onLogout={() => { logout(); setShowSettings(false); setActiveTab('home'); }}
+                        onLogout={() => { logout(); setShowSettings(false); switchTab('home'); }}
                         installPrompt={deferredPrompt}
                         onInstallApp={handleInstallApp}
                         onRequestPush={handlePushRequest}

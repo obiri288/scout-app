@@ -12,7 +12,7 @@ import { PlayerRating } from './PlayerRating';
 import { SimilarPlayers } from './SimilarPlayers';
 
 // Lazy-loaded video tile for profile grid
-const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
+const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
     const { ref, isIntersecting } = useIntersectionObserver({ threshold: 0.1, rootMargin: '200px' });
     const [loaded, setLoaded] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -70,7 +70,7 @@ const VideoTile = ({ video, onClick, isOwnProfile, onDelete }) => {
             )}
         </div>
     );
-};
+});
 
 export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, onCompare, onPlayerClick }) => {
     if (isOwnProfile && !player) return <ProfileSkeleton />;

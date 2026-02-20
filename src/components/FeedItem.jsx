@@ -5,7 +5,7 @@ import { getClubStyle } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
 
-export const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
+export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [likes, setLikes] = useState(video.likes_count || 0);
     const [liked, setLiked] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
@@ -112,4 +112,4 @@ export const FeedItem = ({ video, onClick, session, onLikeReq, onCommentClick, o
             </div>
         </div>
     );
-};
+});
