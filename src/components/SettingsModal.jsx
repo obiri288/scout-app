@@ -5,20 +5,28 @@ import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
 
-export const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, onRequestPush, user, onEditReq, onVerifyReq }) => {
+export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditReq, onVerifyReq, onCloseAndOpen }) => {
     const [showToast, setShowToast] = useState(null);
+    const [isClosing, setIsClosing] = useState(false);
     const { addToast } = useToast();
     const { lang, toggleLanguage, t } = useLanguage();
     const { isDark, toggleTheme } = useTheme();
 
     if (!user) return null;
 
+    const handleClose = () => {
+        setIsClosing(true);
+        setTimeout(onClose, 300);
+    };
+
+    const handleCloseAndOpen = (target) => {
+        setIsClosing(true);
+        setTimeout(() => onCloseAndOpen(target), 300);
+    };
+
     const showFeedback = (msg) => { setShowToast(msg); setTimeout(() => setShowToast(null), 2000); };
 
-    const handleClearCache = () => {
-        try { localStorage.clear(); addToast('Cache geleert!', 'success'); }
-        catch (e) { addToast('Fehler beim Leeren', 'error'); }
-    };
+
 
     const handleShare = () => {
         if (user?.id) {
@@ -43,11 +51,11 @@ export const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, 
 
     return (
         <div className="fixed inset-0 z-[10000] flex justify-end">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-            <div className="relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`} onClick={handleClose}></div>
+            <div className={`relative w-80 max-w-[85vw] h-full bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col transition-transform duration-300 ${isClosing ? 'translate-x-full' : 'translate-x-0'}`}>
                 <div className="p-5 border-b border-white/5 flex justify-between items-center bg-zinc-900/50 backdrop-blur-md sticky top-0 z-10">
                     <h2 className="text-lg font-bold text-white flex items-center gap-2"><Settings size={18} /> {t('settings_title')}</h2>
-                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                    <button onClick={handleClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
                 </div>
                 <SafeErrorBoundary>
                     <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -63,10 +71,10 @@ export const SettingsModal = ({ onClose, onLogout, installPrompt, onInstallApp, 
                                 <span className="text-xs text-zinc-500 bg-white/5 px-2 py-1 rounded-full">{isDark ? '☀️' : '🌙'}</span>
                             </button>
                         </div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Download} label={t('settings_install')} onClick={onInstallApp} /><SettingsItem icon={Bell} label={t('settings_push')} onClick={onRequestPush} /><SettingsItem icon={RefreshCw} label="Cache leeren" onClick={handleClearCache} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={onVerifyReq} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => showFeedback("Email gesendet")} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => showFeedback("Geöffnet")} /><SettingsItem icon={FileText} label="Impressum" onClick={() => showFeedback("Geöffnet")} /></div>
-                        <div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={handleDeleteAccount} danger /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Bell} label={t('settings_push') || "Push-Benachrichtigungen"} onClick={() => handleCloseAndOpen('push')} /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={() => handleCloseAndOpen('verification')} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => handleCloseAndOpen('password')} /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => handleCloseAndOpen('privacy')} /><SettingsItem icon={FileText} label="Impressum" onClick={() => handleCloseAndOpen('imprint')} /></div>
+                        <div className="pt-4 border-t border-white/10 space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={() => handleCloseAndOpen('delete-account')} danger /></div>
                         <div className="text-center text-zinc-700 text-xs py-4">v3.0.0 Live</div>
                     </div>
                 </SafeErrorBoundary>

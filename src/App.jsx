@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { Home, Search, Plus, Mail, User, LogIn, X, MapPin } from 'lucide-react';
+import React, { lazy, Suspense, useState } from 'react';
+import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2 } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
 
 // Eagerly loaded — visible on first render
@@ -31,6 +31,145 @@ const LazyFallback = () => (
     </div>
 );
 
+const PushSettingsModal = ({ onClose }) => {
+    const [toggles, setToggles] = useState({ follower: true, likes: true, messages: true });
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2"><Bell size={18} /> Push-Benachrichtigungen</h2>
+                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                </div>
+                <div className="p-4 space-y-4 overflow-y-auto">
+                    {['Neue Follower', 'Neue Likes', 'Neue Nachrichten'].map((label, i) => {
+                        const key = ['follower', 'likes', 'messages'][i];
+                        return (
+                            <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                                <span className="font-medium text-zinc-200">{label}</span>
+                                <button onClick={() => setToggles(p => ({ ...p, [key]: !p[key] }))} className={`w-12 h-6 rounded-full transition-colors relative ${toggles[key] ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                                    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${toggles[key] ? 'translate-x-6' : 'translate-x-1'}`}></div>
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ChangePasswordModal = ({ onClose }) => {
+    const [pwd, setPwd] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setError(null);
+        if (pwd !== confirm) return setError('Passwörter stimmen nicht überein.');
+        if (pwd.length < 6) return setError('Passwort muss mindestens 6 Zeichen lang sein.');
+        setLoading(true);
+        // Mock backend call
+        setTimeout(() => {
+            setLoading(false);
+            setSuccess(true);
+            setTimeout(onClose, 2000);
+        }, 1500);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2"><Key size={18} /> Passwort ändern</h2>
+                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                </div>
+                <div className="p-6">
+                    {success ? (
+                        <div className="text-center space-y-4 py-8 animate-in fade-in zoom-in-95">
+                            <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto"><Lock size={32} /></div>
+                            <h3 className="text-xl font-bold text-white">Passwort aktualisiert</h3>
+                            <p className="text-zinc-400 text-sm">Dein Passwort wurde erfolgreich geändert.</p>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {error && <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-500 text-sm animate-in fade-in">{error}</div>}
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Neues Passwort</label>
+                                <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Passwort bestätigen</label>
+                                <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
+                            </div>
+                            <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center mt-6">
+                                {loading ? <Loader2 size={20} className="animate-spin" /> : 'Passwort speichern'}
+                            </button>
+                        </form>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const LegalModal = ({ title, onClose }) => (
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+        <div className="relative w-full max-w-2xl bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-[80vh] h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2"><FileText size={18} /> {title}</h2>
+                <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+            </div>
+            <div className="p-6 overflow-y-auto text-zinc-300 space-y-6 text-sm leading-relaxed">
+                <h3 className="text-xl font-bold text-white">{title} der Scout App</h3>
+                <p>Zuletzt aktualisiert: Heute</p>
+                <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</p>
+                <h4 className="font-bold text-white text-base">1. Allgemeine Informationen</h4>
+                <p>Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi.</p>
+                <h4 className="font-bold text-white text-base">2. Datennutzung</h4>
+                <p>Nam liber tempor cum soluta nobis eleifend option congue nihil imperdiet doming id quod mazim placerat facer possim assum. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.</p>
+                <p>Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat.</p>
+            </div>
+        </div>
+    </div>
+);
+
+const DeleteAccountModal = ({ onClose, onConfirm }) => {
+    const [input, setInput] = useState('');
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-red-500/30">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-red-500 flex items-center gap-2"><Trash2 size={18} /> Danger Zone</h2>
+                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                </div>
+                <div className="p-6 space-y-6">
+                    <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                        <h3 className="font-bold text-red-500 mb-2">Account unwiderruflich löschen</h3>
+                        <p className="text-sm text-zinc-300">Wenn du deinen Account löschst, werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-300">Tippe <span className="text-white font-bold select-all tracking-wider px-2 py-0.5 bg-black/50 rounded">LÖSCHEN</span> um zu bestätigen:</label>
+                        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-500 transition-colors" placeholder="LÖSCHEN" />
+                    </div>
+                    <button disabled={input !== 'LÖSCHEN'} onClick={onConfirm} className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-600/30 disabled:text-red-300/50 text-white font-bold py-3 rounded-xl transition">
+                        Account endgültig löschen
+                    </button>
+                    <button onClick={onClose} className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition">
+                        Abbrechen
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const App = () => {
     const {
         session, currentUserProfile, updateProfile, refreshProfile,
@@ -55,6 +194,8 @@ const App = () => {
         handleDeleteVideo, handleInstallApp, handlePushRequest,
         deferredPrompt,
     } = useAppState();
+
+    const [activeSettingsModal, setActiveSettingsModal] = useState(null);
 
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 pb-20">
@@ -146,6 +287,14 @@ const App = () => {
                         user={currentUserProfile}
                         onEditReq={() => { setShowSettings(false); setShowEditProfile(true); }}
                         onVerifyReq={() => { setShowSettings(false); setShowVerificationModal(true); }}
+                        onCloseAndOpen={(target) => {
+                            setShowSettings(false);
+                            if (target === 'verification') {
+                                setShowVerificationModal(true);
+                            } else {
+                                setActiveSettingsModal(target);
+                            }
+                        }}
                     />
                 )}
 
@@ -171,6 +320,22 @@ const App = () => {
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
                 {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
                 {showMap && <MapScreen onClose={() => setShowMap(false)} onUserClick={loadProfile} />}
+
+                {/* Custom Sub-Modals */}
+                {activeSettingsModal === 'push' && <PushSettingsModal onClose={() => setActiveSettingsModal(null)} />}
+                {activeSettingsModal === 'password' && <ChangePasswordModal onClose={() => setActiveSettingsModal(null)} />}
+                {activeSettingsModal === 'privacy' && <LegalModal title="Datenschutz" onClose={() => setActiveSettingsModal(null)} />}
+                {activeSettingsModal === 'imprint' && <LegalModal title="Impressum" onClose={() => setActiveSettingsModal(null)} />}
+                {activeSettingsModal === 'delete-account' && (
+                    <DeleteAccountModal
+                        onClose={() => setActiveSettingsModal(null)}
+                        onConfirm={() => {
+                            logout();
+                            setActiveSettingsModal(null);
+                            switchTab('home');
+                        }}
+                    />
+                )}
             </Suspense>
         </div>
     );
