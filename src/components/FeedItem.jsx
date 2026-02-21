@@ -46,19 +46,19 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     };
 
     return (
-        <div ref={observerRef} className="bg-black border-b border-zinc-900/50 pb-6 mb-2 last:mb-20">
+        <div ref={observerRef} className="bg-[#0a0a0a] border-b border-white/5 pb-6 mb-2 last:mb-20">
             <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onUserClick(video.players_master)}>
-                    <div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-0.5 ${getClubStyle(video.players_master?.clubs?.is_icon_league)}`}>
-                        <div className="w-full h-full rounded-full overflow-hidden bg-black">
+                    <div className={`w-10 h-10 rounded-full bg-zinc-800 overflow-hidden p-[1px] ${getClubStyle(video.players_master?.clubs?.is_icon_league)} shadow-inner`}>
+                        <div className="w-full h-full rounded-full overflow-hidden bg-[#0a0a0a]">
                             {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-zinc-500" />}
                         </div>
                     </div>
                     <div>
-                        <div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-blue-400 transition">
-                            {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-blue-500" />}
+                        <div className="font-medium text-white text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors drop-shadow-md">
+                            {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-cyan-500" />}
                         </div>
-                        <div className="text-xs text-zinc-500">{video.players_master?.clubs?.name || "Vereinslos"}</div>
+                        <div className="text-[11px] tracking-wider text-zinc-400 uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                     </div>
                 </div>
                 <div className="relative">
@@ -70,7 +70,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     )}
                 </div>
             </div>
-            <div onClick={() => onClick(video)} className="aspect-[4/5] bg-zinc-900 relative overflow-hidden group cursor-pointer">
+            <div onClick={() => onClick(video)} className="aspect-[4/5] bg-[#0a0a0a] relative overflow-hidden group cursor-pointer shadow-inner">
                 <video
                     ref={videoRef}
                     src={video.video_url}
@@ -79,23 +79,23 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     preload="none"
                     poster={video.thumbnail_url}
                 />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 pointer-events-none"></div>
-                <div className="absolute bottom-4 right-4 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-white text-xs font-bold flex items-center gap-1"><Play size={10} fill="white" /> Watch</div>
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none transition-opacity duration-500"></div>
+                <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-xl border border-white/20 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1.5 drop-shadow-lg"><Play size={10} fill="white" /> Watch</div>
                 {/* Skill tags overlay */}
                 {video.skill_tags && video.skill_tags.length > 0 && (
-                    <div className="absolute bottom-4 left-4 flex flex-wrap gap-1">
+                    <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">
                         {video.skill_tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="bg-blue-600/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{tag}</span>
+                            <span key={tag} className="bg-cyan-500/20 backdrop-blur-xl border border-cyan-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full drop-shadow-lg shadow-[0_0_10px_rgba(8,145,178,0.2)]">{tag}</span>
                         ))}
                     </div>
                 )}
             </div>
-            <div className="px-4 pt-4 flex items-center gap-6">
-                <button onClick={like} className={`flex items-center gap-2 transition-transform active:scale-90 ${liked ? 'text-red-500' : 'text-white hover:text-red-400'}`}>
-                    <Heart size={26} className={liked ? 'fill-red-500' : ''} /> <span className="font-bold text-sm">{likes}</span>
+            <div className="px-4 pt-4 flex items-center gap-3">
+                <button onClick={like} className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all duration-300 active:scale-95 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'bg-white/5 border-white/5 text-zinc-300 hover:bg-white/10 hover:border-white/10 hover:text-white'}`}>
+                    <Heart size={20} className={liked ? 'fill-red-500 transition-colors' : 'transition-colors'} /> <span className="font-medium text-sm">{likes}</span>
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); onCommentClick(video); }} className="flex items-center gap-2 text-white hover:text-blue-400 transition">
-                    <MessageCircle size={26} /> <span className="font-bold text-sm">Chat</span>
+                <button onClick={(e) => { e.stopPropagation(); onCommentClick(video); }} className="flex items-center gap-2 px-4 py-2 rounded-2xl border border-white/5 bg-white/5 text-zinc-300 hover:bg-white/10 hover:border-white/10 hover:text-white transition-all duration-300 active:scale-95">
+                    <MessageCircle size={20} /> <span className="font-medium text-sm">Chat</span>
                 </button>
                 <div className="ml-auto">
                     <Share2 size={24} className="text-zinc-500 hover:text-white transition cursor-pointer" onClick={(e) => {

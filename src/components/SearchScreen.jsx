@@ -122,12 +122,12 @@ export const SearchScreen = ({ onUserClick }) => {
     };
 
     const FilterChip = ({ label, active, onClick }) => (
-        <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>{label}</button>
+        <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_0_15px_rgba(8,145,178,0.5)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</button>
     );
 
     return (
-        <div className="pb-24 max-w-md mx-auto min-h-screen bg-black">
-            <div className={glassHeader}><h2 className="text-2xl font-black text-white">Scouting</h2></div>
+        <div className="pb-24 max-w-md mx-auto min-h-screen bg-[#0a0a0a]">
+            <div className={glassHeader}><h2 className="text-2xl font-black text-white tracking-tight">Scouting</h2></div>
             <div className="px-4 mt-4">
                 {/* Main search */}
                 <div className="relative mb-4">
@@ -143,9 +143,9 @@ export const SearchScreen = ({ onUserClick }) => {
                 {/* Advanced search toggle */}
                 <button
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition mb-4 ${showAdvanced || activeFilterCount > 0
-                            ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
-                            : 'bg-zinc-900/50 text-zinc-500 border border-white/5 hover:border-white/10'
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-medium transition-all duration-300 ease-out mb-4 ${showAdvanced || activeFilterCount > 0
+                        ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-inner'
+                        : 'bg-white/5 text-zinc-500 border border-white/5 hover:border-white/10 hover:bg-white/10'
                         }`}
                 >
                     <span className="flex items-center gap-2">
@@ -160,10 +160,10 @@ export const SearchScreen = ({ onUserClick }) => {
 
                 {/* Advanced search panel */}
                 {showAdvanced && (
-                    <div className="space-y-4 mb-6 bg-zinc-900/30 p-4 rounded-2xl border border-white/5 animate-in fade-in slide-in-from-top-2">
+                    <div className="space-y-4 mb-6 bg-white/5 p-5 rounded-3xl border border-white/10 shadow-inner animate-in fade-in slide-in-from-top-2">
                         {/* City / PLZ search */}
                         <div>
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1 mb-1 block">Stadt / PLZ</label>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Stadt / PLZ</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-3.5 text-zinc-500" size={16} />
                                 <input
@@ -180,7 +180,7 @@ export const SearchScreen = ({ onUserClick }) => {
 
                         {/* Club search */}
                         <div>
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase ml-1 mb-1 block">Verein</label>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Verein</label>
                             <div className="relative">
                                 <Shield className="absolute left-3 top-3.5 text-zinc-500" size={16} />
                                 <input
@@ -209,10 +209,10 @@ export const SearchScreen = ({ onUserClick }) => {
                 <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'ST', 'ZOM', 'ZM', 'ZDM', 'IV', 'RV', 'LV', 'RA', 'LA', 'TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
 
                 {/* Skill tag filter */}
-                <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4">
+                <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4 px-1">
                     <button
                         onClick={() => setShowTagFilter(!showTagFilter)}
-                        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${selectedTag ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                        className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_0_15px_rgba(8,145,178,0.5)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 shadow-inner'}`}
                     >
                         <Filter size={12} /> {selectedTag || 'Skill-Filter'}
                     </button>
@@ -247,8 +247,8 @@ export const SearchScreen = ({ onUserClick }) => {
                 {loading ? <SearchSkeleton /> : (
                     <div className="space-y-3">
                         {res.map(p => (
-                            <div key={p.id} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle}`}>
-                                <div className="w-14 h-14 rounded-2xl bg-zinc-800 overflow-hidden border border-white/10 relative">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-zinc-600 m-4" />}</div>
+                            <div key={p.id} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition-all duration-300 active:scale-[0.98] group rounded-2xl border border-transparent hover:border-white/10 hover:shadow-lg ${cardStyle}`}>
+                                <div className="w-14 h-14 rounded-2xl bg-[#0a0a0a] overflow-hidden border border-white/10 relative shadow-inner group-hover:border-white/20 transition-colors">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-zinc-600 m-4" />}</div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base">{p.full_name}</h3><span className="text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-zinc-300">{p.position_primary}</span></div>
                                     <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400">

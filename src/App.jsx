@@ -198,7 +198,7 @@ const App = () => {
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 pb-20">
+        <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-cyan-500/30 pb-20">
             {!session && (
                 <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 hover:bg-white/20 transition hover:scale-105 active:scale-95">
                     <LogIn size={14} /> Login
@@ -238,32 +238,58 @@ const App = () => {
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
             {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} /></Suspense>}
 
-            {/* Bottom Navigation */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-zinc-900/80 backdrop-blur-xl border border-white/10 px-6 py-4 flex justify-between items-center z-[9999] rounded-3xl shadow-2xl shadow-black/50 pointer-events-auto">
-                <button onClick={() => switchTab('home')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'home' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Home size={24} /></button>
-                <button onClick={() => switchTab('search')} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'search' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><Search size={24} /></button>
-                <button onClick={() => setShowMap(true)} className="flex flex-col items-center gap-1 transition duration-300 text-zinc-500 hover:text-zinc-300"><MapPin size={22} /></button>
-                <div className="relative -top-8">
-                    <button onClick={() => session ? setShowUpload(true) : setShowLogin(true)} className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/40 border-4 border-black transition-transform hover:scale-105 active:scale-95">
-                        <Plus size={28} className="text-white" strokeWidth={3} />
-                    </button>
-                </div>
-                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`flex flex-col items-center gap-1 transition duration-300 relative ${activeTab === 'inbox' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    <div className="relative">
-                        <Mail size={24} />
-                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-black">{unreadCount}</span>}
-                    </div>
+            {/* Decoupled Upload FAB */}
+            <div className="fixed bottom-24 right-4 sm:right-6 sm:bottom-28 z-[9000]">
+                <button
+                    onClick={() => session ? setShowUpload(true) : setShowLogin(true)}
+                    className="w-14 h-14 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(8,145,178,0.5)] border border-white/20 transition-all duration-500 ease-out hover:scale-110 active:scale-95 group"
+                >
+                    <Plus size={28} className="text-white group-hover:rotate-90 transition-transform duration-500" strokeWidth={2.5} />
                 </button>
-                <button onClick={handleProfileTabClick} className={`flex flex-col items-center gap-1 transition duration-300 ${activeTab === 'profile' ? 'text-blue-400 scale-110' : 'text-zinc-500 hover:text-zinc-300'}`}><User size={24} /></button>
+            </div>
+
+            {/* Smart Minimal Bottom Navigation */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-[#0a0a0a]/80 backdrop-blur-2xl border border-white/5 py-3 px-6 rounded-[2rem] shadow-2xl flex justify-between items-center z-[9999] pointer-events-auto">
+                {/* Home */}
+                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-cyan-500/10 text-cyan-400 px-4' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+                    <Home size={22} className={`transition-transform duration-500 ${activeTab === 'home' ? 'scale-110' : ''}`} />
+                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'home' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Home</span>
+                </button>
+
+                {/* Search */}
+                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-cyan-500/10 text-cyan-400 px-4' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+                    <Search size={22} className={`transition-transform duration-500 ${activeTab === 'search' ? 'scale-110' : ''}`} />
+                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'search' ? 'w-14 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Suchen</span>
+                </button>
+
+                {/* Map */}
+                <button onClick={() => setShowMap(true)} className="flex items-center justify-center p-2 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-500 ease-out">
+                    <MapPin size={22} />
+                </button>
+
+                {/* Inbox */}
+                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-cyan-500/10 text-cyan-400 px-4' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+                    <div className="relative">
+                        <Mail size={22} className={`transition-transform duration-500 ${activeTab === 'inbox' ? 'scale-110' : ''}`} />
+                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-[#0a0a0a]">{unreadCount}</span>}
+                    </div>
+                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'inbox' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Inbox</span>
+                </button>
+
+                {/* Profile */}
+                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-cyan-500/10 text-cyan-400 px-4' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
+                    <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
+                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Profil</span>
+                </button>
             </div>
 
             <CookieBanner />
 
             {/* Video Fullscreen */}
             {activeVideo && (
-                <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/10 rounded-full hover:bg-white/20 backdrop-blur-md transition"><X size={24} className="text-white" /></button>
-                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl" />
+                <div className="fixed inset-0 z-[60] bg-[#0a0a0a]/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
+                    <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-zinc-400 hover:text-white"><X size={24} /></button>
+                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-cyan-500/10 border border-white/5" />
                 </div>
             )}
 
