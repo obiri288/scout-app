@@ -129,13 +129,13 @@ export const MapScreen = ({ onClose, onUserClick }) => {
     );
 
     return (
-        <div className="fixed inset-0 z-[10000] bg-[#050505] flex flex-col animate-in fade-in">
+        <div className="fixed inset-0 z-[10000] bg-slate-950 flex flex-col animate-in fade-in">
             {/* Top Navigation Bar with Escape Hatch */}
             <div className="absolute top-0 left-0 right-0 z-[10001] p-6 pt-12 flex justify-between items-start pointer-events-none">
-                <button onClick={onClose} className="p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full shadow-lg pointer-events-auto hover:bg-white/10 transition-all active:scale-95 group">
+                <button onClick={onClose} className="p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.5)] pointer-events-auto hover:bg-white/10 transition-all active:scale-95 group">
                     <ArrowLeft size={24} className="text-zinc-300 group-hover:text-white transition-colors" />
                 </button>
-                <div className="bg-[#050505]/80 backdrop-blur-xl border border-white/5 px-5 py-2.5 rounded-2xl shadow-2xl pointer-events-auto flex items-center gap-2">
+                <div className="bg-slate-950/80 backdrop-blur-3xl border border-white/5 px-5 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-auto flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]"></div>
                     <h2 className="text-sm font-bold tracking-widest text-white uppercase">Scout Radar</h2>
                 </div>
@@ -162,8 +162,8 @@ export const MapScreen = ({ onClose, onUserClick }) => {
 
             {/* Status indicator */}
             {status && (
-                <div className="absolute top-48 left-1/2 -translate-x-1/2 z-[10001] bg-[#050505]/80 backdrop-blur-md border border-white/5 px-4 py-2 rounded-xl text-xs text-zinc-400 flex items-center gap-2 pointer-events-none w-fit">
-                    <Loader2 size={12} className="animate-spin text-cyan-500" /> <span className="truncate">{status}</span>
+                <div className="absolute top-48 left-1/2 -translate-x-1/2 z-[10001] bg-slate-950/80 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-xl text-xs text-slate-300 flex items-center gap-2 pointer-events-none w-fit shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                    <Loader2 size={12} className="animate-spin text-cyan-500" /> <span className="truncate tracking-wider">{status}</span>
                 </div>
             )}
 
@@ -175,36 +175,36 @@ export const MapScreen = ({ onClose, onUserClick }) => {
             </div>
 
             {/* Radar Legend & Counter */}
-            <div className="absolute bottom-32 left-6 z-[10001] bg-[#050505]/60 backdrop-blur-xl border border-white/5 rounded-2xl p-4 text-[10px] space-y-2.5 shadow-2xl">
-                <div className="text-cyan-400 font-bold tracking-wider uppercase mb-1">{players.length} Tracker aktiv</div>
-                <div className="flex items-center gap-2.5 text-zinc-400"><span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" /> Suche Verein</div>
-                <div className="flex items-center gap-2.5 text-zinc-400"><span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" /> Vertrag läuft aus</div>
-                <div className="flex items-center gap-2.5 text-zinc-400"><span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" /> Gebunden</div>
+            <div className="absolute bottom-32 left-6 z-[10001] bg-slate-950/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-4 text-[10px] space-y-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)]">
+                <div className="text-cyan-400 font-bold tracking-widest uppercase mb-1">{players.length} Tracker aktiv</div>
+                <div className="flex items-center gap-2.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]" /> Suche Verein</div>
+                <div className="flex items-center gap-2.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]" /> Vertrag läuft aus</div>
+                <div className="flex items-center gap-2.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)]" /> Gebunden</div>
             </div>
 
             {/* Premium Selected Player Bottom Sheet */}
             {selectedPlayer && (
                 <div className="absolute bottom-0 left-0 right-0 z-[10002] animate-in slide-in-from-bottom duration-500 fade-in">
-                    <div className="bg-[#050505]/90 backdrop-blur-3xl border-t border-white/10 rounded-t-[2.5rem] p-6 pb-10 shadow-[0_-15px_40px_rgba(0,0,0,0.5)]">
+                    <div className="bg-slate-950/90 backdrop-blur-3xl border-t border-white/10 rounded-t-[2.5rem] p-6 pb-10 shadow-[0_-20px_50px_rgba(0,0,0,0.8)]">
                         {/* Drag Handle Mock */}
-                        <div className="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
+                        <div className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-6"></div>
 
                         <div className="flex items-center gap-5">
-                            <div className="w-16 h-16 rounded-3xl bg-zinc-900 border border-white/5 shadow-inner overflow-hidden shrink-0">
-                                {selectedPlayer.avatar_url ? <img src={selectedPlayer.avatar_url} className="w-full h-full object-cover" /> : <User size={28} className="text-zinc-600 m-4" />}
+                            <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-white/10 shadow-inner overflow-hidden shrink-0">
+                                {selectedPlayer.avatar_url ? <img src={selectedPlayer.avatar_url} className="w-full h-full object-cover" /> : <User size={28} className="text-slate-600 m-4" />}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-white text-lg truncate tracking-tight">{selectedPlayer.full_name}</h3>
-                                <div className="flex items-center gap-2.5 text-xs text-zinc-400 mt-1">
-                                    <span className="flex items-center gap-1 font-medium"><Shield size={12} className="text-cyan-500" /> {selectedPlayer.clubs?.name || 'Vereinslos'}</span>
-                                    <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+                                <div className="flex items-center gap-2.5 text-xs text-slate-400 mt-1 font-medium">
+                                    <span className="flex items-center gap-1"><Shield size={12} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> {selectedPlayer.clubs?.name || 'Vereinslos'}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
                                     <span className="flex items-center gap-1"><MapPin size={12} /> {selectedPlayer.city}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 mt-2.5">
-                                    <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-1 rounded-md text-zinc-300 font-bold uppercase tracking-wide">{selectedPlayer.position_primary}</span>
-                                    <span className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wide border ${selectedPlayer.transfer_status === 'Suche Verein' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+                                    <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-1 rounded-md text-slate-300 font-bold uppercase tracking-wider shadow-inner">{selectedPlayer.position_primary}</span>
+                                    <span className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border shadow-inner ${selectedPlayer.transfer_status === 'Suche Verein' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
                                         selectedPlayer.transfer_status === 'Vertrag läuft aus' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                                            'bg-zinc-800 border-zinc-700 text-zinc-400'
+                                            'bg-slate-800/50 border-slate-700 text-slate-400'
                                         }`}>{selectedPlayer.transfer_status}</span>
                                 </div>
                             </div>

@@ -23,7 +23,6 @@ const ReportModal = lazy(() => import('./components/ReportModal').then(m => ({ d
 const VerificationModal = lazy(() => import('./components/VerificationModal').then(m => ({ default: m.VerificationModal })));
 const WatchlistModal = lazy(() => import('./components/WatchlistModal').then(m => ({ default: m.WatchlistModal })));
 const CompareModal = lazy(() => import('./components/CompareModal').then(m => ({ default: m.CompareModal })));
-const MapScreen = lazy(() => import('./components/MapScreen').then(m => ({ default: m.MapScreen })));
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -186,7 +185,6 @@ const App = () => {
         showSettings, setShowSettings,
         showFollowersModal, setShowFollowersModal,
         showVerificationModal, setShowVerificationModal,
-        showMap, setShowMap,
         activeChatPartner, setActiveChatPartner,
         reportTarget, setReportTarget,
         comparePlayer, setComparePlayer,
@@ -198,7 +196,7 @@ const App = () => {
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-cyan-500/30 pb-20">
+        <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-cyan-500/30 pb-20">
             {!session && (
                 <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 hover:bg-white/20 transition hover:scale-105 active:scale-95">
                     <LogIn size={14} /> Login
@@ -249,7 +247,7 @@ const App = () => {
             </div>
 
             {/* Smart Minimal Bottom Navigation */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-[#0a0a0a]/80 backdrop-blur-2xl border border-white/5 py-3 px-6 rounded-[2rem] shadow-2xl flex justify-between items-center z-[9999] pointer-events-auto">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-slate-950/80 backdrop-blur-2xl border border-white/10 py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex justify-between items-center z-[9999] pointer-events-auto">
                 {/* Home */}
                 <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-cyan-500/10 text-cyan-400 px-4' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
                     <Home size={22} className={`transition-transform duration-500 ${activeTab === 'home' ? 'scale-110' : ''}`} />
@@ -260,11 +258,6 @@ const App = () => {
                 <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-cyan-500/10 text-cyan-400 px-4' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'}`}>
                     <Search size={22} className={`transition-transform duration-500 ${activeTab === 'search' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'search' ? 'w-14 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Suchen</span>
-                </button>
-
-                {/* Map */}
-                <button onClick={() => setShowMap(true)} className="flex items-center justify-center p-2 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-500 ease-out">
-                    <MapPin size={22} />
                 </button>
 
                 {/* Inbox */}
@@ -287,7 +280,7 @@ const App = () => {
 
             {/* Video Fullscreen */}
             {activeVideo && (
-                <div className="fixed inset-0 z-[60] bg-[#0a0a0a]/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
+                <div className="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
                     <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-zinc-400 hover:text-white"><X size={24} /></button>
                     <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-cyan-500/10 border border-white/5" />
                 </div>
@@ -345,7 +338,6 @@ const App = () => {
                 {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
                 {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
-                {showMap && <MapScreen onClose={() => setShowMap(false)} onUserClick={loadProfile} />}
 
                 {/* Custom Sub-Modals */}
                 {activeSettingsModal === 'push' && <PushSettingsModal onClose={() => setActiveSettingsModal(null)} />}
