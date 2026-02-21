@@ -49,7 +49,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         if (clubSearch.length < 2) { setClubResults([]); return; }
         const t = setTimeout(async () => {
             try {
-                const { data } = await supabase.from('clubs').select('*').ilike('name', `%${clubSearch}%`).limit(5);
+                const { data } = await supabase.from('clubs').select('*, leagues(name, tier), countries(iso_code, flag_url)').ilike('name', `%${clubSearch}%`).limit(5);
                 setClubResults(data || []);
             } catch (e) { /* silent */ }
         }, 300);
@@ -60,7 +60,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         if (!clubSearch.trim()) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase.from('clubs').insert({ name: clubSearch, league: 'Kreisliga', is_verified: false }).select().single();
+            const { data, error } = await supabase.from('clubs').insert({ name: clubSearch, league_id: null, is_verified: false }).select().single();
             if (error) throw error;
             setSelectedClub(data);
             setClubSearch('');
@@ -110,7 +110,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 longitude
             };
 
-            const { data, error } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*)').single();
+            const { data, error } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*, leagues(name))').single();
             if (error) throw error;
             onUpdate(data);
             addToast("Profil erfolgreich gespeichert! ✅", 'success');
@@ -234,7 +234,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                                 </div>
                                                 <div>
                                                     <span className="font-bold text-white block text-sm">{selectedClub.name}</span>
-                                                    <span className="text-xs text-zinc-500">{selectedClub.league}</span>
+                                                    <span className="text-xs text-zinc-500">{selectedClub.leagues?.name || 'Amateurliga'}</span>
                                                 </div>
                                             </div>
                                             <button type="button" onClick={() => setSelectedClub(null)} className="p-2 hover:bg-white/10 rounded-full transition"><X size={16} className="text-zinc-400" /></button>
@@ -247,8 +247,14 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                                 <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
                                                     {clubResults.map(c => (
                                                         <div key={c.id} onClick={() => { setSelectedClub(c); setClubSearch(''); }} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 flex items-center gap-3">
-                                                            {c.logo_url && <img src={c.logo_url} className="w-6 h-6 rounded-full" />}
-                                                            <span className="text-sm">{c.name}</span>
+                                                            {c.logo_url && <img src={c.logo_url} className="w-8 h-8 rounded-full border border-white/10" />}
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-bold">{c.name}</span>
+                                                                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">
+                                                                    {c.countries?.iso_code ? `${c.countries.iso_code} • ` : ''}
+                                                                    {c.leagues?.name || 'Amateurliga'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>

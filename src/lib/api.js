@@ -10,7 +10,7 @@ import { supabase } from './supabase';
 
 export const fetchPlayerByUserId = async (userId) => {
     const { data, error } = await supabase.from('players_master')
-        .select('*, clubs(*)')
+        .select('*, clubs(*, leagues(name))')
         .eq('user_id', userId)
         .single();
     if (error) throw error;
@@ -19,7 +19,7 @@ export const fetchPlayerByUserId = async (userId) => {
 
 export const fetchPlayersByIds = async (ids) => {
     const { data } = await supabase.from('players_master')
-        .select('*, clubs(*)')
+        .select('*, clubs(*, leagues(name))')
         .in('id', ids);
     return data || [];
 };
@@ -28,14 +28,14 @@ export const updatePlayer = async (playerId, updates) => {
     const { data, error } = await supabase.from('players_master')
         .update(updates)
         .eq('id', playerId)
-        .select('*, clubs(*)')
+        .select('*, clubs(*, leagues(name))')
         .single();
     if (error) throw error;
     return data;
 };
 
 export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15 }) => {
-    let q = supabase.from('players_master').select('*, clubs(*)');
+    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))');
     if (query) q = q.ilike('full_name', `%${query}%`);
     if (pos && pos !== 'Alle') q = q.eq('position_primary', pos);
     if (status && status !== 'Alle') q = q.eq('transfer_status', status);
@@ -47,14 +47,14 @@ export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, of
 
 export const fetchSimilarPlayers = async (excludeId, limit = 100) => {
     const { data } = await supabase.from('players_master')
-        .select('*, clubs(*)')
+        .select('*, clubs(*, leagues(name))')
         .neq('id', excludeId)
         .limit(limit);
     return data || [];
 };
 
 export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 200 }) => {
-    let q = supabase.from('players_master').select('*, clubs(*)').not('city', 'is', null);
+    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))').not('city', 'is', null);
     if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
     if (statusFilter && statusFilter !== 'Alle') q = q.eq('transfer_status', statusFilter);
     const { data } = await q.limit(limit);
@@ -62,7 +62,7 @@ export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 20
 };
 
 export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200 }) => {
-    let q = supabase.from('players_master').select('*, clubs(*)')
+    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
     if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
@@ -112,7 +112,7 @@ export const fetchPlayerHighlights = async (playerId) => {
 
 export const fetchFeed = async (offset = 0, limit = 10) => {
     const { data } = await supabase.from('media_highlights')
-        .select('*, players_master(*, clubs(*))')
+        .select('*, players_master(*, clubs(*, leagues(name)))')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
     return data || [];
@@ -230,7 +230,7 @@ export const removeFromWatchlist = async (scoutId, playerId) => {
 
 export const fetchWatchlist = async (scoutId) => {
     const { data } = await supabase.from('scout_watchlist')
-        .select('player_id, players_master(*, clubs(*))')
+        .select('player_id, players_master(*, clubs(*, leagues(name)))')
         .eq('scout_id', scoutId);
     return data || [];
 };
@@ -349,7 +349,7 @@ export const searchClubIds = async (query) => {
 
 export const createClub = async (name) => {
     const { data, error } = await supabase.from('clubs')
-        .insert({ name, league: 'Kreisliga', is_verified: false })
+        .insert({ name, league_id: null, is_verified: false })
         .select()
         .single();
     if (error) throw error;
