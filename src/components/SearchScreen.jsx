@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
@@ -124,7 +125,7 @@ export const SearchScreen = ({ onUserClick }) => {
     };
 
     const FilterChip = ({ label, active, onClick }) => (
-        <button onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_0_15px_rgba(8,145,178,0.5)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</button>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_0_15px_rgba(8,145,178,0.5)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</motion.button>
     );
 
     return (
@@ -181,7 +182,7 @@ export const SearchScreen = ({ onUserClick }) => {
                             <div className="space-y-4 mb-6 bg-white/5 p-5 rounded-3xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(255,255,255,0.02)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2">
                                 {/* City / PLZ search */}
                                 <div>
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Stadt / PLZ</label>
+                                    <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Stadt / PLZ</label>
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3.5 text-zinc-500" size={16} />
                                         <input
@@ -198,7 +199,7 @@ export const SearchScreen = ({ onUserClick }) => {
 
                                 {/* Club search */}
                                 <div>
-                                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Verein</label>
+                                    <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Verein</label>
                                     <div className="relative">
                                         <Shield className="absolute left-3 top-3.5 text-zinc-500" size={16} />
                                         <input
@@ -265,7 +266,7 @@ export const SearchScreen = ({ onUserClick }) => {
                         {loading ? <SearchSkeleton /> : (
                             <div className="space-y-3">
                                 {res.map(p => (
-                                    <div key={p.id} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/10 cursor-pointer group hover:scale-[1.02] ${cardStyle}`}>
+                                    <motion.div key={p.id} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
                                         <div className="w-14 h-14 rounded-2xl bg-slate-900 flex-shrink-0 overflow-hidden border border-white/10 relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-slate-600 m-4" />}</div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-slate-300 tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-white/5">{p.position_primary}</span></div>
@@ -274,8 +275,8 @@ export const SearchScreen = ({ onUserClick }) => {
                                                 {p.city && <span className="flex items-center gap-1 truncate"><MapPin size={10} className="shrink-0" /> <span className="truncate">{p.city}</span></span>}
                                             </div>
                                         </div>
-                                        <ChevronRight size={18} className="text-slate-600 group-hover:text-cyan-500 transition-colors" />
-                                    </div>
+                                        <ChevronRight size={18} className="text-slate-500 group-hover:text-cyan-500 transition-colors" />
+                                    </motion.div>
                                 ))}
                                 {res.length === 0 && <div className="text-center py-20 text-slate-600"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
 
@@ -286,7 +287,7 @@ export const SearchScreen = ({ onUserClick }) => {
                                     </div>
                                 )}
                                 {!hasMore && res.length > 0 && (
-                                    <div className="text-center text-zinc-700 text-xs py-6">Alle Ergebnisse geladen.</div>
+                                    <div className="text-center text-zinc-400 text-xs py-6">Alle Ergebnisse geladen.</div>
                                 )}
                             </div>
                         )}

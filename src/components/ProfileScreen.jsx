@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
     Loader2, User, CheckCircle, ArrowLeft, Settings, Edit, Share2, MessageCircle,
     Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight
@@ -114,7 +115,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         {player.clubs?.is_icon_league && <Crown size={14} className="text-amber-400" />}
                         <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-white transition cursor-pointer">{player.clubs?.name || "Vereinslos"}</span>
                         <span className="w-1 h-1 bg-zinc-600 rounded-full"></span>
-                        <span className="text-zinc-300 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
+                        <span className="text-zinc-200 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
                     </div>
 
                     {/* Transfer Status Pill */}
@@ -126,11 +127,11 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     <div className="grid grid-cols-3 gap-3 w-full mb-6">
                         <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition" onClick={onShowFollowers}>
                             <span className="text-xl font-black text-white">{player.followers_count || 0}</span>
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">Follower</span>
+                            <span className="text-[10px] text-zinc-400 uppercase font-bold mt-1">Follower</span>
                         </div>
                         <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center">
                             <span className="text-xl font-black text-white">{highlights.length}</span>
-                            <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">Clips</span>
+                            <span className="text-[10px] text-zinc-400 uppercase font-bold mt-1">Clips</span>
                         </div>
                         <div className="bg-white/5 border border-white/5 rounded-2xl p-3 flex flex-col items-center justify-center">
                             <PlayerRating playerId={player.id} session={session} compact />
@@ -141,9 +142,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     <div className="w-full flex gap-3">
                         {isOwnProfile ? (
                             <>
-                                <button onClick={onEditReq} className="flex-1 bg-zinc-800 text-white font-bold py-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition flex items-center justify-center gap-2">
+                                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onEditReq} className="flex-1 bg-zinc-800 text-white font-bold py-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition flex items-center justify-center gap-2">
                                     <Edit size={18} /> Profil
-                                </button>
+                                </motion.button>
                                 <button className="bg-zinc-800 text-white p-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition">
                                     <Share2 size={20} />
                                 </button>
@@ -151,10 +152,10 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             </>
                         ) : (
                             <>
-                                <button onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'} border py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
+                                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'} border py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
                                     {player.isFollowing ? <Check size={18} /> : <Plus size={18} />}
                                     {player.isFollowing ? 'Gefolgt' : 'Folgen'}
-                                </button>
+                                </motion.button>
                                 <button onClick={onChatReq} className="bg-zinc-800 text-white px-5 py-3 rounded-xl border border-zinc-700 hover:bg-zinc-700 transition">
                                     <MessageCircle size={20} />
                                 </button>
@@ -177,9 +178,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
 
             {/* Social Links Row */}
             <div className="flex justify-center gap-6 py-6 border-b border-white/5">
-                {player.instagram_handle ? <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-pink-500 transition"><Instagram size={24} /></a> : <Instagram size={24} className="text-zinc-800" />}
-                {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-white transition"><Video size={24} /></a> : <Video size={24} className="text-zinc-800" />}
-                {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-red-500 transition"><Youtube size={24} /></a> : <Youtube size={24} className="text-zinc-800" />}
+                {player.instagram_handle ? <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-pink-500 transition"><Instagram size={24} /></a> : <Instagram size={24} className="text-zinc-600" />}
+                {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white transition"><Video size={24} /></a> : <Video size={24} className="text-zinc-600" />}
+                {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-red-500 transition"><Youtube size={24} /></a> : <Youtube size={24} className="text-zinc-600" />}
             </div>
 
             {/* Scout Rating (non-own profiles) */}
@@ -229,7 +230,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                             <VideoTile key={v.id} video={v} onClick={onVideoClick} isOwnProfile={isOwnProfile} onDelete={onDeleteVideo} />
                         ))}
                     </div>
-                    {highlights.length === 0 && <div className="py-20 text-center text-zinc-600 text-sm">Noch keine Highlights hochgeladen.</div>}
+                    {highlights.length === 0 && <div className="py-20 text-center text-zinc-400 text-sm">Noch keine Highlights hochgeladen.</div>}
                 </>
             )}
 
@@ -266,7 +267,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                             <p className="text-zinc-300 text-sm leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">{player.bio}</p>
                         </div>
                     ) : (
-                        <div className="text-zinc-600 text-sm text-center py-4">Keine Bio vorhanden.</div>
+                        <div className="text-zinc-400 text-sm text-center py-4">Keine Bio vorhanden.</div>
                     )}
 
                     {/* Personal Info */}
@@ -305,18 +306,18 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 
 // Helper components
 const StatCard = ({ label, value, sub, highlight, small }) => (
-    <div className={`bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}>
+    <motion.div whileHover={{ scale: 1.03, borderColor: "rgba(99,102,241,0.3)" }} transition={{ type: "spring", stiffness: 400, damping: 25 }} className={`bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}>
         <div className={`font-black text-white ${small ? 'text-xs' : 'text-lg'}`}>{value}</div>
-        <div className="text-[10px] text-zinc-500 uppercase font-bold mt-1">{label}</div>
+        <div className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{label}</div>
         {sub && <div className="text-[10px] text-zinc-400 mt-0.5">{sub}</div>}
-    </div>
+    </motion.div>
 );
 
 const InfoRow = ({ icon, label, value }) => (
     <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
         <span className="text-lg">{icon}</span>
         <div>
-            <div className="text-[10px] text-zinc-500 uppercase font-bold">{label}</div>
+            <div className="text-[10px] text-zinc-400 uppercase font-bold">{label}</div>
             <div className="text-sm text-white">{value}</div>
         </div>
     </div>

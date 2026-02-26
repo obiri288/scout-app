@@ -28,7 +28,7 @@ export const FollowerListModal = ({ userId, onClose, onUserClick }) => {
                     <h2 className="font-bold text-white">Follower</h2>
                     <button onClick={onClose}><X className="text-zinc-400" /></button>
                 </div>
-                <div className="space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(70vh - 60px)' }}>
+                <div className="space-y-2 overflow-y-auto max-h-[calc(70vh-60px)]">
                     {followers.map(p => (
                         <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer">
                             <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">

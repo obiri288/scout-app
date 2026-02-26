@@ -1,10 +1,33 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { FeedItem } from './FeedItem';
 import { FeedSkeleton } from './SkeletonScreens';
+import { WelcomeCard } from './WelcomeCard';
 
 const PAGE_SIZE = 10;
+
+// Stagger animation variants
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.08,
+            delayChildren: 0.1,
+        },
+    },
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.4, ease: "easeOut" },
+    },
+};
 
 export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [feed, setFeed] = useState([]);
@@ -12,6 +35,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    const [currentUserProfile, setCurrentUserProfile] = useState(null);
     const containerRef = useRef(null);
     const touchStartY = useRef(0);
     const [pullDistance, setPullDistance] = useState(0);
@@ -39,6 +63,18 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             setRefreshing(false);
         }
     }, []);
+
+    // Fetch current user profile for the WelcomeCard
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        supabase.from('players_master')
+            .select('full_name')
+            .eq('user_id', session.user.id)
+            .single()
+            .then(({ data }) => {
+                if (data) setCurrentUserProfile(data);
+            });
+    }, [session]);
 
     useEffect(() => { fetchFeed(0, true); }, [fetchFeed]);
 
@@ -92,45 +128,69 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             onTouchEnd={handleTouchEnd}
         >
             {/* Pull-to-Refresh indicator */}
-            {(pullDistance > 0 || refreshing) && (
-                <div
-                    className="flex items-center justify-center py-4 transition-all"
-                    style={{ height: refreshing ? 60 : pullDistance * 0.5 }}
-                >
-                    <div className={`flex items-center gap-2 text-zinc-400 text-sm ${refreshing ? 'animate-pulse' : ''}`}>
-                        <RefreshCw
-                            size={18}
-                            className={refreshing ? 'animate-spin' : ''}
-                            style={{ transform: `rotate(${pullDistance * 2}deg)` }}
-                        />
-                        {refreshing ? 'Aktualisiere...' : pullDistance > 80 ? 'Loslassen zum Aktualisieren' : 'Ziehen zum Aktualisieren'}
-                    </div>
-                </div>
+            <AnimatePresence>
+                {(pullDistance > 0 || refreshing) && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{
+                            height: refreshing ? 60 : pullDistance * 0.5,
+                            opacity: 1
+                        }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="flex items-center justify-center overflow-hidden"
+                    >
+                        <div className={`flex items-center gap-2 text-slate-400 text-sm ${refreshing ? 'animate-pulse' : ''}`}>
+                            <motion.div
+                                animate={refreshing ? { rotate: 360 } : { rotate: pullDistance * 2 }}
+                                transition={refreshing ? { repeat: Infinity, duration: 1, ease: "linear" } : { type: "spring", stiffness: 300, damping: 30 }}
+                            >
+                                <RefreshCw size={18} />
+                            </motion.div>
+                            {refreshing ? 'Aktualisiere...' : pullDistance > 80 ? 'Loslassen zum Aktualisieren' : 'Ziehen zum Aktualisieren'}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Welcome Card */}
+            {session && currentUserProfile && (
+                <WelcomeCard profile={currentUserProfile} />
             )}
-            {feed.map(v => (
-                <FeedItem
-                    key={v.id}
-                    video={v}
-                    onClick={onVideoClick}
-                    session={session}
-                    onLikeReq={onLikeReq}
-                    onCommentClick={onCommentClick}
-                    onUserClick={onUserClick}
-                    onReportReq={onReportReq}
-                />
-            ))}
+
+            {/* Stagger-In Feed */}
+            <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="px-3 space-y-1"
+            >
+                {feed.map(v => (
+                    <motion.div key={v.id} variants={itemVariants}>
+                        <FeedItem
+                            video={v}
+                            onClick={onVideoClick}
+                            session={session}
+                            onLikeReq={onLikeReq}
+                            onCommentClick={onCommentClick}
+                            onUserClick={onUserClick}
+                            onReportReq={onReportReq}
+                        />
+                    </motion.div>
+                ))}
+            </motion.div>
+
             {feed.length === 0 && !loading && (
-                <div className="text-center text-zinc-500 py-20">Noch keine Videos im Feed.</div>
+                <div className="text-center text-slate-400 py-20">Noch keine Videos im Feed.</div>
             )}
 
             {/* Infinite scroll sentinel */}
             {hasMore && (
                 <div ref={sentinelRef} className="flex justify-center py-8">
-                    {loadingMore && <Loader2 className="animate-spin text-zinc-500" size={24} />}
+                    {loadingMore && <Loader2 className="animate-spin text-slate-500" size={24} />}
                 </div>
             )}
             {!hasMore && feed.length > 0 && (
-                <div className="text-center text-zinc-700 text-xs py-8">Du hast alles gesehen 🎉</div>
+                <div className="text-center text-slate-400 text-xs py-8">Du hast alles gesehen 🎉</div>
             )}
         </div>
     );

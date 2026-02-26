@@ -86,7 +86,7 @@ export const PlayerRating = ({ playerId, session, compact }) => {
             <div className="flex flex-col items-center">
                 <div className="flex items-center gap-0.5 mb-1">
                     {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} size={12} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-700'} />
+                        <Star key={s} size={12} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
                     ))}
                 </div>
                 <span className="text-xl font-black text-white">{avgRating || '-'}</span>
@@ -106,7 +106,7 @@ export const PlayerRating = ({ playerId, session, compact }) => {
                     <span className="text-2xl font-black text-white">{avgRating || '-'}</span>
                     <div className="flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map(s => (
-                            <Star key={s} size={16} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-700'} />
+                            <Star key={s} size={16} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
                         ))}
                     </div>
                 </div>
@@ -130,8 +130,8 @@ export const PlayerRating = ({ playerId, session, compact }) => {
                                 <Star
                                     size={24}
                                     className={`transition ${s <= (hoveredStar || myRating)
-                                            ? 'text-amber-400 fill-amber-400'
-                                            : 'text-zinc-600 hover:text-zinc-400'
+                                        ? 'text-amber-400 fill-amber-400'
+                                        : 'text-zinc-600 hover:text-zinc-400'
                                         }`}
                                 />
                             </button>

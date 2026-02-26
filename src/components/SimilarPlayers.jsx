@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { User, Shield, ChevronRight, Sparkles, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { calculateAge } from '../lib/helpers';
@@ -94,8 +95,11 @@ export const SimilarPlayers = ({ player, onUserClick }) => {
             </h3>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                 {similar.map(p => (
-                    <div
+                    <motion.div
                         key={p.id}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
                         onClick={() => onUserClick(p)}
                         className="shrink-0 w-28 flex flex-col items-center text-center cursor-pointer group"
                     >
@@ -108,9 +112,9 @@ export const SimilarPlayers = ({ player, onUserClick }) => {
                         </div>
                         <div className="flex items-center gap-1 mt-1">
                             <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-300 font-bold">{p.position_primary}</span>
-                            {p.city && <span className="text-[9px] text-zinc-600 flex items-center gap-0.5"><MapPin size={7} />{p.city}</span>}
+                            {p.city && <span className="text-[9px] text-zinc-400 flex items-center gap-0.5"><MapPin size={7} />{p.city}</span>}
                         </div>
-                    </div>
+                    </motion.div>
                 ))}
             </div>
         </div>

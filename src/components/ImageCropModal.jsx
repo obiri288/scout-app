@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { X, ZoomIn, ZoomOut, RotateCcw, Check } from 'lucide-react';
 import { btnPrimary } from '../lib/styles';
 
@@ -146,8 +147,7 @@ export const ImageCropModal = ({ imageSrc, onCrop, onClose }) => {
             <h3 className="text-white font-bold text-lg mb-6">Bild zuschneiden</h3>
 
             <div
-                className="rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl touch-none"
-                style={{ width: 320, height: 320 }}
+                className="rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl touch-none w-[320px] h-[320px]"
             >
                 <canvas
                     ref={canvasRef}
@@ -169,7 +169,11 @@ export const ImageCropModal = ({ imageSrc, onCrop, onClose }) => {
             <div className="flex items-center gap-4 mt-6">
                 <button onClick={zoomOut} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition"><ZoomOut size={20} className="text-white" /></button>
                 <div className="w-32 h-1.5 bg-zinc-800 rounded-full relative">
-                    <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${Math.min(100, (scale / 3) * 100)}%` }} />
+                    <motion.div
+                        className="h-full bg-blue-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, (scale / 3) * 100)}%` }}
+                    />
                 </div>
                 <button onClick={zoomIn} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition"><ZoomIn size={20} className="text-white" /></button>
                 <button onClick={resetView} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition ml-2"><RotateCcw size={18} className="text-white" /></button>

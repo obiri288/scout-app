@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { X, UploadCloud, Loader2, Trash2, AlertTriangle, FileVideo } from 'lucide-react';
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
@@ -147,7 +148,12 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                 {uploading ? (
                     <div className="text-center py-8 space-y-4">
                         <div className="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
-                            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                            <motion.div
+                                className="bg-blue-600 h-2.5 rounded-full"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                                transition={{ duration: 0.3 }}
+                            />
                         </div>
                         <div className="flex items-center justify-center gap-2 text-zinc-400 font-medium text-sm">
                             <Loader2 className="animate-spin" size={16} />
@@ -216,8 +222,8 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                                                     type="button"
                                                     onClick={() => toggleTag(tag)}
                                                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${selectedTags.includes(tag)
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                                                         }`}
                                                 >
                                                     {tag}

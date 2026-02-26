@@ -8,7 +8,7 @@ export const CookieBanner = () => {
     }, []);
     if (accepted) return null;
     return (
-        <div className="fixed bottom-24 left-4 right-4 md:bottom-6 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-[100]">
+        <div className="fixed left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-[10000]" style={{ bottom: '160px' }}>
             <div className="bg-black/80 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl flex flex-col gap-4">
                 <div className="flex items-start gap-4">
                     <Cookie size={24} className="text-white" />

@@ -227,7 +227,10 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                 <div>
                                     <label className="text-xs text-zinc-500 font-bold uppercase ml-1 mb-1 block">Aktueller Verein</label>
                                     {selectedClub ? (
-                                        <div className="bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10" style={{ borderColor: getClubBorderColor(selectedClub) }}>
+                                        <div
+                                            className="bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10 transition-colors"
+                                            style={{ borderColor: getClubBorderColor(selectedClub) }}
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
                                                     {selectedClub.logo_url ? <img src={selectedClub.logo_url} className="w-full h-full rounded-full object-cover" /> : <Shield size={14} />}
