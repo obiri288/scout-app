@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, User } from 'lucide-react';
+import { X, User, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cardStyle } from '../lib/styles';
+import { EmptyState } from './EmptyState';
 
 export const FollowerListModal = ({ userId, onClose, onUserClick }) => {
     const [followers, setFollowers] = useState([]);
@@ -40,7 +41,7 @@ export const FollowerListModal = ({ userId, onClose, onUserClick }) => {
                             </div>
                         </div>
                     ))}
-                    {followers.length === 0 && <p className="text-zinc-500 text-center text-sm py-8">Noch keine Follower.</p>}
+                    {followers.length === 0 && <EmptyState icon={Users} title="Noch keine Follower" description="Teile dein Profil und zeig was du kannst!" variant="subtle" />}
                 </div>
             </div>
         </div>

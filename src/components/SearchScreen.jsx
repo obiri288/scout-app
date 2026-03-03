@@ -10,6 +10,27 @@ const PAGE_SIZE = 15;
 
 const SKILL_FILTER_TAGS = ['Schnelligkeit', 'Beidfüßig', 'Kopfball', 'Technik', 'Spielverständnis', 'Dribbling', 'Schusskraft'];
 
+// Stagger animation variants for results list
+const listContainerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.06,
+            delayChildren: 0.05,
+        },
+    },
+};
+
+const listItemVariants = {
+    hidden: { opacity: 0, y: 16 },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.35, ease: "easeOut" },
+    },
+};
+
 export const SearchScreen = ({ onUserClick }) => {
     const [query, setQuery] = useState('');
     const [cityQuery, setCityQuery] = useState('');
@@ -125,29 +146,29 @@ export const SearchScreen = ({ onUserClick }) => {
     };
 
     const FilterChip = ({ label, active, onClick }) => (
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_0_15px_rgba(8,145,178,0.5)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</motion.button>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-transparent shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</motion.button>
     );
 
     return (
-        <div className="pb-24 max-w-md mx-auto min-h-screen bg-slate-950">
+        <div className="pb-24 max-w-md mx-auto min-h-screen bg-background">
             <div className={glassHeader}>
-                <h2 className="text-2xl font-black text-white tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]">Scouting</h2>
+                <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>
             <div className="px-4 mt-6">
                 {/* Main search and Map Toggle */}
                 <div className="flex items-center gap-3 mb-4">
                     <div className="relative flex-1">
-                        <Search className="absolute left-4 top-4 text-zinc-500" size={20} />
+                        <Search className="absolute left-4 top-4 text-muted-foreground" size={20} />
                         <input placeholder="Spieler suchen..." value={query} onChange={e => setQuery(e.target.value)} className={`${inputStyle} pl-12 pr-12`} />
                         {query && (
-                            <button onClick={() => setQuery('')} className="absolute right-4 top-4 text-zinc-500 hover:text-white">
+                            <button onClick={() => setQuery('')} className="absolute right-4 top-4 text-muted-foreground hover:text-white">
                                 <X size={18} />
                             </button>
                         )}
                     </div>
                     <button
                         onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
-                        className="h-14 w-14 shrink-0 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner"
+                        className="h-14 w-14 shrink-0 bg-white/5 border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner"
                     >
                         {viewMode === 'list' ? <Map size={24} /> : <List size={24} />}
                     </button>
@@ -163,15 +184,15 @@ export const SearchScreen = ({ onUserClick }) => {
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
                             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl text-xs font-bold transition-all duration-300 ease-out mb-4 shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:scale-[1.02] active:scale-95 ${showAdvanced || activeFilterCount > 0
-                                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-[inner_0_0_20px_rgba(6,182,212,0.1)]'
-                                : 'bg-white/5 text-slate-400 border border-white/10 hover:border-white/20 hover:text-white backdrop-blur-md'
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[inner_0_0_20px_rgba(16,185,129,0.1)]'
+                                : 'bg-white/5 text-muted-foreground border border-white/10 hover:border-white/20 hover:text-white backdrop-blur-md'
                                 }`}
                         >
                             <span className="flex items-center gap-2">
                                 <Filter size={14} />
                                 Erweiterte Suche
                                 {activeFilterCount > 0 && (
-                                    <span className="bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px]">{activeFilterCount}</span>
+                                    <span className="bg-emerald-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px]">{activeFilterCount}</span>
                                 )}
                             </span>
                             <span>{showAdvanced ? '▲' : '▼'}</span>
@@ -179,12 +200,12 @@ export const SearchScreen = ({ onUserClick }) => {
 
                         {/* Advanced search panel */}
                         {showAdvanced && (
-                            <div className="space-y-4 mb-6 bg-white/5 p-5 rounded-3xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(255,255,255,0.02)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2">
+                            <div className="space-y-4 mb-6 bg-white/5 p-5 rounded-3xl border border-border shadow-[0_8px_30px_rgba(0,0,0,0.5),inset_0_0_20px_rgba(255,255,255,0.02)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2">
                                 {/* City / PLZ search */}
                                 <div>
-                                    <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Stadt / PLZ</label>
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider ml-1 mb-1.5 block">Stadt / PLZ</label>
                                     <div className="relative">
-                                        <MapPin className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                                        <MapPin className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
                                         <input
                                             placeholder="z.B. Berlin, 10115..."
                                             value={cityQuery}
@@ -192,16 +213,16 @@ export const SearchScreen = ({ onUserClick }) => {
                                             className={`${inputStyle} pl-10 !py-3 text-sm`}
                                         />
                                         {cityQuery && (
-                                            <button onClick={() => setCityQuery('')} className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"><X size={14} /></button>
+                                            <button onClick={() => setCityQuery('')} className="absolute right-3 top-3.5 text-muted-foreground hover:text-white"><X size={14} /></button>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Club search */}
                                 <div>
-                                    <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider ml-1 mb-1.5 block">Verein</label>
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider ml-1 mb-1.5 block">Verein</label>
                                     <div className="relative">
-                                        <Shield className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                                        <Shield className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
                                         <input
                                             placeholder="z.B. FC Bayern, BVB..."
                                             value={clubQuery}
@@ -209,14 +230,14 @@ export const SearchScreen = ({ onUserClick }) => {
                                             className={`${inputStyle} pl-10 !py-3 text-sm`}
                                         />
                                         {clubQuery && (
-                                            <button onClick={() => setClubQuery('')} className="absolute right-3 top-3.5 text-zinc-500 hover:text-white"><X size={14} /></button>
+                                            <button onClick={() => setClubQuery('')} className="absolute right-3 top-3.5 text-muted-foreground hover:text-white"><X size={14} /></button>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Clear all */}
                                 {activeFilterCount > 0 && (
-                                    <button onClick={clearAllFilters} className="w-full text-xs text-zinc-500 hover:text-white transition py-2">
+                                    <button onClick={clearAllFilters} className="w-full text-xs text-muted-foreground hover:text-white transition py-2">
                                         Alle Filter zurücksetzen
                                     </button>
                                 )}
@@ -228,10 +249,10 @@ export const SearchScreen = ({ onUserClick }) => {
                         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'ST', 'ZOM', 'ZM', 'ZDM', 'IV', 'RV', 'LV', 'RA', 'LA', 'TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
 
                         {/* Skill tag filter */}
-                        <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-white/5 mb-4 px-1">
+                        <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-border mb-4 px-1">
                             <button
                                 onClick={() => setShowTagFilter(!showTagFilter)}
-                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-[0_0_15px_rgba(8,145,178,0.5)]' : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 shadow-inner'}`}
+                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-transparent shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
                             >
                                 <Filter size={12} /> {selectedTag || 'Skill-Filter'}
                             </button>
@@ -249,13 +270,13 @@ export const SearchScreen = ({ onUserClick }) => {
                         {(cityQuery || clubQuery) && (
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {cityQuery && (
-                                    <span className="bg-blue-600/20 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                                    <span className="bg-emerald-600/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
                                         <MapPin size={10} /> {cityQuery}
                                         <button onClick={() => setCityQuery('')} className="ml-1 hover:text-white"><X size={12} /></button>
                                     </span>
                                 )}
                                 {clubQuery && (
-                                    <span className="bg-blue-600/20 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                                    <span className="bg-emerald-600/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
                                         <Shield size={10} /> {clubQuery}
                                         <button onClick={() => setClubQuery('')} className="ml-1 hover:text-white"><X size={12} /></button>
                                     </span>
@@ -264,32 +285,37 @@ export const SearchScreen = ({ onUserClick }) => {
                         )}
 
                         {loading ? <SearchSkeleton /> : (
-                            <div className="space-y-3">
+                            <motion.div
+                                variants={listContainerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="space-y-3"
+                            >
                                 {res.map(p => (
-                                    <motion.div key={p.id} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
-                                        <div className="w-14 h-14 rounded-2xl bg-slate-900 flex-shrink-0 overflow-hidden border border-white/10 relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-slate-600 m-4" />}</div>
+                                    <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
+                                        <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-emerald-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-4" />}</div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-center"><h3 className="font-bold text-white text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-slate-300 tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-white/5">{p.position_primary}</span></div>
-                                            <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400 font-medium truncate">
-                                                <span className="flex items-center gap-1"><Shield size={10} className="text-cyan-500" /> {p.clubs?.name || "Vereinslos"}</span>
+                                            <div className="flex justify-between items-center"><h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-muted-foreground tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-border">{p.position_primary}</span></div>
+                                            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground font-medium truncate">
+                                                <span className="flex items-center gap-1"><Shield size={10} className="text-emerald-500" /> {p.clubs?.name || "Vereinslos"}</span>
                                                 {p.city && <span className="flex items-center gap-1 truncate"><MapPin size={10} className="shrink-0" /> <span className="truncate">{p.city}</span></span>}
                                             </div>
                                         </div>
-                                        <ChevronRight size={18} className="text-slate-500 group-hover:text-cyan-500 transition-colors" />
+                                        <ChevronRight size={18} className="text-muted-foreground group-hover:text-emerald-500 transition-colors" />
                                     </motion.div>
                                 ))}
-                                {res.length === 0 && <div className="text-center py-20 text-slate-600"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
+                                {res.length === 0 && <div className="text-center py-20 text-muted-foreground"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
 
                                 {/* Infinite scroll sentinel */}
                                 {hasMore && (
                                     <div ref={sentinelRef} className="flex justify-center py-6">
-                                        {loadingMore && <Loader2 className="animate-spin text-zinc-500" size={24} />}
+                                        {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
                                     </div>
                                 )}
                                 {!hasMore && res.length > 0 && (
-                                    <div className="text-center text-zinc-400 text-xs py-6">Alle Ergebnisse geladen.</div>
+                                    <div className="text-center text-muted-foreground text-xs py-6">Alle Ergebnisse geladen.</div>
                                 )}
-                            </div>
+                            </motion.div>
                         )}
                     </div>
                 )}

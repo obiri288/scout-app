@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Send } from 'lucide-react';
+import { X, Loader2, Send, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, btnPrimary, cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
+import { EmptyState } from './EmptyState';
 
 export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
@@ -63,7 +64,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                     <button onClick={onClose}><X className="text-zinc-400" /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500" /> : comments.length === 0 ? <p className="text-zinc-500 text-center text-sm">Noch keine Kommentare.</p> :
+                    {loading ? <Loader2 className="animate-spin mx-auto text-zinc-500" /> : comments.length === 0 ? <EmptyState icon={MessageCircle} title="Sei der Erste!" description="Schreib den ersten Kommentar." variant="subtle" /> :
                         comments.map(c => (
                             <div key={c.id} className="bg-zinc-800/50 p-2 rounded-lg border border-white/5 text-sm text-white break-words">
                                 {c.content}

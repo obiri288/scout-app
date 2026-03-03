@@ -2,6 +2,8 @@ import React, { lazy, Suspense, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2 } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
+import { useToast } from './contexts/ToastContext';
+import * as api from './lib/api';
 
 // Eagerly loaded — visible on first render
 import { CookieBanner } from './components/CookieBanner';
@@ -10,6 +12,7 @@ import { SearchScreen } from './components/SearchScreen';
 import { InboxScreen } from './components/InboxScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ClubScreen } from './components/ClubScreen';
+import { CelebrationAnimation } from './components/CelebrationAnimation';
 
 // Lazy loaded — only fetched when needed
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -24,6 +27,8 @@ const ReportModal = lazy(() => import('./components/ReportModal').then(m => ({ d
 const VerificationModal = lazy(() => import('./components/VerificationModal').then(m => ({ default: m.VerificationModal })));
 const WatchlistModal = lazy(() => import('./components/WatchlistModal').then(m => ({ default: m.WatchlistModal })));
 const CompareModal = lazy(() => import('./components/CompareModal').then(m => ({ default: m.CompareModal })));
+const BlockUserModal = lazy(() => import('./components/BlockUserModal').then(m => ({ default: m.BlockUserModal })));
+const OnboardingWizard = lazy(() => import('./components/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -117,37 +122,93 @@ const ChangePasswordModal = ({ onClose }) => {
     );
 };
 
-const LegalModal = ({ title, onClose }) => (
-    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-        <div className="relative w-full max-w-2xl bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-[80vh] h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2"><FileText size={18} /> {title}</h2>
-                <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
-            </div>
-            <div className="p-6 overflow-y-auto text-zinc-300 space-y-6 text-sm leading-relaxed">
-                <h3 className="text-xl font-bold text-white">{title} der Scout App</h3>
-                <p>Zuletzt aktualisiert: Heute</p>
-                <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</p>
-                <h4 className="font-bold text-white text-base">1. Allgemeine Informationen</h4>
-                <p>Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi.</p>
-                <h4 className="font-bold text-white text-base">2. Datennutzung</h4>
-                <p>Nam liber tempor cum soluta nobis eleifend option congue nihil imperdiet doming id quod mazim placerat facer possim assum. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.</p>
-                <p>Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat.</p>
+const legalContent = {
+    'Datenschutz': {
+        updated: '01.03.2026',
+        sections: [
+            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist ScoutVision UG (haftungsbeschränkt). Bei Fragen zum Datenschutz wende dich an: datenschutz@scoutvision.app' },
+            { title: '2. Welche Daten wir erheben', text: 'Bei der Registrierung erheben wir deine E-Mail-Adresse und dein Passwort (verschlüsselt). Im Profil kannst du freiwillig Name, Position, Geburtsdatum, Vereinszugehörigkeit, Standort und ein Profilbild angeben. Beim Hochladen von Videos speichern wir die Videodateien und zugehörige Metadaten (Skill-Tags, Titel).' },
+            { title: '3. Zweck der Verarbeitung', text: 'Deine Daten werden zur Bereitstellung der App-Funktionen verwendet: Profilerstellung, Video-Feed, Suchfunktion, Messaging, Watchlist und Benachrichtigungen. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).' },
+            { title: '4. Datenweitergabe', text: 'Wir nutzen Supabase (EU-Region) als Datenbank- und Authentifizierungsanbieter. Videos werden auf Supabase Storage gespeichert. Deine Daten werden nicht an Dritte zu Werbezwecken weitergegeben.' },
+            { title: '5. Deine Rechte', text: 'Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung und Datenübertragbarkeit. Die vollständige Account-Löschung ist direkt in den App-Einstellungen möglich und löscht unwiderruflich alle deine Daten, Videos und Nachrichten.' },
+            { title: '6. Speicherdauer', text: 'Deine Daten werden gespeichert, solange dein Account besteht. Bei Löschung des Accounts werden alle personenbezogenen Daten innerhalb von 30 Tagen vollständig entfernt.' },
+            { title: '7. Cookies', text: 'Wir verwenden nur technisch notwendige Cookies für die Authentifizierung und Session-Verwaltung. Es werden keine Tracking-Cookies verwendet.' },
+        ]
+    },
+    'Impressum': {
+        updated: '01.03.2026',
+        sections: [
+            { title: 'Angaben gemäß § 5 TMG', text: 'ScoutVision UG (haftungsbeschränkt)\nMusterstraße 1\n10115 Berlin\nDeutschland' },
+            { title: 'Kontakt', text: 'E-Mail: info@scoutvision.app\nTelefon: +49 (0) 30 12345678' },
+            { title: 'Vertretungsberechtigter Geschäftsführer', text: '[Name des Geschäftsführers]' },
+            { title: 'Registereintrag', text: 'Handelsregister: Amtsgericht Berlin-Charlottenburg\nRegisternummer: HRB [Nummer]' },
+            { title: 'Umsatzsteuer-ID', text: 'Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:\nDE [Nummer]' },
+            { title: 'Haftung für Inhalte', text: 'Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nutzer-generierte Inhalte (Videos, Kommentare, Nachrichten) liegen in der Verantwortung der jeweiligen Nutzer. Wir prüfen gemeldete Inhalte schnellstmöglich.' },
+        ]
+    },
+    'AGB': {
+        updated: '01.03.2026',
+        sections: [
+            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der ScoutVision-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
+            { title: '2. Kostenlose Nutzung', text: 'Die Nutzung der App ist für Spieler dauerhaft und vollständig kostenlos. Es entstehen keine versteckten Kosten oder Abo-Gebühren.' },
+            { title: '3. Nutzer-Inhalte', text: 'Du bist für alle von dir hochgeladenen Inhalte (Videos, Texte, Bilder) verantwortlich. Es ist verboten, Inhalte hochzuladen, die gegen geltendes Recht verstoßen, beleidigend, diskriminierend oder pornografisch sind, oder die Rechte Dritter verletzen.' },
+            { title: '4. Melden & Blockieren', text: 'Du kannst unangemessene Inhalte und Nutzer melden. Wir prüfen jede Meldung und behalten uns vor, Inhalte zu entfernen und Accounts zu sperren. Die Block-Funktion ermöglicht dir, Nachrichten und Inhalte bestimmter Nutzer auszublenden.' },
+            { title: '5. Account-Löschung', text: 'Du kannst deinen Account jederzeit vollständig und unwiderruflich in den App-Einstellungen löschen. Dabei werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt.' },
+            { title: '6. Haftungsausschluss', text: 'ScoutVision übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
+        ]
+    }
+};
+
+const LegalModal = ({ title, onClose }) => {
+    const content = legalContent[title] || legalContent['Datenschutz'];
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-2xl bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-[80vh] h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2"><FileText size={18} /> {title}</h2>
+                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                </div>
+                <div className="p-6 overflow-y-auto text-zinc-300 space-y-6 text-sm leading-relaxed">
+                    <p className="text-zinc-500 text-xs">Zuletzt aktualisiert: {content.updated}</p>
+                    {content.sections.map((s, i) => (
+                        <div key={i}>
+                            <h4 className="font-bold text-white text-base mb-2">{s.title}</h4>
+                            <p className="whitespace-pre-line">{s.text}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
-const DeleteAccountModal = ({ onClose, onConfirm }) => {
+const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
     const [input, setInput] = useState('');
+    const [deleting, setDeleting] = useState(false);
+    const { addToast } = useToast();
+
+    const handleDelete = async () => {
+        if (input !== 'LÖSCHEN' || !session) return;
+        setDeleting(true);
+        try {
+            await api.deleteUserAccount(session.user.id);
+            addToast('Dein Account wurde vollständig gelöscht.', 'info');
+            onDeleted();
+        } catch (e) {
+            console.error('Account deletion failed:', e);
+            addToast('Fehler beim Löschen des Accounts. Bitte kontaktiere den Support.', 'error');
+            setDeleting(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
             <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-red-500/30">
                 <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
                     <h2 className="text-lg font-bold text-red-500 flex items-center gap-2"><Trash2 size={18} /> Danger Zone</h2>
-                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                    <button onClick={onClose} disabled={deleting} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
                 </div>
                 <div className="p-6 space-y-6">
                     <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
@@ -156,12 +217,12 @@ const DeleteAccountModal = ({ onClose, onConfirm }) => {
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-zinc-300">Tippe <span className="text-white font-bold select-all tracking-wider px-2 py-0.5 bg-black/50 rounded">LÖSCHEN</span> um zu bestätigen:</label>
-                        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-500 transition-colors" placeholder="LÖSCHEN" />
+                        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={deleting} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-500 transition-colors disabled:opacity-50" placeholder="LÖSCHEN" />
                     </div>
-                    <button disabled={input !== 'LÖSCHEN'} onClick={onConfirm} className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-600/30 disabled:text-red-300/50 text-white font-bold py-3 rounded-xl transition">
-                        Account endgültig löschen
+                    <button disabled={input !== 'LÖSCHEN' || deleting} onClick={handleDelete} className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-600/30 disabled:text-red-300/50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                        {deleting ? <><Loader2 size={18} className="animate-spin" /> Wird gelöscht...</> : 'Account endgültig löschen'}
                     </button>
-                    <button onClick={onClose} className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition">
+                    <button onClick={onClose} disabled={deleting} className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition disabled:opacity-50">
                         Abbrechen
                     </button>
                 </div>
@@ -191,15 +252,37 @@ const App = () => {
         comparePlayer, setComparePlayer,
         handleLoginSuccess, handleFollow, handleWatchlistToggle,
         handleDeleteVideo, handleInstallApp, handlePushRequest,
+        showCelebration, setShowCelebration,
         deferredPrompt,
     } = useAppState();
 
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
+    const [blockTarget, setBlockTarget] = useState(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Check for onboarding: session exists but no profile yet
+    const needsOnboarding = session && !currentUserProfile;
 
     return (
-        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-indigo-500/30 pb-20">
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-emerald-500/30 pb-20">
+            {/* Celebration Animation */}
+            <CelebrationAnimation active={showCelebration} onComplete={() => setShowCelebration(false)} />
+            {/* Onboarding Wizard */}
+            {(showOnboarding || needsOnboarding) && session && (
+                <Suspense fallback={<LazyFallback />}>
+                    <OnboardingWizard
+                        session={session}
+                        onComplete={(player) => {
+                            updateProfile(player);
+                            refreshProfile();
+                            setShowOnboarding(false);
+                            loadProfile(player);
+                        }}
+                    />
+                </Suspense>
+            )}
             {!session && (
-                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-indigo-600 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(79,70,229,0.4)] flex items-center gap-2 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95 border border-indigo-500/30">
+                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(16,185,129,0.4)] flex items-center gap-2 hover:bg-emerald-700 transition-all hover:scale-105 active:scale-95 border border-emerald-500/30">
                     <LogIn size={14} /> Login
                 </button>
             )}
@@ -231,6 +314,9 @@ const App = () => {
                     session={session}
                     onCompare={() => setComparePlayer(viewedProfile)}
                     onPlayerClick={loadProfile}
+                    onReport={(target) => setReportTarget(target)}
+                    onBlock={(target) => setBlockTarget(target)}
+                    onUpload={() => setShowUpload(true)}
                 />
             )}
 
@@ -243,37 +329,37 @@ const App = () => {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.92 }}
                     onClick={() => session ? setShowUpload(true) : setShowLogin(true)}
-                    className="w-14 h-14 bg-gradient-to-tr from-indigo-500 to-blue-600 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(99,102,241,0.4)] border border-white/20 group"
+                    className="w-14 h-14 bg-gradient-to-tr from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-white/20 group"
                 >
                     <Plus size={28} className="text-white group-hover:rotate-90 transition-transform duration-500" strokeWidth={2.5} />
                 </motion.button>
             </div>
 
             {/* Smart Minimal Bottom Navigation */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-slate-950/80 backdrop-blur-2xl border border-slate-800/60 py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(99,102,241,0.05)] flex justify-between items-center z-[9999] pointer-events-auto">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-card/80 backdrop-blur-2xl border border-border py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(16,185,129,0.05)] flex justify-between items-center z-[9999] pointer-events-auto">
                 {/* Home */}
-                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-indigo-500/15 text-indigo-400 px-4' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Home size={22} className={`transition-transform duration-500 ${activeTab === 'home' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'home' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Home</span>
                 </button>
 
                 {/* Search */}
-                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-indigo-500/15 text-indigo-400 px-4' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Search size={22} className={`transition-transform duration-500 ${activeTab === 'search' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'search' ? 'w-14 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Suchen</span>
                 </button>
 
                 {/* Inbox */}
-                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-indigo-500/15 text-indigo-400 px-4' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <div className="relative">
                         <Mail size={22} className={`transition-transform duration-500 ${activeTab === 'inbox' ? 'scale-110' : ''}`} />
-                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-slate-950">{unreadCount}</span>}
+                        {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-card">{unreadCount}</span>}
                     </div>
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'inbox' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Inbox</span>
                 </button>
 
                 {/* Profile */}
-                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-indigo-500/15 text-indigo-400 px-4' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Profil</span>
                 </button>
@@ -283,9 +369,9 @@ const App = () => {
 
             {/* Video Fullscreen */}
             {activeVideo && (
-                <div className="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
-                    <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-slate-700/50 rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-slate-400 hover:text-white"><X size={24} /></button>
-                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-indigo-500/10 border border-slate-800/50" />
+                <div className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
+                    <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-border rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-muted-foreground hover:text-white"><X size={24} /></button>
+                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-emerald-500/5 border border-border" />
                 </div>
             )}
 
@@ -336,22 +422,24 @@ const App = () => {
                 )}
 
                 {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
-                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} />}
+                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
                 {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
                 {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
                 {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
+                {blockTarget && session && <BlockUserModal targetUser={blockTarget} session={session} onClose={() => setBlockTarget(null)} onBlocked={() => setBlockTarget(null)} />}
 
                 {/* Custom Sub-Modals */}
                 {activeSettingsModal === 'push' && <PushSettingsModal onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'password' && <ChangePasswordModal onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'privacy' && <LegalModal title="Datenschutz" onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'imprint' && <LegalModal title="Impressum" onClose={() => setActiveSettingsModal(null)} />}
+                {activeSettingsModal === 'tos' && <LegalModal title="AGB" onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'delete-account' && (
                     <DeleteAccountModal
                         onClose={() => setActiveSettingsModal(null)}
-                        onConfirm={() => {
-                            logout();
+                        session={session}
+                        onDeleted={() => {
                             setActiveSettingsModal(null);
                             switchTab('home');
                         }}

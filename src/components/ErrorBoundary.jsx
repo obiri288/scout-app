@@ -49,14 +49,7 @@ export class ErrorBoundary extends React.Component {
                                 Seite neu laden
                             </button>
                         </div>
-                        {this.state.error && (
-                            <details className="mt-6 text-left">
-                                <summary className="text-zinc-600 text-xs cursor-pointer hover:text-zinc-400">Technische Details</summary>
-                                <pre className="text-[10px] text-red-400/60 mt-2 bg-zinc-900 p-3 rounded-lg overflow-x-auto border border-zinc-800">
-                                    {this.state.error.message}
-                                </pre>
-                            </details>
-                        )}
+
                     </div>
                 </div>
             );

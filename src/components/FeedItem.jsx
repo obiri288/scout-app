@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Flag, Play, User, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
+import { checkAndCreateLikeMilestone } from '../lib/api';
 import { getClubStyle } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
@@ -36,6 +37,12 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             if (!liked) {
                 const { error } = await supabase.from('media_likes').insert({ user_id: session.user.id, video_id: video.id });
                 if (error) throw error;
+                // Check for ego-trigger milestone (non-blocking)
+                checkAndCreateLikeMilestone(video.id, video.players_master?.user_id, session.user.id);
+                // Award XP to video owner
+                if (video.players_master?.id) {
+                    import('../lib/api').then(api => api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`));
+                }
             } else {
                 await supabase.from('media_likes').delete().match({ user_id: session.user.id, video_id: video.id });
             }
@@ -50,10 +57,10 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     return (
         <motion.div
             ref={observerRef}
-            whileHover={{ scale: 1.01 }}
+            whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
         >
-            <Card className="bg-slate-900/60 border-slate-800/50 backdrop-blur-sm overflow-hidden mb-5 shadow-lg shadow-slate-950/50">
+            <Card className="bg-card border-border backdrop-blur-sm overflow-hidden mb-5 shadow-lg shadow-black/40">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onUserClick(video.players_master)}>
@@ -63,16 +70,16 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                             </div>
                         </div>
                         <div>
-                            <div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-indigo-400 transition-colors">
-                                {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-indigo-400" />}
+                            <div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-emerald-400 transition-colors">
+                                {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-emerald-400" />}
                             </div>
                             <div className="text-[11px] tracking-wider text-slate-300 uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
                     </div>
                     <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-slate-400 hover:text-white p-2 transition-colors duration-300"><MoreHorizontal size={20} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-muted-foreground hover:text-white p-2 transition-colors duration-300"><MoreHorizontal size={20} /></button>
                         {showMenu && (
-                            <div className="absolute right-0 top-full bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl backdrop-blur-xl z-20 w-36 overflow-hidden animate-in fade-in zoom-in-95">
+                            <div className="absolute right-0 top-full bg-card border border-border rounded-xl shadow-2xl backdrop-blur-xl z-20 w-36 overflow-hidden animate-in fade-in zoom-in-95">
                                 <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video'); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-300"><Flag size={14} /> Melden</button>
                             </div>
                         )}
@@ -80,7 +87,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                 </div>
 
                 {/* Video */}
-                <div onClick={() => onClick(video)} className="aspect-[4/5] bg-slate-950 relative overflow-hidden group cursor-pointer">
+                <div onClick={() => onClick(video)} className="aspect-[4/5] bg-background relative overflow-hidden group cursor-pointer">
                     <video
                         ref={videoRef}
                         src={video.video_url}
@@ -89,13 +96,13 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         preload="none"
                         poster={video.thumbnail_url}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-950/80 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
                     <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-xl border border-white/20 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1.5"><Play size={10} fill="white" /> Watch</div>
                     {/* Skill tags overlay */}
                     {video.skill_tags && video.skill_tags.length > 0 && (
                         <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">
                             {video.skill_tags.slice(0, 3).map(tag => (
-                                <span key={tag} className="bg-indigo-500/20 backdrop-blur-xl border border-indigo-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
+                                <span key={tag} className="bg-emerald-500/20 backdrop-blur-xl border border-emerald-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
                             ))}
                         </div>
                     )}
@@ -106,7 +113,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     <motion.button
                         whileTap={{ scale: 0.92 }}
                         onClick={like}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-white'}`}
                     >
                         <Heart size={20} className={liked ? 'fill-red-500' : ''} /> <span className="font-medium text-sm">{likes}</span>
                     </motion.button>
@@ -114,12 +121,12 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         whileTap={{ scale: 0.92 }}
                         whileHover={{ scale: 1.05, backgroundColor: "rgba(51,65,85,0.5)" }}
                         onClick={(e) => { e.stopPropagation(); onCommentClick(video); }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-700/50 bg-slate-800/50 text-slate-300 hover:text-white transition-all duration-300"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-white transition-all duration-300"
                     >
                         <MessageCircle size={20} /> <span className="font-medium text-sm">Chat</span>
                     </motion.button>
                     <div className="ml-auto">
-                        <Share2 size={24} className="text-slate-500 hover:text-white hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
+                        <Share2 size={24} className="text-muted-foreground hover:text-white hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
                             e.stopPropagation();
                             const shareUrl = `${window.location.origin}/#profile/${video.players_master?.user_id}`;
                             if (navigator.share) {

@@ -4,6 +4,7 @@ import { X, UploadCloud, Loader2, Trash2, AlertTriangle, FileVideo } from 'lucid
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { generateVideoThumbnail, isValidVideoFile, ALLOWED_VIDEO_EXTENSIONS } from '../lib/helpers';
+import { getSafeErrorMessage } from '../lib/errorMessages';
 import { useToast } from '../contexts/ToastContext';
 
 // Available skill tags for videos
@@ -126,8 +127,9 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                     return attemptUpload();
                 }
                 console.error(error);
-                setErrorMsg('Upload fehlgeschlagen: ' + error.message);
-                addToast('Upload fehlgeschlagen: ' + error.message, 'error');
+                const safeMsg = getSafeErrorMessage(error, 'Upload fehlgeschlagen.');
+                setErrorMsg(safeMsg);
+                addToast(safeMsg, 'error');
                 setUploading(false);
                 clearInterval(progressInterval);
             }

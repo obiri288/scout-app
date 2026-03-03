@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Film } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { FeedItem } from './FeedItem';
 import { FeedSkeleton } from './SkeletonScreens';
 import { WelcomeCard } from './WelcomeCard';
+import { EmptyState } from './EmptyState';
 
 const PAGE_SIZE = 10;
 
@@ -180,7 +181,11 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             </motion.div>
 
             {feed.length === 0 && !loading && (
-                <div className="text-center text-slate-400 py-20">Noch keine Videos im Feed.</div>
+                <EmptyState
+                    icon={Film}
+                    title="Der Feed wartet auf dich!"
+                    description="Lade dein erstes Highlight hoch und zeig der Welt was du kannst."
+                />
             )}
 
             {/* Infinite scroll sentinel */}

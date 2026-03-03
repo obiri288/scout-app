@@ -3,6 +3,7 @@ import { X, Bookmark, Trash2, User, Loader2, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
+import { EmptyState } from './EmptyState';
 
 export const WatchlistModal = ({ session, onClose, onUserClick }) => {
     const [list, setList] = useState([]);
@@ -60,7 +61,7 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-zinc-500" /></div> : (
-                        list.length === 0 ? <div className="text-center text-zinc-500 py-10">Noch keine Spieler gemerkt.</div> :
+                        list.length === 0 ? <EmptyState icon={Bookmark} title="Noch keine Spieler gemerkt" description="Entdecke Talente und merke dir die Besten!" variant="subtle" /> :
                             list.map(item => (
                                 <div key={item.id} className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
                                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>

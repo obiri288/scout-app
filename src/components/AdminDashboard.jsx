@@ -55,7 +55,7 @@ export const AdminDashboard = ({ session }) => {
             addToast("Verein gelöscht.", 'success');
             fetchPending();
         } catch (e) {
-            addToast("Fehler beim Löschen: " + e.message, 'error');
+            addToast("Fehler beim Löschen.", 'error');
         }
     };
 

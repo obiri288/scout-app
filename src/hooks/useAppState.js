@@ -29,6 +29,7 @@ export const useAppState = () => {
     // --- Modal State ---
     const [showUpload, setShowUpload] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
+    const [showCelebration, setShowCelebration] = useState(false);
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -128,6 +129,10 @@ export const useAppState = () => {
             if (session) {
                 p.isFollowing = await api.checkIsFollowing(session.user.id, p.user_id);
                 setIsOnWatchlist(await api.checkIsOnWatchlist(session.user.id, p.id));
+                // Record profile view (not own profile)
+                if (p.user_id !== session.user.id) {
+                    api.recordProfileView(p.id, session.user.id);
+                }
             }
             p.followers_count = await api.getFollowersCount(p.user_id);
 
@@ -181,6 +186,9 @@ export const useAppState = () => {
                 } catch (notifErr) {
                     console.warn("Notification insert failed:", notifErr);
                 }
+                // Award XP to the followed player
+                api.awardXP(viewedProfile.id, 20, 'follower', session.user.id);
+                setShowCelebration(true);
                 addToast(`${t('toast_follow')} ${viewedProfile.full_name}!`, 'success');
             }
         } catch (e) {
@@ -205,6 +213,16 @@ export const useAppState = () => {
                 await api.addToWatchlist(session.user.id, viewedProfile.id);
                 setIsOnWatchlist(true);
                 addToast(`${viewedProfile.full_name} ${t('toast_watchlist_added')}`, 'success');
+                try {
+                    await api.createNotification({
+                        userId: viewedProfile.user_id,
+                        actorId: session.user.id,
+                        type: 'watchlist_add'
+                    });
+                } catch (_) { /* non-critical */ }
+                // Award XP to the player
+                api.awardXP(viewedProfile.id, 50, 'watchlist_add', session.user.id);
+                setShowCelebration(true);
             }
         } catch (e) {
             addToast(t('toast_watchlist_error'), 'error');
@@ -253,6 +271,7 @@ export const useAppState = () => {
         // Modals
         showUpload, setShowUpload,
         showLogin, setShowLogin,
+        showCelebration, setShowCelebration,
         showEditProfile, setShowEditProfile,
         showSettings, setShowSettings,
         showFollowersModal, setShowFollowersModal,

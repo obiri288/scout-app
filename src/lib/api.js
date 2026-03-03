@@ -178,19 +178,20 @@ export const fetchFollowers = async (userId) => {
 // NOTIFICATIONS
 // ============================================================
 
-export const createNotification = async ({ userId, actorId, type }) => {
+export const createNotification = async ({ userId, actorId, type, metadata }) => {
     await supabase.from('notifications').insert({
-        user_id: userId,
+        receiver_id: userId,
         actor_id: actorId,
         type,
-        is_read: false,
+        read: false,
+        ...(metadata ? { metadata } : {}),
     });
 };
 
 export const fetchNotifications = async (userId) => {
     const { data } = await supabase.from('notifications')
-        .select('*')
-        .eq('user_id', userId)
+        .select('*, actor:players_master!actor_id(full_name, avatar_url)')
+        .eq('receiver_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
     return data || [];
@@ -198,9 +199,27 @@ export const fetchNotifications = async (userId) => {
 
 export const markNotificationsRead = async (userId) => {
     await supabase.from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
+        .update({ read: true })
+        .eq('receiver_id', userId)
+        .eq('read', false);
+};
+
+const LIKE_MILESTONES = [10, 25, 50, 100, 250, 500];
+
+export const checkAndCreateLikeMilestone = async (videoId, videoOwnerUserId, likerId) => {
+    try {
+        const { count } = await supabase.from('media_likes')
+            .select('id', { count: 'exact', head: true })
+            .eq('video_id', videoId);
+        if (count && LIKE_MILESTONES.includes(count)) {
+            await createNotification({
+                userId: videoOwnerUserId,
+                actorId: likerId,
+                type: 'likes_milestone',
+                metadata: { count, videoId },
+            });
+        }
+    } catch (_) { /* non-critical */ }
 };
 
 // ============================================================
@@ -329,6 +348,86 @@ export const upsertRating = async (playerId, raterId, rating) => {
 };
 
 // ============================================================
+// PROFILE VIEWS
+// ============================================================
+
+export const recordProfileView = async (profileId, viewerId) => {
+    if (!viewerId) return;
+    try {
+        // Dedup: only once per viewer per day
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: existing } = await supabase.from('profile_views')
+            .select('id')
+            .eq('profile_id', profileId)
+            .eq('viewer_id', viewerId)
+            .gte('created_at', `${today}T00:00:00`)
+            .limit(1);
+        if (existing && existing.length > 0) return;
+        await supabase.from('profile_views').insert({ profile_id: profileId, viewer_id: viewerId });
+    } catch (_) { /* non-critical */ }
+};
+
+export const getProfileViewCount = async (profileId) => {
+    const { count } = await supabase.from('profile_views')
+        .select('id', { count: 'exact', head: true })
+        .eq('profile_id', profileId);
+    return count || 0;
+};
+
+// ============================================================
+// PLAYER ATTRIBUTES
+// ============================================================
+
+export const fetchPlayerAttributes = async (playerId) => {
+    const { data } = await supabase.from('player_attributes')
+        .select('*')
+        .eq('player_id', playerId);
+    return data || [];
+};
+
+export const upsertPlayerAttributes = async (playerId, raterId, attributes) => {
+    const { error } = await supabase.from('player_attributes')
+        .upsert({
+            player_id: playerId,
+            rater_id: raterId,
+            ...attributes,
+        }, { onConflict: 'player_id,rater_id' });
+    if (error) throw error;
+};
+
+// ============================================================
+// XP SYSTEM
+// ============================================================
+
+export const awardXP = async (playerId, amount, reason, refId = null) => {
+    try {
+        // Dedup: don't award same reason+ref twice
+        if (refId) {
+            const { data: existing } = await supabase.from('player_xp_ledger')
+                .select('id')
+                .eq('player_id', playerId)
+                .eq('reason', reason)
+                .eq('ref_id', refId)
+                .limit(1);
+            if (existing && existing.length > 0) return;
+        }
+        await supabase.from('player_xp_ledger').insert({
+            player_id: playerId,
+            xp_amount: amount,
+            reason,
+            ref_id: refId,
+        });
+    } catch (_) { /* non-critical */ }
+};
+
+export const getPlayerXP = async (playerId) => {
+    const { data } = await supabase.from('player_xp_ledger')
+        .select('xp_amount')
+        .eq('player_id', playerId);
+    return (data || []).reduce((s, r) => s + r.xp_amount, 0);
+};
+
+// ============================================================
 // CLUBS
 // ============================================================
 
@@ -422,4 +521,102 @@ export const resetPassword = async (email) => {
 
 export const signOut = async () => {
     await supabase.auth.signOut();
+};
+
+// ============================================================
+// USER BLOCKING
+// ============================================================
+
+export const blockUser = async (blockerId, blockedId) => {
+    const { error } = await supabase.from('user_blocks')
+        .insert({ blocker_id: blockerId, blocked_id: blockedId });
+    if (error) throw error;
+};
+
+export const unblockUser = async (blockerId, blockedId) => {
+    const { error } = await supabase.from('user_blocks')
+        .delete()
+        .match({ blocker_id: blockerId, blocked_id: blockedId });
+    if (error) throw error;
+};
+
+export const fetchBlockedUserIds = async (userId) => {
+    const { data } = await supabase.from('user_blocks')
+        .select('blocked_id')
+        .eq('blocker_id', userId);
+    return (data || []).map(b => b.blocked_id);
+};
+
+export const checkIsBlocked = async (blockerId, blockedId) => {
+    const { data } = await supabase.from('user_blocks')
+        .select('id')
+        .eq('blocker_id', blockerId)
+        .eq('blocked_id', blockedId);
+    return data && data.length > 0;
+};
+
+// ============================================================
+// ACCOUNT DELETION
+// ============================================================
+
+export const deleteUserAccount = async (userId) => {
+    // 1. Fetch all user's videos to delete storage files
+    const { data: highlights } = await supabase.from('media_highlights')
+        .select('id, video_url, thumbnail_url')
+        .eq('user_id', userId);
+
+    // 2. Delete storage files for each video
+    if (highlights && highlights.length > 0) {
+        for (const h of highlights) {
+            try { await deleteVideoFiles(h.video_url, h.thumbnail_url); } catch (_) { }
+        }
+    }
+
+    // 3. Delete avatar from storage
+    try {
+        const { data: player } = await supabase.from('players_master')
+            .select('avatar_url')
+            .eq('user_id', userId)
+            .single();
+        if (player?.avatar_url) {
+            const avatarPath = player.avatar_url.split('/avatars/').pop();
+            if (avatarPath) await supabase.storage.from('avatars').remove([decodeURIComponent(avatarPath)]);
+        }
+    } catch (_) { }
+
+    // 4. Cascade delete DB records (order matters for foreign keys)
+    const tables = [
+        { table: 'media_likes', column: 'user_id' },
+        { table: 'video_comments', column: 'user_id' },
+        { table: 'media_highlights', column: 'user_id' },
+        { table: 'notifications', column: 'user_id' },
+        { table: 'notifications', column: 'actor_id' },
+        { table: 'direct_messages', column: 'sender_id' },
+        { table: 'direct_messages', column: 'receiver_id' },
+        { table: 'follows', column: 'follower_id' },
+        { table: 'follows', column: 'following_id' },
+        { table: 'scout_watchlist', column: 'scout_id' },
+        { table: 'scout_watchlist', column: 'player_id' },
+        { table: 'player_ratings', column: 'rater_id' },
+        { table: 'reports', column: 'reporter_id' },
+        { table: 'user_blocks', column: 'blocker_id' },
+        { table: 'user_blocks', column: 'blocked_id' },
+    ];
+
+    for (const { table, column } of tables) {
+        try {
+            await supabase.from(table).delete().eq(column, userId);
+        } catch (_) { }
+    }
+
+    // 5. Delete player profile  
+    try {
+        await supabase.from('players_master').delete().eq('user_id', userId);
+    } catch (_) { }
+
+    // 6. Finally: Call Edge Function to delete the auth user record (server-side with Service Role)
+    const { data, error } = await supabase.functions.invoke('delete-account');
+    if (error) throw error;
+
+    return data;
 };

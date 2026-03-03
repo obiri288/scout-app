@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { checkRateLimit } from '../lib/rateLimiter';
+import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 
 export const LoginModal = ({ onClose, onSuccess }) => {
@@ -16,6 +18,15 @@ export const LoginModal = ({ onClose, onSuccess }) => {
         e.preventDefault();
         setLoading(true); setMsg(''); setSuccessMsg('');
         const isSignUp = view === 'register';
+
+        // Rate Limiting: Login 5x/15min, Signup 3x/Stunde
+        const rlKey = isSignUp ? `signup:${email}` : `login:${email}`;
+        const rl = checkRateLimit(rlKey, isSignUp ? 3 : 5, isSignUp ? 3600000 : 900000);
+        if (!rl.allowed) {
+            setMsg(`Zu viele Versuche. Bitte warte ${rl.retryAfterMinutes} Minute(n).`);
+            setLoading(false);
+            return;
+        }
 
         if (isSignUp && password !== confirmPassword) {
             setMsg("Passwörter stimmen nicht überein!");
@@ -43,7 +54,7 @@ export const LoginModal = ({ onClose, onSuccess }) => {
             }
         } catch (error) {
             console.error("Auth Error:", error);
-            setMsg(error.message || "Ein Fehler ist aufgetreten.");
+            setMsg(getSafeErrorMessage(error));
         } finally {
             setLoading(false);
         }
@@ -52,6 +63,14 @@ export const LoginModal = ({ onClose, onSuccess }) => {
     const handlePasswordReset = async (e) => {
         e.preventDefault();
         if (!email) { setMsg("Bitte E-Mail eingeben."); return; }
+
+        // Rate Limiting: max 3 Reset-Mails pro E-Mail pro Stunde
+        const rl = checkRateLimit(`reset:${email}`, 3, 3600000);
+        if (!rl.allowed) {
+            setMsg(`Zu viele Anfragen. Bitte warte ${rl.retryAfterMinutes} Minute(n).`);
+            return;
+        }
+
         setLoading(true); setMsg('');
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -60,7 +79,7 @@ export const LoginModal = ({ onClose, onSuccess }) => {
             if (error) throw error;
             setSuccessMsg('📧 Link zum Zurücksetzen wurde an deine E-Mail gesendet!');
         } catch (error) {
-            setMsg(error.message || "Fehler beim Zurücksetzen.");
+            setMsg(getSafeErrorMessage(error, 'Fehler beim Zurücksetzen.'));
         } finally {
             setLoading(false);
         }
@@ -72,13 +91,13 @@ export const LoginModal = ({ onClose, onSuccess }) => {
                 <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
                 <div className="animate-in fade-in slide-in-from-right-5">
                     <div className="flex flex-col items-center gap-3 mb-8">
-                        <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                        <div className="w-14 h-14 bg-gradient-to-tr from-emerald-600 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/30">
                             {view === 'forgot' ? <Mail size={28} className="text-white" /> : <User size={28} className="text-white" />}
                         </div>
                         <h2 className="text-2xl font-bold text-white">
                             {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Willkommen zurück'}
                         </h2>
-                        <p className="text-zinc-400 text-sm text-center">
+                        <p className="text-muted-foreground text-sm text-center">
                             {view === 'register' ? 'Werde Teil der Community' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Melde dich an, um fortzufahren'}
                         </p>
                     </div>
@@ -87,7 +106,7 @@ export const LoginModal = ({ onClose, onSuccess }) => {
                         <div className="text-center space-y-4">
                             <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
                             {view === 'forgot' && (
-                                <button onClick={() => { setView('login'); setSuccessMsg(''); }} className="text-blue-400 text-sm font-bold hover:underline">
+                                <button onClick={() => { setView('login'); setSuccessMsg(''); }} className="text-emerald-400 text-sm font-bold hover:underline">
                                     Zurück zum Login
                                 </button>
                             )}
@@ -99,7 +118,7 @@ export const LoginModal = ({ onClose, onSuccess }) => {
                             <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
                                 {loading && <Loader2 className="animate-spin" size={18} />} Reset-Link senden
                             </button>
-                            <button type="button" onClick={() => { setView('login'); setMsg(''); }} className="w-full text-zinc-500 text-sm hover:text-white transition flex items-center justify-center gap-2">
+                            <button type="button" onClick={() => { setView('login'); setMsg(''); }} className="w-full text-muted-foreground text-sm hover:text-white transition flex items-center justify-center gap-2">
                                 <ArrowLeft size={14} /> Zurück zum Login
                             </button>
                         </form>
@@ -111,7 +130,7 @@ export const LoginModal = ({ onClose, onSuccess }) => {
                                 {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
                             </div>
                             {view === 'login' && (
-                                <button type="button" onClick={() => { setView('forgot'); setMsg(''); }} className="text-xs text-zinc-500 hover:text-blue-400 transition">
+                                <button type="button" onClick={() => { setView('forgot'); setMsg(''); }} className="text-xs text-muted-foreground hover:text-emerald-400 transition">
                                     Passwort vergessen?
                                 </button>
                             )}
@@ -121,8 +140,8 @@ export const LoginModal = ({ onClose, onSuccess }) => {
                     )}
                     {view !== 'forgot' && (
                         <div className="mt-6 pt-6 border-t border-white/5 text-center">
-                            <p className="text-zinc-500 text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
-                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-blue-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                            <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
+                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-emerald-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}
                 </div>
