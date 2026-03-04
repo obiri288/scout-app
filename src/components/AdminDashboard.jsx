@@ -71,7 +71,7 @@ export const AdminDashboard = ({ session }) => {
     };
 
     return (
-        <div className="pb-24 pt-8 px-4 max-w-md mx-auto min-h-screen">
+        <div className="pb-32 pt-8 px-4 max-w-md mx-auto min-h-screen">
             <h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500" /> Admin</h2>
             <div className="flex gap-4 mb-6 border-b border-zinc-800 pb-2">
                 <button onClick={() => setTab('clubs')} className={`text-sm font-bold pb-2 px-2 ${tab === 'clubs' ? 'text-white border-b-2 border-blue-500' : 'text-zinc-500'}`}>Vereine ({pendingClubs.length})</button>

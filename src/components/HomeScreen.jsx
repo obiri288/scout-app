@@ -123,7 +123,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     return (
         <div
             ref={containerRef}
-            className="pb-24 pt-0 max-w-md mx-auto relative"
+            className="pb-32 pt-0 max-w-md mx-auto relative"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}

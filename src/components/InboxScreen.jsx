@@ -157,7 +157,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
     };
 
     return (
-        <div className="pb-24 max-w-md mx-auto min-h-screen bg-background">
+        <div className="pb-32 max-w-md mx-auto min-h-screen bg-background">
             <div className={glassHeader}><h2 className="text-2xl font-black text-foreground">Inbox</h2></div>
             <div className="px-4 mt-4">
                 <div className="flex bg-card rounded-xl p-1 mb-4 border border-border relative">
@@ -177,8 +177,8 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                                     key={tab.id}
                                     onClick={() => setNotifFilter(tab.id)}
                                     className={`text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${notifFilter === tab.id
-                                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                                            : 'bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10'
+                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                        : 'bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10'
                                         }`}
                                 >
                                     {tab.label}

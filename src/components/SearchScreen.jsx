@@ -150,7 +150,7 @@ export const SearchScreen = ({ onUserClick }) => {
     );
 
     return (
-        <div className="pb-24 max-w-md mx-auto min-h-screen bg-background">
+        <div className="pb-32 max-w-md mx-auto min-h-screen bg-background">
             <div className={glassHeader}>
                 <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>

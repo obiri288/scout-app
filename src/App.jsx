@@ -266,7 +266,7 @@ const App = () => {
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
     return (
-        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-emerald-500/30 pb-20">
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-emerald-500/30 pb-32">
             {/* Celebration Animation */}
             <CelebrationAnimation active={showCelebration} onComplete={() => setShowCelebration(false)} />
             {/* Onboarding Wizard */}

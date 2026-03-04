@@ -18,7 +18,7 @@ export const ClubScreen = ({ club, onBack, onUserClick }) => {
     }, [club]);
 
     return (
-        <div className="min-h-screen bg-black pb-24 animate-in slide-in-from-right">
+        <div className="min-h-screen bg-black pb-32 animate-in slide-in-from-right">
             <div className="relative h-40 bg-zinc-900 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black"></div>
                 {club.logo_url && <img src={club.logo_url} className="w-full h-full object-cover opacity-30 blur-sm" />}
