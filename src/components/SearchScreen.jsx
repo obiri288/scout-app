@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List } from 'lucide-react';
+import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
 import { SearchSkeleton } from './SkeletonScreens';
@@ -31,6 +31,11 @@ const listItemVariants = {
     },
 };
 
+const RECENT_SEARCHES_KEY = 'scout_recent_searches';
+const getRecentSearches = () => {
+    try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || []; } catch { return []; }
+};
+
 export const SearchScreen = ({ onUserClick }) => {
     const [query, setQuery] = useState('');
     const [cityQuery, setCityQuery] = useState('');
@@ -45,7 +50,22 @@ export const SearchScreen = ({ onUserClick }) => {
     const [selectedTag, setSelectedTag] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
+    const [recentSearches, setRecentSearches] = useState(getRecentSearches);
     const sentinelRef = useRef(null);
+
+    // Save search to recent history
+    const saveRecentSearch = useCallback((term) => {
+        if (!term || term.trim().length < 2) return;
+        const trimmed = term.trim();
+        const updated = [trimmed, ...recentSearches.filter(s => s !== trimmed)].slice(0, 5);
+        setRecentSearches(updated);
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    }, [recentSearches]);
+
+    const clearRecentSearches = () => {
+        setRecentSearches([]);
+        localStorage.removeItem(RECENT_SEARCHES_KEY);
+    };
 
     // Fetch clubs matching clubQuery for client-side filtering
     const [matchingClubIds, setMatchingClubIds] = useState(null);
@@ -108,7 +128,8 @@ export const SearchScreen = ({ onUserClick }) => {
         setHasMore(true);
         const t = setTimeout(() => {
             fetchResults(0, true);
-        }, 300);
+            if (query && query.trim().length >= 2) saveRecentSearch(query);
+        }, 500);
         return () => clearTimeout(t);
     }, [query, pos, status, cityQuery, matchingClubIds]);
 
@@ -173,6 +194,25 @@ export const SearchScreen = ({ onUserClick }) => {
                         {viewMode === 'list' ? <Map size={24} /> : <List size={24} />}
                     </button>
                 </div>
+
+                {/* Recent Searches */}
+                {!query && recentSearches.length > 0 && viewMode === 'list' && (
+                    <div className="mb-4 animate-in fade-in">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1.5"><Clock size={10} /> Zuletzt gesucht</span>
+                            <button onClick={clearRecentSearches} className="text-[10px] text-muted-foreground hover:text-red-400 transition flex items-center gap-1">
+                                <Trash2 size={10} /> Löschen
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {recentSearches.map(term => (
+                                <button key={term} onClick={() => setQuery(term)} className="px-3 py-1.5 bg-white/5 border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-white/10 transition">
+                                    {term}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {viewMode === 'map' ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">

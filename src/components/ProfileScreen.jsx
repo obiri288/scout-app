@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Loader2, User, CheckCircle, ArrowLeft, Settings, Edit, Share2, MessageCircle,
     Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye
@@ -18,22 +18,22 @@ import { RadarChart } from './RadarChart';
 import { XPLevelBadge } from './XPLevelBadge';
 import * as api from '../lib/api';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from './ui/alert-dialog';
+
 // Lazy-loaded video tile for profile grid
 const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
     const { ref, isIntersecting } = useIntersectionObserver({ threshold: 0.1, rootMargin: '200px' });
     const [loaded, setLoaded] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
-
-    const handleDelete = (e) => {
-        e.stopPropagation();
-        if (confirmDelete) {
-            onDelete(video);
-            setConfirmDelete(false);
-        } else {
-            setConfirmDelete(true);
-            setTimeout(() => setConfirmDelete(false), 3000);
-        }
-    };
 
     return (
         <div ref={ref} onClick={() => onClick(video)} className="aspect-[3/4] bg-card relative cursor-pointer group overflow-hidden">
@@ -56,20 +56,35 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
                         </div>
                     )}
                     {isOwnProfile && (
-                        <button
-                            onClick={handleDelete}
-                            className={`absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all z-10 ${confirmDelete
-                                ? 'bg-red-600 text-white opacity-100 scale-110'
-                                : 'bg-black/60 backdrop-blur-sm text-zinc-300 hover:bg-red-600 hover:text-white'
-                                }`}
-                        >
-                            <Trash2 size={14} />
-                        </button>
-                    )}
-                    {confirmDelete && (
-                        <div className="absolute inset-x-0 bottom-0 bg-red-600/90 text-white text-[10px] font-bold text-center py-1.5 z-10 animate-in fade-in">
-                            Nochmal tippen zum Löschen
-                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <motion.button
+                                    onClick={(e) => e.stopPropagation()}
+                                    whileHover={{ rotate: [0, -10, 10, -10, 10, 0] }}
+                                    transition={{ duration: 0.5 }}
+                                    className="absolute top-2 right-2 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all z-10 bg-black/60 backdrop-blur-sm text-zinc-300 hover:bg-red-600 hover:text-white"
+                                >
+                                    <Trash2 size={14} />
+                                </motion.button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-zinc-900 border-zinc-800" onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-white">Highlight wirklich löschen?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-zinc-400">
+                                        Diese Aktion kann nicht rückgängig gemacht werden. Dein Highlight wird dauerhaft entfernt.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel className="bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white">Abbrechen</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={(e) => { e.stopPropagation(); onDelete(video); }}
+                                        className="bg-red-600 text-white hover:bg-red-700 border-none"
+                                    >
+                                        Löschen
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     )}
                 </>
             ) : (
@@ -287,9 +302,18 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
             {activeTab === 'highlights' && (
                 <>
                     <div className="grid grid-cols-3 gap-0.5 mt-0.5">
-                        {highlights.map(v => (
-                            <VideoTile key={v.id} video={v} onClick={onVideoClick} isOwnProfile={isOwnProfile} onDelete={onDeleteVideo} />
-                        ))}
+                        <AnimatePresence>
+                            {highlights.map(v => (
+                                <motion.div
+                                    key={v.id}
+                                    layout
+                                    exit={{ opacity: 0, scale: 0.8, height: 0 }}
+                                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                                >
+                                    <VideoTile video={v} onClick={onVideoClick} isOwnProfile={isOwnProfile} onDelete={onDeleteVideo} />
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
                     </div>
                     {highlights.length === 0 && (
                         <EmptyState

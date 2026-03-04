@@ -107,7 +107,6 @@ body,
   min-height: 100%;
   width: 100%;
   overflow-x: hidden;
-  overscroll-behavior-y: none;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
