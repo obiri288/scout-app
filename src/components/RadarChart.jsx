@@ -140,7 +140,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile }) => {
         <div className="bg-white/5 border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-white">{overall}</span>
+                    <span className="text-2xl font-black text-foreground">{overall}</span>
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">OVR</span>
                 </div>
                 <span className="text-[10px] text-muted-foreground font-bold">
@@ -205,7 +205,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile }) => {
                                 y={p.y + 7}
                                 textAnchor="middle"
                                 dominantBaseline="middle"
-                                className="fill-white text-[11px] font-black"
+                                className="fill-foreground text-[11px] font-black"
                                 style={{ fontFamily: 'system-ui' }}
                             >
                                 {displayValues[i]}
@@ -246,7 +246,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile }) => {
                                         }}
                                         className="flex-1 h-1.5 accent-emerald-500 bg-zinc-800 rounded-full appearance-none cursor-pointer"
                                     />
-                                    <span className="text-xs font-bold text-white w-6 text-right">{editValues[i]}</span>
+                                    <span className="text-xs font-bold text-foreground w-6 text-right">{editValues[i]}</span>
                                 </div>
                             ))}
                             <div className="flex gap-2 pt-1">

@@ -70,14 +70,14 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                             </div>
                         </div>
                         <div>
-                            <div className="font-bold text-white text-sm flex items-center gap-1 group-hover:text-emerald-400 transition-colors">
+                            <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-emerald-400 transition-colors">
                                 {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-emerald-400" />}
                             </div>
-                            <div className="text-[11px] tracking-wider text-slate-300 uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
+                            <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
                     </div>
                     <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-muted-foreground hover:text-white p-2 transition-colors duration-300"><MoreHorizontal size={20} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-muted-foreground hover:text-foreground p-2 transition-colors duration-300"><MoreHorizontal size={20} /></button>
                         {showMenu && (
                             <div className="absolute right-0 top-full bg-card border border-border rounded-xl shadow-2xl backdrop-blur-xl z-20 w-36 overflow-hidden animate-in fade-in zoom-in-95">
                                 <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video'); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-300"><Flag size={14} /> Melden</button>
@@ -113,7 +113,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     <motion.button
                         whileTap={{ scale: 0.92 }}
                         onClick={like}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-white'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                     >
                         <Heart size={20} className={liked ? 'fill-red-500' : ''} /> <span className="font-medium text-sm">{likes}</span>
                     </motion.button>
@@ -121,12 +121,12 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         whileTap={{ scale: 0.92 }}
                         whileHover={{ scale: 1.05, backgroundColor: "rgba(51,65,85,0.5)" }}
                         onClick={(e) => { e.stopPropagation(); onCommentClick(video); }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-white transition-all duration-300"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
                     >
                         <MessageCircle size={20} /> <span className="font-medium text-sm">Chat</span>
                     </motion.button>
                     <div className="ml-auto">
-                        <Share2 size={24} className="text-muted-foreground hover:text-white hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
+                        <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
                             e.stopPropagation();
                             const shareUrl = `${window.location.origin}/#profile/${video.players_master?.user_id}`;
                             if (navigator.share) {

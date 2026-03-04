@@ -230,14 +230,13 @@ export const useAppState = () => {
     };
 
     const handleDeleteVideo = async (video) => {
-        setProfileHighlights(prev => prev.filter(v => v.id !== video.id));
-
         try {
             await api.deleteHighlight(video.id);
             await api.deleteVideoFiles(video.video_url, video.thumbnail_url);
+            setProfileHighlights(prev => prev.filter(v => v.id !== video.id));
             addToast(t('toast_video_deleted'), 'success');
         } catch (e) {
-            setProfileHighlights(prev => [...prev, video].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+            console.error('Video delete failed:', e);
             addToast(t('toast_video_delete_error'), 'error');
         }
     };

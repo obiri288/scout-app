@@ -140,7 +140,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
                         exit={{ height: 0, opacity: 0 }}
                         className="flex items-center justify-center overflow-hidden"
                     >
-                        <div className={`flex items-center gap-2 text-slate-400 text-sm ${refreshing ? 'animate-pulse' : ''}`}>
+                        <div className={`flex items-center gap-2 text-muted-foreground text-sm ${refreshing ? 'animate-pulse' : ''}`}>
                             <motion.div
                                 animate={refreshing ? { rotate: 360 } : { rotate: pullDistance * 2 }}
                                 transition={refreshing ? { repeat: Infinity, duration: 1, ease: "linear" } : { type: "spring", stiffness: 300, damping: 30 }}
@@ -191,11 +191,11 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             {/* Infinite scroll sentinel */}
             {hasMore && (
                 <div ref={sentinelRef} className="flex justify-center py-8">
-                    {loadingMore && <Loader2 className="animate-spin text-slate-500" size={24} />}
+                    {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
                 </div>
             )}
             {!hasMore && feed.length > 0 && (
-                <div className="text-center text-slate-400 text-xs py-8">Du hast alles gesehen 🎉</div>
+                <div className="text-center text-muted-foreground text-xs py-8">Du hast alles gesehen 🎉</div>
             )}
         </div>
     );

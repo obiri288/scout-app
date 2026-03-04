@@ -47,7 +47,7 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
                         onLoadedData={() => setLoaded(true)}
                     />
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="absolute bottom-2 left-2 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"><Play size={8} fill="white" /> {video.likes_count}</div>
+                    <div className="absolute bottom-2 left-2 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"><Play size={8} fill="currentColor" /> {video.likes_count}</div>
                     {video.skill_tags && video.skill_tags.length > 0 && (
                         <div className="absolute top-2 left-2 flex flex-wrap gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {video.skill_tags.slice(0, 2).map(tag => (
@@ -69,13 +69,13 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
                             </AlertDialogTrigger>
                             <AlertDialogContent className="bg-zinc-900 border-zinc-800" onClick={(e) => e.stopPropagation()}>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-white">Highlight wirklich löschen?</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-zinc-400">
+                                    <AlertDialogTitle className="text-foreground">Highlight wirklich löschen?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-muted-foreground">
                                         Diese Aktion kann nicht rückgängig gemacht werden. Dein Highlight wird dauerhaft entfernt.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                    <AlertDialogCancel className="bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white">Abbrechen</AlertDialogCancel>
+                                    <AlertDialogCancel className="bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground">Abbrechen</AlertDialogCancel>
                                     <AlertDialogAction
                                         onClick={(e) => { e.stopPropagation(); onDelete(video); }}
                                         className="bg-red-600 text-white hover:bg-red-700 border-none"
@@ -163,7 +163,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     </div>
 
                     {/* Name & Badge */}
-                    <h1 className="text-3xl font-black text-white flex items-center justify-center gap-2 mb-1 text-center leading-tight">
+                    <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
                         {player.full_name}
                         {player.is_verified && <CheckCircle size={20} className="text-emerald-500 fill-emerald-500/10" />}
                     </h1>
@@ -185,11 +185,11 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     {/* Stats Grid */}
                     <div className={`grid ${isOwnProfile ? 'grid-cols-4' : 'grid-cols-3'} gap-3 w-full mb-6`}>
                         <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition" onClick={onShowFollowers}>
-                            <span className="text-xl font-black text-white">{player.followers_count || 0}</span>
+                            <span className="text-xl font-black text-foreground">{player.followers_count || 0}</span>
                             <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Follower</span>
                         </div>
                         <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <span className="text-xl font-black text-white">{highlights.length}</span>
+                            <span className="text-xl font-black text-foreground">{highlights.length}</span>
                             <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Clips</span>
                         </div>
                         <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center">
@@ -198,7 +198,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         {isOwnProfile && (
                             <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center">
                                 <div className="flex items-center gap-1 mb-1"><Eye size={12} className="text-blue-400" /></div>
-                                <span className="text-xl font-black text-white">{viewCount}</span>
+                                <span className="text-xl font-black text-foreground">{viewCount}</span>
                                 <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Views</span>
                             </div>
                         )}
@@ -406,7 +406,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 // Helper components
 const StatCard = ({ label, value, sub, highlight, small }) => (
     <motion.div whileHover={{ scale: 1.03, borderColor: "rgba(16,185,129,0.3)" }} transition={{ type: "spring", stiffness: 400, damping: 25 }} className={`bg-white/5 border border-border rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}>
-        <div className={`font-black text-white ${small ? 'text-xs' : 'text-lg'}`}>{value}</div>
+        <div className={`font-black text-foreground ${small ? 'text-xs' : 'text-lg'}`}>{value}</div>
         <div className="text-[10px] text-muted-foreground uppercase font-bold mt-1">{label}</div>
         {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
     </motion.div>
@@ -417,7 +417,7 @@ const InfoRow = ({ icon, label, value }) => (
         <span className="text-lg">{icon}</span>
         <div>
             <div className="text-[10px] text-muted-foreground uppercase font-bold">{label}</div>
-            <div className="text-sm text-white">{value}</div>
+            <div className="text-sm text-foreground">{value}</div>
         </div>
     </div>
 );

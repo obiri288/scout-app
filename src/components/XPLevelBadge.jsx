@@ -89,7 +89,7 @@ export const XPLevelBadge = ({ playerId, compact = false }) => {
                         <LevelIcon size={16} style={{ color: level.color }} />
                     </div>
                     <div>
-                        <div className="text-sm font-bold text-white">{level.name}</div>
+                        <div className="text-sm font-bold text-foreground">{level.name}</div>
                         <div className="text-[10px] text-muted-foreground">{totalXP} XP</div>
                     </div>
                 </div>

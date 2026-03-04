@@ -89,8 +89,8 @@ export const PlayerRating = ({ playerId, session, compact }) => {
                         <Star key={s} size={12} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
                     ))}
                 </div>
-                <span className="text-xl font-black text-white">{avgRating || '-'}</span>
-                <span className="text-[10px] text-zinc-500 uppercase font-bold mt-1">
+                <span className="text-xl font-black text-foreground">{avgRating || '-'}</span>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">
                     {totalRatings} Bewertung{totalRatings !== 1 ? 'en' : ''}
                 </span>
             </div>
@@ -99,24 +99,24 @@ export const PlayerRating = ({ playerId, session, compact }) => {
 
     // Full interactive mode
     return (
-        <div className="bg-white/5 border border-white/5 rounded-2xl p-4">
+        <div className="bg-muted/50 border border-border rounded-2xl p-4">
             {/* Average display */}
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-white">{avgRating || '-'}</span>
+                    <span className="text-2xl font-black text-foreground">{avgRating || '-'}</span>
                     <div className="flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map(s => (
                             <Star key={s} size={16} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
                         ))}
                     </div>
                 </div>
-                <span className="text-xs text-zinc-500">{totalRatings} Bewertung{totalRatings !== 1 ? 'en' : ''}</span>
+                <span className="text-xs text-muted-foreground">{totalRatings} Bewertung{totalRatings !== 1 ? 'en' : ''}</span>
             </div>
 
             {/* User's rating input */}
             {session && (
                 <div className="border-t border-white/5 pt-3">
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold mb-2">Deine Bewertung</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold mb-2">Deine Bewertung</p>
                     <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map(s => (
                             <button
@@ -137,7 +137,7 @@ export const PlayerRating = ({ playerId, session, compact }) => {
                             </button>
                         ))}
                         {myRating > 0 && (
-                            <span className="text-xs text-zinc-500 ml-2">{myRating}/5</span>
+                            <span className="text-xs text-muted-foreground ml-2">{myRating}/5</span>
                         )}
                     </div>
                 </div>

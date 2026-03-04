@@ -84,7 +84,7 @@ export const ProfileCompletenessCard = ({ player, highlightsCount = 0, onEditPro
                     <div className="flex items-center gap-2">
                         <span className={`text-sm font-black ${motivation.color}`}>{motivation.text}</span>
                     </div>
-                    <span className="text-2xl font-black text-white">{score}%</span>
+                    <span className="text-2xl font-black text-foreground">{score}%</span>
                 </div>
 
                 {/* Progress bar */}
@@ -94,8 +94,8 @@ export const ProfileCompletenessCard = ({ player, highlightsCount = 0, onEditPro
                         animate={{ width: `${score}%` }}
                         transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
                         className={`h-full rounded-full ${score >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
-                                score >= 50 ? 'bg-gradient-to-r from-blue-500 to-emerald-400' :
-                                    'bg-gradient-to-r from-purple-500 to-blue-400'
+                            score >= 50 ? 'bg-gradient-to-r from-blue-500 to-emerald-400' :
+                                'bg-gradient-to-r from-purple-500 to-blue-400'
                             }`}
                     />
                 </div>
