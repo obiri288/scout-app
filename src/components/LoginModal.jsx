@@ -5,7 +5,7 @@ import { checkRateLimit } from '../lib/rateLimiter';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 
-export const LoginModal = ({ onClose, onSuccess }) => {
+export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -144,6 +144,12 @@ export const LoginModal = ({ onClose, onSuccess }) => {
                             <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-emerald-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}
+                    {/* Legal Links */}
+                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-center gap-4">
+                        <button type="button" onClick={() => onLegalOpen?.('privacy')} className="text-muted-foreground text-[10px] hover:text-emerald-400 transition">Datenschutz</button>
+                        <span className="text-zinc-700 text-[10px]">·</span>
+                        <button type="button" onClick={() => onLegalOpen?.('imprint')} className="text-muted-foreground text-[10px] hover:text-emerald-400 transition">Impressum</button>
+                    </div>
                 </div>
             </div>
         </div>

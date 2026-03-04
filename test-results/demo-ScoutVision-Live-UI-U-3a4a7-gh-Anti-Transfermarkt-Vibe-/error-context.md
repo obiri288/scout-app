@@ -1,0 +1,54 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - img [ref=e8]
+      - generic [ref=e14]:
+        - generic [ref=e16]:
+          - img [ref=e17]
+          - text: Scout Mode
+        - generic [ref=e20]: Guten Abend, Neuer!
+      - generic [ref=e21]:
+        - paragraph [ref=e22]: Entdecke die neuesten Highlights, verfolge Talente und finde den nächsten Star für dein Team.
+        - generic [ref=e23] [cursor=pointer]:
+          - img [ref=e24]
+          - text: "Dein Status: Aktiv"
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32] [cursor=pointer]:
+          - img [ref=e35]
+          - generic [ref=e38]:
+            - generic [ref=e39]: Neuer Spieler
+            - generic [ref=e40]: Vereinslos
+        - button [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+      - generic [ref=e49] [cursor=pointer]:
+        - img [ref=e50]
+        - text: Watch
+      - generic [ref=e52]:
+        - button "0" [ref=e53] [cursor=pointer]:
+          - img [ref=e54]
+          - generic [ref=e56]: "0"
+        - button "Chat" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e60]: Chat
+        - img [ref=e62] [cursor=pointer]
+    - generic [ref=e68]: Du hast alles gesehen 🎉
+  - button [ref=e70] [cursor=pointer]:
+    - img [ref=e71]
+  - generic [ref=e72]:
+    - button "Home" [active] [ref=e73] [cursor=pointer]:
+      - img [ref=e74]
+      - generic [ref=e77]: Home
+    - button "Suchen" [ref=e78] [cursor=pointer]:
+      - img [ref=e79]
+      - generic: Suchen
+    - button "Inbox" [ref=e82] [cursor=pointer]:
+      - img [ref=e84]
+      - generic: Inbox
+    - button "Profil" [ref=e87] [cursor=pointer]:
+      - img [ref=e88]
+      - generic: Profil
+```

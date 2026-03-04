@@ -32,7 +32,7 @@ export const UserProvider = ({ children }) => {
             if (!data) {
                 const newProfile = {
                     user_id: s.user.id,
-                    full_name: 'Neuer Spieler',
+                    full_name: '',
                     position_primary: 'ZM',
                     transfer_status: 'Gebunden',
                     followers_count: 0,

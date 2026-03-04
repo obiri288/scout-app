@@ -109,8 +109,8 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
     const statusTextClass = player.transfer_status === 'Suche Verein' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : player.transfer_status === 'Vertrag läuft aus' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20';
 
     return (
-        <div className="pb-24 animate-in fade-in">
-            <div className="relative bg-card pb-6 rounded-b-[2rem] overflow-hidden shadow-2xl border-b border-border">
+        <div className="min-h-screen pb-32 animate-in fade-in">
+            <div className="relative bg-card pb-6 rounded-b-[2rem] shadow-2xl border-b border-border">
                 <div className="absolute inset-0 h-40 bg-gradient-to-br from-emerald-900/30 via-slate-900/20 to-background pointer-events-none"></div>
 
                 {/* Nav */}

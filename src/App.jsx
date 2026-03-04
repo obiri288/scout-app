@@ -29,6 +29,7 @@ const WatchlistModal = lazy(() => import('./components/WatchlistModal').then(m =
 const CompareModal = lazy(() => import('./components/CompareModal').then(m => ({ default: m.CompareModal })));
 const BlockUserModal = lazy(() => import('./components/BlockUserModal').then(m => ({ default: m.BlockUserModal })));
 const OnboardingWizard = lazy(() => import('./components/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
+const NamePromptModal = lazy(() => import('./components/NamePromptModal').then(m => ({ default: m.NamePromptModal })));
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -262,6 +263,7 @@ const App = () => {
 
     // Check for onboarding: session exists but no profile yet
     const needsOnboarding = session && !currentUserProfile;
+    const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-emerald-500/30 pb-20">
@@ -279,6 +281,12 @@ const App = () => {
                             loadProfile(player);
                         }}
                     />
+                </Suspense>
+            )}
+            {/* Name Enforcement Prompt */}
+            {needsNamePrompt && !needsOnboarding && !showOnboarding && (
+                <Suspense fallback={<LazyFallback />}>
+                    <NamePromptModal />
                 </Suspense>
             )}
             {!session && (
@@ -423,7 +431,7 @@ const App = () => {
 
                 {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
                 {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
-                {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} />}
+                {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
                 {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
