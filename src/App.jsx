@@ -127,7 +127,7 @@ const legalContent = {
     'Datenschutz': {
         updated: '01.03.2026',
         sections: [
-            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist ScoutVision UG (haftungsbeschränkt). Bei Fragen zum Datenschutz wende dich an: datenschutz@scoutvision.app' },
+            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist NextXI UG (haftungsbeschränkt). Bei Fragen zum Datenschutz wende dich an: datenschutz@nextxi.app' },
             { title: '2. Welche Daten wir erheben', text: 'Bei der Registrierung erheben wir deine E-Mail-Adresse und dein Passwort (verschlüsselt). Im Profil kannst du freiwillig Name, Position, Geburtsdatum, Vereinszugehörigkeit, Standort und ein Profilbild angeben. Beim Hochladen von Videos speichern wir die Videodateien und zugehörige Metadaten (Skill-Tags, Titel).' },
             { title: '3. Zweck der Verarbeitung', text: 'Deine Daten werden zur Bereitstellung der App-Funktionen verwendet: Profilerstellung, Video-Feed, Suchfunktion, Messaging, Watchlist und Benachrichtigungen. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).' },
             { title: '4. Datenweitergabe', text: 'Wir nutzen Supabase (EU-Region) als Datenbank- und Authentifizierungsanbieter. Videos werden auf Supabase Storage gespeichert. Deine Daten werden nicht an Dritte zu Werbezwecken weitergegeben.' },
@@ -139,8 +139,8 @@ const legalContent = {
     'Impressum': {
         updated: '01.03.2026',
         sections: [
-            { title: 'Angaben gemäß § 5 TMG', text: 'ScoutVision UG (haftungsbeschränkt)\nMusterstraße 1\n10115 Berlin\nDeutschland' },
-            { title: 'Kontakt', text: 'E-Mail: info@scoutvision.app\nTelefon: +49 (0) 30 12345678' },
+            { title: 'Angaben gemäß § 5 TMG', text: 'NextXI UG (haftungsbeschränkt)\nMusterstraße 1\n10115 Berlin\nDeutschland' },
+            { title: 'Kontakt', text: 'E-Mail: info@nextxi.app\nTelefon: +49 (0) 30 12345678' },
             { title: 'Vertretungsberechtigter Geschäftsführer', text: '[Name des Geschäftsführers]' },
             { title: 'Registereintrag', text: 'Handelsregister: Amtsgericht Berlin-Charlottenburg\nRegisternummer: HRB [Nummer]' },
             { title: 'Umsatzsteuer-ID', text: 'Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:\nDE [Nummer]' },
@@ -150,12 +150,12 @@ const legalContent = {
     'AGB': {
         updated: '01.03.2026',
         sections: [
-            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der ScoutVision-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
+            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der NextXI-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
             { title: '2. Kostenlose Nutzung', text: 'Die Nutzung der App ist für Spieler dauerhaft und vollständig kostenlos. Es entstehen keine versteckten Kosten oder Abo-Gebühren.' },
             { title: '3. Nutzer-Inhalte', text: 'Du bist für alle von dir hochgeladenen Inhalte (Videos, Texte, Bilder) verantwortlich. Es ist verboten, Inhalte hochzuladen, die gegen geltendes Recht verstoßen, beleidigend, diskriminierend oder pornografisch sind, oder die Rechte Dritter verletzen.' },
             { title: '4. Melden & Blockieren', text: 'Du kannst unangemessene Inhalte und Nutzer melden. Wir prüfen jede Meldung und behalten uns vor, Inhalte zu entfernen und Accounts zu sperren. Die Block-Funktion ermöglicht dir, Nachrichten und Inhalte bestimmter Nutzer auszublenden.' },
             { title: '5. Account-Löschung', text: 'Du kannst deinen Account jederzeit vollständig und unwiderruflich in den App-Einstellungen löschen. Dabei werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt.' },
-            { title: '6. Haftungsausschluss', text: 'ScoutVision übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
+            { title: '6. Haftungsausschluss', text: 'NextXI übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
         ]
     }
 };

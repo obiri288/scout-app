@@ -91,14 +91,14 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                 <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
                 <div className="animate-in fade-in slide-in-from-right-5">
                     <div className="flex flex-col items-center gap-3 mb-8">
-                        <div className="w-14 h-14 bg-gradient-to-tr from-emerald-600 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-900/30">
-                            {view === 'forgot' ? <Mail size={28} className="text-white" /> : <User size={28} className="text-white" />}
+                        <div className="w-14 h-14 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/40 ring-1 ring-white/10">
+                            <span className="font-black italic text-xl tracking-tighter text-white select-none">XI</span>
                         </div>
                         <h2 className="text-2xl font-bold text-white">
                             {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Willkommen zurück'}
                         </h2>
                         <p className="text-muted-foreground text-sm text-center">
-                            {view === 'register' ? 'Werde Teil der Community' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Melde dich an, um fortzufahren'}
+                            {view === 'register' ? 'Finde deine nächste Elf.' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Melde dich an, um fortzufahren'}
                         </p>
                     </div>
 
@@ -140,7 +140,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     )}
                     {view !== 'forgot' && (
                         <div className="mt-6 pt-6 border-t border-white/5 text-center">
-                            <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ScoutVision?'}</p>
+                            <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei NextXI?'}</p>
                             <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-emerald-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}

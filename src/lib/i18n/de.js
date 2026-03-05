@@ -87,7 +87,7 @@ export const de = {
     settings_theme: 'Design',
     settings_dark: 'Dunkel',
     settings_light: 'Hell',
-    settings_install: 'App installieren',
+    settings_install: 'NextXI App installieren',
     settings_push: 'Push-Benachrichtigungen',
     settings_verify: 'Verifizierung beantragen',
     settings_logout: 'Abmelden',

@@ -85,7 +85,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 player = await api.updatePlayer(player.id, { avatar_url: avatarUrl });
             }
 
-            addToast('Profil erstellt! Willkommen bei ScoutVision 🎉', 'success');
+            addToast('Profil erstellt! Willkommen bei NextXI 🎉', 'success');
             onComplete(player);
         } catch (e) {
             console.error('Onboarding error:', e);

@@ -130,7 +130,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
             ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('SCOUTVISION', W / 2, H - 24);
+            ctx.fillText('NEXTXI', W / 2, H - 24);
 
             // Nationality flag text  
             if (player.nationality) {
@@ -163,7 +163,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
             if (navigator.share && navigator.canShare?.({ files: [file] })) {
                 try {
                     await navigator.share({
-                        title: `${player.full_name} – ScoutVision Card`,
+                        title: `${player.full_name} – NextXI Card`,
                         files: [file],
                     });
                 } catch (_) { /* cancelled */ }
