@@ -64,9 +64,9 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
         const better = highlight && valA !== valB && valA !== '-' && valB !== '-';
         return (
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 border-b border-white/5 last:border-0">
-                <div className={`text-sm text-right font-medium ${better && valA > valB ? 'text-emerald-400' : 'text-white'}`}>{valA || '-'}</div>
+                <div className={`text-sm text-right font-medium ${better && valA > valB ? 'text-amber-400' : 'text-white'}`}>{valA || '-'}</div>
                 <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider w-20 text-center">{label}</div>
-                <div className={`text-sm text-left font-medium ${better && valB > valA ? 'text-emerald-400' : 'text-white'}`}>{valB || '-'}</div>
+                <div className={`text-sm text-left font-medium ${better && valB > valA ? 'text-amber-400' : 'text-white'}`}>{valB || '-'}</div>
             </div>
         );
     };

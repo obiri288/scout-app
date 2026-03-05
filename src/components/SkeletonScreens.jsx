@@ -29,7 +29,7 @@ export const FeedSkeleton = () => (
 export const ProfileSkeleton = () => (
     <div className="animate-in fade-in">
         <div className="relative bg-card pb-6 rounded-b-[2rem] overflow-hidden">
-            <div className="absolute inset-0 h-40 bg-gradient-to-br from-emerald-900/20 via-slate-900/10 to-background" />
+            <div className="absolute inset-0 h-40 bg-gradient-to-br from-amber-900/20 via-slate-900/10 to-background" />
             <div className="flex flex-col items-center pt-16 relative z-10 px-6">
                 {/* Avatar */}
                 <div className="w-32 h-32 rounded-full bg-muted animate-pulse mb-4" />

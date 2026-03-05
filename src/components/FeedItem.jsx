@@ -70,8 +70,8 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                             </div>
                         </div>
                         <div>
-                            <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-emerald-400 transition-colors">
-                                {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-emerald-400" />}
+                            <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-amber-400 transition-colors">
+                                {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-amber-400" />}
                             </div>
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
@@ -102,7 +102,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     {video.skill_tags && video.skill_tags.length > 0 && (
                         <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">
                             {video.skill_tags.slice(0, 3).map(tag => (
-                                <span key={tag} className="bg-emerald-500/20 backdrop-blur-xl border border-emerald-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
+                                <span key={tag} className="bg-amber-500/20 backdrop-blur-xl border border-amber-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
                             ))}
                         </div>
                     )}

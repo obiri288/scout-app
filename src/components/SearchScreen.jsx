@@ -167,7 +167,7 @@ export const SearchScreen = ({ onUserClick }) => {
     };
 
     const FilterChip = ({ label, active, onClick }) => (
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-transparent shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</motion.button>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border-transparent shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</motion.button>
     );
 
     return (
@@ -224,7 +224,7 @@ export const SearchScreen = ({ onUserClick }) => {
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
                             className={`w-full flex items-center justify-between px-5 py-3.5 rounded-2xl text-xs font-bold transition-all duration-300 ease-out mb-4 shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:scale-[1.02] active:scale-95 ${showAdvanced || activeFilterCount > 0
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[inner_0_0_20px_rgba(16,185,129,0.1)]'
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[inner_0_0_20px_rgba(245,158,11,0.1)]'
                                 : 'bg-white/5 text-muted-foreground border border-white/10 hover:border-white/20 hover:text-white backdrop-blur-md'
                                 }`}
                         >
@@ -232,7 +232,7 @@ export const SearchScreen = ({ onUserClick }) => {
                                 <Filter size={14} />
                                 Erweiterte Suche
                                 {activeFilterCount > 0 && (
-                                    <span className="bg-emerald-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px]">{activeFilterCount}</span>
+                                    <span className="bg-amber-500 text-black w-5 h-5 rounded-full flex items-center justify-center text-[10px]">{activeFilterCount}</span>
                                 )}
                             </span>
                             <span>{showAdvanced ? '▲' : '▼'}</span>
@@ -292,7 +292,7 @@ export const SearchScreen = ({ onUserClick }) => {
                         <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-border mb-4 px-1">
                             <button
                                 onClick={() => setShowTagFilter(!showTagFilter)}
-                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-transparent shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
+                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-black border-transparent shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
                             >
                                 <Filter size={12} /> {selectedTag || 'Skill-Filter'}
                             </button>
@@ -310,13 +310,13 @@ export const SearchScreen = ({ onUserClick }) => {
                         {(cityQuery || clubQuery) && (
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {cityQuery && (
-                                    <span className="bg-emerald-600/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                                    <span className="bg-amber-600/20 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
                                         <MapPin size={10} /> {cityQuery}
                                         <button onClick={() => setCityQuery('')} className="ml-1 hover:text-white"><X size={12} /></button>
                                     </span>
                                 )}
                                 {clubQuery && (
-                                    <span className="bg-emerald-600/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                                    <span className="bg-amber-600/20 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
                                         <Shield size={10} /> {clubQuery}
                                         <button onClick={() => setClubQuery('')} className="ml-1 hover:text-white"><X size={12} /></button>
                                     </span>
@@ -333,15 +333,15 @@ export const SearchScreen = ({ onUserClick }) => {
                             >
                                 {res.map(p => (
                                     <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
-                                        <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-emerald-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-4" />}</div>
+                                        <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-amber-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-4" />}</div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center"><h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-muted-foreground tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-border">{p.position_primary}</span></div>
                                             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground font-medium truncate">
-                                                <span className="flex items-center gap-1"><Shield size={10} className="text-emerald-500" /> {p.clubs?.name || "Vereinslos"}</span>
+                                                <span className="flex items-center gap-1"><Shield size={10} className="text-amber-500" /> {p.clubs?.name || "Vereinslos"}</span>
                                                 {p.city && <span className="flex items-center gap-1 truncate"><MapPin size={10} className="shrink-0" /> <span className="truncate">{p.city}</span></span>}
                                             </div>
                                         </div>
-                                        <ChevronRight size={18} className="text-muted-foreground group-hover:text-emerald-500 transition-colors" />
+                                        <ChevronRight size={18} className="text-muted-foreground group-hover:text-amber-500 transition-colors" />
                                     </motion.div>
                                 ))}
                                 {res.length === 0 && <div className="text-center py-20 text-muted-foreground"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}

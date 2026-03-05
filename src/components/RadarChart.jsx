@@ -244,7 +244,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile }) => {
                                             next[i] = parseInt(e.target.value);
                                             setEditValues(next);
                                         }}
-                                        className="flex-1 h-1.5 accent-emerald-500 bg-zinc-800 rounded-full appearance-none cursor-pointer"
+                                        className="flex-1 h-1.5 accent-amber-500 bg-zinc-800 rounded-full appearance-none cursor-pointer"
                                     />
                                     <span className="text-xs font-bold text-foreground w-6 text-right">{editValues[i]}</span>
                                 </div>
@@ -253,7 +253,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile }) => {
                                 <button
                                     onClick={handleSubmit}
                                     disabled={submitting}
-                                    className="flex-1 bg-emerald-600 text-white font-bold text-xs py-2 rounded-lg"
+                                    className="flex-1 bg-amber-600 text-white font-bold text-xs py-2 rounded-lg"
                                 >
                                     {submitting ? 'Speichern...' : 'Bewertung speichern'}
                                 </button>

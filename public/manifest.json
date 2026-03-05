@@ -1,11 +1,11 @@
 {
-  "name": "NextXI",
-  "short_name": "NextXI",
-  "description": "NextXI – Die Scouting-Plattform für den Amateurfußball",
+  "name": "ProBase",
+  "short_name": "ProBase",
+  "description": "ProBase – Die exklusive Scouting-Datenbank für angehende Profis",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/33/33736.png",

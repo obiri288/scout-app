@@ -22,7 +22,7 @@ export const WelcomeCard = ({ profile }) => {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mb-6 px-4"
         >
-            <Card className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-slate-900 border-none text-white shadow-[0_8px_40px_rgba(16,185,129,0.25)] overflow-hidden relative">
+            <Card className="bg-gradient-to-br from-amber-600 via-amber-700 to-slate-900 border-none text-white shadow-[0_8px_40px_rgba(16,185,129,0.25)] overflow-hidden relative">
                 {/* Decorative background elements */}
                 <div className="absolute top-0 right-0 p-4 opacity-10 rotate-12">
                     <Sparkles size={90} />
@@ -31,7 +31,7 @@ export const WelcomeCard = ({ profile }) => {
 
                 <CardHeader className="pb-2 relative z-10">
                     <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="secondary" className="bg-white/15 text-emerald-200 border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+                        <Badge variant="secondary" className="bg-white/15 text-amber-200 border-none px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
                             <Eye size={10} className="mr-1" /> Scout Mode
                         </Badge>
                     </div>
@@ -41,7 +41,7 @@ export const WelcomeCard = ({ profile }) => {
                 </CardHeader>
 
                 <CardContent className="relative z-10">
-                    <p className="text-emerald-100/80 text-sm mb-4 leading-relaxed">
+                    <p className="text-amber-100/80 text-sm mb-4 leading-relaxed">
                         Entdecke die neuesten Highlights, verfolge Talente und finde den nächsten Star für dein Team.
                     </p>
 
@@ -50,7 +50,7 @@ export const WelcomeCard = ({ profile }) => {
                         whileTap={{ scale: 0.97 }}
                         className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 transition-colors px-4 py-2.5 rounded-xl cursor-pointer backdrop-blur-sm border border-white/10"
                     >
-                        <TrendingUp size={14} className="text-emerald-300" />
+                        <TrendingUp size={14} className="text-amber-300" />
                         Dein Status: Aktiv
                     </motion.div>
                 </CardContent>

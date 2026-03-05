@@ -32,7 +32,7 @@ const listItemVariants = {
 const NOTIF_CONFIG = {
     like: { icon: Heart, color: 'text-red-400', bg: 'bg-red-500/15', textDE: 'hat dein Video geliked.', textEN: 'liked your video.' },
     follow: { icon: UserPlus, color: 'text-blue-400', bg: 'bg-blue-500/15', textDE: 'folgt dir jetzt.', textEN: 'started following you.' },
-    watchlist_add: { icon: Bookmark, color: 'text-emerald-400', bg: 'bg-emerald-500/15', textDE: 'hat dich auf die Watchlist gesetzt! 🔥', textEN: 'added you to their watchlist! 🔥' },
+    watchlist_add: { icon: Bookmark, color: 'text-amber-400', bg: 'bg-amber-500/15', textDE: 'hat dich auf die Watchlist gesetzt! 🔥', textEN: 'added you to their watchlist! 🔥' },
     rating: { icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/15', textDE: 'hat dich bewertet.', textEN: 'rated your profile.' },
     likes_milestone: { icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15', textDE: 'Likes erreicht!', textEN: 'likes reached!' },
     comment: { icon: Mail, color: 'text-purple-400', bg: 'bg-purple-500/15', textDE: 'hat kommentiert.', textEN: 'left a comment.' },
@@ -131,7 +131,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
         }
 
         return (
-            <motion.div key={n.id} variants={listItemVariants} className={`flex items-start gap-3.5 p-4 ${cardStyle} ${!n.read ? 'border-l-2 border-l-emerald-500' : ''}`}>
+            <motion.div key={n.id} variants={listItemVariants} className={`flex items-start gap-3.5 p-4 ${cardStyle} ${!n.read ? 'border-l-2 border-l-amber-500' : ''}`}>
                 {/* Icon */}
                 <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center shrink-0 mt-0.5`}>
                     <Icon size={18} className={config.color} />
@@ -163,7 +163,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                 <div className="flex bg-card rounded-xl p-1 mb-4 border border-border relative">
                     <button onClick={() => setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'notifications' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>
                         Mitteilungen
-                        {hasUnread && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-emerald-500 rounded-full inline-block animate-pulse" />}
+                        {hasUnread && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-amber-500 rounded-full inline-block animate-pulse" />}
                     </button>
                     <button onClick={() => setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'messages' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>Nachrichten</button>
                 </div>
@@ -177,7 +177,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                                     key={tab.id}
                                     onClick={() => setNotifFilter(tab.id)}
                                     className={`text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${notifFilter === tab.id
-                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
                                         : 'bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10'
                                         }`}
                                 >
@@ -188,7 +188,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                         {hasUnread && (
                             <button
                                 onClick={handleMarkAllRead}
-                                className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition shrink-0 ml-2"
+                                className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition shrink-0 ml-2"
                             >
                                 <CheckCheck size={14} /> Gelesen
                             </button>

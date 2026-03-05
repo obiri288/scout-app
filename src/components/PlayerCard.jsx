@@ -130,7 +130,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
             ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('NEXTXI', W / 2, H - 24);
+            ctx.fillText('PROBASE', W / 2, H - 24);
 
             // Nationality flag text  
             if (player.nationality) {
@@ -163,7 +163,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
             if (navigator.share && navigator.canShare?.({ files: [file] })) {
                 try {
                     await navigator.share({
-                        title: `${player.full_name} – NextXI Card`,
+                        title: `${player.full_name} – ProBase Card`,
                         files: [file],
                     });
                 } catch (_) { /* cancelled */ }
@@ -203,7 +203,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
                         transition={{ delay: 0.3 }}
                         className="flex gap-3"
                     >
-                        <button onClick={handleShare} className="flex items-center gap-2 bg-emerald-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg border border-emerald-400/20">
+                        <button onClick={handleShare} className="flex items-center gap-2 bg-amber-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg border border-amber-400/20">
                             <Share2 size={16} /> Teilen
                         </button>
                         <button onClick={handleDownload} className="flex items-center gap-2 bg-white/10 text-white font-bold text-sm px-6 py-2.5 rounded-xl border border-white/10 hover:bg-white/20 transition">

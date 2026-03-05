@@ -31,7 +31,7 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
 
     const handleShare = () => {
         if (user?.id) {
-            navigator.clipboard.writeText(`https://nextxi.app/u/${user.id}`);
+            navigator.clipboard.writeText(`https://probase.app/u/${user.id}`);
             addToast('Link in Zwischenablage!', 'success');
         }
     };

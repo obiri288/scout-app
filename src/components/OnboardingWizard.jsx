@@ -85,7 +85,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 player = await api.updatePlayer(player.id, { avatar_url: avatarUrl });
             }
 
-            addToast('Profil erstellt! Willkommen bei NextXI 🎉', 'success');
+            addToast('Profil erstellt! Willkommen bei ProBase 🎉', 'success');
             onComplete(player);
         } catch (e) {
             console.error('Onboarding error:', e);
@@ -97,17 +97,17 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
     const steps = [
         {
-            icon: <Target className="text-emerald-400" size={28} />,
+            icon: <Target className="text-amber-400" size={28} />,
             title: 'Wer bist du?',
             subtitle: 'Erzähl uns ein bisschen über dich.',
         },
         {
-            icon: <Camera className="text-emerald-400" size={28} />,
+            icon: <Camera className="text-amber-400" size={28} />,
             title: 'Dein Profilbild',
             subtitle: 'Ein gutes Foto erhöht deine Sichtbarkeit.',
         },
         {
-            icon: <Sparkles className="text-emerald-400" size={28} />,
+            icon: <Sparkles className="text-amber-400" size={28} />,
             title: 'Fast geschafft!',
             subtitle: 'Starte jetzt und werde entdeckt.',
         },
@@ -118,7 +118,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             {/* Progress Bar */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
                 <motion.div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                    className="h-full bg-gradient-to-r from-amber-500 to-amber-400"
                     initial={false}
                     animate={{ width: `${((step + 1) / 3) * 100}%` }}
                     transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -128,7 +128,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             {/* Step Indicator */}
             <div className="absolute top-6 left-0 right-0 flex justify-center gap-2 px-6">
                 {[0, 1, 2].map(i => (
-                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i <= step ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i <= step ? 'bg-amber-500' : 'bg-zinc-700'}`} />
                 ))}
             </div>
 
@@ -145,7 +145,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         className="flex flex-col items-center"
                     >
                         {/* Header */}
-                        <div className="p-3 bg-emerald-500/10 rounded-2xl mb-4">
+                        <div className="p-3 bg-amber-500/10 rounded-2xl mb-4">
                             {steps[step].icon}
                         </div>
                         <h2 className="text-2xl font-black text-white mb-1">{steps[step].title}</h2>
@@ -161,7 +161,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         value={fullName}
                                         onChange={(e) => setFullName(e.target.value)}
                                         placeholder="Dein vollständiger Name"
-                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
@@ -172,7 +172,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                                 key={pos}
                                                 onClick={() => setPosition(pos)}
                                                 className={`px-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${position === pos
-                                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                                                    ? 'bg-amber-500/20 border-amber-500 text-amber-400'
                                                     : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
                                                     }`}
                                             >
@@ -187,7 +187,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         type="date"
                                         value={birthDate}
                                         onChange={(e) => setBirthDate(e.target.value)}
-                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-amber-500 transition-colors"
                                     />
                                 </div>
                             </div>
@@ -197,7 +197,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         {step === 1 && (
                             <div className="w-full flex flex-col items-center space-y-6">
                                 <label className="cursor-pointer group">
-                                    <div className="relative w-36 h-36 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-600 group-hover:border-emerald-500 transition-colors overflow-hidden flex items-center justify-center">
+                                    <div className="relative w-36 h-36 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-600 group-hover:border-amber-500 transition-colors overflow-hidden flex items-center justify-center">
                                         {avatarPreview ? (
                                             <img src={avatarPreview} className="w-full h-full object-cover" alt="Avatar" />
                                         ) : (
@@ -220,8 +220,8 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                             <div className="w-full space-y-4">
                                 <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                                            {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <User size={20} className="text-emerald-400" />}
+                                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                            {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <User size={20} className="text-amber-400" />}
                                         </div>
                                         <div>
                                             <p className="font-bold text-white">{fullName || 'Dein Name'}</p>
@@ -231,10 +231,10 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     <div className="h-px bg-zinc-700"></div>
                                     <div className="text-xs text-zinc-400 space-y-1.5">
                                         <div className="flex items-center gap-2">
-                                            <Check size={14} className="text-emerald-500" /> Profil erstellen
+                                            <Check size={14} className="text-amber-500" /> Profil erstellen
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Check size={14} className={avatarPreview ? 'text-emerald-500' : 'text-zinc-600'} />
+                                            <Check size={14} className={avatarPreview ? 'text-amber-500' : 'text-zinc-600'} />
                                             <span className={avatarPreview ? '' : 'text-zinc-600'}>Profilbild hochladen</span>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -265,7 +265,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                     <button
                         onClick={goNext}
                         disabled={step === 0 && (!fullName.trim() || !position)}
-                        className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/30 disabled:text-emerald-300/50 text-white rounded-xl font-bold text-sm transition flex items-center gap-2"
+                        className="px-6 py-3.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-600/30 disabled:text-amber-300/50 text-white rounded-xl font-bold text-sm transition flex items-center gap-2"
                     >
                         Weiter <ArrowRight size={16} />
                     </button>
@@ -273,7 +273,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                     <button
                         onClick={() => handleFinish(true)}
                         disabled={loading}
-                        className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/50 text-white rounded-xl font-bold text-sm transition flex items-center gap-2"
+                        className="px-6 py-3.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-600/50 text-white rounded-xl font-bold text-sm transition flex items-center gap-2"
                     >
                         {loading ? <><Loader2 size={16} className="animate-spin" /> Speichern...</> : <><Sparkles size={16} /> Los geht's!</>}
                     </button>

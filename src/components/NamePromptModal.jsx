@@ -52,8 +52,8 @@ export const NamePromptModal = () => {
             >
                 {/* Icon */}
                 <div className="flex flex-col items-center mb-8">
-                    <div className="p-4 bg-emerald-500/10 rounded-2xl mb-4">
-                        <User className="text-emerald-400" size={32} />
+                    <div className="p-4 bg-amber-500/10 rounded-2xl mb-4">
+                        <User className="text-amber-400" size={32} />
                     </div>
                     <h2 className="text-2xl font-black text-white text-center mb-2">
                         Wie heißt du auf dem Platz?
@@ -72,7 +72,7 @@ export const NamePromptModal = () => {
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
                             placeholder="Max"
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
                             autoFocus
                             required
                         />
@@ -84,7 +84,7 @@ export const NamePromptModal = () => {
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
                             placeholder="Mustermann"
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
                             required
                         />
                     </div>
@@ -94,7 +94,7 @@ export const NamePromptModal = () => {
                         disabled={loading || !firstName.trim() || !lastName.trim()}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.97 }}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-600/30 disabled:text-emerald-300/50 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 mt-6"
+                        className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-600/30 disabled:text-amber-300/50 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 mt-6"
                     >
                         {loading ? (
                             <><Loader2 size={18} className="animate-spin" /> Wird gespeichert...</>

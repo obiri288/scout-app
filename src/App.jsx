@@ -127,7 +127,7 @@ const legalContent = {
     'Datenschutz': {
         updated: '01.03.2026',
         sections: [
-            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist NextXI UG (haftungsbeschränkt). Bei Fragen zum Datenschutz wende dich an: datenschutz@nextxi.app' },
+            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist ProBase UG (haftungsbeschränkt). Bei Fragen zum Datenschutz wende dich an: datenschutz@probase.app' },
             { title: '2. Welche Daten wir erheben', text: 'Bei der Registrierung erheben wir deine E-Mail-Adresse und dein Passwort (verschlüsselt). Im Profil kannst du freiwillig Name, Position, Geburtsdatum, Vereinszugehörigkeit, Standort und ein Profilbild angeben. Beim Hochladen von Videos speichern wir die Videodateien und zugehörige Metadaten (Skill-Tags, Titel).' },
             { title: '3. Zweck der Verarbeitung', text: 'Deine Daten werden zur Bereitstellung der App-Funktionen verwendet: Profilerstellung, Video-Feed, Suchfunktion, Messaging, Watchlist und Benachrichtigungen. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).' },
             { title: '4. Datenweitergabe', text: 'Wir nutzen Supabase (EU-Region) als Datenbank- und Authentifizierungsanbieter. Videos werden auf Supabase Storage gespeichert. Deine Daten werden nicht an Dritte zu Werbezwecken weitergegeben.' },
@@ -139,8 +139,8 @@ const legalContent = {
     'Impressum': {
         updated: '01.03.2026',
         sections: [
-            { title: 'Angaben gemäß § 5 TMG', text: 'NextXI UG (haftungsbeschränkt)\nMusterstraße 1\n10115 Berlin\nDeutschland' },
-            { title: 'Kontakt', text: 'E-Mail: info@nextxi.app\nTelefon: +49 (0) 30 12345678' },
+            { title: 'Angaben gemäß § 5 TMG', text: 'ProBase UG (haftungsbeschränkt)\nMusterstraße 1\n10115 Berlin\nDeutschland' },
+            { title: 'Kontakt', text: 'E-Mail: info@probase.app\nTelefon: +49 (0) 30 12345678' },
             { title: 'Vertretungsberechtigter Geschäftsführer', text: '[Name des Geschäftsführers]' },
             { title: 'Registereintrag', text: 'Handelsregister: Amtsgericht Berlin-Charlottenburg\nRegisternummer: HRB [Nummer]' },
             { title: 'Umsatzsteuer-ID', text: 'Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:\nDE [Nummer]' },
@@ -150,12 +150,12 @@ const legalContent = {
     'AGB': {
         updated: '01.03.2026',
         sections: [
-            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der NextXI-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
+            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der ProBase-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
             { title: '2. Kostenlose Nutzung', text: 'Die Nutzung der App ist für Spieler dauerhaft und vollständig kostenlos. Es entstehen keine versteckten Kosten oder Abo-Gebühren.' },
             { title: '3. Nutzer-Inhalte', text: 'Du bist für alle von dir hochgeladenen Inhalte (Videos, Texte, Bilder) verantwortlich. Es ist verboten, Inhalte hochzuladen, die gegen geltendes Recht verstoßen, beleidigend, diskriminierend oder pornografisch sind, oder die Rechte Dritter verletzen.' },
             { title: '4. Melden & Blockieren', text: 'Du kannst unangemessene Inhalte und Nutzer melden. Wir prüfen jede Meldung und behalten uns vor, Inhalte zu entfernen und Accounts zu sperren. Die Block-Funktion ermöglicht dir, Nachrichten und Inhalte bestimmter Nutzer auszublenden.' },
             { title: '5. Account-Löschung', text: 'Du kannst deinen Account jederzeit vollständig und unwiderruflich in den App-Einstellungen löschen. Dabei werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt.' },
-            { title: '6. Haftungsausschluss', text: 'NextXI übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
+            { title: '6. Haftungsausschluss', text: 'ProBase übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
         ]
     }
 };
@@ -266,7 +266,7 @@ const App = () => {
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
     return (
-        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-emerald-500/30 pb-32">
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-amber-500/30 pb-32">
             {/* Celebration Animation */}
             <CelebrationAnimation active={showCelebration} onComplete={() => setShowCelebration(false)} />
             {/* Onboarding Wizard */}
@@ -290,7 +290,7 @@ const App = () => {
                 </Suspense>
             )}
             {!session && (
-                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(16,185,129,0.4)] flex items-center gap-2 hover:bg-emerald-700 transition-all hover:scale-105 active:scale-95 border border-emerald-500/30">
+                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-gradient-to-r from-amber-400 to-orange-500 text-black px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(245,158,11,0.4)] flex items-center gap-2 hover:from-amber-300 hover:to-orange-400 transition-all hover:scale-105 active:scale-95 border border-amber-400/30">
                     <LogIn size={14} /> Login
                 </button>
             )}
@@ -337,7 +337,7 @@ const App = () => {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.92 }}
                     onClick={() => session ? setShowUpload(true) : setShowLogin(true)}
-                    className="w-14 h-14 bg-gradient-to-tr from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-white/20 group"
+                    className="w-14 h-14 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.4)] border border-white/20 group"
                 >
                     <Plus size={28} className="text-white group-hover:rotate-90 transition-transform duration-500" strokeWidth={2.5} />
                 </motion.button>
@@ -346,19 +346,19 @@ const App = () => {
             {/* Smart Minimal Bottom Navigation */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-card/80 backdrop-blur-2xl border border-border py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(16,185,129,0.05)] flex justify-between items-center z-[9999] pointer-events-auto">
                 {/* Home */}
-                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Home size={22} className={`transition-transform duration-500 ${activeTab === 'home' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'home' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Home</span>
                 </button>
 
                 {/* Search */}
-                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Search size={22} className={`transition-transform duration-500 ${activeTab === 'search' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'search' ? 'w-14 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Suchen</span>
                 </button>
 
                 {/* Inbox */}
-                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <div className="relative">
                         <Mail size={22} className={`transition-transform duration-500 ${activeTab === 'inbox' ? 'scale-110' : ''}`} />
                         {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-card">{unreadCount}</span>}
@@ -367,7 +367,7 @@ const App = () => {
                 </button>
 
                 {/* Profile */}
-                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-emerald-500/15 text-emerald-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Profil</span>
                 </button>
@@ -379,7 +379,7 @@ const App = () => {
             {activeVideo && (
                 <div className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
                     <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-border rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-muted-foreground hover:text-white"><X size={24} /></button>
-                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-emerald-500/5 border border-border" />
+                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-amber-500/5 border border-border" />
                 </div>
             )}
 
