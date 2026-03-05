@@ -91,7 +91,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                 <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
                 <div className="animate-in fade-in slide-in-from-right-5">
                     <div className="flex flex-col items-center gap-3 mb-8">
-                        <div className="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-900/20 ring-1 ring-amber-500/20">
+                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-900/20 ring-1 ring-cyan-500/20">
                             <div className="text-lg tracking-tighter flex items-baseline"><span className="font-black text-white">PRO</span><span className="font-semibold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 ml-0.5">BASE</span></div>
                         </div>
                         <h2 className="text-2xl font-bold text-white">
@@ -106,7 +106,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                         <div className="text-center space-y-4">
                             <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
                             {view === 'forgot' && (
-                                <button onClick={() => { setView('login'); setSuccessMsg(''); }} className="text-amber-400 text-sm font-bold hover:underline">
+                                <button onClick={() => { setView('login'); setSuccessMsg(''); }} className="text-cyan-400 text-sm font-bold hover:underline">
                                     Zurück zum Login
                                 </button>
                             )}
@@ -130,7 +130,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                                 {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
                             </div>
                             {view === 'login' && (
-                                <button type="button" onClick={() => { setView('forgot'); setMsg(''); }} className="text-xs text-muted-foreground hover:text-amber-400 transition">
+                                <button type="button" onClick={() => { setView('forgot'); setMsg(''); }} className="text-xs text-muted-foreground hover:text-cyan-400 transition">
                                     Passwort vergessen?
                                 </button>
                             )}
@@ -141,14 +141,14 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     {view !== 'forgot' && (
                         <div className="mt-6 pt-6 border-t border-white/5 text-center">
                             <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ProBase?'}</p>
-                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-amber-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}
                     {/* Legal Links */}
                     <div className="mt-4 pt-4 border-t border-white/5 flex justify-center gap-4">
-                        <button type="button" onClick={() => onLegalOpen?.('privacy')} className="text-muted-foreground text-[10px] hover:text-amber-400 transition">Datenschutz</button>
+                        <button type="button" onClick={() => onLegalOpen?.('privacy')} className="text-muted-foreground text-[10px] hover:text-cyan-400 transition">Datenschutz</button>
                         <span className="text-zinc-700 text-[10px]">·</span>
-                        <button type="button" onClick={() => onLegalOpen?.('imprint')} className="text-muted-foreground text-[10px] hover:text-amber-400 transition">Impressum</button>
+                        <button type="button" onClick={() => onLegalOpen?.('imprint')} className="text-muted-foreground text-[10px] hover:text-cyan-400 transition">Impressum</button>
                     </div>
                 </div>
             </div>

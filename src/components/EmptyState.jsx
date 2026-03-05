@@ -20,8 +20,8 @@ export const EmptyState = ({ icon: Icon, title, description, actionLabel, onActi
                     transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 20 }}
                     className="mb-5"
                 >
-                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/15 to-amber-600/5 border border-amber-500/10 flex items-center justify-center shadow-lg shadow-amber-500/5">
-                        <Icon size={36} className="text-amber-400/60" />
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-600/15 to-cyan-400/5 border border-indigo-500/10 flex items-center justify-center shadow-lg shadow-indigo-500/5">
+                        <Icon size={36} className="text-cyan-400/60" />
                     </div>
                 </motion.div>
             )}
@@ -51,7 +51,7 @@ export const EmptyState = ({ icon: Icon, title, description, actionLabel, onActi
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={onAction}
-                    className="bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-amber-900/30 border border-amber-400/20 transition-all"
+                    className="bg-gradient-to-r from-indigo-600 to-cyan-400 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-indigo-900/30 border border-white/10 transition-all hover:shadow-[0_0_20px_rgba(0,240,255,0.3)]"
                 >
                     {actionLabel}
                 </motion.button>

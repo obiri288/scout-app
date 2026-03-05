@@ -51,7 +51,7 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
                     {video.skill_tags && video.skill_tags.length > 0 && (
                         <div className="absolute top-2 left-2 flex flex-wrap gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {video.skill_tags.slice(0, 2).map(tag => (
-                                <span key={tag} className="bg-amber-600/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">{tag}</span>
+                                <span key={tag} className="bg-cyan-600/80 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">{tag}</span>
                             ))}
                         </div>
                     )}
@@ -118,15 +118,15 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
 
     const statusColors = {
         'Gebunden': 'bg-red-500 shadow-red-500/50',
-        'Vertrag läuft aus': 'bg-amber-500 shadow-amber-500/50',
-        'Suche Verein': 'bg-amber-500 shadow-amber-500/50'
+        'Vertrag läuft aus': 'bg-cyan-500 shadow-cyan-500/50',
+        'Suche Verein': 'bg-cyan-500 shadow-cyan-500/50'
     };
-    const statusTextClass = player.transfer_status === 'Suche Verein' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : player.transfer_status === 'Vertrag läuft aus' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20';
+    const statusTextClass = player.transfer_status === 'Suche Verein' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' : player.transfer_status === 'Vertrag läuft aus' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20';
 
     return (
         <div className="min-h-screen pb-32 animate-in fade-in">
             <div className="relative bg-card pb-6 rounded-b-[2rem] shadow-2xl border-b border-border">
-                <div className="absolute inset-0 h-40 bg-gradient-to-br from-amber-900/30 via-slate-900/20 to-background pointer-events-none"></div>
+                <div className="absolute inset-0 h-40 bg-gradient-to-br from-cyan-900/30 via-slate-900/20 to-background pointer-events-none"></div>
 
                 {/* Nav */}
                 <div className="pt-6 px-6 flex justify-between items-center relative z-10">
@@ -140,7 +140,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                 {showProfileMenu && (
                                     <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px] animate-in fade-in slide-in-from-top-2 z-20">
                                         <button onClick={() => { setShowProfileMenu(false); onReport?.({ id: player.user_id, type: 'user' }); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition">
-                                            <Flag size={16} className="text-amber-400" /> Nutzer melden
+                                            <Flag size={16} className="text-cyan-400" /> Nutzer melden
                                         </button>
                                         <button onClick={() => { setShowProfileMenu(false); onBlock?.(player); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition border-t border-white/5">
                                             <ShieldOff size={16} /> Nutzer blockieren
@@ -156,7 +156,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                 <div className="flex flex-col items-center pt-2 relative z-10 px-6">
                     {/* Avatar */}
                     <div className="relative mb-4 group">
-                        <div className="absolute -inset-1 rounded-full blur opacity-40 bg-gradient-to-tr from-amber-500 to-amber-700"></div>
+                        <div className="absolute -inset-1 rounded-full blur opacity-40 bg-gradient-to-tr from-cyan-500 to-cyan-700"></div>
                         <div className="relative w-32 h-32 rounded-full bg-card overflow-hidden border-4 border-card shadow-2xl">
                             {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={56} className="text-muted-foreground m-8" />}
                         </div>
@@ -165,13 +165,13 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     {/* Name & Badge */}
                     <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
                         {player.full_name}
-                        {player.is_verified && <CheckCircle size={20} className="text-amber-500 fill-amber-500/10" />}
+                        {player.is_verified && <CheckCircle size={20} className="text-cyan-500 fill-cyan-500/10" />}
                     </h1>
                     <XPLevelBadge playerId={player.id} compact />
 
                     {/* Club & Position */}
                     <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-4">
-                        {player.clubs?.is_icon_league && <Crown size={14} className="text-amber-400" />}
+                        {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
                         <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || "Vereinslos"}</span>
                         <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
                         <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
@@ -214,11 +214,11 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                 <button onClick={() => setShowPlayerCard(true)} className="bg-muted text-foreground p-3 rounded-xl border border-border hover:bg-muted/80 transition">
                                     <Share2 size={20} />
                                 </button>
-                                {player.is_admin && <button onClick={onAdminReq} className="bg-amber-900/30 text-amber-400 p-3 rounded-xl border border-amber-500/30 hover:bg-amber-900/50"><Database size={20} /></button>}
+                                {player.is_admin && <button onClick={onAdminReq} className="bg-cyan-900/30 text-cyan-400 p-3 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50"><Database size={20} /></button>}
                             </>
                         ) : (
                             <>
-                                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-muted text-foreground border-border' : 'bg-amber-600 text-white shadow-lg shadow-amber-900/20'} border py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
+                                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-muted text-foreground border-border' : 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20'} border py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
                                     {player.isFollowing ? <Check size={18} /> : <Plus size={18} />}
                                     {player.isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </motion.button>
@@ -226,7 +226,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                     <MessageCircle size={20} />
                                 </button>
                                 {session && onWatchlistToggle && (
-                                    <button onClick={onWatchlistToggle} className={`p-3 rounded-xl border transition ${isOnWatchlist ? 'bg-amber-600/20 text-amber-400 border-amber-500/30' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground'}`}>
+                                    <button onClick={onWatchlistToggle} className={`p-3 rounded-xl border transition ${isOnWatchlist ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/30' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground'}`}>
                                         {isOnWatchlist ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
                                     </button>
                                 )}
@@ -284,7 +284,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
     const TabBtn = ({ id, label }) => (
         <button
             onClick={() => setActiveTab(id)}
-            className={`pb-2 text-sm font-bold transition ${activeTab === id ? 'text-foreground border-b-2 border-amber-500' : 'text-muted-foreground hover:text-foreground/70'}`}
+            className={`pb-2 text-sm font-bold transition ${activeTab === id ? 'text-foreground border-b-2 border-cyan-500' : 'text-muted-foreground hover:text-foreground/70'}`}
         >
             {label}
         </button>
@@ -385,12 +385,12 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                             <h4 className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-3">Externe Profile</h4>
                             <div className="space-y-2">
                                 {player.transfermarkt_url && (
-                                    <a href={player.transfermarkt_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 p-3 rounded-xl text-sm text-amber-400 hover:bg-white/10 transition border border-border">
+                                    <a href={player.transfermarkt_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 p-3 rounded-xl text-sm text-cyan-400 hover:bg-white/10 transition border border-border">
                                         🔗 Transfermarkt Profil
                                     </a>
                                 )}
                                 {player.fupa_url && (
-                                    <a href={player.fupa_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 p-3 rounded-xl text-sm text-amber-400 hover:bg-white/10 transition border border-border">
+                                    <a href={player.fupa_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 p-3 rounded-xl text-sm text-cyan-400 hover:bg-white/10 transition border border-border">
                                         🔗 FuPa Profil
                                     </a>
                                 )}
@@ -405,7 +405,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 
 // Helper components
 const StatCard = ({ label, value, sub, highlight, small }) => (
-    <motion.div whileHover={{ scale: 1.03, borderColor: "rgba(16,185,129,0.3)" }} transition={{ type: "spring", stiffness: 400, damping: 25 }} className={`bg-white/5 border border-border rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-amber-500/30 bg-amber-500/5' : ''}`}>
+    <motion.div whileHover={{ scale: 1.03, borderColor: "rgba(16,185,129,0.3)" }} transition={{ type: "spring", stiffness: 400, damping: 25 }} className={`bg-white/5 border border-border rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-cyan-500/30 bg-cyan-500/5' : ''}`}>
         <div className={`font-black text-foreground ${small ? 'text-xs' : 'text-lg'}`}>{value}</div>
         <div className="text-[10px] text-muted-foreground uppercase font-bold mt-1">{label}</div>
         {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}

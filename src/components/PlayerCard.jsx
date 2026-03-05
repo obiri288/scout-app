@@ -203,7 +203,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
                         transition={{ delay: 0.3 }}
                         className="flex gap-3"
                     >
-                        <button onClick={handleShare} className="flex items-center gap-2 bg-amber-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg border border-amber-400/20">
+                        <button onClick={handleShare} className="flex items-center gap-2 bg-indigo-600 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg border border-indigo-400/20 hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] transition-all">
                             <Share2 size={16} /> Teilen
                         </button>
                         <button onClick={handleDownload} className="flex items-center gap-2 bg-white/10 text-white font-bold text-sm px-6 py-2.5 rounded-xl border border-white/10 hover:bg-white/20 transition">

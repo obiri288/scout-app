@@ -23,8 +23,8 @@ const FIELDS = [
 ];
 
 const getMotivation = (score) => {
-    if (score >= 100) return { text: 'Perfekt! 🏆', color: 'text-amber-400' };
-    if (score >= 80) return { text: 'Fast da! 🔥', color: 'text-amber-400' };
+    if (score >= 100) return { text: 'Perfekt! 🏆', color: 'text-cyan-400' };
+    if (score >= 80) return { text: 'Fast da! 🔥', color: 'text-cyan-400' };
     if (score >= 50) return { text: 'Guter Start! 💪', color: 'text-blue-400' };
     return { text: 'Leg los! 🚀', color: 'text-purple-400' };
 };
@@ -93,8 +93,8 @@ export const ProfileCompletenessCard = ({ player, highlightsCount = 0, onEditPro
                         initial={{ width: 0 }}
                         animate={{ width: `${score}%` }}
                         transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-                        className={`h-full rounded-full ${score >= 80 ? 'bg-gradient-to-r from-amber-500 to-amber-400' :
-                            score >= 50 ? 'bg-gradient-to-r from-blue-500 to-amber-400' :
+                        className={`h-full rounded-full ${score >= 80 ? 'bg-gradient-to-r from-cyan-500 to-cyan-400' :
+                            score >= 50 ? 'bg-gradient-to-r from-blue-500 to-cyan-400' :
                                 'bg-gradient-to-r from-purple-500 to-blue-400'
                             }`}
                     />
@@ -120,7 +120,7 @@ export const ProfileCompletenessCard = ({ player, highlightsCount = 0, onEditPro
                     onClick={onEditProfile}
                     className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold text-xs py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
                 >
-                    <CheckCircle size={14} className="text-amber-400" /> Profil vervollständigen
+                    <CheckCircle size={14} className="text-cyan-400" /> Profil vervollständigen
                 </button>
             </div>
         </motion.div>

@@ -266,7 +266,7 @@ const App = () => {
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
     return (
-        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-amber-500/30 pb-32">
+        <div className="min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/30 pb-32">
             {/* Celebration Animation */}
             <CelebrationAnimation active={showCelebration} onComplete={() => setShowCelebration(false)} />
             {/* Onboarding Wizard */}
@@ -290,7 +290,7 @@ const App = () => {
                 </Suspense>
             )}
             {!session && (
-                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-gradient-to-r from-amber-400 to-orange-500 text-black px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(245,158,11,0.4)] flex items-center gap-2 hover:from-amber-300 hover:to-orange-400 transition-all hover:scale-105 active:scale-95 border border-amber-400/30">
+                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-gradient-to-r from-indigo-600 to-cyan-400 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(99,102,241,0.4)] flex items-center gap-2 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all hover:scale-105 active:scale-95 border border-white/10">
                     <LogIn size={14} /> Login
                 </button>
             )}
@@ -337,7 +337,7 @@ const App = () => {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.92 }}
                     onClick={() => session ? setShowUpload(true) : setShowLogin(true)}
-                    className="w-14 h-14 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.4)] border border-white/20 group"
+                    className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-cyan-400 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.3)] border border-white/20 group"
                 >
                     <Plus size={28} className="text-white group-hover:rotate-90 transition-transform duration-500" strokeWidth={2.5} />
                 </motion.button>
@@ -346,19 +346,19 @@ const App = () => {
             {/* Smart Minimal Bottom Navigation */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-card/80 backdrop-blur-2xl border border-border py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(16,185,129,0.05)] flex justify-between items-center z-[9999] pointer-events-auto">
                 {/* Home */}
-                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Home size={22} className={`transition-transform duration-500 ${activeTab === 'home' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'home' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Home</span>
                 </button>
 
                 {/* Search */}
-                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={() => switchTab('search')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'search' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Search size={22} className={`transition-transform duration-500 ${activeTab === 'search' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'search' ? 'w-14 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Suchen</span>
                 </button>
 
                 {/* Inbox */}
-                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={() => { switchTab('inbox'); resetUnreadCount(); }} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'inbox' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <div className="relative">
                         <Mail size={22} className={`transition-transform duration-500 ${activeTab === 'inbox' ? 'scale-110' : ''}`} />
                         {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-card">{unreadCount}</span>}
@@ -367,7 +367,7 @@ const App = () => {
                 </button>
 
                 {/* Profile */}
-                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-amber-500/15 text-amber-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
+                <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Profil</span>
                 </button>
@@ -379,7 +379,7 @@ const App = () => {
             {activeVideo && (
                 <div className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
                     <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-border rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-muted-foreground hover:text-white"><X size={24} /></button>
-                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-amber-500/5 border border-border" />
+                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-cyan-500/5 border border-border" />
                 </div>
             )}
 
