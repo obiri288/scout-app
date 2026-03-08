@@ -95,6 +95,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
     };
 
     const overall = useMemo(() => Math.round(avgValues.reduce((s, v) => s + v, 0) / avgValues.length), [avgValues]);
+    const displayValues = showRating ? editValues : avgValues;
     const chartData = useMemo(() => {
         return ATTRS.map((a, i) => ({
             subject: a.label,
