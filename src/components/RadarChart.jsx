@@ -24,9 +24,11 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
     useEffect(() => {
         const load = async () => {
             try {
-                const { data } = await supabase.from('player_attributes')
+                const { data, error } = await supabase.from('player_attributes')
                     .select('*')
                     .eq('player_id', playerId);
+
+                if (error) throw error;
 
                 const rows = data || [];
                 setRaterCount(rows.length);
@@ -37,6 +39,8 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
                         return Math.round(sum / rows.length);
                     });
                     setAvgValues(avgs);
+                } else {
+                    setAvgValues([50, 50, 50, 50, 50, 50]);
                 }
 
                 if (session) {
@@ -47,9 +51,12 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
                 }
             } catch (e) {
                 console.warn("Failed to load attributes:", e);
+                // Fallback rendering
+                setAvgValues([0, 0, 0, 0, 0, 0]);
+                setRaterCount(0);
             }
         };
-        load();
+        if (playerId) load();
     }, [playerId, session]);
 
     const [editValues, setEditValues] = useState([50, 50, 50, 50, 50, 50]);
@@ -78,7 +85,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
             setShowRating(false);
 
             // Reload averages
-            const { data } = await supabase.from('player_attributes')
+            const { data, fetchError } = await supabase.from('player_attributes')
                 .select('*').eq('player_id', playerId);
             if (data && data.length > 0) {
                 setRaterCount(data.length);
@@ -88,6 +95,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
                 }));
             }
         } catch (e) {
+            console.error("Save failed:", e);
             addToast('Bewertung fehlgeschlagen.', 'error');
         } finally {
             setSubmitting(false);

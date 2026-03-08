@@ -12,8 +12,8 @@ export const fetchPlayerByUserId = async (userId) => {
     const { data, error } = await supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('user_id', userId)
-        .single();
-    if (error) throw error;
+        .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
     return data;
 };
 
@@ -29,8 +29,8 @@ export const updatePlayer = async (playerId, updates) => {
         .update(updates)
         .eq('id', playerId)
         .select('*, clubs(*, leagues(name))')
-        .single();
-    if (error) throw error;
+        .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
     return data;
 };
 
