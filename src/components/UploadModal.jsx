@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, UploadCloud, Loader2, Trash2, AlertTriangle, FileVideo } from 'lucide-react';
+import { X, UploadCloud, Loader2, Trash2, AlertTriangle, FileVideo, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand } from 'lucide-react';
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { generateVideoThumbnail, isValidVideoFile, ALLOWED_VIDEO_EXTENSIONS } from '../lib/helpers';
@@ -9,6 +9,20 @@ import { useToast } from '../contexts/ToastContext';
 
 // Available skill tags for videos
 const SKILL_TAGS = ['Schnelligkeit', 'Beidfüßig', 'Kopfball', 'Technik', 'Spielverständnis', 'Dribbling', 'Schusskraft', 'Flanken', 'Defensivstärke', 'Spielaufbau'];
+
+// PlayStyle action tags with icons
+const ACTION_TAGS = [
+    { label: 'Traumpass', icon: Zap },
+    { label: 'Dribbling', icon: Wind },
+    { label: 'Abschluss', icon: Crosshair },
+    { label: 'Flanke', icon: ArrowUpRight },
+    { label: 'Zweikampf', icon: Swords },
+    { label: 'Balleroberung', icon: ShieldCheck },
+    { label: 'Speed', icon: Gauge },
+    { label: 'Ballkontrolle', icon: CircleDot },
+    { label: 'Einsatz', icon: Flame },
+    { label: 'Parade', icon: Hand },
+];
 
 export const UploadModal = ({ player, onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
@@ -20,6 +34,7 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
     const [errorMsg, setErrorMsg] = useState("");
     const [isDragOver, setIsDragOver] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
+    const [selectedActionTags, setSelectedActionTags] = useState([]);
     const { addToast } = useToast();
 
     const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
@@ -56,11 +71,20 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
         );
     };
 
+    const toggleActionTag = (tag) => {
+        setSelectedActionTags(prev => {
+            if (prev.includes(tag)) return prev.filter(t => t !== tag);
+            if (prev.length >= 2) { addToast('Maximal 2 Action-Tags erlaubt.', 'info'); return prev; }
+            return [...prev, tag];
+        });
+    };
+
     const handleUpload = async () => {
         if (!player?.user_id || !file) {
             setErrorMsg("Bitte Profil erst vervollständigen.");
             return;
         }
+
 
         setUploading(true);
         setProgress(10);
@@ -106,6 +130,7 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                     category_tag: category,
                     description: description || null,
                     skill_tags: selectedTags.length > 0 ? selectedTags : null,
+                    action_tags: selectedActionTags.length > 0 ? selectedActionTags : [],
                     created_at: new Date().toISOString()
                 });
 
@@ -183,7 +208,7 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-white/10">
                                     <video src={previewUrl} className="w-full h-full object-cover opacity-80" controls />
-                                    <button onClick={() => { setFile(null); setPreviewUrl(null); setErrorMsg(""); setSelectedTags([]); }} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
+                                    <button onClick={() => { setFile(null); setPreviewUrl(null); setErrorMsg(""); setSelectedTags([]); setSelectedActionTags([]); }} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
@@ -229,6 +254,29 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                                                         }`}
                                                 >
                                                     {tag}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {/* Action Tags (PlayStyles, max 2) */}
+                                    <div>
+                                        <label className="text-xs text-amber-400 font-bold uppercase ml-1 flex items-center gap-1.5">
+                                            PlayStyle
+                                            <span className="text-[10px] text-zinc-500 font-medium normal-case">(max. 2 wählen)</span>
+                                        </label>
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {ACTION_TAGS.map(({ label, icon: Icon }) => (
+                                                <button
+                                                    key={label}
+                                                    type="button"
+                                                    onClick={() => toggleActionTag(label)}
+                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border backdrop-blur-xl flex items-center gap-1.5 ${selectedActionTags.includes(label)
+                                                        ? 'bg-cyan-400/15 text-cyan-400 border-cyan-400/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
+                                                        : 'bg-white/10 text-zinc-400 border-white/20 hover:bg-white/15 hover:text-white'
+                                                        }`}
+                                                >
+                                                    <Icon size={12} />
+                                                    {label}
                                                 </button>
                                             ))}
                                         </div>

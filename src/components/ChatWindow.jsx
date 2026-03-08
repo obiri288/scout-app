@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, User, Send, Check, CheckCheck, MoreVertical, Flag, ShieldOff } from 'lucide-react';
+import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
@@ -153,7 +154,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                     <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">
                         {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="m-2.5 text-zinc-500" />}
                     </div>
-                    <div className="font-bold text-white">{partner.full_name}</div>
+                    <div className="font-bold text-white flex items-center gap-1.5">{partner.full_name} {partner.is_verified && <VerificationBadge size={16} role={partner.role} />}</div>
                 </div>
                 <div className="relative">
                     <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-zinc-400 hover:text-white transition rounded-full hover:bg-white/5">

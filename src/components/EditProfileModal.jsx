@@ -35,7 +35,8 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         fupa_url: player.fupa_url || '',
         birth_date: player.birth_date || '',
         jersey_number: player.jersey_number || '',
-        nationality: player.nationality || ''
+        nationality: player.nationality || '',
+        player_archetype: player.player_archetype || ''
     });
 
     const [avatarFile, setAvatarFile] = useState(null);
@@ -324,6 +325,27 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                             <option>Links</option>
                                             <option>Beidfüßig</option>
                                         </select>
+                                    </div>
+                                </div>
+
+                                {/* Spielertyp Section */}
+                                <div className="pt-2 border-t border-white/5">
+                                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⚡ Spielertyp</h3>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <div>
+                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Dein Profil</label>
+                                            <select value={formData.player_archetype} onChange={e => setFormData({ ...formData, player_archetype: e.target.value })} className={inputStyle}>
+                                                <option value="">Keinen auswählen</option>
+                                                <option>Spielmacher</option>
+                                                <option>Flügelflitzer</option>
+                                                <option>Knipser</option>
+                                                <option>Zerstörer</option>
+                                                <option>Wandspieler</option>
+                                                <option>Box-to-Box</option>
+                                                <option>Modern Defender</option>
+                                                <option>Sweeper Keeper</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

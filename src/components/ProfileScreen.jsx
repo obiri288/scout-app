@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Loader2, User, CheckCircle, ArrowLeft, Settings, Edit, Share2, MessageCircle,
+    Loader2, User, ArrowLeft, Settings, Edit, Share2, MessageCircle,
     Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye
 } from 'lucide-react';
+import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
 import { calculateAge } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
@@ -11,9 +12,9 @@ import { ProfileSkeleton } from './SkeletonScreens';
 import { useToast } from '../contexts/ToastContext';
 import { PlayerRating } from './PlayerRating';
 import { SimilarPlayers } from './SimilarPlayers';
-import { ProfileCompletenessCard } from './ProfileCompletenessCard';
+import { ProReadinessCard } from './ProReadinessCard';
 import { EmptyState } from './EmptyState';
-import { PlayerCard } from './PlayerCard';
+import { ElitePlayerCard } from './ElitePlayerCard';
 import { RadarChart } from './RadarChart';
 import { XPLevelBadge } from './XPLevelBadge';
 import * as api from '../lib/api';
@@ -165,7 +166,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     {/* Name & Badge */}
                     <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
                         {player.full_name}
-                        {player.is_verified && <CheckCircle size={20} className="text-cyan-500 fill-cyan-500/10" />}
+                        {player.is_verified && <VerificationBadge size={20} role={player.role} />}
                     </h1>
                     <XPLevelBadge playerId={player.id} compact />
 
@@ -256,9 +257,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                 </div>
             )}
 
-            {/* Profile Completeness */}
+            {/* Gamified Pro-Readiness */}
             {isOwnProfile && (
-                <ProfileCompletenessCard player={player} highlightsCount={highlights.length} onEditProfile={onEditReq} />
+                <ProReadinessCard player={player} highlights={highlights} onEditProfile={onEditReq} />
             )}
 
             {/* Content Tabs */}
@@ -269,9 +270,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                 <SimilarPlayers player={player} onUserClick={onPlayerClick} />
             )}
 
-            {/* FIFA Player Card Modal */}
+            {/* Elite Player Card Modal */}
             {showPlayerCard && (
-                <PlayerCard player={player} avgRating={avgRating} onClose={() => setShowPlayerCard(false)} />
+                <ElitePlayerCard player={player} avgRating={avgRating} highlights={highlights} onClose={() => setShowPlayerCard(false)} />
             )}
         </div>
     );
@@ -330,6 +331,22 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
             {/* TAB: Stats */}
             {activeTab === 'stats' && (
                 <div className="px-4 py-6 space-y-4 animate-in fade-in">
+                    {/* Spielertyp Card */}
+                    <motion.div
+                        whileHover={{ boxShadow: '0 0 15px rgba(79,70,229,0.3)' }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3"
+                    >
+                        <h3 className="font-['Montserrat'] font-bold text-white text-lg tracking-tight uppercase">Spielertyp</h3>
+                        {player.player_archetype ? (
+                            <span className="inline-block text-sm font-bold text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-4 py-1.5 rounded-full">
+                                {player.player_archetype}
+                            </span>
+                        ) : (
+                            <p className="text-xs text-muted-foreground/60 italic">Spielertyp noch nicht festgelegt.</p>
+                        )}
+                    </motion.div>
+
                     <div className="grid grid-cols-2 gap-3">
                         <StatCard label="Position" value={player.position_primary || '-'} sub={player.position_secondary ? `Neben: ${player.position_secondary}` : null} />
                         <StatCard label="Starker Fuß" value={player.strong_foot || '-'} />

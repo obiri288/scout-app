@@ -1,57 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Radar, RadarChart as RechartsRadar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
 const ATTRS = [
-    { key: 'pace', label: 'PAC', color: '#22c55e' },
-    { key: 'shooting', label: 'SHO', color: '#ef4444' },
-    { key: 'passing', label: 'PAS', color: '#3b82f6' },
-    { key: 'dribbling', label: 'DRI', color: '#f59e0b' },
-    { key: 'defending', label: 'DEF', color: '#8b5cf6' },
-    { key: 'physical', label: 'PHY', color: '#06b6d4' },
+    { key: 'pace', label: 'PAC' },
+    { key: 'shooting', label: 'SHO' },
+    { key: 'passing', label: 'PAS' },
+    { key: 'dribbling', label: 'DRI' },
+    { key: 'defending', label: 'DEF' },
+    { key: 'physical', label: 'PHY' },
 ];
 
-const SIZE = 240;
-const CENTER = SIZE / 2;
-const RADIUS = 90;
-const LABEL_OFFSET = 24;
-
-// Calculate point on hexagon for a given index and value (0-99)
-const getPoint = (index, value, maxVal = 99) => {
-    const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
-    const r = (value / maxVal) * RADIUS;
-    return {
-        x: CENTER + r * Math.cos(angle),
-        y: CENTER + r * Math.sin(angle),
-    };
-};
-
-const getLabelPos = (index) => {
-    const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
-    return {
-        x: CENTER + (RADIUS + LABEL_OFFSET) * Math.cos(angle),
-        y: CENTER + (RADIUS + LABEL_OFFSET) * Math.sin(angle),
-    };
-};
-
-// Build polygon path from values
-const buildPolygon = (values) => {
-    return values.map((v, i) => {
-        const p = getPoint(i, v);
-        return `${p.x},${p.y}`;
-    }).join(' ');
-};
-
-// Build grid rings
-const buildRing = (fraction) => {
-    return Array.from({ length: 6 }, (_, i) => {
-        const p = getPoint(i, fraction * 99);
-        return `${p.x},${p.y}`;
-    }).join(' ');
-};
-
-export const RadarChart = ({ playerId, session, isOwnProfile }) => {
+export const RadarChart = ({ playerId, session, isOwnProfile, compact = false }) => {
     const [avgValues, setAvgValues] = useState([50, 50, 50, 50, 50, 50]);
     const [myValues, setMyValues] = useState(null);
     const [raterCount, setRaterCount] = useState(0);
@@ -133,90 +95,71 @@ export const RadarChart = ({ playerId, session, isOwnProfile }) => {
     };
 
     const overall = useMemo(() => Math.round(avgValues.reduce((s, v) => s + v, 0) / avgValues.length), [avgValues]);
-    const displayValues = showRating ? editValues : avgValues;
-    const polygon = buildPolygon(displayValues);
+    const chartData = useMemo(() => {
+        return ATTRS.map((a, i) => ({
+            subject: a.label,
+            A: displayValues[i],
+            fullMark: 99,
+        }));
+    }, [displayValues]);
 
     return (
-        <div className="bg-white/5 border border-border rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-foreground">{overall}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold">OVR</span>
+        <div className={compact ? "" : "bg-white/5 border border-border rounded-2xl p-4 relative"}>
+            {!compact && (
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl font-black text-white drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">{overall}</span>
+                        <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">OVR</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 font-bold">
+                        {raterCount} {raterCount === 1 ? 'Bewertung' : 'Bewertungen'}
+                    </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-bold">
-                    {raterCount} Bewertung{raterCount !== 1 ? 'en' : ''}
-                </span>
+            )}
+
+            {/* Recharts Radar */}
+            <div className={`w-full mx-auto relative ${compact ? 'h-[250px]' : 'h-[300px]'}`}>
+                {/* Glow behind the chart */}
+                <div className="absolute inset-0 bg-cyan-500/5 blur-[50px] rounded-full pointer-events-none" />
+
+                <ResponsiveContainer width="100%" height="100%">
+                    <RechartsRadar cx="50%" cy="50%" outerRadius={compact ? "70%" : "80%"} data={chartData}>
+                        <PolarGrid
+                            gridType="polygon"
+                            stroke="rgba(255, 255, 255, 0.1)"
+                            polarRadius={[20, 40, 60, 80, 100].map(r => r * 0.8)} // Optional visual sub-rings
+                        />
+                        <PolarAngleAxis
+                            dataKey="subject"
+                            tick={{
+                                fill: '#a1a1aa', // text-zinc-400
+                                fontSize: compact ? 10 : 12,
+                                fontWeight: 800,
+                                fontFamily: 'system-ui'
+                            }}
+                        />
+                        <PolarRadiusAxis
+                            angle={30}
+                            domain={[0, 99]}
+                            tick={false}
+                            axisLine={false}
+                        />
+                        <Radar
+                            name="Attributes"
+                            dataKey="A"
+                            stroke="#00F0FF"
+                            strokeWidth={2}
+                            fill="#00F0FF"
+                            fillOpacity={0.3}
+                            isAnimationActive={true}
+                            animationDuration={1500}
+                        />
+                    </RechartsRadar>
+                </ResponsiveContainer>
             </div>
 
-            {/* SVG Radar */}
-            <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full max-w-[280px] mx-auto">
-                {/* Grid rings */}
-                {[0.25, 0.5, 0.75, 1].map(f => (
-                    <polygon
-                        key={f}
-                        points={buildRing(f)}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.07)"
-                        strokeWidth="1"
-                    />
-                ))}
-
-                {/* Axis lines */}
-                {ATTRS.map((_, i) => {
-                    const p = getPoint(i, 99);
-                    return <line key={i} x1={CENTER} y1={CENTER} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />;
-                })}
-
-                {/* Value polygon */}
-                <motion.polygon
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, points: polygon }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    points={polygon}
-                    fill="rgba(16,185,129,0.15)"
-                    stroke="#10b981"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                />
-
-                {/* Data points */}
-                {displayValues.map((v, i) => {
-                    const p = getPoint(i, v);
-                    return <circle key={i} cx={p.x} cy={p.y} r="4" fill={ATTRS[i].color} stroke="#0a0a0a" strokeWidth="2" />;
-                })}
-
-                {/* Labels */}
-                {ATTRS.map((a, i) => {
-                    const p = getLabelPos(i);
-                    return (
-                        <g key={a.key}>
-                            <text
-                                x={p.x}
-                                y={p.y - 6}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                className="fill-zinc-400 text-[9px] font-bold"
-                                style={{ fontFamily: 'system-ui' }}
-                            >
-                                {a.label}
-                            </text>
-                            <text
-                                x={p.x}
-                                y={p.y + 7}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                className="fill-foreground text-[11px] font-black"
-                                style={{ fontFamily: 'system-ui' }}
-                            >
-                                {displayValues[i]}
-                            </text>
-                        </g>
-                    );
-                })}
-            </svg>
-
             {/* Rating UI */}
-            {session && !isOwnProfile && (
+            {session && !isOwnProfile && !compact && (
                 <div className="mt-3">
                     {!showRating ? (
                         <button

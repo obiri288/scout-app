@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Flag, Play, User, CheckCircle } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Flag, Play, User, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand } from 'lucide-react';
+import { VerificationBadge } from './VerificationBadge';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
 import { checkAndCreateLikeMilestone } from '../lib/api';
 import { getClubStyle } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
+
+const ACTION_TAG_ICONS = { Traumpass: Zap, Dribbling: Wind, Abschluss: Crosshair, Flanke: ArrowUpRight, Zweikampf: Swords, Balleroberung: ShieldCheck, Speed: Gauge, Ballkontrolle: CircleDot, Einsatz: Flame, Parade: Hand };
 
 export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [likes, setLikes] = useState(video.likes_count || 0);
@@ -71,7 +74,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         </div>
                         <div>
                             <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors">
-                                {video.players_master?.full_name} {video.players_master?.is_verified && <CheckCircle size={12} className="text-cyan-400" />}
+                                {video.players_master?.full_name} {video.players_master?.is_verified && <VerificationBadge size={14} role={video.players_master?.role} />}
                             </div>
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
@@ -138,6 +141,21 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         }} />
                     </div>
                 </div>
+
+                {/* Action Tags (PlayStyles) */}
+                {video.action_tags && video.action_tags.length > 0 && (
+                    <div className="px-4 pb-4 -mt-1 flex flex-wrap gap-1.5">
+                        {video.action_tags.slice(0, 2).map(tag => {
+                            const TagIcon = ACTION_TAG_ICONS[tag];
+                            return (
+                                <span key={tag} className="bg-white/10 backdrop-blur-xl border border-white/20 text-cyan-400 text-[10px] font-bold tracking-wide px-2.5 py-1 rounded-full flex items-center gap-1">
+                                    {TagIcon && <TagIcon size={10} />}
+                                    {tag}
+                                </span>
+                            );
+                        })}
+                    </div>
+                )}
             </Card>
         </motion.div>
     );

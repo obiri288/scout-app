@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter } from 'lucide-react';
+import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { cardStyle, glassHeader } from '../lib/styles';
 import { GuestFallback } from './GuestFallback';
 import { EmptyState } from './EmptyState';
+import { VerificationBadge } from './VerificationBadge';
 
 // Stagger animation variants
 const listContainerVariants = {
@@ -68,6 +69,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
     const [chats, setChats] = useState([]);
     const [notifFilter, setNotifFilter] = useState('all');
     const [hasUnread, setHasUnread] = useState(false);
+    const [msgTab, setMsgTab] = useState('inbox'); // 'inbox' | 'requests'
 
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
 
@@ -90,9 +92,15 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                         .limit(100);
 
                     const map = new Map();
+                    // Track unread status per partner
+                    const unreadMap = new Map();
                     (data || []).forEach(m => {
                         const pid = m.sender_id === session.user.id ? m.receiver_id : m.sender_id;
                         if (!map.has(pid)) map.set(pid, m);
+                        // Track if there are unread messages from this partner
+                        if (m.sender_id !== session.user.id && !m.is_read) {
+                            unreadMap.set(pid, true);
+                        }
                     });
 
                     if (map.size > 0) {
@@ -100,7 +108,8 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                         setChats((users || []).map(u => ({
                             ...u,
                             lastMsg: map.get(u.user_id)?.content,
-                            time: map.get(u.user_id)?.created_at
+                            time: map.get(u.user_id)?.created_at,
+                            hasUnread: unreadMap.get(u.user_id) || false,
                         })).sort((a, b) => new Date(b.time) - new Date(a.time)));
                     }
                 } catch (e) {
@@ -120,6 +129,12 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
         if (notifFilter === 'like') return n.type === 'like' || n.type === 'likes_milestone';
         return n.type === notifFilter;
     });
+
+    // Gatekeeper: split chats by sender verification status
+    const inboxChats = chats.filter(c => c.is_verified);
+    const requestChats = chats.filter(c => !c.is_verified);
+    const hasUnreadInbox = inboxChats.some(c => c.hasUnread);
+    const requestCount = requestChats.length;
 
     const renderNotification = (n) => {
         const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.like;
@@ -156,6 +171,40 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
         );
     };
 
+    const renderChatItem = (c) => (
+        <motion.div
+            key={c.id}
+            variants={listItemVariants}
+            whileHover={{ scale: 1.01 }}
+            onClick={() => onSelectChat(c)}
+            className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition ${cardStyle}`}
+        >
+            {/* Avatar */}
+            <div className="relative" onClick={(e) => { e.stopPropagation(); onUserClick(c); }}>
+                <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition border border-border">
+                    <div className="w-full h-full">{c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-3.5" />}</div>
+                </div>
+                {/* Unread indicator (Inbox only) */}
+                {c.hasUnread && c.is_verified && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+                )}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center mb-1">
+                    <h4 className="text-base font-bold text-foreground truncate flex items-center gap-1.5">
+                        {c.full_name}
+                        {c.is_verified && <VerificationBadge size={14} role={c.role} />}
+                    </h4>
+                    <span className="text-[10px] text-muted-foreground">{timeAgo(c.time)}</span>
+                </div>
+                <p className={`text-sm truncate ${c.hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{c.lastMsg}</p>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground" />
+        </motion.div>
+    );
+
     return (
         <div className="pb-32 max-w-md mx-auto min-h-screen bg-background">
             <div className={glassHeader}><h2 className="text-2xl font-black text-foreground">Inbox</h2></div>
@@ -165,7 +214,10 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                         Mitteilungen
                         {hasUnread && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
                     </button>
-                    <button onClick={() => setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'messages' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>Nachrichten</button>
+                    <button onClick={() => setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'messages' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>
+                        Nachrichten
+                        {hasUnreadInbox && subTab !== 'messages' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
+                    </button>
                 </div>
 
                 {/* Notification filter tabs + mark read */}
@@ -196,11 +248,45 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                     </div>
                 )}
 
+                {/* Gatekeeper Inbox/Anfragen tabs for messages */}
+                {subTab === 'messages' && (
+                    <div className="flex gap-2 mb-4">
+                        <button
+                            onClick={() => setMsgTab('inbox')}
+                            className={`flex items-center gap-1.5 text-[11px] font-bold px-4 py-2 rounded-lg transition-all ${msgTab === 'inbox'
+                                ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20 shadow-[0_0_12px_rgba(255,215,0,0.15)]'
+                                : 'bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10'
+                                }`}
+                        >
+                            <ShieldCheck size={14} />
+                            Inbox
+                            {hasUnreadInbox && (
+                                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setMsgTab('requests')}
+                            className={`flex items-center gap-1.5 text-[11px] font-bold px-4 py-2 rounded-lg transition-all ${msgTab === 'requests'
+                                ? 'bg-white/10 text-foreground border border-white/15'
+                                : 'bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10'
+                                }`}
+                        >
+                            <MessageSquare size={14} />
+                            Anfragen
+                            {requestCount > 0 && (
+                                <span className="bg-white/15 text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                                    {requestCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                )}
+
                 <motion.div
                     variants={listContainerVariants}
                     initial="hidden"
                     animate="visible"
-                    key={`${subTab}-${notifFilter}`}
+                    key={`${subTab}-${notifFilter}-${msgTab}`}
                     className="space-y-2"
                 >
                     {subTab === 'notifications' && (filteredNotis.length > 0 ? filteredNotis.map(renderNotification) : (
@@ -210,29 +296,40 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                             description="Poste dein erstes Highlight — die Benachrichtigungen kommen von ganz allein! 🚀"
                         />
                     ))}
-                    {subTab === 'messages' && (chats.length > 0 ? chats.map(c => (
-                        <motion.div
-                            key={c.id}
-                            variants={listItemVariants}
-                            whileHover={{ scale: 1.01 }}
-                            onClick={() => onSelectChat(c)}
-                            className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition ${cardStyle}`}
-                        >
-                            <div onClick={(e) => { e.stopPropagation(); onUserClick(c); }} className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition border border-border"><div className="w-full h-full">{c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-3.5" />}</div></div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-1"><h4 className="text-base font-bold text-foreground truncate">{c.full_name}</h4><span className="text-[10px] text-muted-foreground">{timeAgo(c.time)}</span></div>
-                                <p className="text-sm text-muted-foreground truncate">{c.lastMsg}</p>
-                            </div>
-                            <ChevronRight size={16} className="text-muted-foreground" />
-                        </motion.div>
-                    )) : (
-                        <EmptyState
-                            icon={Mail}
-                            title="Keine Chats"
-                            description="Besuche ein Profil und starte einen Chat mit einem Spieler!"
-                            variant="subtle"
-                        />
-                    ))}
+
+                    {/* Gatekeeper: Inbox (verified senders) */}
+                    {subTab === 'messages' && msgTab === 'inbox' && (
+                        inboxChats.length > 0 ? inboxChats.map(renderChatItem) : (
+                            <EmptyState
+                                icon={ShieldCheck}
+                                title="Keine Elite-Nachrichten"
+                                description="Nachrichten von verifizierten Scouts und Agenten erscheinen hier."
+                                variant="subtle"
+                            />
+                        )
+                    )}
+
+                    {/* Gatekeeper: Anfragen (unverified senders) */}
+                    {subTab === 'messages' && msgTab === 'requests' && (
+                        <>
+                            {requestChats.length > 0 && (
+                                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl p-3 mb-2 flex items-start gap-2.5">
+                                    <Filter size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                        Nachrichten von unverifizierten Nutzern. Prüfe sorgfältig, bevor du antwortest.
+                                    </p>
+                                </div>
+                            )}
+                            {requestChats.length > 0 ? requestChats.map(renderChatItem) : (
+                                <EmptyState
+                                    icon={Mail}
+                                    title="Keine Anfragen"
+                                    description="Wenn dir jemand Neues schreibt, landet die Nachricht hier."
+                                    variant="subtle"
+                                />
+                            )}
+                        </>
+                    )}
                 </motion.div>
             </div>
         </div>

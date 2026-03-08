@@ -59,3 +59,44 @@ export const isValidVideoFile = (file) => {
     const ext = file.name.split('.').pop().toLowerCase();
     return ALLOWED_VIDEO_EXTENSIONS.includes(ext) && file.type.startsWith('video/');
 };
+
+// --- Gamification: Pro-Readiness Score ---
+export const calculateProReadinessScore = (player, highlights = []) => {
+    if (!player) return { score: 0, quests: [] };
+
+    let score = 0;
+    const quests = [];
+
+    // 1. Profil-Basis (max 40%)
+    if (player.avatar_url) score += 10; else quests.push("Lade ein Profilbild hoch (+10%)");
+    if (player.position_primary) score += 10; else quests.push("Trage deine primäre Position ein (+10%)");
+    if (player.nationality) score += 10; else quests.push("Hinterlege deine Nationalität (+10%)");
+    if (player.bio) score += 10; else quests.push("Schreibe eine kurze Bio über dich (+10%)");
+
+    // 2. Video Highlights mit Action Tags (max 30%, 10% per Video with tags)
+    let videosWithTags = 0;
+    highlights.forEach(h => {
+        if (h.action_tags && h.action_tags.length > 0) videosWithTags++;
+    });
+
+    const videoScore = Math.min(30, videosWithTags * 10);
+    score += videoScore;
+
+    if (videosWithTags === 0) {
+        quests.push("Lade ein Video mit einem PlayStyle-Tag (z.B. 'Zweikampf') hoch (+10%)");
+    } else if (videosWithTags < 3) {
+        quests.push(`Lade noch ${3 - videosWithTags} Video(s) mit PlayStyle-Tags hoch (+${(3 - videosWithTags) * 10}%)`);
+    }
+
+    // 3. Verifizierung (max 30%)
+    if (player.is_verified) {
+        score += 30;
+    } else {
+        quests.push("Hol dir das Confirmed Badge (Verifizierung) (+30%)");
+    }
+
+    return {
+        score: Math.min(100, score),
+        quests
+    };
+};

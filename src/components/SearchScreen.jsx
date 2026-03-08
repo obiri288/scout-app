@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock } from 'lucide-react';
+import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock, Crosshair, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
 import { SearchSkeleton } from './SkeletonScreens';
@@ -9,6 +9,9 @@ import { MapScreen } from './MapScreen';
 const PAGE_SIZE = 15;
 
 const SKILL_FILTER_TAGS = ['Schnelligkeit', 'Beidfüßig', 'Kopfball', 'Technik', 'Spielverständnis', 'Dribbling', 'Schusskraft'];
+
+const ACTION_FILTER_TAGS = ['Traumpass', 'Dribbling', 'Abschluss', 'Flanke', 'Zweikampf', 'Balleroberung', 'Speed', 'Ballkontrolle', 'Einsatz', 'Parade'];
+const ARCHETYPE_FILTER_TAGS = ['Spielmacher', 'Flügelflitzer', 'Knipser', 'Zerstörer', 'Wandspieler', 'Box-to-Box', 'Modern Defender', 'Sweeper Keeper'];
 
 // Stagger animation variants for results list
 const listContainerVariants = {
@@ -51,6 +54,12 @@ export const SearchScreen = ({ onUserClick }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
     const [recentSearches, setRecentSearches] = useState(getRecentSearches);
+    const [showActionFilter, setShowActionFilter] = useState(false);
+    const [selectedActionTag, setSelectedActionTag] = useState(null);
+    const [actionVideos, setActionVideos] = useState([]);
+    const [loadingAction, setLoadingAction] = useState(false);
+    const [showArchetypeFilter, setShowArchetypeFilter] = useState(false);
+    const [selectedArchetype, setSelectedArchetype] = useState(null);
     const sentinelRef = useRef(null);
 
     // Save search to recent history
@@ -93,6 +102,7 @@ export const SearchScreen = ({ onUserClick }) => {
             if (query) q = q.ilike('full_name', `%${query}%`);
             if (pos !== 'Alle') q = q.eq('position_primary', pos);
             if (status !== 'Alle') q = q.eq('transfer_status', status);
+            if (selectedArchetype) q = q.eq('player_archetype', selectedArchetype);
             if (cityQuery) q = q.or(`city.ilike.%${cityQuery}%,zip_code.ilike.%${cityQuery}%`);
             if (matchingClubIds !== null) {
                 if (matchingClubIds.length === 0) {
@@ -131,7 +141,29 @@ export const SearchScreen = ({ onUserClick }) => {
             if (query && query.trim().length >= 2) saveRecentSearch(query);
         }, 500);
         return () => clearTimeout(t);
-    }, [query, pos, status, cityQuery, matchingClubIds]);
+    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype]);
+
+    // Fetch videos when action tag is selected
+    useEffect(() => {
+        if (!selectedActionTag) { setActionVideos([]); return; }
+        setLoadingAction(true);
+        const fetchActionVideos = async () => {
+            try {
+                const { data } = await supabase
+                    .from('media_highlights')
+                    .select('*, players_master(full_name, avatar_url, position_primary, user_id, clubs(name))')
+                    .contains('action_tags', [selectedActionTag])
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                setActionVideos(data || []);
+            } catch (e) {
+                console.error('Action filter error:', e);
+            } finally {
+                setLoadingAction(false);
+            }
+        };
+        fetchActionVideos();
+    }, [selectedActionTag]);
 
     // Infinite scroll via IntersectionObserver
     useEffect(() => {
@@ -153,7 +185,9 @@ export const SearchScreen = ({ onUserClick }) => {
         status !== 'Alle',
         cityQuery,
         clubQuery,
-        selectedTag
+        selectedTag,
+        selectedActionTag,
+        selectedArchetype
     ].filter(Boolean).length;
 
     const clearAllFilters = () => {
@@ -163,6 +197,8 @@ export const SearchScreen = ({ onUserClick }) => {
         setPos('Alle');
         setStatus('Alle');
         setSelectedTag(null);
+        setSelectedActionTag(null);
+        setSelectedArchetype(null);
         setShowAdvanced(false);
     };
 
@@ -289,7 +325,7 @@ export const SearchScreen = ({ onUserClick }) => {
                         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide mb-2">{['Alle', 'ST', 'ZOM', 'ZM', 'ZDM', 'IV', 'RV', 'LV', 'RA', 'LA', 'TW'].map(p => <FilterChip key={p} label={p === 'Alle' ? 'Pos: Alle' : p} active={pos === p} onClick={() => setPos(p)} />)}</div>
 
                         {/* Skill tag filter */}
-                        <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-border mb-4 px-1">
+                        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide px-1">
                             <button
                                 onClick={() => setShowTagFilter(!showTagFilter)}
                                 className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-indigo-600 to-cyan-400 text-white border-transparent shadow-[0_0_15px_rgba(0,240,255,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
@@ -302,6 +338,42 @@ export const SearchScreen = ({ onUserClick }) => {
                                     label={tag}
                                     active={selectedTag === tag}
                                     onClick={() => { setSelectedTag(selectedTag === tag ? null : tag); setShowTagFilter(false); }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Archetype filter (Player Scouting) */}
+                        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide px-1">
+                            <button
+                                onClick={() => setShowArchetypeFilter(!showArchetypeFilter)}
+                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedArchetype ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
+                            >
+                                <User size={12} /> {selectedArchetype || 'Spielertyp'}
+                            </button>
+                            {showArchetypeFilter && ARCHETYPE_FILTER_TAGS.map(tag => (
+                                <FilterChip
+                                    key={tag}
+                                    label={tag}
+                                    active={selectedArchetype === tag}
+                                    onClick={() => { setSelectedArchetype(selectedArchetype === tag ? null : tag); setShowArchetypeFilter(false); }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Action tag filter (Video Scouting) */}
+                        <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-border mb-4 px-1">
+                            <button
+                                onClick={() => setShowActionFilter(!showActionFilter)}
+                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedActionTag ? 'bg-gradient-to-r from-amber-500 to-cyan-400 text-white border-transparent shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
+                            >
+                                <Crosshair size={12} /> {selectedActionTag || 'Video-Highlights'}
+                            </button>
+                            {showActionFilter && ACTION_FILTER_TAGS.map(tag => (
+                                <FilterChip
+                                    key={tag}
+                                    label={tag}
+                                    active={selectedActionTag === tag}
+                                    onClick={() => { setSelectedActionTag(selectedActionTag === tag ? null : tag); setShowActionFilter(false); }}
                                 />
                             ))}
                         </div>
@@ -324,38 +396,95 @@ export const SearchScreen = ({ onUserClick }) => {
                             </div>
                         )}
 
-                        {loading ? <SearchSkeleton /> : (
-                            <motion.div
-                                variants={listContainerVariants}
-                                initial="hidden"
-                                animate="visible"
-                                className="space-y-3"
-                            >
-                                {res.map(p => (
-                                    <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
-                                        <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-4" />}</div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-center"><h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-muted-foreground tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-border">{p.position_primary}</span></div>
-                                            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground font-medium truncate">
-                                                <span className="flex items-center gap-1"><Shield size={10} className="text-cyan-400" /> {p.clubs?.name || "Vereinslos"}</span>
-                                                {p.city && <span className="flex items-center gap-1 truncate"><MapPin size={10} className="shrink-0" /> <span className="truncate">{p.city}</span></span>}
+                        {/* Results: Action Videos OR Player Search */}
+                        {selectedActionTag ? (
+                            // Action Video Results
+                            <div className="space-y-3 animate-in fade-in">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Crosshair size={14} className="text-amber-400" />
+                                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Video Scouting: {selectedActionTag}</span>
+                                    <button onClick={() => setSelectedActionTag(null)} className="ml-auto text-[10px] text-muted-foreground hover:text-white transition">
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                                {loadingAction ? <SearchSkeleton /> : (
+                                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
+                                        {actionVideos.map(v => (
+                                            <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -2 }} className={`${cardStyle} overflow-hidden cursor-pointer group`} onClick={() => onUserClick(v.players_master)}>
+                                                <div className="flex gap-3 p-3">
+                                                    <div className="w-28 h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 relative border border-white/10">
+                                                        {v.thumbnail_url ? (
+                                                            <img src={v.thumbnail_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center"><Play size={20} className="text-muted-foreground" /></div>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                                        <div>
+                                                            <h4 className="font-bold text-foreground text-sm truncate">{v.players_master?.full_name}</h4>
+                                                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground font-medium">
+                                                                <Shield size={9} className="text-cyan-400" />
+                                                                <span className="truncate">{v.players_master?.clubs?.name || 'Vereinslos'}</span>
+                                                                <span className="text-white/20">•</span>
+                                                                <span>{v.players_master?.position_primary}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                                            {(v.action_tags || []).slice(0, 3).map(tag => (
+                                                                <span key={tag} className="bg-white/10 backdrop-blur-xl border border-white/20 text-cyan-400 text-[9px] font-bold px-2 py-0.5 rounded-full">{tag}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                        {actionVideos.length === 0 && (
+                                            <div className="text-center py-20 text-muted-foreground">
+                                                <Crosshair size={48} className="mx-auto mb-4 opacity-20" />
+                                                <p>Keine Videos mit "{selectedActionTag}" gefunden.</p>
                                             </div>
-                                        </div>
-                                        <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors" />
+                                        )}
                                     </motion.div>
-                                ))}
-                                {res.length === 0 && <div className="text-center py-20 text-muted-foreground"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
+                                )}
+                            </div>
+                        ) : (
+                            // Player Search Results
+                            <>
+                                {loading ? <SearchSkeleton /> : (
+                                    <motion.div
+                                        variants={listContainerVariants}
+                                        initial="hidden"
+                                        animate="visible"
+                                        className="space-y-3"
+                                    >
+                                        {res.map(p => (
+                                            <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
+                                                <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-4" />}</div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-center"><h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-muted-foreground tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-border">{p.position_primary}</span></div>
+                                                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground font-medium truncate">
+                                                        <span className="flex items-center gap-1"><Shield size={10} className="text-cyan-400" /> {p.clubs?.name || "Vereinslos"}</span>
+                                                        {p.city && <span className="flex items-center gap-1 truncate"><MapPin size={10} className="shrink-0" /> <span className="truncate">{p.city}</span></span>}
+                                                    </div>
+                                                </div>
+                                                <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors" />
+                                            </motion.div>
+                                        ))}
+                                        {res.length === 0 && <div className="text-center py-20 text-muted-foreground"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
 
-                                {/* Infinite scroll sentinel */}
-                                {hasMore && (
-                                    <div ref={sentinelRef} className="flex justify-center py-6">
-                                        {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
-                                    </div>
+                                        {/* Infinite scroll sentinel */}
+                                        {hasMore && (
+                                            <div ref={sentinelRef} className="flex justify-center py-6">
+                                                {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
+                                            </div>
+                                        )}
+                                        {!hasMore && res.length > 0 && (
+                                            <div className="text-center text-muted-foreground text-xs py-6">Alle Ergebnisse geladen.</div>
+                                        )}
+                                    </motion.div>
                                 )}
-                                {!hasMore && res.length > 0 && (
-                                    <div className="text-center text-muted-foreground text-xs py-6">Alle Ergebnisse geladen.</div>
-                                )}
-                            </motion.div>
+                            </>
                         )}
                     </div>
                 )}
