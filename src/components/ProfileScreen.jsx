@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Loader2, User, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
@@ -347,22 +347,49 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                         )}
                     </motion.div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <StatCard label="Position" value={player.position_primary || '-'} sub={player.position_secondary ? `Neben: ${player.position_secondary}` : null} />
-                        <StatCard label="Starker Fuß" value={player.strong_foot || '-'} />
-                        <StatCard label="Größe" value={player.height_user ? `${player.height_user} cm` : '-'} />
-                        <StatCard label="Gewicht" value={player.weight ? `${player.weight} kg` : '-'} />
-                        <StatCard label="Trikotnummer" value={player.jersey_number ? `#${player.jersey_number}` : '-'} />
-                        <StatCard label="Alter" value={player.birth_date ? `${calculateAge(player.birth_date)} Jahre` : '-'} />
+                    {/* Taktische DNA Card */}
+                    <motion.div
+                        whileHover={{ boxShadow: '0 0 15px rgba(255,255,255,0.05)' }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4"
+                    >
+                        <h3 className="font-['Montserrat'] font-bold text-white text-lg tracking-tight uppercase border-b border-white/10 pb-2">Taktische DNA</h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Bevorzugtes System</span>
+                                <span className="text-sm font-medium text-foreground">{player?.preferred_system ?? 'Nicht angegeben'}</span>
+                            </div>
+                            <div>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Spielerrolle</span>
+                                <span className="text-sm font-medium text-foreground">{player?.tactical_role ?? 'Nicht angegeben'}</span>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    {/* Physische/Technische Stats & Profil-Infos */}
+                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4">
+                        <h3 className="font-['Montserrat'] font-bold text-white text-lg tracking-tight uppercase border-b border-white/10 pb-2">Kader-Basisdaten</h3>
+
+                        <div className="grid grid-cols-2 gap-3 pb-3">
+                            <StatCard label="Position" value={player?.position_primary ?? '-'} sub={player?.position_secondary ? `Neben: ${player.position_secondary}` : null} />
+                            <StatCard label="Starker Fuß" value={player?.strong_foot ?? '-'} />
+                            <StatCard label="Größe" value={player?.height_user ? `${player.height_user} cm` : '-'} isVerified={player?.is_verified} />
+                            <StatCard label="Gewicht" value={player?.weight ? `${player.weight} kg` : '-'} isVerified={player?.is_verified} />
+                            <StatCard label="Trikotnummer" value={player?.jersey_number ? `#${player.jersey_number}` : '-'} />
+                            <StatCard label="Alter" value={player?.birth_date ? `${calculateAge(player.birth_date)} Jahre` : '-'} isVerified={player?.is_verified} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5">
+                            <StatCard label="Transfer-Status" value={player?.transfer_status ?? '-'} highlight={player?.transfer_status === 'Suche Verein'} />
+                            <StatCard label="Vertrag bis" value={player?.contract_end ? new Date(player.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
+                        </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                        <StatCard label="Transfer-Status" value={player.transfer_status || '-'} highlight={player.transfer_status === 'Suche Verein'} />
-                        <StatCard label="Vertrag bis" value={player.contract_end ? new Date(player.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
-                    </div>
+
+                    {/* Social & Engagement Info */}
                     <div className="grid grid-cols-3 gap-3 pt-2">
-                        <StatCard label="Follower" value={player.followers_count || 0} />
-                        <StatCard label="Clips" value={highlights.length} />
-                        <StatCard label="Verein" value={player.clubs?.name || 'Vereinslos'} small />
+                        <StatCard label="Follower" value={player?.followers_count ?? 0} />
+                        <StatCard label="Clips" value={highlights?.length ?? 0} />
+                        <StatCard label="Verein" value={player?.clubs?.name ?? 'Vereinslos'} small />
                     </div>
 
                     {/* Radar Chart */}
@@ -421,9 +448,12 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 };
 
 // Helper components
-const StatCard = ({ label, value, sub, highlight, small }) => (
+const StatCard = ({ label, value, sub, highlight, small, isVerified }) => (
     <motion.div whileHover={{ scale: 1.03, borderColor: "rgba(16,185,129,0.3)" }} transition={{ type: "spring", stiffness: 400, damping: 25 }} className={`bg-white/5 border border-border rounded-2xl p-4 flex flex-col items-center text-center ${highlight ? 'border-cyan-500/30 bg-cyan-500/5' : ''}`}>
-        <div className={`font-black text-foreground ${small ? 'text-xs' : 'text-lg'}`}>{value}</div>
+        <div className={`font-black flex items-center justify-center gap-1 ${small ? 'text-xs' : 'text-lg'} ${isVerified ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'text-foreground'}`}>
+            {value}
+            {isVerified && <CheckCircle size={12} className="text-amber-400" />}
+        </div>
         <div className="text-[10px] text-muted-foreground uppercase font-bold mt-1">{label}</div>
         {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
     </motion.div>
