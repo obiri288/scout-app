@@ -11,7 +11,8 @@ import * as api from '../lib/api';
 export const useAppState = () => {
     const {
         session, setSession, currentUserProfile, updateProfile,
-        refreshProfile, unreadCount, resetUnreadCount, logout
+        refreshProfile, unreadCount, resetUnreadCount, logout,
+        isRecoveryMode, setIsRecoveryMode
     } = useUser();
     const { addToast } = useToast();
     const { t } = useLanguage();
@@ -252,6 +253,7 @@ export const useAppState = () => {
         // User context
         session, currentUserProfile, updateProfile, refreshProfile,
         unreadCount, resetUnreadCount, logout,
+        isRecoveryMode, setIsRecoveryMode,
 
         // Navigation
         activeTab, switchTab, navigateToHash,

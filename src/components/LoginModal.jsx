@@ -4,12 +4,14 @@ import { supabase } from '../lib/supabase';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
+import { PasswordInput } from './ui/PasswordInput';
 
 export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
-    const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot'
+    const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot' | 'registerSuccess'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isPasswordValid, setIsPasswordValid] = useState(false);
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
@@ -28,6 +30,12 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
             return;
         }
 
+        if (isSignUp && !isPasswordValid) {
+            setMsg("Bitte erfülle alle Passwort-Kriterien!");
+            setLoading(false);
+            return;
+        }
+
         if (isSignUp && password !== confirmPassword) {
             setMsg("Passwörter stimmen nicht überein!");
             setLoading(false);
@@ -42,11 +50,9 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     options: { emailRedirectTo: window.location.origin }
                 });
                 if (error) throw error;
-                if (data.user) {
-                    setSuccessMsg('✅ Registrierung erfolgreich! Anmeldung...');
-                    setTimeout(() => onSuccess({ user: data.user }), 1000);
-                    return;
-                }
+                // Double Opt-In success state
+                setView('registerSuccess');
+                return;
             } else {
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
@@ -102,7 +108,22 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                         </p>
                     </div>
 
-                    {successMsg ? (
+                    {view === 'registerSuccess' ? (
+                        <div className="text-center space-y-6 animate-in fade-in zoom-in-95 py-6">
+                            <div className="w-20 h-20 bg-cyan-500/10 text-cyan-400 rounded-full flex flex-col items-center justify-center mx-auto shadow-[0_0_30px_rgba(34,211,238,0.2)] border border-cyan-500/20">
+                                <Mail size={36} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white mb-2">Willkommen bei ProBase</h3>
+                                <p className="text-zinc-400 text-sm leading-relaxed">
+                                    Wir haben dir einen Link geschickt. Bitte bestätige deine E-Mail-Adresse, um den Tresor zu öffnen.
+                                </p>
+                            </div>
+                            <button onClick={onClose} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl transition">
+                                Verstanden
+                            </button>
+                        </div>
+                    ) : successMsg ? (
                         <div className="text-center space-y-4">
                             <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">{successMsg}</div>
                             {view === 'forgot' && (
@@ -114,7 +135,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     ) : view === 'forgot' ? (
                         <form onSubmit={handlePasswordReset} className="space-y-4">
                             <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
-                            {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2"><AlertCircle size={14} /> {msg}</div>)}
+                            {msg && (<div className="bg-rose-600/10 text-rose-600 text-xs p-3 rounded-xl border border-rose-600/20 flex items-center gap-2 font-medium"><AlertCircle size={14} /> {msg}</div>)}
                             <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
                                 {loading && <Loader2 className="animate-spin" size={18} />} Reset-Link senden
                             </button>
@@ -126,19 +147,38 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                         <form onSubmit={handleAuth} className="space-y-4">
                             <div className="space-y-3">
                                 <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
-                                <input type="password" placeholder="Passwort" required className={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
-                                {view === 'register' && (<div className="animate-in slide-in-from-top-2 fade-in"><input type="password" placeholder="Passwort bestätigen" required className={inputStyle} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>)}
+                                <PasswordInput
+                                    value={password}
+                                    onChange={setPassword}
+                                    showChecklist={view === 'register'}
+                                    onValidChange={setIsPasswordValid}
+                                    placeholder="Passwort"
+                                />
+                                {view === 'register' && (
+                                    <div className="animate-in slide-in-from-top-2 fade-in">
+                                        <PasswordInput
+                                            value={confirmPassword}
+                                            onChange={setConfirmPassword}
+                                            placeholder="Passwort bestätigen"
+                                            showChecklist={false}
+                                        />
+                                    </div>
+                                )}
                             </div>
                             {view === 'login' && (
                                 <button type="button" onClick={() => { setView('forgot'); setMsg(''); }} className="text-xs text-muted-foreground hover:text-cyan-400 transition">
                                     Passwort vergessen?
                                 </button>
                             )}
-                            {msg && (<div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex flex-col gap-2"><div className="flex items-center gap-2"><AlertCircle size={14} /> {msg}</div></div>)}
+                            {msg && (
+                                <div className="bg-rose-600/10 text-rose-600 text-xs p-3 rounded-xl border border-rose-600/20 flex flex-col gap-2 font-medium">
+                                    <div className="flex items-center gap-2"><AlertCircle size={14} /> {msg}</div>
+                                </div>
+                            )}
                             <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
                         </form>
                     )}
-                    {view !== 'forgot' && (
+                    {(view !== 'forgot' && view !== 'registerSuccess') && (
                         <div className="mt-6 pt-6 border-t border-white/5 text-center">
                             <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ProBase?'}</p>
                             <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>

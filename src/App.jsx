@@ -30,6 +30,7 @@ const CompareModal = lazy(() => import('./components/CompareModal').then(m => ({
 const BlockUserModal = lazy(() => import('./components/BlockUserModal').then(m => ({ default: m.BlockUserModal })));
 const OnboardingWizard = lazy(() => import('./components/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
 const NamePromptModal = lazy(() => import('./components/NamePromptModal').then(m => ({ default: m.NamePromptModal })));
+const UpdatePasswordModal = lazy(() => import('./components/UpdatePasswordModal').then(m => ({ default: m.UpdatePasswordModal })));
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -255,6 +256,7 @@ const App = () => {
         handleDeleteVideo, handleInstallApp, handlePushRequest,
         showCelebration, setShowCelebration,
         deferredPrompt,
+        isRecoveryMode, setIsRecoveryMode,
     } = useAppState();
 
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
@@ -436,6 +438,12 @@ const App = () => {
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
                 {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
                 {blockTarget && session && <BlockUserModal targetUser={blockTarget} session={session} onClose={() => setBlockTarget(null)} onBlocked={() => setBlockTarget(null)} />}
+                {isRecoveryMode && (
+                    <UpdatePasswordModal
+                        onClose={() => setIsRecoveryMode(false)}
+                        onSuccess={() => { setIsRecoveryMode(false); switchTab('home'); }}
+                    />
+                )}
 
                 {/* Custom Sub-Modals */}
                 {activeSettingsModal === 'push' && <PushSettingsModal onClose={() => setActiveSettingsModal(null)} />}

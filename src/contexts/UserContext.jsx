@@ -14,6 +14,7 @@ export const UserProvider = ({ children }) => {
     const [currentUserProfile, setCurrentUserProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
     // Fetch or auto-create profile
     const fetchOrCreateProfile = useCallback(async (userSession) => {
@@ -68,7 +69,10 @@ export const UserProvider = ({ children }) => {
             setSession(s);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setIsRecoveryMode(true);
+            }
             setSession(s);
             if (!s) {
                 setCurrentUserProfile(null);
@@ -145,6 +149,8 @@ export const UserProvider = ({ children }) => {
         unreadCount,
         resetUnreadCount,
         logout,
+        isRecoveryMode,
+        setIsRecoveryMode,
     };
 
     return (
