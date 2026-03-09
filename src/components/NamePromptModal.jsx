@@ -4,6 +4,7 @@ import { User, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
+import { inputStyle } from '../lib/styles';
 
 export const NamePromptModal = () => {
     const { currentUserProfile, refreshProfile } = useUser();
@@ -71,10 +72,9 @@ export const NamePromptModal = () => {
                             type="text"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="Max"
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                            className={inputStyle}
                             autoFocus
-                            required
+                            placeholder="Max"
                         />
                     </div>
                     <div className="space-y-1.5">
@@ -83,8 +83,8 @@ export const NamePromptModal = () => {
                             type="text"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
+                            className={inputStyle}
                             placeholder="Mustermann"
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors"
                             required
                         />
                     </div>

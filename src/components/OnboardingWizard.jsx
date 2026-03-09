@@ -4,6 +4,7 @@ import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, T
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
+import { inputStyle } from '../lib/styles';
 
 const POSITIONS = ['Torwart', 'Innenverteidiger', 'Außenverteidiger', 'Defensives Mittelfeld', 'Zentrales Mittelfeld', 'Offensives Mittelfeld', 'Linksaußen', 'Rechtsaußen', 'Mittelstürmer'];
 
@@ -160,8 +161,8 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         type="text"
                                         value={fullName}
                                         onChange={(e) => setFullName(e.target.value)}
+                                        className={inputStyle}
                                         placeholder="Dein vollständiger Name"
-                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
@@ -187,7 +188,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         type="date"
                                         value={birthDate}
                                         onChange={(e) => setBirthDate(e.target.value)}
-                                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                        className={inputStyle}
                                     />
                                 </div>
                             </div>
