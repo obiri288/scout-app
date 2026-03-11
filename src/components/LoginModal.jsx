@@ -146,7 +146,33 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     ) : (
                         <form onSubmit={handleAuth} className="space-y-4">
                             <div className="space-y-3">
-                                <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} style={{ color: 'var(--input-text, #0f172a)', backgroundColor: 'var(--input-bg, #ffffff)', WebkitTextFillColor: 'var(--input-text, #0f172a)' }} value={email} onChange={(e) => setEmail(e.target.value)} />
+                                {/* === ISOLATIONSTEST: Originales E-Mail-Feld auskommentiert === */}
+                                {/* <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} style={{ color: 'var(--input-text, #0f172a)', backgroundColor: 'var(--input-bg, #ffffff)', WebkitTextFillColor: 'var(--input-text, #0f172a)' }} value={email} onChange={(e) => setEmail(e.target.value)} /> */}
+
+                                {/* === NACKTES TEST-FELD – kein Tailwind, kein className, nur Inline-Style === */}
+                                <input
+                                    type="email"
+                                    placeholder="NACKTES TEST FELD"
+                                    value={email}
+                                    onChange={(e) => {
+                                        console.log("Test-Eingabe:", e.target.value);
+                                        setEmail(e.target.value);
+                                    }}
+                                    style={{
+                                        border: '3px solid red',
+                                        backgroundColor: 'yellow',
+                                        color: 'black',
+                                        width: '100%',
+                                        height: '50px',
+                                        fontSize: '20px',
+                                        padding: '10px',
+                                        // Alle möglichen Überschreibungen erzwingen:
+                                        WebkitTextFillColor: 'black',
+                                        WebkitOpacity: 1,
+                                        opacity: 1,
+                                        caretColor: 'black',
+                                    }}
+                                />
                                 <PasswordInput
                                     value={password}
                                     onChange={setPassword}

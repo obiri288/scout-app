@@ -33,6 +33,11 @@ CREATE TABLE IF NOT EXISTS public.player_ratings (
 ALTER TABLE public.player_attributes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.player_ratings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read - player_attributes" ON public.player_attributes;
+DROP POLICY IF EXISTS "Allow public read - player_ratings" ON public.player_ratings;
+DROP POLICY IF EXISTS "Allow auth insert/update - player_attributes" ON public.player_attributes;
+DROP POLICY IF EXISTS "Allow auth insert/update - player_ratings" ON public.player_ratings;
+
 CREATE POLICY "Allow public read - player_attributes" ON public.player_attributes FOR SELECT USING (true);
 CREATE POLICY "Allow public read - player_ratings" ON public.player_ratings FOR SELECT USING (true);
 
