@@ -103,14 +103,18 @@
 }
 
 html,
-body,
-#root {
+body {
   min-height: 100%;
   width: 100%;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100%;
+  width: 100%;
   -webkit-user-select: none;
   user-select: none;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -123,9 +127,11 @@ body,
 }
 
 input,
-textarea {
-  -webkit-user-select: text;
-  user-select: text;
+textarea,
+select,
+[contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Autofill Fix für Light & Dark Mode */
@@ -133,14 +139,17 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-text-fill-color: #0f172a !important; /* slate-950 für Light Mode */
+  -webkit-text-fill-color: #0f172a !important;
+  /* slate-950 für Light Mode */
   -webkit-box-shadow: 0 0 0px 1000px white inset !important;
   transition: background-color 5000s ease-in-out 0s;
 }
+
 .dark input:-webkit-autofill,
 .dark input:-webkit-autofill:hover,
 .dark input:-webkit-autofill:focus,
 .dark input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important; /* white für Dark Mode */
+  -webkit-text-fill-color: #ffffff !important;
+  /* white für Dark Mode */
   -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
 }
