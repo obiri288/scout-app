@@ -144,21 +144,25 @@ select,
   user-select: text !important;
 }
 
-/* Bulletproof Input Theming via CSS Variables */
-input,
+/* Bulletproof Input Theming — iOS Safari Brechstange */
+input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
 textarea,
 select {
-  background-color: var(--input-bg) !important;
-  color: var(--input-text) !important;
-  -webkit-text-fill-color: var(--input-text) !important;
-  border-color: var(--input-border) !important;
+  background-color: var(--input-bg, #ffffff) !important;
+  color: var(--input-text, #0f172a) !important;
+  -webkit-text-fill-color: var(--input-text, #0f172a) !important;
+  border-color: var(--input-border, #cbd5e1) !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  opacity: 1 !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--input-placeholder) !important;
-  -webkit-text-fill-color: var(--input-placeholder) !important;
-  opacity: 1;
+  color: var(--input-placeholder, #64748b) !important;
+  -webkit-text-fill-color: var(--input-placeholder, #64748b) !important;
+  opacity: 1 !important;
 }
 
 /* Autofill Fix */

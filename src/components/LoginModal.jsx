@@ -134,7 +134,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                         </div>
                     ) : view === 'forgot' ? (
                         <form onSubmit={handlePasswordReset} className="space-y-4">
-                            <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
+                            <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} style={{ color: 'var(--input-text, #0f172a)', backgroundColor: 'var(--input-bg, #ffffff)', WebkitTextFillColor: 'var(--input-text, #0f172a)' }} value={email} onChange={(e) => setEmail(e.target.value)} />
                             {msg && (<div className="bg-rose-600/10 text-rose-600 text-xs p-3 rounded-xl border border-rose-600/20 flex items-center gap-2 font-medium"><AlertCircle size={14} /> {msg}</div>)}
                             <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
                                 {loading && <Loader2 className="animate-spin" size={18} />} Reset-Link senden
@@ -146,7 +146,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     ) : (
                         <form onSubmit={handleAuth} className="space-y-4">
                             <div className="space-y-3">
-                                <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} />
+                                <input type="email" placeholder="E-Mail Adresse" required className={inputStyle} style={{ color: 'var(--input-text, #0f172a)', backgroundColor: 'var(--input-bg, #ffffff)', WebkitTextFillColor: 'var(--input-text, #0f172a)' }} value={email} onChange={(e) => setEmail(e.target.value)} />
                                 <PasswordInput
                                     value={password}
                                     onChange={setPassword}

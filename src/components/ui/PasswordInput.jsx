@@ -37,6 +37,7 @@ export const PasswordInput = ({
                     placeholder={placeholder}
                     required={required}
                     className={`${inputStyle} pr-10`}
+                    style={{ color: 'var(--input-text, #0f172a)', backgroundColor: 'var(--input-bg, #ffffff)', WebkitTextFillColor: 'var(--input-text, #0f172a)' }}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                 />
