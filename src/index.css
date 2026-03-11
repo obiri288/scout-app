@@ -33,6 +33,11 @@
     --chart-3: 222 50% 45%;
     --chart-4: 280 55% 55%;
     --chart-5: 340 65% 55%;
+    /* Input field colors */
+    --input-bg: #ffffff;
+    --input-text: #0f172a;
+    --input-border: #cbd5e1;
+    --input-placeholder: #64748b;
   }
 
   .dark {
@@ -64,6 +69,11 @@
     --chart-3: 38 92% 50%;
     --chart-4: 280 55% 55%;
     --chart-5: 340 65% 55%;
+    /* Input field colors */
+    --input-bg: #0f172a;
+    --input-text: #ffffff;
+    --input-border: rgba(255, 255, 255, 0.1);
+    --input-placeholder: #94a3b8;
   }
 }
 
@@ -134,22 +144,29 @@ select,
   user-select: text !important;
 }
 
-/* Autofill Fix für Light & Dark Mode */
+/* Bulletproof Input Theming via CSS Variables */
+input,
+textarea,
+select {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  -webkit-text-fill-color: var(--input-text) !important;
+  border-color: var(--input-border) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder) !important;
+  -webkit-text-fill-color: var(--input-placeholder) !important;
+  opacity: 1;
+}
+
+/* Autofill Fix */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-text-fill-color: #0f172a !important;
-  /* slate-950 für Light Mode */
-  -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+  -webkit-text-fill-color: var(--input-text) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
   transition: background-color 5000s ease-in-out 0s;
-}
-
-.dark input:-webkit-autofill,
-.dark input:-webkit-autofill:hover,
-.dark input:-webkit-autofill:focus,
-.dark input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
-  /* white für Dark Mode */
-  -webkit-box-shadow: 0 0 0px 1000px #0f172a inset !important;
 }
