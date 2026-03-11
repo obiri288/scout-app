@@ -142,6 +142,18 @@ select,
 [contenteditable="true"] {
   -webkit-user-select: text !important;
   user-select: text !important;
+  color: inherit;
+}
+
+/* Ensure select option elements are readable in dark mode */
+.dark select option {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+select option {
+  background-color: #ffffff;
+  color: #0f172a;
 }
 
 /*
