@@ -102,7 +102,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
     const [avgRating, setAvgRating] = useState(0);
 
     useEffect(() => {
-        if (!player) return;
+        if (!player?.id) return;
         if (isOwnProfile) {
             api.getProfileViewCount(player.id).then(setViewCount);
         }
@@ -113,7 +113,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     setAvgRating(Math.round(data.reduce((s, r) => s + r.rating, 0) / data.length * 10) / 10);
                 }
             });
-    }, [player, isOwnProfile]);
+    }, [player?.id, isOwnProfile]);
     if (isOwnProfile && !player) return <ProfileSkeleton />;
     if (!player) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Profil nicht gefunden.</div>;
 

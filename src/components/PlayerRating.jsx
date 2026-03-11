@@ -42,7 +42,7 @@ export const PlayerRating = ({ playerId, session, compact }) => {
             }
         };
         load();
-    }, [playerId, session]);
+    }, [playerId, session?.user?.id]);
 
     const submitRating = async (stars) => {
         if (!session || loading) return;

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const UserContext = createContext(null);
@@ -16,13 +16,23 @@ export const UserProvider = ({ children }) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
+    // Stable ref so the callback never goes stale
+    const sessionRef = useRef(session);
+    sessionRef.current = session;
+
+    // Guard against concurrent fetches
+    const fetchingRef = useRef(false);
+
     // Fetch or auto-create profile
     const fetchOrCreateProfile = useCallback(async (userSession) => {
-        const s = userSession || session;
+        const s = userSession || sessionRef.current;
         if (!s?.user?.id) {
             setCurrentUserProfile(null);
             return null;
         }
+        // Prevent concurrent fetches
+        if (fetchingRef.current) return null;
+        fetchingRef.current = true;
         setProfileLoading(true);
         try {
             let { data } = await supabase.from('players_master')
@@ -55,8 +65,9 @@ export const UserProvider = ({ children }) => {
             return null;
         } finally {
             setProfileLoading(false);
+            fetchingRef.current = false;
         }
-    }, [session]);
+    }, []);
 
     // Update profile (called after edit) — syncs everywhere
     const updateProfile = useCallback((updatedProfile) => {
@@ -83,12 +94,12 @@ export const UserProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Auto-fetch profile when session changes
+    // Auto-fetch profile when session user changes (primitive dep only)
     useEffect(() => {
         if (session?.user?.id) {
             fetchOrCreateProfile(session);
         }
-    }, [session, fetchOrCreateProfile]);
+    }, [session?.user?.id]);
 
     // Realtime notifications listener
     useEffect(() => {
@@ -123,14 +134,15 @@ export const UserProvider = ({ children }) => {
     const resetUnreadCount = useCallback(() => {
         setUnreadCount(0);
         // Mark all as read in background
-        if (session?.user?.id) {
+        const userId = sessionRef.current?.user?.id;
+        if (userId) {
             supabase.from('notifications')
                 .update({ is_read: true })
-                .eq('user_id', session.user.id)
+                .eq('user_id', userId)
                 .eq('is_read', false)
                 .then(() => { });
         }
-    }, [session]);
+    }, []);
 
     const logout = useCallback(async () => {
         await supabase.auth.signOut();

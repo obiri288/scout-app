@@ -99,11 +99,20 @@ export const useAppState = () => {
     const handleLoginSuccess = async (sessionData) => {
         setSession(sessionData);
         setShowLogin(false);
-        refreshProfile();
+        // Don't call refreshProfile() — UserContext auto-fetch handles it via session?.user?.id dep
         setViewedProfile(null);
         setActiveTab('profile');
-        navigateToHash('profile');
+        navigateToHash(`profile/${sessionData.user.id}`);
     };
+
+    // Bridge: after login, UserContext sets currentUserProfile asynchronously.
+    // This effect auto-loads the profile into viewedProfile once it's ready.
+    useEffect(() => {
+        if (activeTab === 'profile' && session?.user?.id && currentUserProfile && !viewedProfile) {
+            loadProfile(currentUserProfile);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, currentUserProfile?.id, session?.user?.id]);
 
     const handleInstallApp = () => {
         if (deferredPrompt) {
