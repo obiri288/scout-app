@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
-import { inputStyle } from '../../lib/styles';
+import { Input } from './input';
 
 export const PasswordInput = ({
     value,
@@ -32,12 +32,11 @@ export const PasswordInput = ({
     return (
         <div className="space-y-2 w-full">
             <div className="relative">
-                <input
+                <Input
                     type={showPassword ? "text" : "password"}
                     placeholder={placeholder}
                     required={required}
-                    className={`${inputStyle} pr-10`}
-                    style={{ color: 'var(--input-text, #0f172a)', backgroundColor: 'var(--input-bg, #ffffff)', WebkitTextFillColor: 'var(--input-text, #0f172a)' }}
+                    className="bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 pr-10"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                 />

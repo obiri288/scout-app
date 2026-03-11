@@ -144,40 +144,18 @@ select,
   user-select: text !important;
 }
 
-/* ============================================================
-   ISOLATIONSTEST: Globale !important Input-Regeln deaktiviert
-   DIESES BLOCK war das Problem — es überschreibt ALLE Inline-Styles!
-   ============================================================ */
-
 /*
- * AUSKOMMENTIERT FÜR DEBUG:
- *
- * input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
- * textarea,
- * select {
- *   background-color: var(--input-bg, #ffffff) !important;
- *   color: var(--input-text, #0f172a) !important;
- *   -webkit-text-fill-color: var(--input-text, #0f172a) !important;
- *   border-color: var(--input-border, #cbd5e1) !important;
- *   -webkit-appearance: none !important;
- *   -moz-appearance: none !important;
- *   appearance: none !important;
- *   opacity: 1 !important;
- * }
- *
- * input::placeholder,
- * textarea::placeholder {
- *   color: var(--input-placeholder, #64748b) !important;
- *   -webkit-text-fill-color: var(--input-placeholder, #64748b) !important;
- *   opacity: 1 !important;
- * }
- *
- * input:-webkit-autofill,
- * input:-webkit-autofill:hover,
- * input:-webkit-autofill:focus,
- * input:-webkit-autofill:active {
- *   -webkit-text-fill-color: var(--input-text) !important;
- *   -webkit-box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
- *   transition: background-color 5000s ease-in-out 0s;
- * }
+ * Global !important input theming REMOVED.
+ * Root cause of invisible text: !important overrode all inline + component styles.
+ * Input colors are now set at the component level via Tailwind classes.
  */
+
+/* Safe Autofill Fix — only targets autofilled state */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: inherit !important;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
