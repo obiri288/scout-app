@@ -115,9 +115,9 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     ];
 
     return (
-        <div className="fixed inset-0 z-[10002] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center">
+        <div className="fixed inset-0 z-[10002] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center">
             {/* Progress Bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-slate-200 dark:bg-zinc-800">
                 <motion.div
                     className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400"
                     initial={false}
@@ -129,7 +129,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             {/* Step Indicator */}
             <div className="absolute top-6 left-0 right-0 flex justify-center gap-2 px-6">
                 {[0, 1, 2].map(i => (
-                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i <= step ? 'bg-cyan-500' : 'bg-zinc-700'}`} />
+                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i <= step ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-zinc-700'}`} />
                 ))}
             </div>
 
@@ -149,14 +149,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         <div className="p-3 bg-cyan-500/10 rounded-2xl mb-4">
                             {steps[step].icon}
                         </div>
-                        <h2 className="text-2xl font-black text-white mb-1">{steps[step].title}</h2>
-                        <p className="text-zinc-400 text-sm text-center mb-8">{steps[step].subtitle}</p>
+                        <h2 className="text-2xl font-black text-foreground mb-1">{steps[step].title}</h2>
+                        <p className="text-muted-foreground text-sm text-center mb-8">{steps[step].subtitle}</p>
 
                         {/* Step 1: Name, Position, Birthday */}
                         {step === 0 && (
                             <div className="w-full space-y-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Vollständiger Name *</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Vollständiger Name *</label>
                                     <input
                                         type="text"
                                         value={fullName}
@@ -166,15 +166,15 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Position *</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Position *</label>
                                     <div className="grid grid-cols-3 gap-2">
                                         {POSITIONS.map(pos => (
                                             <button
                                                 key={pos}
                                                 onClick={() => setPosition(pos)}
                                                 className={`px-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${position === pos
-                                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
-                                                    : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-600 dark:text-cyan-400'
+                                                    : 'bg-slate-100 dark:bg-zinc-900 border-border text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
                                                     }`}
                                             >
                                                 {pos}
@@ -183,7 +183,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Geburtsdatum</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geburtsdatum</label>
                                     <input
                                         type="date"
                                         value={birthDate}
@@ -198,19 +198,19 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         {step === 1 && (
                             <div className="w-full flex flex-col items-center space-y-6">
                                 <label className="cursor-pointer group">
-                                    <div className="relative w-36 h-36 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-600 group-hover:border-cyan-500 transition-colors overflow-hidden flex items-center justify-center">
+                                    <div className="relative w-36 h-36 rounded-full bg-slate-100 dark:bg-zinc-800 border-2 border-dashed border-border group-hover:border-cyan-500 transition-colors overflow-hidden flex items-center justify-center">
                                         {avatarPreview ? (
                                             <img src={avatarPreview} className="w-full h-full object-cover" alt="Avatar" />
                                         ) : (
                                             <div className="text-center">
-                                                <Upload size={28} className="text-zinc-500 mx-auto mb-2" />
-                                                <span className="text-zinc-500 text-xs">Foto wählen</span>
+                                                <Upload size={28} className="text-muted-foreground mx-auto mb-2" />
+                                                <span className="text-muted-foreground text-xs">Foto wählen</span>
                                             </div>
                                         )}
                                     </div>
                                     <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
                                 </label>
-                                <p className="text-zinc-500 text-xs text-center">
+                                <p className="text-muted-foreground text-xs text-center">
                                     {avatarPreview ? 'Tippe nochmal zum Ändern' : 'JPG, PNG oder WebP, max. 5MB'}
                                 </p>
                             </div>
@@ -219,28 +219,28 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         {/* Step 3: Finish */}
                         {step === 2 && (
                             <div className="w-full space-y-4">
-                                <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-3">
+                                <div className="bg-card border border-border rounded-2xl p-5 space-y-3 relative">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
                                             {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <User size={20} className="text-cyan-400" />}
                                         </div>
                                         <div>
-                                            <p className="font-bold text-white">{fullName || 'Dein Name'}</p>
-                                            <p className="text-xs text-zinc-400">{position || 'Position'}</p>
+                                            <p className="font-bold text-foreground">{fullName || 'Dein Name'}</p>
+                                            <p className="text-xs text-muted-foreground">{position || 'Position'}</p>
                                         </div>
                                     </div>
-                                    <div className="h-px bg-zinc-700"></div>
-                                    <div className="text-xs text-zinc-400 space-y-1.5">
+                                    <div className="h-px bg-border"></div>
+                                    <div className="text-xs text-muted-foreground space-y-1.5">
                                         <div className="flex items-center gap-2">
                                             <Check size={14} className="text-cyan-500" /> Profil erstellen
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Check size={14} className={avatarPreview ? 'text-cyan-500' : 'text-zinc-600'} />
-                                            <span className={avatarPreview ? '' : 'text-zinc-600'}>Profilbild hochladen</span>
+                                            <Check size={14} className={avatarPreview ? 'text-cyan-500' : 'text-muted-foreground'} />
+                                            <span className={avatarPreview ? '' : 'text-muted-foreground'}>Profilbild hochladen</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Video size={14} className="text-zinc-600" />
-                                            <span className="text-zinc-600">Erstes Highlight (später möglich)</span>
+                                            <Video size={14} className="text-muted-foreground" />
+                                            <span className="text-muted-foreground">Erstes Highlight (später möglich)</span>
                                         </div>
                                     </div>
                                 </div>
@@ -256,7 +256,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                     <button
                         onClick={goBack}
                         disabled={loading}
-                        className="px-5 py-3.5 bg-zinc-800 text-white rounded-xl font-bold text-sm hover:bg-zinc-700 transition disabled:opacity-50 flex items-center gap-2"
+                        className="px-5 py-3.5 bg-slate-200 dark:bg-zinc-800 text-foreground rounded-xl font-bold text-sm hover:bg-slate-300 dark:hover:bg-zinc-700 transition disabled:opacity-50 flex items-center gap-2"
                     >
                         <ArrowLeft size={16} /> Zurück
                     </button>
@@ -283,7 +283,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
             {/* Skip for step 1 (avatar) */}
             {step === 1 && !avatarPreview && (
-                <button onClick={goNext} className="absolute bottom-20 text-zinc-500 text-xs hover:text-zinc-300 transition">
+                <button onClick={goNext} className="absolute bottom-20 text-muted-foreground text-xs hover:text-foreground transition">
                     Überspringen →
                 </button>
             )}

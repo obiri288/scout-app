@@ -11,6 +11,7 @@ export const useUser = () => {
 
 export const UserProvider = ({ children }) => {
     const [session, setSession] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
     const [currentUserProfile, setCurrentUserProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -78,6 +79,7 @@ export const UserProvider = ({ children }) => {
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session: s } }) => {
             setSession(s);
+            setAuthLoading(false);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
@@ -152,6 +154,7 @@ export const UserProvider = ({ children }) => {
     }, []);
 
     const value = {
+        authLoading,
         session,
         setSession,
         currentUserProfile,

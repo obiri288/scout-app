@@ -93,15 +93,17 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 dark:bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
             <div className={`w-full max-w-sm ${cardStyle} p-8 relative shadow-2xl shadow-blue-900/10`}>
-                <button onClick={onClose} className="absolute top-5 right-5 text-zinc-500 hover:text-white transition"><X size={20} /></button>
+                <button onClick={onClose} className="absolute top-5 right-5 text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 <div className="animate-in fade-in slide-in-from-right-5">
                     <div className="flex flex-col items-center gap-3 mb-8">
-                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-900/20 ring-1 ring-cyan-500/20">
-                            <div className="text-lg tracking-tighter flex items-baseline"><span className="font-black text-white">PRO</span><span className="font-semibold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 ml-0.5">BASE</span></div>
-                        </div>
-                        <h2 className="text-2xl font-bold text-white">
+                        <img
+                            src="/cavio-icon.png"
+                            alt="Cavio"
+                            className="h-16 w-16 object-contain mix-blend-screen drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                        />
+                        <h2 className="text-2xl font-bold text-foreground">
                             {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Willkommen zurück'}
                         </h2>
                         <p className="text-muted-foreground text-sm text-center">
@@ -115,12 +117,12 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                                 <Mail size={36} />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-white mb-2">Willkommen bei ProBase</h3>
-                                <p className="text-zinc-400 text-sm leading-relaxed">
+                                <h3 className="text-xl font-bold text-foreground mb-2">Willkommen bei Cavio</h3>
+                                <p className="text-muted-foreground text-sm leading-relaxed">
                                     Wir haben dir einen Link geschickt. Bitte bestätige deine E-Mail-Adresse, um den Tresor zu öffnen.
                                 </p>
                             </div>
-                            <button onClick={onClose} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl transition">
+                            <button onClick={onClose} className="w-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-border text-foreground font-bold py-3 rounded-xl transition">
                                 Verstanden
                             </button>
                         </div>
@@ -140,7 +142,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                             <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
                                 {loading && <Loader2 className="animate-spin" size={18} />} Reset-Link senden
                             </button>
-                            <button type="button" onClick={() => { setView('login'); setMsg(''); }} className="w-full text-muted-foreground text-sm hover:text-white transition flex items-center justify-center gap-2">
+                            <button type="button" onClick={() => { setView('login'); setMsg(''); }} className="w-full text-muted-foreground text-sm hover:text-foreground transition flex items-center justify-center gap-2">
                                 <ArrowLeft size={14} /> Zurück zum Login
                             </button>
                         </form>
@@ -180,13 +182,13 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                         </form>
                     )}
                     {(view !== 'forgot' && view !== 'registerSuccess') && (
-                        <div className="mt-6 pt-6 border-t border-white/5 text-center">
-                            <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei ProBase?'}</p>
-                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-white hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                        <div className="mt-6 pt-6 border-t border-border text-center">
+                            <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei Cavio?'}</p>
+                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}
                     {/* Legal Links */}
-                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-center gap-4">
+                    <div className="mt-4 pt-4 border-t border-border flex justify-center gap-4">
                         <button type="button" onClick={() => onLegalOpen?.('privacy')} className="text-muted-foreground text-[10px] hover:text-cyan-400 transition">Datenschutz</button>
                         <span className="text-zinc-700 text-[10px]">·</span>
                         <button type="button" onClick={() => onLegalOpen?.('imprint')} className="text-muted-foreground text-[10px] hover:text-cyan-400 transition">Impressum</button>

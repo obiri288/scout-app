@@ -13,7 +13,7 @@ const ATTRS = [
     { key: 'physical', label: 'PHY' },
 ];
 
-export const RadarChart = ({ playerId, session, isOwnProfile, compact = false }) => {
+export const RadarChart = ({ playerId, session, isOwnProfile, compact = false, onlyRatingUI = false }) => {
     const [avgValues, setAvgValues] = useState([50, 50, 50, 50, 50, 50]);
     const [myValues, setMyValues] = useState(null);
     const [raterCount, setRaterCount] = useState(0);
@@ -112,6 +112,64 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
         }));
     }, [displayValues]);
 
+    const RatingUI = () => (
+        <div className="mt-3">
+            {!showRating ? (
+                <button
+                    onClick={() => setShowRating(true)}
+                    className="w-full bg-white/5 hover:bg-white/10 dark:hover:bg-white/10 border border-border text-foreground font-bold text-xs py-2.5 rounded-xl transition-all"
+                >
+                    {myValues ? '⚡ Bewertung ändern' : '⚡ Spieler bewerten'}
+                </button>
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-2 pt-2 border-t border-border"
+                >
+                    {ATTRS.map((a, i) => (
+                        <div key={a.key} className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-muted-foreground w-8">{a.label}</span>
+                            <input
+                                type="range"
+                                min="1"
+                                max="99"
+                                value={editValues[i]}
+                                onChange={e => {
+                                    const next = [...editValues];
+                                    next[i] = parseInt(e.target.value);
+                                    setEditValues(next);
+                                }}
+                                className="flex-1 h-1.5 accent-cyan-500 bg-black/10 dark:bg-white/10 rounded-full appearance-none cursor-pointer"
+                            />
+                            <span className="text-xs font-bold text-foreground w-6 text-right">{editValues[i]}</span>
+                        </div>
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs py-2 rounded-lg transition-colors"
+                        >
+                            {submitting ? 'Speichern...' : 'Speichern'}
+                        </button>
+                        <button
+                            onClick={() => { setShowRating(false); if (myValues) setEditValues([...myValues]); }}
+                            className="px-4 bg-slate-200 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-400 font-bold text-xs py-2 rounded-lg transition-colors"
+                        >
+                            Abbrechen
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+        </div>
+    );
+
+    if (onlyRatingUI) {
+        if (!session || isOwnProfile) return null;
+        return <RatingUI />;
+    }
+
     return (
         <div className={compact ? "" : "bg-white/5 border border-border rounded-2xl p-4 relative"}>
             {!compact && (
@@ -168,58 +226,7 @@ export const RadarChart = ({ playerId, session, isOwnProfile, compact = false })
             </div>
 
             {/* Rating UI */}
-            {session && !isOwnProfile && !compact && (
-                <div className="mt-3">
-                    {!showRating ? (
-                        <button
-                            onClick={() => setShowRating(true)}
-                            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold text-xs py-2.5 rounded-xl transition-all"
-                        >
-                            {myValues ? '⚡ Bewertung ändern' : '⚡ Spieler bewerten'}
-                        </button>
-                    ) : (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="space-y-2 pt-2 border-t border-white/5"
-                        >
-                            {ATTRS.map((a, i) => (
-                                <div key={a.key} className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-zinc-500 w-8">{a.label}</span>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="99"
-                                        value={editValues[i]}
-                                        onChange={e => {
-                                            const next = [...editValues];
-                                            next[i] = parseInt(e.target.value);
-                                            setEditValues(next);
-                                        }}
-                                        className="flex-1 h-1.5 accent-cyan-500 bg-zinc-800 rounded-full appearance-none cursor-pointer"
-                                    />
-                                    <span className="text-xs font-bold text-foreground w-6 text-right">{editValues[i]}</span>
-                                </div>
-                            ))}
-                            <div className="flex gap-2 pt-1">
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={submitting}
-                                    className="flex-1 bg-cyan-600 text-white font-bold text-xs py-2 rounded-lg"
-                                >
-                                    {submitting ? 'Speichern...' : 'Bewertung speichern'}
-                                </button>
-                                <button
-                                    onClick={() => { setShowRating(false); if (myValues) setEditValues([...myValues]); }}
-                                    className="px-4 bg-white/5 text-zinc-400 font-bold text-xs py-2 rounded-lg"
-                                >
-                                    Abbrechen
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
-                </div>
-            )}
+            {session && !isOwnProfile && !compact && <RatingUI />}
         </div>
     );
 };

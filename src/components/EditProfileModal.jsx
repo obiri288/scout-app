@@ -127,37 +127,37 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         <button
             type="button"
             onClick={() => setActiveTab(id)}
-            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === id ? 'border-blue-500 text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === id ? 'border-blue-500 text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
         >
             <Icon size={16} /> {label}
         </button>
     );
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-            <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
+        <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-border rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
                 {/* Header */}
-                <div className="flex justify-between items-center p-5 border-b border-white/5 bg-zinc-900">
-                    <h2 className="text-lg font-bold text-white">Profil bearbeiten</h2>
-                    <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
+                <div className="flex justify-between items-center p-5 border-b border-border bg-white dark:bg-zinc-900">
+                    <h2 className="text-lg font-bold text-foreground">Profil bearbeiten</h2>
+                    <button onClick={onClose}><X className="text-muted-foreground hover:text-foreground" /></button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-white/5 bg-zinc-900">
+                <div className="flex border-b border-border bg-white dark:bg-zinc-900">
                     <TabButton id="general" label="Allgemein" icon={User} />
                     <TabButton id="sport" label="Sportlich" icon={Activity} />
                     <TabButton id="social" label="Socials & Links" icon={Share2} />
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 bg-zinc-900/50">
+                <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-zinc-900/50">
                     <form id="edit-form" onSubmit={handleSave} className="space-y-6">
                         {/* TAB 1: ALLGEMEIN */}
                         {activeTab === 'general' && (
                             <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
                                 <div className="flex justify-center">
                                     <div className="relative group cursor-pointer">
-                                        <div className="w-28 h-28 rounded-full bg-zinc-800 border-4 border-zinc-900 overflow-hidden shadow-xl">
-                                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-zinc-600 m-8" />}
+                                        <div className="w-28 h-28 rounded-full bg-slate-200 dark:bg-zinc-800 border-4 border-white dark:border-zinc-900 overflow-hidden shadow-xl">
+                                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-muted-foreground m-8" />}
                                         </div>
                                         <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
                                             <Camera size={28} className="text-white" />
@@ -171,30 +171,30 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                 </div>
 
                                 <div className="space-y-4">
-                                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Persönliche Daten</h3>
+                                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Persönliche Daten</h3>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Vorname</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vorname</label>
                                             <input value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} className={inputStyle} placeholder="Max" />
                                         </div>
                                         <div>
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nachname</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nachname</label>
                                             <input value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} className={inputStyle} placeholder="Mustermann" />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
                                             <div className="relative">
-                                                <Calendar className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                                                <Calendar className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
                                                 <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className={`${inputStyle} pl-10`} />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nationalität</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nationalität</label>
                                             <div className="relative">
-                                                <Globe className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                                                <Globe className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
                                                 <input placeholder="z.B. Deutschland" value={formData.nationality} onChange={e => setFormData({ ...formData, nationality: e.target.value })} className={`${inputStyle} pl-10`} />
                                             </div>
                                         </div>
@@ -202,20 +202,20 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
                                     <div className="grid grid-cols-3 gap-3">
                                         <div className="col-span-1">
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">PLZ</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">PLZ</label>
                                             <input placeholder="12345" value={formData.zip_code} onChange={e => setFormData({ ...formData, zip_code: e.target.value })} className={inputStyle} />
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Ort</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Ort</label>
                                             <div className="relative">
-                                                <MapPin className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                                                <MapPin className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
                                                 <input placeholder="Berlin" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className={`${inputStyle} pl-10`} />
                                             </div>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Über mich / Motto</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Über mich / Motto</label>
                                         <textarea rows={3} placeholder="Erzähl etwas über deinen Spielstil..." value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} className={`${inputStyle} resize-none`} />
                                     </div>
                                 </div>
@@ -226,35 +226,35 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                         {activeTab === 'sport' && (
                             <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
                                 <div>
-                                    <label className="text-xs text-zinc-500 font-bold uppercase ml-1 mb-1 block">Aktueller Verein</label>
+                                    <label className="text-xs text-muted-foreground font-bold uppercase ml-1 mb-1 block">Aktueller Verein</label>
                                     {selectedClub ? (
                                         <div
-                                            className="bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10 transition-colors"
+                                            className="bg-slate-100 dark:bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10 transition-colors"
                                             style={{ borderColor: getClubBorderColor(selectedClub) }}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
+                                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center">
                                                     {selectedClub.logo_url ? <img src={selectedClub.logo_url} className="w-full h-full rounded-full object-cover" /> : <Shield size={14} />}
                                                 </div>
                                                 <div>
-                                                    <span className="font-bold text-white block text-sm">{selectedClub.name}</span>
-                                                    <span className="text-xs text-zinc-500">{selectedClub.leagues?.name || 'Amateurliga'}</span>
+                                                    <span className="font-bold text-foreground block text-sm">{selectedClub.name}</span>
+                                                    <span className="text-xs text-muted-foreground">{selectedClub.leagues?.name || 'Amateurliga'}</span>
                                                 </div>
                                             </div>
-                                            <button type="button" onClick={() => setSelectedClub(null)} className="p-2 hover:bg-white/10 rounded-full transition"><X size={16} className="text-zinc-400" /></button>
+                                            <button type="button" onClick={() => setSelectedClub(null)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition"><X size={16} className="text-muted-foreground" /></button>
                                         </div>
                                     ) : (
                                         <div className="relative">
-                                            <Search className="absolute left-4 top-4 text-zinc-500" size={18} />
+                                            <Search className="absolute left-4 top-4 text-muted-foreground" size={18} />
                                             <input placeholder="Verein suchen..." value={clubSearch} onChange={e => setClubSearch(e.target.value)} className={`${inputStyle} pl-12`} />
                                             {clubResults.length > 0 && (
-                                                <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
+                                                <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
                                                     {clubResults.map(c => (
-                                                        <div key={c.id} onClick={() => { setSelectedClub(c); setClubSearch(''); }} className="p-3 hover:bg-zinc-800 cursor-pointer text-white border-b border-white/5 flex items-center gap-3">
+                                                        <div key={c.id} onClick={() => { setSelectedClub(c); setClubSearch(''); }} className="p-3 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer text-foreground border-b border-border flex items-center gap-3">
                                                             {c.logo_url && <img src={c.logo_url} className="w-8 h-8 rounded-full border border-white/10" />}
                                                             <div className="flex flex-col">
                                                                 <span className="text-sm font-bold">{c.name}</span>
-                                                                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">
+                                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
                                                                     {c.countries?.iso_code ? `${c.countries.iso_code} • ` : ''}
                                                                     {c.leagues?.name || 'Amateurliga'}
                                                                 </span>
@@ -264,7 +264,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                                 </div>
                                             )}
                                             {clubSearch.length > 2 && clubResults.length === 0 && (
-                                                <div className="absolute z-50 w-full bg-zinc-900 border border-zinc-700 rounded-xl mt-2 overflow-hidden shadow-xl p-2">
+                                                <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-2 overflow-hidden shadow-xl p-2">
                                                     <div onClick={handleCreateClub} className="p-3 bg-blue-600/10 text-blue-400 cursor-pointer font-bold text-xs hover:bg-blue-600/20 flex items-center gap-2 rounded-lg">
                                                         <Plus size={14} /> "{clubSearch}" als neuen Verein anlegen
                                                     </div>
@@ -276,13 +276,13 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Hauptposition</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Hauptposition</label>
                                         <select value={formData.position_primary} onChange={e => setFormData({ ...formData, position_primary: e.target.value })} className={inputStyle}>
                                             {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p => <option key={p}>{p}</option>)}
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nebenposition</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nebenposition</label>
                                         <select value={formData.position_secondary} onChange={e => setFormData({ ...formData, position_secondary: e.target.value })} className={inputStyle}>
                                             <option value="">Keine</option>
                                             {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p => <option key={p}>{p}</option>)}
@@ -292,7 +292,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Transfer-Status</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Transfer-Status</label>
                                         <select value={formData.transfer_status} onChange={e => setFormData({ ...formData, transfer_status: e.target.value })} className={inputStyle}>
                                             <option>Gebunden</option>
                                             <option>Suche Verein</option>
@@ -300,26 +300,26 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Vertrag bis</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vertrag bis</label>
                                         <input type="date" value={formData.contract_end} onChange={e => setFormData({ ...formData, contract_end: e.target.value })} className={inputStyle} />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-4 gap-2">
                                     <div className="col-span-1">
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Nr.</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nr.</label>
                                         <input type="number" min="0" placeholder="#" value={formData.jersey_number} onChange={e => setFormData({ ...formData, jersey_number: e.target.value })} className={`${inputStyle} text-center`} />
                                     </div>
                                     <div className="col-span-1">
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Größe</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Größe</label>
                                         <input type="number" min="0" placeholder="cm" value={formData.height_user} onChange={e => setFormData({ ...formData, height_user: e.target.value })} className={inputStyle} />
                                     </div>
                                     <div className="col-span-1">
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Gewicht</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Gewicht</label>
                                         <input type="number" min="0" placeholder="kg" value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value })} className={inputStyle} />
                                     </div>
                                     <div className="col-span-1">
-                                        <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Fuß</label>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Fuß</label>
                                         <select value={formData.strong_foot} onChange={e => setFormData({ ...formData, strong_foot: e.target.value })} className={`${inputStyle} px-1 text-xs`}>
                                             <option>Rechts</option>
                                             <option>Links</option>
@@ -329,11 +329,11 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                 </div>
 
                                 {/* Spielertyp Section */}
-                                <div className="pt-2 border-t border-white/5">
+                                <div className="pt-2 border-t border-border">
                                     <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⚡ Spielertyp</h3>
                                     <div className="grid grid-cols-1 gap-3">
                                         <div>
-                                            <label className="text-[10px] text-zinc-400 font-bold uppercase ml-1 mb-1 block">Dein Profil</label>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Dein Profil</label>
                                             <select value={formData.player_archetype} onChange={e => setFormData({ ...formData, player_archetype: e.target.value })} className={inputStyle}>
                                                 <option value="">Keinen auswählen</option>
                                                 <option>Spielmacher</option>
@@ -354,16 +354,16 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                         {/* TAB 3: SOCIALS & LINKS */}
                         {activeTab === 'social' && (
                             <div className="space-y-4 animate-in slide-in-from-right-4 fade-in duration-300">
-                                <div className="bg-zinc-800/30 p-4 rounded-xl border border-white/5 text-center mb-2">
-                                    <p className="text-sm text-zinc-400">Verbinde deine Accounts, damit Scouts mehr von dir sehen können.</p>
+                                <div className="bg-slate-100/50 dark:bg-zinc-800/30 p-4 rounded-xl border border-border text-center mb-2">
+                                    <p className="text-sm text-muted-foreground">Verbinde deine Accounts, damit Scouts mehr von dir sehen können.</p>
                                 </div>
-                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Social Media</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Social Media</h3>
                                 <div className="space-y-3">
                                     <input placeholder="Instagram Username" value={formData.instagram_handle} onChange={e => setFormData({ ...formData, instagram_handle: e.target.value })} className={inputStyle} />
                                     <input placeholder="TikTok Username" value={formData.tiktok_handle} onChange={e => setFormData({ ...formData, tiktok_handle: e.target.value })} className={inputStyle} />
                                     <input placeholder="YouTube Channel" value={formData.youtube_handle} onChange={e => setFormData({ ...formData, youtube_handle: e.target.value })} className={inputStyle} />
                                 </div>
-                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider pt-4">Externe Profile</h3>
+                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider pt-4">Externe Profile</h3>
                                 <div className="space-y-3">
                                     <input placeholder="Transfermarkt Link" value={formData.transfermarkt_url} onChange={e => setFormData({ ...formData, transfermarkt_url: e.target.value })} className={inputStyle} />
                                     <input placeholder="FuPa Link" value={formData.fupa_url} onChange={e => setFormData({ ...formData, fupa_url: e.target.value })} className={inputStyle} />
@@ -373,7 +373,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                     </form>
                 </div>
 
-                <div className="p-6 border-t border-zinc-800 bg-zinc-900">
+                <div className="p-6 border-t border-border bg-white dark:bg-zinc-900">
                     <button form="edit-form" disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
                         {loading ? <Loader2 className="animate-spin" /> : <><Save size={18} /> Speichern</>}
                     </button>

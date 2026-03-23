@@ -67,9 +67,9 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onUserClick(video.players_master)}>
-                        <div className={`w-10 h-10 rounded-full bg-slate-900 overflow-hidden p-[1px] ${getClubStyle(video.players_master?.clubs?.is_icon_league)} shadow-inner`}>
-                            <div className="w-full h-full rounded-full overflow-hidden bg-slate-950">
-                                {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-slate-500" />}
+                        <div className={`w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden p-[1px] ${getClubStyle(video.players_master?.clubs?.is_icon_league)} shadow-inner`}>
+                            <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-950">
+                                {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-muted-foreground" />}
                             </div>
                         </div>
                         <div>
@@ -83,7 +83,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-muted-foreground hover:text-foreground p-2 transition-colors duration-300"><MoreHorizontal size={20} /></button>
                         {showMenu && (
                             <div className="absolute right-0 top-full bg-card border border-border rounded-xl shadow-2xl backdrop-blur-xl z-20 w-36 overflow-hidden animate-in fade-in zoom-in-95">
-                                <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video'); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-300"><Flag size={14} /> Melden</button>
+                                <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video'); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2 transition-colors duration-300"><Flag size={14} /> Melden</button>
                             </div>
                         )}
                     </div>

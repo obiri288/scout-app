@@ -44,7 +44,7 @@ export const NamePromptModal = () => {
     };
 
     return (
-        <div className="fixed inset-0 z-[10001] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[10001] bg-background/95 backdrop-blur-xl flex items-center justify-center p-6">
             <motion.div
                 initial={{ opacity: 0, y: 30, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -54,12 +54,12 @@ export const NamePromptModal = () => {
                 {/* Icon */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="p-4 bg-cyan-500/10 rounded-2xl mb-4">
-                        <User className="text-cyan-400" size={32} />
+                        <User className="text-cyan-600 dark:text-cyan-400" size={32} />
                     </div>
-                    <h2 className="text-2xl font-black text-white text-center mb-2">
+                    <h2 className="text-2xl font-black text-foreground text-center mb-2">
                         Wie heißt du auf dem Platz?
                     </h2>
-                    <p className="text-zinc-400 text-sm text-center max-w-xs">
+                    <p className="text-muted-foreground text-sm text-center max-w-xs">
                         Zeig Scouts und Mitspielern, wer du bist. Dein echter Name schafft Vertrauen.
                     </p>
                 </div>
@@ -67,7 +67,7 @@ export const NamePromptModal = () => {
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Vorname *</label>
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Vorname *</label>
                         <input
                             type="text"
                             value={firstName}
@@ -78,7 +78,7 @@ export const NamePromptModal = () => {
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Nachname *</label>
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Nachname *</label>
                         <input
                             type="text"
                             value={lastName}
@@ -104,7 +104,7 @@ export const NamePromptModal = () => {
                     </motion.button>
                 </form>
 
-                <p className="text-zinc-600 text-[10px] text-center mt-6">
+                <p className="text-muted-foreground text-[10px] text-center mt-6">
                     Dein Name wird öffentlich auf deinem Profil angezeigt.
                 </p>
             </motion.div>

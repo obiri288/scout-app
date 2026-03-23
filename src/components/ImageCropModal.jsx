@@ -139,15 +139,15 @@ export const ImageCropModal = ({ imageSrc, onCrop, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[10001] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-[10001] bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in-95">
             <div className="absolute top-6 right-6">
-                <button onClick={onClose} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={20} className="text-white" /></button>
+                <button onClick={onClose} className="p-3 bg-black/5 dark:bg-white/10 rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition"><X size={20} className="text-foreground" /></button>
             </div>
 
-            <h3 className="text-white font-bold text-lg mb-6">Bild zuschneiden</h3>
+            <h3 className="text-foreground font-bold text-lg mb-6">Bild zuschneiden</h3>
 
             <div
-                className="rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shadow-2xl touch-none w-[320px] h-[320px]"
+                className="rounded-2xl overflow-hidden bg-slate-50 dark:bg-zinc-900 border border-border shadow-2xl touch-none w-[320px] h-[320px]"
             >
                 <canvas
                     ref={canvasRef}
@@ -167,23 +167,23 @@ export const ImageCropModal = ({ imageSrc, onCrop, onClose }) => {
 
             {/* Zoom controls */}
             <div className="flex items-center gap-4 mt-6">
-                <button onClick={zoomOut} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition"><ZoomOut size={20} className="text-white" /></button>
-                <div className="w-32 h-1.5 bg-zinc-800 rounded-full relative">
+                <button onClick={zoomOut} className="p-3 bg-black/5 dark:bg-white/10 rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition"><ZoomOut size={20} className="text-foreground" /></button>
+                <div className="w-32 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-full relative">
                     <motion.div
                         className="h-full bg-blue-500 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(100, (scale / 3) * 100)}%` }}
                     />
                 </div>
-                <button onClick={zoomIn} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition"><ZoomIn size={20} className="text-white" /></button>
-                <button onClick={resetView} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition ml-2"><RotateCcw size={18} className="text-white" /></button>
+                <button onClick={zoomIn} className="p-3 bg-black/5 dark:bg-white/10 rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition"><ZoomIn size={20} className="text-foreground" /></button>
+                <button onClick={resetView} className="p-3 bg-black/5 dark:bg-white/10 rounded-full hover:bg-black/10 dark:hover:bg-white/20 transition ml-2"><RotateCcw size={18} className="text-foreground" /></button>
             </div>
 
-            <p className="text-zinc-500 text-xs mt-3">Ziehen zum Verschieben · Scrollen zum Zoomen</p>
+            <p className="text-muted-foreground text-xs mt-3">Ziehen zum Verschieben · Scrollen zum Zoomen</p>
 
             {/* Action buttons */}
             <div className="flex gap-3 mt-8">
-                <button onClick={onClose} className="px-6 py-3 bg-zinc-800 text-white rounded-xl font-bold text-sm hover:bg-zinc-700 transition border border-zinc-700">
+                <button onClick={onClose} className="px-6 py-3 bg-slate-200 dark:bg-zinc-800 text-foreground rounded-xl font-bold text-sm hover:bg-slate-300 dark:hover:bg-zinc-700 transition border border-border">
                     Abbrechen
                 </button>
                 <button onClick={handleCrop} className={`${btnPrimary} px-8 flex items-center gap-2`}>

@@ -26,18 +26,18 @@ export const FollowerListModal = ({ userId, onClose, onUserClick }) => {
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className={`w-full max-w-md ${cardStyle} h-[70vh] p-4`}>
                 <div className="flex justify-between mb-4">
-                    <h2 className="font-bold text-white">Follower</h2>
-                    <button onClick={onClose}><X className="text-zinc-400" /></button>
+                    <h2 className="font-bold text-foreground">Follower</h2>
+                    <button onClick={onClose}><X className="text-muted-foreground" /></button>
                 </div>
                 <div className="space-y-2 overflow-y-auto max-h-[calc(70vh-60px)]">
                     {followers.map(p => (
-                        <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex gap-3 p-2 hover:bg-white/5 rounded cursor-pointer">
-                            <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10 overflow-hidden">
-                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-zinc-500" />}
+                        <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex gap-3 p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded cursor-pointer">
+                            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 border border-border overflow-hidden">
+                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-muted-foreground" />}
                             </div>
                             <div>
-                                <div className="text-white font-bold">{p.full_name}</div>
-                                <div className="text-zinc-500 text-xs">{p.clubs?.name}</div>
+                                <div className="text-foreground font-bold">{p.full_name}</div>
+                                <div className="text-muted-foreground text-xs">{p.clubs?.name}</div>
                             </div>
                         </div>
                     ))}

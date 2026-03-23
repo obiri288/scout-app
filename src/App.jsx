@@ -7,6 +7,8 @@ import * as api from './lib/api';
 
 // Eagerly loaded — visible on first render
 import { CookieBanner } from './components/CookieBanner';
+import { LandingPage } from './components/LandingPage';
+import { SplashScreen } from './components/SplashScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { SearchScreen } from './components/SearchScreen';
 import { InboxScreen } from './components/InboxScreen';
@@ -33,7 +35,7 @@ const NamePromptModal = lazy(() => import('./components/NamePromptModal').then(m
 const UpdatePasswordModal = lazy(() => import('./components/UpdatePasswordModal').then(m => ({ default: m.UpdatePasswordModal })));
 
 const LazyFallback = () => (
-    <div className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center">
+    <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
 );
@@ -42,19 +44,19 @@ const PushSettingsModal = ({ onClose }) => {
     const [toggles, setToggles] = useState({ follower: true, likes: true, messages: true });
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-            <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2"><Bell size={18} /> Push-Benachrichtigungen</h2>
-                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-border">
+                <div className="p-4 border-b border-border flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Bell size={18} /> Push-Benachrichtigungen</h2>
+                    <button onClick={onClose} className="p-2 bg-black/5 dark:bg-white/5 rounded-full text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 </div>
                 <div className="p-4 space-y-4 overflow-y-auto">
                     {['Neue Follower', 'Neue Likes', 'Neue Nachrichten'].map((label, i) => {
                         const key = ['follower', 'likes', 'messages'][i];
                         return (
-                            <div key={key} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                                <span className="font-medium text-zinc-200">{label}</span>
-                                <button onClick={() => setToggles(p => ({ ...p, [key]: !p[key] }))} className={`w-12 h-6 rounded-full transition-colors relative ${toggles[key] ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                            <div key={key} className="flex items-center justify-between p-4 bg-slate-100 dark:bg-white/5 rounded-xl border border-border">
+                                <span className="font-medium text-foreground">{label}</span>
+                                <button onClick={() => setToggles(p => ({ ...p, [key]: !p[key] }))} className={`w-12 h-6 rounded-full transition-colors relative ${toggles[key] ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-700'}`}>
                                     <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${toggles[key] ? 'translate-x-6' : 'translate-x-1'}`}></div>
                                 </button>
                             </div>
@@ -89,29 +91,29 @@ const ChangePasswordModal = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-            <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2"><Key size={18} /> Passwort ändern</h2>
-                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-border">
+                <div className="p-4 border-b border-border flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Key size={18} /> Passwort ändern</h2>
+                    <button onClick={onClose} className="p-2 bg-black/5 dark:bg-white/5 rounded-full text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 </div>
                 <div className="p-6">
                     {success ? (
                         <div className="text-center space-y-4 py-8 animate-in fade-in zoom-in-95">
                             <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto"><Lock size={32} /></div>
-                            <h3 className="text-xl font-bold text-white">Passwort aktualisiert</h3>
-                            <p className="text-zinc-400 text-sm">Dein Passwort wurde erfolgreich geändert.</p>
+                            <h3 className="text-xl font-bold text-foreground">Passwort aktualisiert</h3>
+                            <p className="text-muted-foreground text-sm">Dein Passwort wurde erfolgreich geändert.</p>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {error && <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-500 text-sm animate-in fade-in">{error}</div>}
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Neues Passwort</label>
-                                <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Neues Passwort</label>
+                                <input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} className="w-full bg-slate-100 dark:bg-black/50 border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider ml-1">Passwort bestätigen</label>
-                                <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Passwort bestätigen</label>
+                                <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full bg-slate-100 dark:bg-black/50 border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required />
                             </div>
                             <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center mt-6">
                                 {loading ? <Loader2 size={20} className="animate-spin" /> : 'Passwort speichern'}
@@ -165,17 +167,17 @@ const LegalModal = ({ title, onClose }) => {
     const content = legalContent[title] || legalContent['Datenschutz'];
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-            <div className="relative w-full max-w-2xl bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-[80vh] h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-white/10">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2"><FileText size={18} /> {title}</h2>
-                    <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-[80vh] h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-border">
+                <div className="p-4 border-b border-border flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><FileText size={18} /> {title}</h2>
+                    <button onClick={onClose} className="p-2 bg-black/5 dark:bg-white/5 rounded-full text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 </div>
-                <div className="p-6 overflow-y-auto text-zinc-300 space-y-6 text-sm leading-relaxed">
-                    <p className="text-zinc-500 text-xs">Zuletzt aktualisiert: {content.updated}</p>
+                <div className="p-6 overflow-y-auto text-foreground/80 space-y-6 text-sm leading-relaxed">
+                    <p className="text-muted-foreground text-xs">Zuletzt aktualisiert: {content.updated}</p>
                     {content.sections.map((s, i) => (
                         <div key={i}>
-                            <h4 className="font-bold text-white text-base mb-2">{s.title}</h4>
+                            <h4 className="font-bold text-foreground text-base mb-2">{s.title}</h4>
                             <p className="whitespace-pre-line">{s.text}</p>
                         </div>
                     ))}
@@ -206,25 +208,25 @@ const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
-            <div className="relative w-full max-w-md bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-red-500/30">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-red-500/30">
+                <div className="p-4 border-b border-border flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
                     <h2 className="text-lg font-bold text-red-500 flex items-center gap-2"><Trash2 size={18} /> Danger Zone</h2>
-                    <button onClick={onClose} disabled={deleting} className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition"><X size={20} /></button>
+                    <button onClick={onClose} disabled={deleting} className="p-2 bg-black/5 dark:bg-white/5 rounded-full text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 </div>
                 <div className="p-6 space-y-6">
                     <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
                         <h3 className="font-bold text-red-500 mb-2">Account unwiderruflich löschen</h3>
-                        <p className="text-sm text-zinc-300">Wenn du deinen Account löschst, werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                        <p className="text-sm text-foreground/70">Wenn du deinen Account löschst, werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.</p>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-zinc-300">Tippe <span className="text-white font-bold select-all tracking-wider px-2 py-0.5 bg-black/50 rounded">LÖSCHEN</span> um zu bestätigen:</label>
-                        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={deleting} className="w-full bg-black/50 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-500 transition-colors disabled:opacity-50" placeholder="LÖSCHEN" />
+                        <label className="text-sm font-medium text-foreground/70">Tippe <span className="text-foreground font-bold select-all tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-black/50 rounded">LÖSCHEN</span> um zu bestätigen:</label>
+                        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={deleting} className="w-full bg-slate-100 dark:bg-black/50 border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-red-500 transition-colors disabled:opacity-50" placeholder="LÖSCHEN" />
                     </div>
                     <button disabled={input !== 'LÖSCHEN' || deleting} onClick={handleDelete} className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-600/30 disabled:text-red-300/50 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
                         {deleting ? <><Loader2 size={18} className="animate-spin" /> Wird gelöscht...</> : 'Account endgültig löschen'}
                     </button>
-                    <button onClick={onClose} disabled={deleting} className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl transition disabled:opacity-50">
+                    <button onClick={onClose} disabled={deleting} className="w-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-foreground font-bold py-3 rounded-xl transition disabled:opacity-50">
                         Abbrechen
                     </button>
                 </div>
@@ -235,6 +237,7 @@ const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
 
 const App = () => {
     const {
+        authLoading,
         session, currentUserProfile, updateProfile, refreshProfile,
         unreadCount, resetUnreadCount, logout,
         activeTab, switchTab, navigateToHash,
@@ -262,10 +265,32 @@ const App = () => {
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
     const [blockTarget, setBlockTarget] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showLanding, setShowLanding] = useState(true);
+
+    // Block ALL rendering until Supabase auth state is resolved
+    if (authLoading) return <SplashScreen />;
 
     // Check for onboarding: session exists but no profile yet
     const needsOnboarding = session && !currentUserProfile;
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
+
+    // Show landing page for unauthenticated users
+    const isLanding = showLanding && !session;
+
+    // Render the landing page if the user is unauthenticated
+    if (isLanding) {
+        return (
+            <>
+                <LandingPage
+                    onLogin={() => setShowLogin(true)}
+                    onRegister={() => setShowLogin(true)}
+                />
+                <Suspense fallback={<LazyFallback />}>
+                    {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={(s) => { handleLoginSuccess(s); setShowLanding(false); }} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
+                </Suspense>
+            </>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/30 pb-32">
@@ -290,11 +315,6 @@ const App = () => {
                 <Suspense fallback={<LazyFallback />}>
                     <NamePromptModal />
                 </Suspense>
-            )}
-            {!session && (
-                <button onClick={() => setShowLogin(true)} className="fixed top-6 right-6 z-50 bg-gradient-to-r from-indigo-600 to-cyan-400 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-[0_4px_20px_rgba(99,102,241,0.4)] flex items-center gap-2 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all hover:scale-105 active:scale-95 border border-white/10">
-                    <LogIn size={14} /> Login
-                </button>
             )}
 
             {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({ id, type })} />}

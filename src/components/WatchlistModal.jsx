@@ -54,37 +54,37 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-            <div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-zinc-700 rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
-                <div className="flex justify-between items-center p-6 border-b border-white/5">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor" size={20} /> Merkliste</h2>
-                    <button onClick={onClose}><X className="text-zinc-500 hover:text-white" /></button>
+            <div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-border rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
+                <div className="flex justify-between items-center p-6 border-b border-border">
+                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor" size={20} /> Merkliste</h2>
+                    <button onClick={onClose}><X className="text-muted-foreground hover:text-foreground" /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-zinc-500" /></div> : (
+                    {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-muted-foreground" /></div> : (
                         list.length === 0 ? <EmptyState icon={Bookmark} title="Noch keine Spieler gemerkt" description="Entdecke Talente und merke dir die Besten!" variant="subtle" /> :
                             list.map(item => (
-                                <div key={item.id} className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
+                                <div key={item.id} className="bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-border">
                                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>
-                                        <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden shrink-0">
-                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-3 text-zinc-500" />}
+                                        <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden shrink-0">
+                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-3 text-muted-foreground" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-white truncate">{item.players_master?.full_name}</h4>
-                                            <div className="flex items-center gap-2 text-xs text-zinc-400">
-                                                <span className="bg-white/10 px-1.5 rounded">{item.players_master?.position_primary}</span>
+                                            <h4 className="font-bold text-foreground truncate">{item.players_master?.full_name}</h4>
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                <span className="bg-slate-200 dark:bg-white/10 px-1.5 rounded text-foreground dark:text-zinc-300">{item.players_master?.position_primary}</span>
                                                 <span>{item.players_master?.clubs?.name}</span>
                                             </div>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-zinc-500 hover:text-red-500"><Trash2 size={16} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-muted-foreground hover:text-red-500"><Trash2 size={16} /></button>
                                     </div>
 
                                     {/* Note area */}
-                                    <div className="mt-3 pt-2 border-t border-white/5">
+                                    <div className="mt-3 pt-2 border-t border-border">
                                         {editingNote === item.id ? (
                                             <div className="flex gap-2">
                                                 <input
                                                     autoFocus
-                                                    className="flex-1 bg-black/30 text-xs text-white p-2 rounded-lg outline-none border border-blue-500/50"
+                                                    className="flex-1 bg-white dark:bg-black/30 text-xs text-foreground p-2 rounded-lg outline-none border border-border focus:border-blue-500/50"
                                                     value={noteText}
                                                     onChange={e => setNoteText(e.target.value)}
                                                     placeholder="Notiz für diesen Spieler..."
@@ -94,7 +94,7 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
                                         ) : (
                                             <div
                                                 onClick={() => { setEditingNote(item.id); setNoteText(item.note || ""); }}
-                                                className="text-xs text-zinc-500 flex items-center gap-2 cursor-pointer hover:text-zinc-300"
+                                                className="text-xs text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground"
                                             >
                                                 <Pencil size={12} /> {item.note || "Notiz hinzufügen..."}
                                             </div>

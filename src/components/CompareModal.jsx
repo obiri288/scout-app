@@ -59,24 +59,23 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
 
     const bothSelected = playerA && playerB;
 
-    // Comparison row helper
     const CompareRow = ({ label, valA, valB, highlight }) => {
         const better = highlight && valA !== valB && valA !== '-' && valB !== '-';
         return (
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 border-b border-white/5 last:border-0">
-                <div className={`text-sm text-right font-medium ${better && valA > valB ? 'text-cyan-400' : 'text-white'}`}>{valA || '-'}</div>
-                <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider w-20 text-center">{label}</div>
-                <div className={`text-sm text-left font-medium ${better && valB > valA ? 'text-cyan-400' : 'text-white'}`}>{valB || '-'}</div>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 border-b border-border last:border-0">
+                <div className={`text-sm text-right font-medium ${better && valA > valB ? 'text-cyan-600 dark:text-cyan-400' : 'text-foreground'}`}>{valA || '-'}</div>
+                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider w-20 text-center">{label}</div>
+                <div className={`text-sm text-left font-medium ${better && valB > valA ? 'text-cyan-600 dark:text-cyan-400' : 'text-foreground'}`}>{valB || '-'}</div>
             </div>
         );
     };
 
     return (
-        <div className="fixed inset-0 z-[10000] bg-black/95 backdrop-blur-sm flex flex-col animate-in fade-in">
+        <div className="fixed inset-0 z-[10000] bg-background/95 backdrop-blur-sm flex flex-col animate-in fade-in">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 pt-12 border-b border-white/5">
-                <h2 className="text-xl font-black text-white flex items-center gap-2"><ArrowLeftRight size={22} className="text-blue-500" /> Vergleich</h2>
-                <button onClick={onClose} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={20} className="text-white" /></button>
+            <div className="flex items-center justify-between p-5 pt-12 border-b border-border">
+                <h2 className="text-xl font-black text-foreground flex items-center gap-2"><ArrowLeftRight size={22} className="text-blue-600 dark:text-blue-500" /> Vergleich</h2>
+                <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-white/10 rounded-full hover:bg-slate-200 dark:hover:bg-white/20 transition"><X size={20} className="text-foreground" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -90,11 +89,11 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                     />
                     <div className="pt-12">
                         {bothSelected && (
-                            <button onClick={swapPlayers} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition">
-                                <ArrowLeftRight size={16} className="text-zinc-400" />
+                            <button onClick={swapPlayers} className="p-2 bg-slate-100 dark:bg-white/10 rounded-full hover:bg-slate-200 dark:hover:bg-white/20 transition">
+                                <ArrowLeftRight size={16} className="text-muted-foreground" />
                             </button>
                         )}
-                        {!bothSelected && <div className="text-zinc-700 font-bold text-xl">VS</div>}
+                        {!bothSelected && <div className="text-muted-foreground/60 font-bold text-xl">VS</div>}
                     </div>
                     <PlayerSlot
                         player={playerB}
@@ -107,10 +106,10 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                 {/* Search panel */}
                 {selectingSlot && (
                     <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2">
-                        <div className="bg-zinc-900 rounded-2xl border border-white/10 p-4">
-                            <p className="text-xs text-zinc-500 font-bold mb-3">Spieler {selectingSlot} wählen:</p>
+                        <div className="bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-border p-4">
+                            <p className="text-xs text-muted-foreground font-bold mb-3">Spieler {selectingSlot} wählen:</p>
                             <div className="relative mb-3">
-                                <Search className="absolute left-3 top-3.5 text-zinc-500" size={16} />
+                                <Search className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
                                 <input
                                     placeholder="Name suchen..."
                                     value={searchQuery}
@@ -121,22 +120,22 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                             </div>
                             <div className="max-h-48 overflow-y-auto space-y-1">
                                 {searchResults.map(p => (
-                                    <div key={p.id} onClick={() => selectPlayer(p)} className="flex items-center gap-3 p-2.5 hover:bg-white/5 rounded-xl cursor-pointer transition">
-                                        <div className="w-9 h-9 rounded-full bg-zinc-800 overflow-hidden border border-white/10 shrink-0">
-                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={16} className="text-zinc-500 m-2" />}
+                                    <div key={p.id} onClick={() => selectPlayer(p)} className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl cursor-pointer transition">
+                                        <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border shrink-0">
+                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={16} className="text-muted-foreground m-2" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold text-white truncate">{p.full_name}</div>
-                                            <div className="text-[10px] text-zinc-500 flex items-center gap-1"><Shield size={8} /> {p.clubs?.name || 'Vereinslos'}</div>
+                                            <div className="text-sm font-bold text-foreground truncate">{p.full_name}</div>
+                                            <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Shield size={8} /> {p.clubs?.name || 'Vereinslos'}</div>
                                         </div>
-                                        <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-zinc-300 font-bold">{p.position_primary}</span>
+                                        <span className="text-[10px] bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded text-muted-foreground dark:text-zinc-300 font-bold">{p.position_primary}</span>
                                     </div>
                                 ))}
                                 {searchQuery.length >= 2 && searchResults.length === 0 && (
-                                    <div className="text-center text-zinc-600 text-xs py-4">Keine Spieler gefunden.</div>
+                                    <div className="text-center text-muted-foreground/60 text-xs py-4">Keine Spieler gefunden.</div>
                                 )}
                             </div>
-                            <button onClick={() => setSelectingSlot(null)} className="w-full mt-3 text-xs text-zinc-500 hover:text-white transition py-2">Abbrechen</button>
+                            <button onClick={() => setSelectingSlot(null)} className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground transition py-2">Abbrechen</button>
                         </div>
                     </div>
                 )}
@@ -144,8 +143,8 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                 {/* Comparison table */}
                 {bothSelected && (
                     <div className="px-4 pb-24 animate-in fade-in slide-in-from-bottom-4">
-                        <div className="bg-zinc-900/50 rounded-2xl border border-white/5 p-4 mt-2">
-                            <h3 className="text-xs text-zinc-500 font-bold uppercase tracking-wider text-center mb-4">Vergleich</h3>
+                        <div className="bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-border p-4 mt-2">
+                            <h3 className="text-xs text-muted-foreground font-bold uppercase tracking-wider text-center mb-4">Vergleich</h3>
                             <CompareRow label="Position" valA={playerA.position_primary} valB={playerB.position_primary} />
                             <CompareRow label="Alter" valA={playerA.birth_date ? `${calculateAge(playerA.birth_date)}` : '-'} valB={playerB.birth_date ? `${calculateAge(playerB.birth_date)}` : '-'} />
                             <CompareRow label="Größe" valA={playerA.height_user ? `${playerA.height_user} cm` : '-'} valB={playerB.height_user ? `${playerB.height_user} cm` : '-'} highlight />
@@ -173,24 +172,24 @@ const PlayerSlot = ({ player, label, onSelect, onClear }) => (
     <div className="flex flex-col items-center">
         {player ? (
             <div className="flex flex-col items-center text-center group relative">
-                <div className="w-20 h-20 rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 mb-2 shadow-lg">
-                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={32} className="text-zinc-500 m-5" />}
+                <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border-2 border-border mb-2 shadow-lg">
+                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={32} className="text-muted-foreground m-5" />}
                 </div>
-                <div className="text-sm font-bold text-white truncate max-w-[120px] flex items-center gap-1">
+                <div className="text-sm font-bold text-foreground truncate max-w-[120px] flex items-center gap-1">
                     {player.full_name}
-                    {player.is_verified && <CheckCircle size={12} className="text-blue-500 shrink-0" />}
+                    {player.is_verified && <CheckCircle size={12} className="text-blue-600 dark:text-blue-500 shrink-0" />}
                 </div>
-                <div className="text-[10px] text-zinc-500 flex items-center gap-1 mt-0.5">
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                     <Shield size={8} /> {player.clubs?.name || 'Vereinslos'}
                 </div>
-                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-zinc-300 font-bold mt-1">{player.position_primary}</span>
-                <button onClick={onClear} className="mt-2 text-[10px] text-zinc-600 hover:text-red-400 transition">Entfernen</button>
+                <span className="text-[10px] bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded text-muted-foreground dark:text-zinc-300 font-bold mt-1">{player.position_primary}</span>
+                <button onClick={onClear} className="mt-2 text-[10px] text-muted-foreground/60 hover:text-red-500 transition">Entfernen</button>
             </div>
         ) : (
-            <button onClick={onSelect} className="w-20 h-20 rounded-full border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-500/5 transition mb-2 group">
-                <Plus size={24} className="text-zinc-600 group-hover:text-blue-400 transition" />
+            <button onClick={onSelect} className="w-20 h-20 rounded-full border-2 border-dashed border-border dark:border-zinc-700 flex flex-col items-center justify-center hover:border-blue-500 hover:bg-blue-500/5 transition mb-2 group">
+                <Plus size={24} className="text-muted-foreground/60 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition" />
             </button>
         )}
-        {!player && <span className="text-[10px] text-zinc-600 font-bold">{label}</span>}
+        {!player && <span className="text-[10px] text-muted-foreground/60 font-bold">{label}</span>}
     </div>
 );

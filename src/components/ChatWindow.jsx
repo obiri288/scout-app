@@ -147,32 +147,32 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
     };
 
     return (
-        <div className="fixed inset-0 z-[10000] bg-black flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-10">
-                <button onClick={onClose}><ArrowLeft className="text-zinc-400 hover:text-white" /></button>
+        <div className="fixed inset-0 z-[10000] bg-background flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="flex items-center gap-4 p-4 pt-12 pb-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-border sticky top-0 z-10">
+                <button onClick={onClose}><ArrowLeft className="text-muted-foreground hover:text-foreground" /></button>
                 <div onClick={() => { onClose(); onUserClick(partner); }} className="flex items-center gap-3 cursor-pointer group flex-1">
-                    <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden border border-white/10 group-hover:border-blue-500 transition">
-                        {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="m-2.5 text-zinc-500" />}
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border group-hover:border-blue-500 transition">
+                        {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="m-2.5 text-muted-foreground" />}
                     </div>
-                    <div className="font-bold text-white flex items-center gap-1.5">{partner.full_name} {partner.is_verified && <VerificationBadge size={16} role={partner.role} />}</div>
+                    <div className="font-bold text-foreground flex items-center gap-1.5">{partner.full_name} {partner.is_verified && <VerificationBadge size={16} role={partner.role} />}</div>
                 </div>
                 <div className="relative">
-                    <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-zinc-400 hover:text-white transition rounded-full hover:bg-white/5">
+                    <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-muted-foreground hover:text-foreground transition rounded-full hover:bg-black/5 dark:hover:bg-white/5">
                         <MoreVertical size={20} />
                     </button>
                     {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 bg-zinc-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px] animate-in fade-in slide-in-from-top-2 z-20">
-                            <button onClick={() => { setShowMenu(false); onReport?.({ id: partner.user_id, type: 'user' }); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-zinc-300 hover:bg-white/5 hover:text-white transition">
+                        <div className="absolute right-0 top-full mt-1 bg-white dark:bg-zinc-800 border border-border rounded-xl shadow-2xl overflow-hidden min-w-[180px] animate-in fade-in slide-in-from-top-2 z-20">
+                            <button onClick={() => { setShowMenu(false); onReport?.({ id: partner.user_id, type: 'user' }); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition">
                                 <Flag size={16} className="text-amber-400" /> Nutzer melden
                             </button>
-                            <button onClick={() => { setShowMenu(false); onBlock?.(partner); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition border-t border-white/5">
+                            <button onClick={() => { setShowMenu(false); onBlock?.(partner); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition border-t border-border">
                                 <ShieldOff size={16} /> Nutzer blockieren
                             </button>
                         </div>
                     )}
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gradient-to-b from-black to-zinc-950">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gradient-to-b from-background to-slate-50 dark:from-black dark:to-zinc-950">
                 {messages.map((m, i) => {
                     const isMine = m.sender_id === session.user.id;
                     const showTime = i === 0 || (new Date(m.created_at) - new Date(messages[i - 1].created_at)) > 300000;
@@ -180,7 +180,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                     return (
                         <React.Fragment key={m.id}>
                             {showTime && (
-                                <div className="text-center text-[10px] text-zinc-600 py-2 font-medium">
+                                <div className="text-center text-[10px] text-muted-foreground/60 py-2 font-medium">
                                     {formatTime(m.created_at)}
                                 </div>
                             )}
@@ -188,7 +188,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                                 <div className={`relative max-w-[75%] ${isMine ? '' : ''}`}>
                                     <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm ${isMine
                                         ? 'bg-blue-600 text-white rounded-br-sm'
-                                        : 'bg-zinc-800 text-zinc-200 rounded-bl-sm border border-white/5'
+                                        : 'bg-slate-100 dark:bg-zinc-800 text-foreground rounded-bl-sm border border-border'
                                         }`}>
                                         {m.content}
                                     </div>
@@ -198,7 +198,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                                             {m.is_read ? (
                                                 <CheckCheck size={14} className="text-blue-400" />
                                             ) : (
-                                                <Check size={14} className="text-zinc-500" />
+                                                <Check size={14} className="text-muted-foreground" />
                                             )}
                                         </div>
                                     )}
@@ -209,8 +209,8 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                 })}
                 <div ref={endRef} />
             </div>
-            <form onSubmit={send} className="p-4 bg-zinc-900 border-t border-zinc-800 flex gap-3 pb-8 sm:pb-4">
-                <input value={txt} onChange={e => setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-zinc-950 border border-zinc-800 text-white rounded-full px-5 py-3 outline-none focus:border-blue-500 transition" />
+            <form onSubmit={send} className="p-4 bg-white dark:bg-zinc-900 border-t border-border flex gap-3 pb-8 sm:pb-4">
+                <input value={txt} onChange={e => setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-slate-100 dark:bg-zinc-950 border border-border text-foreground rounded-full px-5 py-3 outline-none focus:border-blue-500 transition" />
                 <button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20} /></button>
             </form>
         </div>

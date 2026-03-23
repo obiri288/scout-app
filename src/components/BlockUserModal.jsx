@@ -30,17 +30,17 @@ export const BlockUserModal = ({ targetUser, session, onClose, onBlocked }) => {
                         <div className="p-2.5 bg-red-500/20 rounded-xl">
                             <ShieldOff size={22} className="text-red-500" />
                         </div>
-                        <h3 className="font-bold text-white text-lg">Nutzer blockieren</h3>
+                        <h3 className="font-bold text-foreground text-lg">Nutzer blockieren</h3>
                     </div>
-                    <button onClick={onClose} className="p-1.5 text-zinc-500 hover:text-white transition">
+                    <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground transition">
                         <X size={18} />
                     </button>
                 </div>
 
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-5 flex items-start gap-3">
                     <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
-                    <div className="text-sm text-zinc-300">
-                        <strong className="text-white">{targetUser.full_name}</strong> wird blockiert.
+                    <div className="text-sm text-muted-foreground dark:text-zinc-300">
+                        <strong className="text-foreground">{targetUser.full_name}</strong> wird blockiert.
                         Du wirst keine Nachrichten, Inhalte oder Profile dieser Person mehr sehen.
                     </div>
                 </div>
@@ -48,7 +48,7 @@ export const BlockUserModal = ({ targetUser, session, onClose, onBlocked }) => {
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 bg-white/5 text-zinc-400 py-3 rounded-xl font-bold text-sm hover:text-white hover:bg-white/10 transition"
+                        className="flex-1 bg-black/5 dark:bg-white/5 text-muted-foreground dark:text-zinc-400 py-3 rounded-xl font-bold text-sm hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 transition"
                     >
                         Abbrechen
                     </button>
