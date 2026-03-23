@@ -237,7 +237,7 @@ const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
 
 const App = () => {
     const {
-        authLoading,
+        authLoading, profileLoading,
         session, currentUserProfile, updateProfile, refreshProfile,
         unreadCount, resetUnreadCount, logout,
         activeTab, switchTab, navigateToHash,
@@ -267,8 +267,9 @@ const App = () => {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showLanding, setShowLanding] = useState(true);
 
-    // Block ALL rendering until Supabase auth state is resolved
-    if (authLoading) return <SplashScreen />;
+    // Block ALL rendering until auth state AND initial profile fetch are resolved
+    // This prevents the NamePromptModal / OnboardingWizard from flashing
+    if (authLoading || (session && !currentUserProfile && profileLoading)) return <SplashScreen />;
 
     // Check for onboarding: session exists but no profile yet
     const needsOnboarding = session && !currentUserProfile;

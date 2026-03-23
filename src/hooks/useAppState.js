@@ -10,7 +10,7 @@ import * as api from '../lib/api';
  */
 export const useAppState = () => {
     const {
-        authLoading,
+        authLoading, profileLoading,
         session, setSession, currentUserProfile, updateProfile,
         refreshProfile, unreadCount, resetUnreadCount, logout,
         isRecoveryMode, setIsRecoveryMode
@@ -261,7 +261,7 @@ export const useAppState = () => {
 
     return {
         // Auth
-        authLoading,
+        authLoading, profileLoading,
 
         // User context
         session, currentUserProfile, updateProfile, refreshProfile,
