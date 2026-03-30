@@ -196,7 +196,9 @@ const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
         if (input !== 'LÖSCHEN' || !session) return;
         setDeleting(true);
         try {
-            await api.deleteUserAccount(session.user.id);
+            await api.deleteUserAccount();
+            // Kill local session immediately after server-side deletion
+            await api.signOut();
             addToast('Dein Account wurde vollständig gelöscht.', 'info');
             onDeleted();
         } catch (e) {
@@ -208,7 +210,7 @@ const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}></div>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={!deleting ? onClose : undefined}></div>
             <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 sm:rounded-2xl rounded-t-2xl sm:h-auto h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-red-500/30">
                 <div className="p-4 border-b border-border flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl z-10">
                     <h2 className="text-lg font-bold text-red-500 flex items-center gap-2"><Trash2 size={18} /> Danger Zone</h2>
@@ -260,6 +262,7 @@ const App = () => {
         showCelebration, setShowCelebration,
         deferredPrompt,
         isRecoveryMode, setIsRecoveryMode,
+        isAuthCallback,
     } = useAppState();
 
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
@@ -268,8 +271,8 @@ const App = () => {
     const [showLanding, setShowLanding] = useState(true);
 
     // Block ALL rendering until auth state AND initial profile fetch are resolved
-    // This prevents the NamePromptModal / OnboardingWizard from flashing
-    if (authLoading || (session && !currentUserProfile && profileLoading)) return <SplashScreen />;
+    // Also show splash during auth callback processing (email confirmation redirect)
+    if (authLoading || isAuthCallback || (session && !currentUserProfile && profileLoading)) return <SplashScreen />;
 
     // Check for onboarding: session exists but no profile yet
     const needsOnboarding = session && !currentUserProfile;

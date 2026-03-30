@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload } from 'lucide-react';
+import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload, X, AtSign, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
 import { inputStyle } from '../lib/styles';
+import { isUsernameBlocked, validateUsernameFormat } from '../lib/restrictedUsernames';
 
 const POSITIONS = ['Torwart', 'Innenverteidiger', 'Außenverteidiger', 'Defensives Mittelfeld', 'Zentrales Mittelfeld', 'Offensives Mittelfeld', 'Linksaußen', 'Rechtsaußen', 'Mittelstürmer'];
 
@@ -22,12 +23,91 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
     // Step 1 data
     const [fullName, setFullName] = useState('');
+    const [username, setUsername] = useState('');
     const [position, setPosition] = useState('');
     const [birthDate, setBirthDate] = useState('');
+
+    // Age Gate: calculate age and validate >= 16
+    const ageInfo = useMemo(() => {
+        if (!birthDate) return { age: null, isUnder16: false };
+        const today = new Date();
+        const dob = new Date(birthDate);
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        return { age, isUnder16: age < 16 };
+    }, [birthDate]);
+
+    // Username validation state
+    const [usernameStatus, setUsernameStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'blocked'
+    const [usernameError, setUsernameError] = useState('');
+    const debounceRef = useRef(null);
 
     // Step 2 data (avatar)
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
+
+    // Pre-fill username from user_metadata (if set during registration)
+    useEffect(() => {
+        const metaUsername = session?.user?.user_metadata?.username;
+        if (metaUsername) {
+            setUsername(metaUsername);
+        }
+    }, [session]);
+
+    // Live-Validierung: Username (Debounce 500ms)
+    const checkUsername = useCallback(async (value) => {
+        const lower = value.toLowerCase().trim();
+
+        const formatResult = validateUsernameFormat(lower);
+        if (!formatResult.valid) {
+            setUsernameStatus('invalid');
+            setUsernameError(formatResult.reason);
+            return;
+        }
+
+        const blockResult = isUsernameBlocked(lower);
+        if (blockResult.blocked) {
+            setUsernameStatus('blocked');
+            setUsernameError(blockResult.reason);
+            return;
+        }
+
+        setUsernameStatus('checking');
+        setUsernameError('');
+        try {
+            const { data, error } = await supabase.rpc('check_username_available', { p_username: lower });
+            if (error) throw error;
+            if (data) {
+                setUsernameStatus('available');
+                setUsernameError('');
+            } else {
+                setUsernameStatus('taken');
+                setUsernameError('Dieser Username ist bereits vergeben.');
+            }
+        } catch (err) {
+            console.error('Username check error:', err);
+            setUsernameStatus('invalid');
+            setUsernameError('Prüfung fehlgeschlagen.');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!username) {
+            setUsernameStatus('idle');
+            setUsernameError('');
+            return;
+        }
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            checkUsername(username);
+        }, 500);
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [username, checkUsername]);
 
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
@@ -40,9 +120,19 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const goNext = () => { setDir(1); setStep(s => s + 1); };
     const goBack = () => { setDir(-1); setStep(s => s - 1); };
 
+    // Step 1 validation: name, username, position
+    const isStep1Valid = fullName.trim() && position && username.trim() && usernameStatus === 'available' && birthDate && !ageInfo.isUnder16;
+
     const handleFinish = async (skipVideo = true) => {
         if (!fullName.trim() || !position) {
             addToast('Bitte fülle Name und Position aus.', 'error');
+            setDir(-1);
+            setStep(0);
+            return;
+        }
+
+        if (!username.trim() || usernameStatus !== 'available') {
+            addToast('Bitte wähle einen gültigen, verfügbaren Username.', 'error');
             setDir(-1);
             setStep(0);
             return;
@@ -54,8 +144,9 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             const profileData = {
                 user_id: session.user.id,
                 full_name: fullName.trim(),
+                username: username.toLowerCase().trim(),
                 position_primary: position,
-                date_of_birth: birthDate || null,
+                birth_date: birthDate || null,
                 transfer_status: 'Suche Verein',
             };
 
@@ -86,14 +177,26 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 player = await api.updatePlayer(player.id, { avatar_url: avatarUrl });
             }
 
-            addToast('Profil erstellt! Willkommen bei ProBase 🎉', 'success');
+            addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
             onComplete(player);
         } catch (e) {
             console.error('Onboarding error:', e);
-            addToast('Fehler beim Speichern. Versuche es erneut.', 'error');
+            if (e.message?.includes('username') || e.code === '23505') {
+                addToast('Dieser Username ist bereits vergeben.', 'error');
+            } else {
+                addToast('Fehler beim Speichern. Versuche es erneut.', 'error');
+            }
         } finally {
             setLoading(false);
         }
+    };
+
+    // Username status indicator
+    const UsernameIndicator = () => {
+        if (usernameStatus === 'idle') return null;
+        if (usernameStatus === 'checking') return <Loader2 className="animate-spin text-cyan-400" size={16} />;
+        if (usernameStatus === 'available') return <Check className="text-emerald-400" size={16} />;
+        return <X className="text-rose-500" size={16} />;
     };
 
     const steps = [
@@ -152,7 +255,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         <h2 className="text-2xl font-black text-foreground mb-1">{steps[step].title}</h2>
                         <p className="text-muted-foreground text-sm text-center mb-8">{steps[step].subtitle}</p>
 
-                        {/* Step 1: Name, Position, Birthday */}
+                        {/* Step 1: Name, Username, Position, Birthday */}
                         {step === 0 && (
                             <div className="w-full space-y-4">
                                 <div className="space-y-1.5">
@@ -165,6 +268,45 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         placeholder="Dein vollständiger Name"
                                     />
                                 </div>
+
+                                {/* Username mit @-Prefix */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Cavio-Username *</label>
+                                    <div className="relative flex items-center">
+                                        <span className="absolute left-3 text-cyan-500 font-bold text-base select-none pointer-events-none z-10">@</span>
+                                        <input
+                                            type="text"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                            maxLength={20}
+                                            className={`${inputStyle} pl-8 pr-10 ${
+                                                usernameStatus === 'available' ? '!border-emerald-500/50 focus:!border-emerald-500' :
+                                                (usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'blocked') ? '!border-rose-500/50 focus:!border-rose-500' : ''
+                                            }`}
+                                            placeholder="dein_username"
+                                            autoComplete="username"
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                            <UsernameIndicator />
+                                        </div>
+                                    </div>
+                                    {usernameError && (
+                                        <p className="text-rose-500 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
+                                            <X size={12} /> {usernameError}
+                                        </p>
+                                    )}
+                                    {usernameStatus === 'available' && (
+                                        <p className="text-emerald-400 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
+                                            <Check size={12} /> Username ist verfügbar!
+                                        </p>
+                                    )}
+                                    {usernameStatus === 'idle' && username === '' && (
+                                        <p className="text-muted-foreground text-xs mt-1 ml-1">
+                                            Nur Kleinbuchstaben, Zahlen und _ (3–20 Zeichen)
+                                        </p>
+                                    )}
+                                </div>
+
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Position *</label>
                                     <div className="grid grid-cols-3 gap-2">
@@ -183,13 +325,27 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geburtsdatum</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geburtsdatum *</label>
                                     <input
                                         type="date"
                                         value={birthDate}
                                         onChange={(e) => setBirthDate(e.target.value)}
-                                        className={inputStyle}
+                                        max={new Date().toISOString().split('T')[0]}
+                                        className={`${inputStyle} ${ageInfo.isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : birthDate && !ageInfo.isUnder16 ? '!border-emerald-500/50' : ''}`}
                                     />
+                                    {ageInfo.isUnder16 && (
+                                        <div className="flex items-start gap-2 mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                                            <ShieldAlert size={16} className="text-rose-500 flex-shrink-0 mt-0.5" />
+                                            <p className="text-rose-500 text-xs font-medium leading-relaxed">
+                                                Du musst mindestens 16 Jahre alt sein, um Cavio zu nutzen. Für jüngere Spieler folgt in Zukunft ein Managed-Account-System.
+                                            </p>
+                                        </div>
+                                    )}
+                                    {birthDate && !ageInfo.isUnder16 && (
+                                        <p className="text-emerald-400 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
+                                            <Check size={12} /> Alter: {ageInfo.age} Jahre ✓
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -226,6 +382,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         </div>
                                         <div>
                                             <p className="font-bold text-foreground">{fullName || 'Dein Name'}</p>
+                                            <p className="text-xs text-cyan-500 font-medium">@{username || 'username'}</p>
                                             <p className="text-xs text-muted-foreground">{position || 'Position'}</p>
                                         </div>
                                     </div>
@@ -233,6 +390,9 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     <div className="text-xs text-muted-foreground space-y-1.5">
                                         <div className="flex items-center gap-2">
                                             <Check size={14} className="text-cyan-500" /> Profil erstellen
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Check size={14} className="text-cyan-500" /> Username: @{username}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Check size={14} className={avatarPreview ? 'text-cyan-500' : 'text-muted-foreground'} />
@@ -265,7 +425,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 {step < 2 ? (
                     <button
                         onClick={goNext}
-                        disabled={step === 0 && (!fullName.trim() || !position)}
+                        disabled={step === 0 && !isStep1Valid}
                         className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-30 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
                     >
                         Weiter <ArrowRight size={16} />

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin } from 'lucide-react';
+import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { getClubBorderColor } from '../lib/helpers';
 import { useToast } from '../contexts/ToastContext';
 import { ImageCropModal } from './ImageCropModal';
 import { geocodeCity } from '../lib/api';
+import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
 
 export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
@@ -36,7 +37,8 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         birth_date: player.birth_date || '',
         jersey_number: player.jersey_number || '',
         nationality: player.nationality || '',
-        player_archetype: player.player_archetype || ''
+        player_archetype: player.player_archetype || '',
+        signature_badges: player.signature_badges || []
     });
 
     const [avatarFile, setAvatarFile] = useState(null);
@@ -45,6 +47,134 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const [clubSearch, setClubSearch] = useState('');
     const [clubResults, setClubResults] = useState([]);
     const [selectedClub, setSelectedClub] = useState(player.clubs || null);
+
+    // Career History State
+    const [careerEntries, setCareerEntries] = useState([]);
+    const [careerLoading, setCareerLoading] = useState(false);
+    const [showCareerForm, setShowCareerForm] = useState(false);
+    const [editingCareer, setEditingCareer] = useState(null);
+    const [careerForm, setCareerForm] = useState({
+        club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false
+    });
+    const [careerClubSearch, setCareerClubSearch] = useState('');
+    const [careerClubResults, setCareerClubResults] = useState([]);
+    const [showCareerClubDropdown, setShowCareerClubDropdown] = useState(false);
+
+    // Fetch career entries
+    useEffect(() => {
+        if (!player.user_id) return;
+        const loadCareer = async () => {
+            setCareerLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('career_history')
+                    .select('*')
+                    .eq('user_id', player.user_id)
+                    .order('start_date', { ascending: false });
+                if (error) throw error;
+                setCareerEntries(data || []);
+            } catch (e) {
+                console.warn('Career fetch failed:', e);
+            } finally {
+                setCareerLoading(false);
+            }
+        };
+        loadCareer();
+    }, [player.user_id]);
+
+    const resetCareerForm = () => {
+        setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false });
+        setCareerClubSearch('');
+        setCareerClubResults([]);
+        setShowCareerClubDropdown(false);
+        setEditingCareer(null);
+        setShowCareerForm(false);
+    };
+
+    // Career club autocomplete search
+    useEffect(() => {
+        if (careerClubSearch.length < 2) { setCareerClubResults([]); return; }
+        const t = setTimeout(async () => {
+            try {
+                const { data } = await supabase.from('clubs').select('id, name, logo_url, league, leagues(name)').ilike('name', `%${careerClubSearch}%`).limit(8);
+                setCareerClubResults(data || []);
+                setShowCareerClubDropdown(true);
+            } catch (e) { /* silent */ }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [careerClubSearch]);
+
+    const handleCareerSave = async () => {
+        if (!careerForm.club_name.trim() || !careerForm.start_date) {
+            addToast('Vereinsname und Startdatum sind Pflichtfelder.', 'error');
+            return;
+        }
+        setCareerLoading(true);
+        try {
+            const payload = {
+                user_id: player.user_id,
+                club_name: careerForm.club_name.trim(),
+                league: careerForm.league.trim() || null,
+                start_date: careerForm.start_date + '-01',
+                end_date: careerForm.is_current ? null : (careerForm.end_date ? careerForm.end_date + '-01' : null),
+                proof_url: careerForm.proof_url.trim() || null
+            };
+
+            if (editingCareer) {
+                const { data, error } = await supabase
+                    .from('career_history')
+                    .update(payload)
+                    .eq('id', editingCareer.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+                setCareerEntries(prev => prev.map(e => e.id === data.id ? data : e));
+                addToast('Station aktualisiert ✅', 'success');
+            } else {
+                const { data, error } = await supabase
+                    .from('career_history')
+                    .insert(payload)
+                    .select()
+                    .single();
+                if (error) throw error;
+                setCareerEntries(prev => [data, ...prev]);
+                addToast('Station hinzugefügt ✅', 'success');
+            }
+            resetCareerForm();
+        } catch (e) {
+            addToast('Fehler: ' + e.message, 'error');
+        } finally {
+            setCareerLoading(false);
+        }
+    };
+
+    const handleCareerDelete = async (id) => {
+        setCareerLoading(true);
+        try {
+            const { error } = await supabase.from('career_history').delete().eq('id', id);
+            if (error) throw error;
+            setCareerEntries(prev => prev.filter(e => e.id !== id));
+            addToast('Station gelöscht.', 'success');
+        } catch (e) {
+            addToast('Fehler: ' + e.message, 'error');
+        } finally {
+            setCareerLoading(false);
+        }
+    };
+
+    const startEditCareer = (entry) => {
+        setCareerForm({
+            club_name: entry.club_name || '',
+            league: entry.league || '',
+            start_date: entry.start_date ? entry.start_date.slice(0, 7) : '',
+            end_date: entry.end_date ? entry.end_date.slice(0, 7) : '',
+            proof_url: entry.proof_url || '',
+            is_current: !entry.end_date
+        });
+        setCareerClubSearch(entry.club_name || '');
+        setEditingCareer(entry);
+        setShowCareerForm(true);
+    };
 
     useEffect(() => {
         if (clubSearch.length < 2) { setClubResults([]); return; }
@@ -108,7 +238,8 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 avatar_url: av,
                 club_id: selectedClub?.id || null,
                 latitude,
-                longitude
+                longitude,
+                signature_badges: formData.signature_badges || []
             };
 
             const { data, error } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*, leagues(name))').single();
@@ -143,10 +274,12 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-border bg-white dark:bg-zinc-900">
+                <div className="flex border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto">
                     <TabButton id="general" label="Allgemein" icon={User} />
                     <TabButton id="sport" label="Sportlich" icon={Activity} />
-                    <TabButton id="social" label="Socials & Links" icon={Share2} />
+                    <TabButton id="badges" label="Badges" icon={Award} />
+                    <TabButton id="historie" label="Historie" icon={History} />
+                    <TabButton id="social" label="Socials" icon={Share2} />
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-zinc-900/50">
@@ -348,6 +481,274 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* TAB: BADGES */}
+                        {activeTab === 'badges' && (
+                            <div className="space-y-5 animate-in slide-in-from-right-4 fade-in duration-300">
+                                <div className="bg-gradient-to-r from-amber-500/10 via-violet-500/10 to-cyan-500/10 p-4 rounded-xl border border-amber-500/20">
+                                    <h3 className="font-bold text-foreground text-sm flex items-center gap-2 mb-1">⚡ Signature Badges</h3>
+                                    <p className="text-xs text-muted-foreground">Wähle bis zu {MAX_BADGES} PlayStyles, die dich als Spieler auszeichnen. Sie werden prominent auf deinem Profil angezeigt.</p>
+                                    <div className="mt-2 flex items-center gap-1.5">
+                                        {[0, 1, 2].map(i => (
+                                            <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < formData.signature_badges.length ? 'bg-amber-400' : 'bg-white/20'}`} />
+                                        ))}
+                                        <span className="text-[10px] text-muted-foreground ml-1">{formData.signature_badges.length}/{MAX_BADGES}</span>
+                                    </div>
+                                </div>
+
+                                {BADGE_CATEGORIES.map(cat => {
+                                    const badges = SIGNATURE_BADGES.filter(b => b.category === cat.id);
+                                    return (
+                                        <div key={cat.id}>
+                                            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <span>{cat.emoji}</span> {cat.label}
+                                            </h4>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {badges.map(badge => {
+                                                    const isSelected = formData.signature_badges.includes(badge.id);
+                                                    const isMaxed = formData.signature_badges.length >= MAX_BADGES && !isSelected;
+                                                    const colors = getBadgeColors(badge);
+                                                    const Icon = badge.icon;
+                                                    return (
+                                                        <button
+                                                            key={badge.id}
+                                                            type="button"
+                                                            disabled={isMaxed}
+                                                            onClick={() => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    signature_badges: isSelected
+                                                                        ? prev.signature_badges.filter(id => id !== badge.id)
+                                                                        : [...prev.signature_badges, badge.id]
+                                                                }));
+                                                            }}
+                                                            className={`relative p-3 rounded-xl border text-left transition-all duration-200 ${
+                                                                isSelected
+                                                                    ? `${colors.border} ${colors.bg} shadow-lg ${colors.glow}`
+                                                                    : isMaxed
+                                                                        ? 'border-border bg-muted/30 opacity-30 cursor-not-allowed'
+                                                                        : 'border-border bg-white/5 hover:bg-white/10 hover:border-white/20'
+                                                            }`}
+                                                        >
+                                                            {isSelected && (
+                                                                <div className="absolute top-1.5 right-1.5">
+                                                                    <Check size={12} className={colors.text} />
+                                                                </div>
+                                                            )}
+                                                            <div className="flex items-center gap-2.5">
+                                                                <div className={`p-1.5 rounded-lg ${isSelected ? colors.bg : 'bg-white/5'}`}>
+                                                                    <Icon size={18} className={isSelected ? colors.text : 'text-muted-foreground'} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className={`text-xs font-bold truncate ${isSelected ? colors.text : 'text-foreground/80'}`}>{badge.name}</div>
+                                                                    <div className="text-[10px] text-muted-foreground leading-tight line-clamp-2">{badge.description}</div>
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* TAB 3: HISTORIE */}
+                        {activeTab === 'historie' && (
+                            <div className="space-y-4 animate-in slide-in-from-right-4 fade-in duration-300">
+                                {/* Add Entry Button */}
+                                {!showCareerForm && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { resetCareerForm(); setShowCareerForm(true); }}
+                                        className="w-full py-3 rounded-xl border-2 border-dashed border-cyan-500/30 text-cyan-400 font-bold text-sm hover:bg-cyan-500/5 hover:border-cyan-500/50 transition flex items-center justify-center gap-2"
+                                    >
+                                        <Plus size={18} /> Station hinzufügen
+                                    </button>
+                                )}
+
+                                {/* Career Form */}
+                                {showCareerForm && (
+                                    <div className="bg-slate-100/50 dark:bg-zinc-800/50 p-4 rounded-xl border border-border space-y-3">
+                                        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                                            {editingCareer ? '✏️ Station bearbeiten' : '➕ Neue Station'}
+                                        </h3>
+                                        <div className="relative">
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vereinsname *</label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-4 text-muted-foreground" size={16} />
+                                                <input
+                                                    value={careerClubSearch || careerForm.club_name}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        setCareerClubSearch(val);
+                                                        setCareerForm({ ...careerForm, club_name: val });
+                                                        if (val.length < 2) setShowCareerClubDropdown(false);
+                                                    }}
+                                                    onFocus={() => { if (careerClubResults.length > 0) setShowCareerClubDropdown(true); }}
+                                                    className={`${inputStyle} pl-10`}
+                                                    placeholder="Verein suchen oder eingeben..."
+                                                />
+                                            </div>
+                                            {/* Autocomplete Dropdown */}
+                                            {showCareerClubDropdown && careerClubResults.length > 0 && (
+                                                <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-1 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
+                                                    {careerClubResults.map(c => (
+                                                        <div
+                                                            key={c.id}
+                                                            onClick={() => {
+                                                                setCareerForm({
+                                                                    ...careerForm,
+                                                                    club_name: c.name,
+                                                                    league: c.leagues?.name || c.league || careerForm.league
+                                                                });
+                                                                setCareerClubSearch(c.name);
+                                                                setShowCareerClubDropdown(false);
+                                                            }}
+                                                            className="p-3 hover:bg-slate-100 dark:hover:bg-white/10 cursor-pointer text-foreground border-b border-border flex items-center gap-3 transition"
+                                                        >
+                                                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                                {c.logo_url ? <img src={c.logo_url} className="w-full h-full rounded-full object-cover" /> : <Shield size={12} className="text-slate-400" />}
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-sm font-bold truncate">{c.name}</span>
+                                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{c.leagues?.name || c.league || 'Amateurliga'}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {/* Custom value hint */}
+                                            {careerClubSearch.length > 2 && careerClubResults.length === 0 && showCareerClubDropdown && (
+                                                <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-1 overflow-hidden shadow-xl p-2">
+                                                    <div
+                                                        onClick={() => setShowCareerClubDropdown(false)}
+                                                        className="p-2.5 bg-cyan-500/10 text-cyan-400 cursor-pointer font-bold text-xs hover:bg-cyan-500/20 flex items-center gap-2 rounded-lg transition"
+                                                    >
+                                                        <Plus size={14} /> "{careerClubSearch}" als Verein übernehmen
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Liga (optional)</label>
+                                            <input
+                                                value={careerForm.league}
+                                                onChange={e => setCareerForm({ ...careerForm, league: e.target.value })}
+                                                className={inputStyle}
+                                                placeholder="z.B. Bundesliga, Kreisliga A"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Von *</label>
+                                                <input
+                                                    type="month"
+                                                    value={careerForm.start_date}
+                                                    onChange={e => setCareerForm({ ...careerForm, start_date: e.target.value })}
+                                                    className={inputStyle}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Bis</label>
+                                                <input
+                                                    type="month"
+                                                    value={careerForm.end_date}
+                                                    onChange={e => setCareerForm({ ...careerForm, end_date: e.target.value })}
+                                                    className={inputStyle}
+                                                    disabled={careerForm.is_current}
+                                                />
+                                            </div>
+                                        </div>
+                                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer py-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={careerForm.is_current}
+                                                onChange={e => setCareerForm({ ...careerForm, is_current: e.target.checked, end_date: '' })}
+                                                className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-cyan-500"
+                                            />
+                                            Bis heute (aktueller Verein)
+                                        </label>
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Beweis-Link (optional)</label>
+                                            <input
+                                                value={careerForm.proof_url}
+                                                onChange={e => setCareerForm({ ...careerForm, proof_url: e.target.value })}
+                                                className={inputStyle}
+                                                placeholder="z.B. Transfermarkt- oder FuPa-Profil"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground/60 mt-1 ml-1">Beschleunigt die Verifizierung deiner Station!</p>
+                                        </div>
+                                        <div className="flex gap-2 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={handleCareerSave}
+                                                disabled={careerLoading}
+                                                className={`${btnPrimary} flex-1 flex items-center justify-center gap-2 text-sm py-2.5`}
+                                            >
+                                                {careerLoading ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                                {editingCareer ? 'Aktualisieren' : 'Hinzufügen'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={resetCareerForm}
+                                                className="px-4 py-2.5 rounded-xl bg-muted text-muted-foreground font-bold text-sm border border-border hover:bg-muted/80 transition"
+                                            >
+                                                Abbrechen
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Existing Entries */}
+                                {careerLoading && careerEntries.length === 0 ? (
+                                    <div className="flex justify-center py-6">
+                                        <Loader2 size={20} className="text-muted-foreground animate-spin" />
+                                    </div>
+                                ) : careerEntries.length === 0 && !showCareerForm ? (
+                                    <div className="text-center py-8 text-muted-foreground text-sm">
+                                        <History size={32} className="mx-auto mb-2 text-muted-foreground/40" />
+                                        <p>Noch keine Stationen eingetragen.</p>
+                                        <p className="text-xs mt-1">Füge deine Vereinshistorie hinzu!</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {careerEntries.map(entry => (
+                                            <div key={entry.id} className="bg-slate-100/50 dark:bg-zinc-800/30 p-3 rounded-xl border border-border flex items-center gap-3 group">
+                                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                                    <Shield size={14} className="text-slate-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-bold text-foreground text-sm truncate">{entry.club_name}</span>
+                                                        {entry.is_verified ? (
+                                                            <span className="text-cyan-400" title="Verifiziert"><Check size={14} /></span>
+                                                        ) : (
+                                                            <span className="text-slate-500" title="Prüfung ausstehend"><Clock size={12} /></span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-muted-foreground">
+                                                        {entry.league && `${entry.league} · `}
+                                                        {entry.start_date ? new Date(entry.start_date).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '?'}
+                                                        {' – '}
+                                                        {entry.end_date ? new Date(entry.end_date).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : 'Heute'}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                    <button type="button" onClick={() => startEditCareer(entry)} className="p-1.5 rounded-lg hover:bg-white/10 transition text-muted-foreground hover:text-foreground">
+                                                        <Edit size={14} />
+                                                    </button>
+                                                    <button type="button" onClick={() => handleCareerDelete(entry.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 transition text-muted-foreground hover:text-red-400">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
 

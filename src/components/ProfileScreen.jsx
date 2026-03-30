@@ -17,7 +17,9 @@ import { EmptyState } from './EmptyState';
 import { ElitePlayerCard } from './ElitePlayerCard';
 import { RadarChart } from './RadarChart';
 import { XPLevelBadge } from './XPLevelBadge';
+import { CareerTimeline } from './CareerTimeline';
 import * as api from '../lib/api';
+import { getBadgeById, getBadgeColors } from '../lib/badges';
 
 import {
     AlertDialog,
@@ -206,6 +208,28 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     </h1>
                     <XPLevelBadge playerId={player.id} compact />
 
+                    {/* Signature Badges */}
+                    {player.signature_badges && player.signature_badges.length > 0 && (
+                        <div className="flex items-center gap-2 mt-2 mb-1">
+                            {player.signature_badges.map(badgeId => {
+                                const badge = getBadgeById(badgeId);
+                                if (!badge) return null;
+                                const colors = getBadgeColors(badge);
+                                const Icon = badge.icon;
+                                return (
+                                    <div
+                                        key={badgeId}
+                                        className={`relative flex flex-col items-center px-3 py-2 rounded-xl bg-white/5 dark:bg-white/5 backdrop-blur-lg border ${colors.border} shadow-lg ${colors.glow} transition-all hover:scale-105`}
+                                        title={badge.description}
+                                    >
+                                        <Icon size={18} className={colors.text} />
+                                        <span className={`text-[9px] font-bold mt-1 ${colors.text} uppercase tracking-wider whitespace-nowrap`}>{badge.name}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {/* Club & Position */}
                     <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-4">
                         {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
@@ -332,6 +356,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
             <div className="flex px-4 pt-4 pb-2 gap-6 border-b border-border">
                 <TabBtn id="highlights" label="Highlights" />
                 <TabBtn id="stats" label="Stats" />
+                <TabBtn id="karriere" label="Karriere" />
                 <TabBtn id="about" label="Über" />
             </div>
 
@@ -519,6 +544,11 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                 </div>
             )}
             --- END OLD STATS TAB --- */}
+
+            {/* TAB: Karriere */}
+            {activeTab === 'karriere' && (
+                <CareerTimeline userId={player.user_id} />
+            )}
 
             {/* TAB: Über */}
             {activeTab === 'about' && (

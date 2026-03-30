@@ -13,7 +13,7 @@ export const useAppState = () => {
         authLoading, profileLoading,
         session, setSession, currentUserProfile, updateProfile,
         refreshProfile, unreadCount, resetUnreadCount, logout,
-        isRecoveryMode, setIsRecoveryMode
+        isRecoveryMode, setIsRecoveryMode, isAuthCallback
     } = useUser();
     const { addToast } = useToast();
     const { t } = useLanguage();
@@ -267,6 +267,7 @@ export const useAppState = () => {
         session, currentUserProfile, updateProfile, refreshProfile,
         unreadCount, resetUnreadCount, logout,
         isRecoveryMode, setIsRecoveryMode,
+        isAuthCallback,
 
         // Navigation
         activeTab, switchTab, navigateToHash,

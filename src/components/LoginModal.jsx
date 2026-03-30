@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, Check, AtSign } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, cardStyle } from '../lib/styles';
 import { Input } from './ui/input';
 import { PasswordInput } from './ui/PasswordInput';
+import { isUsernameBlocked, validateUsernameFormat } from '../lib/restrictedUsernames';
 
 export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot' | 'registerSuccess'
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState(''); // E-Mail oder Username
+    const [email, setEmail] = useState(''); // Nur für Register & Forgot
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isPasswordValid, setIsPasswordValid] = useState(false);
@@ -17,13 +19,76 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     const [msg, setMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
+    // Username state (nur Register)
+    const [username, setUsername] = useState('');
+    const [usernameStatus, setUsernameStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'blocked'
+    const [usernameError, setUsernameError] = useState('');
+    const debounceRef = useRef(null);
+
+    // Live-Validierung: Username (Debounce 500ms)
+    const checkUsername = useCallback(async (value) => {
+        const lower = value.toLowerCase().trim();
+
+        // Client-seitig: Format prüfen
+        const formatResult = validateUsernameFormat(lower);
+        if (!formatResult.valid) {
+            setUsernameStatus('invalid');
+            setUsernameError(formatResult.reason);
+            return;
+        }
+
+        // Client-seitig: Blocklist prüfen
+        const blockResult = isUsernameBlocked(lower);
+        if (blockResult.blocked) {
+            setUsernameStatus('blocked');
+            setUsernameError(blockResult.reason);
+            return;
+        }
+
+        // Server-seitig: Verfügbarkeit prüfen
+        setUsernameStatus('checking');
+        setUsernameError('');
+        try {
+            const { data, error } = await supabase.rpc('check_username_available', { p_username: lower });
+            if (error) throw error;
+            if (data) {
+                setUsernameStatus('available');
+                setUsernameError('');
+            } else {
+                setUsernameStatus('taken');
+                setUsernameError('Dieser Username ist bereits vergeben.');
+            }
+        } catch (err) {
+            console.error('Username check error:', err);
+            setUsernameStatus('invalid');
+            setUsernameError('Prüfung fehlgeschlagen. Versuche es erneut.');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (view !== 'register' || !username) {
+            setUsernameStatus('idle');
+            setUsernameError('');
+            return;
+        }
+        // Debounce 500ms
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            checkUsername(username);
+        }, 500);
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [username, view, checkUsername]);
+
     const handleAuth = async (e) => {
         e.preventDefault();
         setLoading(true); setMsg(''); setSuccessMsg('');
         const isSignUp = view === 'register';
 
-        // Rate Limiting: Login 5x/15min, Signup 3x/Stunde
-        const rlKey = isSignUp ? `signup:${email}` : `login:${email}`;
+        // Rate Limiting
+        const rlIdentifier = isSignUp ? email : identifier;
+        const rlKey = isSignUp ? `signup:${rlIdentifier}` : `login:${rlIdentifier}`;
         const rl = checkRateLimit(rlKey, isSignUp ? 3 : 5, isSignUp ? 3600000 : 900000);
         if (!rl.allowed) {
             setMsg(`Zu viele Versuche. Bitte warte ${rl.retryAfterMinutes} Minute(n).`);
@@ -43,19 +108,64 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
             return;
         }
 
+        // Registrierung: Username-Checks
+        if (isSignUp) {
+            const lower = username.toLowerCase().trim();
+            const formatResult = validateUsernameFormat(lower);
+            if (!formatResult.valid) {
+                setMsg(formatResult.reason);
+                setLoading(false);
+                return;
+            }
+            const blockResult = isUsernameBlocked(lower);
+            if (blockResult.blocked) {
+                setMsg(blockResult.reason);
+                setLoading(false);
+                return;
+            }
+            if (usernameStatus !== 'available') {
+                setMsg("Bitte wähle einen verfügbaren Username.");
+                setLoading(false);
+                return;
+            }
+        }
+
         try {
             if (isSignUp) {
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
-                    options: { emailRedirectTo: window.location.origin }
+                    options: {
+                        emailRedirectTo: window.location.origin,
+                        data: { username: username.toLowerCase().trim() }
+                    }
                 });
                 if (error) throw error;
-                // Double Opt-In success state
                 setView('registerSuccess');
                 return;
             } else {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                // --- DUAL LOGIN LOGIK ---
+                let loginEmail = identifier.trim();
+
+                if (!loginEmail.includes('@')) {
+                    // Es ist ein Username → E-Mail via RPC auflösen
+                    const { data: resolvedEmail, error: rpcError } = await supabase.rpc(
+                        'get_email_by_username',
+                        { p_username: loginEmail.toLowerCase() }
+                    );
+                    if (rpcError) throw rpcError;
+                    if (!resolvedEmail) {
+                        setMsg('Benutzername nicht gefunden.');
+                        setLoading(false);
+                        return;
+                    }
+                    loginEmail = resolvedEmail;
+                }
+
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: loginEmail,
+                    password
+                });
                 if (error) throw error;
                 onSuccess(data.session);
             }
@@ -69,10 +179,10 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
 
     const handlePasswordReset = async (e) => {
         e.preventDefault();
-        if (!email) { setMsg("Bitte E-Mail eingeben."); return; }
+        const resetEmail = email || identifier;
+        if (!resetEmail) { setMsg("Bitte E-Mail eingeben."); return; }
 
-        // Rate Limiting: max 3 Reset-Mails pro E-Mail pro Stunde
-        const rl = checkRateLimit(`reset:${email}`, 3, 3600000);
+        const rl = checkRateLimit(`reset:${resetEmail}`, 3, 3600000);
         if (!rl.allowed) {
             setMsg(`Zu viele Anfragen. Bitte warte ${rl.retryAfterMinutes} Minute(n).`);
             return;
@@ -80,7 +190,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
 
         setLoading(true); setMsg('');
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
                 redirectTo: `${window.location.origin}/#reset-password`
             });
             if (error) throw error;
@@ -90,6 +200,18 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Username-Indikator Inline-Komponente
+    const UsernameIndicator = () => {
+        if (usernameStatus === 'idle') return null;
+        if (usernameStatus === 'checking') {
+            return <Loader2 className="animate-spin text-cyan-400" size={16} />;
+        }
+        if (usernameStatus === 'available') {
+            return <Check className="text-emerald-400" size={16} />;
+        }
+        return <X className="text-rose-500" size={16} />;
     };
 
     return (
@@ -137,7 +259,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                         </div>
                     ) : view === 'forgot' ? (
                         <form onSubmit={handlePasswordReset} className="space-y-4">
-                            <Input type="email" placeholder="E-Mail Adresse" required className="bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400" value={email} onChange={(e) => setEmail(e.target.value)} />
+                            <Input type="email" placeholder="E-Mail Adresse" required className="bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400" value={email || identifier} onChange={(e) => setEmail(e.target.value)} />
                             {msg && (<div className="bg-rose-600/10 text-rose-600 text-xs p-3 rounded-xl border border-rose-600/20 flex items-center gap-2 font-medium"><AlertCircle size={14} /> {msg}</div>)}
                             <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2`}>
                                 {loading && <Loader2 className="animate-spin" size={18} />} Reset-Link senden
@@ -149,7 +271,61 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     ) : (
                         <form onSubmit={handleAuth} className="space-y-4">
                             <div className="space-y-3">
-                                <Input type="email" placeholder="E-Mail Adresse" required className="bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400" value={email} onChange={(e) => setEmail(e.target.value)} />
+                                {view === 'login' ? (
+                                    /* ---- DUAL LOGIN: E-Mail oder Username ---- */
+                                    <div className="relative">
+                                        <Input
+                                            type="text"
+                                            placeholder="E-Mail oder Username"
+                                            required
+                                            className="bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 pr-10"
+                                            value={identifier}
+                                            onChange={(e) => setIdentifier(e.target.value)}
+                                            autoComplete="username"
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                            {identifier.includes('@') ? <Mail size={16} /> : <AtSign size={16} />}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* ---- REGISTER: E-Mail + Username ---- */
+                                    <>
+                                        <Input
+                                            type="email"
+                                            placeholder="E-Mail Adresse"
+                                            required
+                                            className="bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                        />
+                                        <div className="animate-in slide-in-from-top-2 fade-in">
+                                            <div className="relative">
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Username (z.B. max_mustermann)"
+                                                    required
+                                                    className={`bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 pr-10 ${
+                                                        usernameStatus === 'available' ? 'border-emerald-500/50 focus:border-emerald-500' :
+                                                        (usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'blocked') ? 'border-rose-500/50 focus:border-rose-500' : ''
+                                                    }`}
+                                                    value={username}
+                                                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                                    maxLength={20}
+                                                    autoComplete="username"
+                                                />
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    <UsernameIndicator />
+                                                </div>
+                                            </div>
+                                            {usernameError && (
+                                                <p className="text-rose-500 text-xs mt-1.5 ml-1 font-medium">{usernameError}</p>
+                                            )}
+                                            {usernameStatus === 'available' && (
+                                                <p className="text-emerald-400 text-xs mt-1.5 ml-1 font-medium">Username ist verfügbar ✓</p>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                                 <PasswordInput
                                     value={password}
                                     onChange={setPassword}
@@ -184,7 +360,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     {(view !== 'forgot' && view !== 'registerSuccess') && (
                         <div className="mt-6 pt-6 border-t border-border text-center">
                             <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei Cavio?'}</p>
-                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); setUsername(''); setUsernameStatus('idle'); setUsernameError(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}
                     {/* Legal Links */}

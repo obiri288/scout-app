@@ -559,64 +559,11 @@ export const checkIsBlocked = async (blockerId, blockedId) => {
 // ACCOUNT DELETION
 // ============================================================
 
-export const deleteUserAccount = async (userId) => {
-    // 1. Fetch all user's videos to delete storage files
-    const { data: highlights } = await supabase.from('media_highlights')
-        .select('id, video_url, thumbnail_url')
-        .eq('user_id', userId);
-
-    // 2. Delete storage files for each video
-    if (highlights && highlights.length > 0) {
-        for (const h of highlights) {
-            try { await deleteVideoFiles(h.video_url, h.thumbnail_url); } catch (_) { }
-        }
-    }
-
-    // 3. Delete avatar from storage
-    try {
-        const { data: player } = await supabase.from('players_master')
-            .select('avatar_url')
-            .eq('user_id', userId)
-            .single();
-        if (player?.avatar_url) {
-            const avatarPath = player.avatar_url.split('/avatars/').pop();
-            if (avatarPath) await supabase.storage.from('avatars').remove([decodeURIComponent(avatarPath)]);
-        }
-    } catch (_) { }
-
-    // 4. Cascade delete DB records (order matters for foreign keys)
-    const tables = [
-        { table: 'media_likes', column: 'user_id' },
-        { table: 'video_comments', column: 'user_id' },
-        { table: 'media_highlights', column: 'user_id' },
-        { table: 'notifications', column: 'user_id' },
-        { table: 'notifications', column: 'actor_id' },
-        { table: 'direct_messages', column: 'sender_id' },
-        { table: 'direct_messages', column: 'receiver_id' },
-        { table: 'follows', column: 'follower_id' },
-        { table: 'follows', column: 'following_id' },
-        { table: 'scout_watchlist', column: 'scout_id' },
-        { table: 'scout_watchlist', column: 'player_id' },
-        { table: 'player_ratings', column: 'rater_id' },
-        { table: 'reports', column: 'reporter_id' },
-        { table: 'user_blocks', column: 'blocker_id' },
-        { table: 'user_blocks', column: 'blocked_id' },
-    ];
-
-    for (const { table, column } of tables) {
-        try {
-            await supabase.from(table).delete().eq(column, userId);
-        } catch (_) { }
-    }
-
-    // 5. Delete player profile  
-    try {
-        await supabase.from('players_master').delete().eq('user_id', userId);
-    } catch (_) { }
-
-    // 6. Finally: Call Edge Function to delete the auth user record (server-side with Service Role)
+export const deleteUserAccount = async () => {
+    // Edge Function handles everything:
+    // 1. Storage cleanup (videos, thumbnails, avatars)
+    // 2. auth.admin.deleteUser() which cascades to all DB records
     const { data, error } = await supabase.functions.invoke('delete-account');
     if (error) throw error;
-
     return data;
 };

@@ -17,6 +17,15 @@ export const UserProvider = ({ children }) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
+    // Detect if we're in an auth callback flow (email confirmation redirect)
+    const [isAuthCallback, setIsAuthCallback] = useState(() => {
+        const hash = window.location.hash;
+        const search = window.location.search;
+        return hash.includes('access_token') || hash.includes('type=signup') || 
+               hash.includes('type=recovery') || hash.includes('type=email') ||
+               search.includes('code=') || search.includes('token=');
+    });
+
     // Stable ref so the callback never goes stale
     const sessionRef = useRef(session);
     sessionRef.current = session;
@@ -42,6 +51,8 @@ export const UserProvider = ({ children }) => {
                 .maybeSingle();
 
             if (!data) {
+                // Username aus user_metadata lesen (wird bei Registrierung gesetzt)
+                const metaUsername = s.user.user_metadata?.username || null;
                 const newProfile = {
                     user_id: s.user.id,
                     full_name: '',
@@ -49,7 +60,8 @@ export const UserProvider = ({ children }) => {
                     transfer_status: 'Gebunden',
                     followers_count: 0,
                     is_verified: false,
-                    is_admin: false
+                    is_admin: false,
+                    ...(metaUsername ? { username: metaUsername } : {})
                 };
                 const { data: created, error } = await supabase
                     .from('players_master')
@@ -90,6 +102,14 @@ export const UserProvider = ({ children }) => {
             if (!s) {
                 setCurrentUserProfile(null);
                 setUnreadCount(0);
+            }
+
+            // Auth callback: clean up URL tokens after session is established
+            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && isAuthCallback) {
+                setIsAuthCallback(false);
+                // Clean URL: remove hash tokens & query params left by Supabase
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState(null, '', cleanUrl);
             }
         });
 
@@ -166,6 +186,7 @@ export const UserProvider = ({ children }) => {
         logout,
         isRecoveryMode,
         setIsRecoveryMode,
+        isAuthCallback,
     };
 
     return (
