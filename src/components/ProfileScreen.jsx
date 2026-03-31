@@ -192,16 +192,16 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     </div>
                 </div>
 
-                <div className="flex flex-col items-center pt-2 relative z-10 px-6">
+                <div className="flex flex-col items-center pt-2 relative z-10 px-4">
                     {/* Avatar */}
-                    <div className="relative mb-4 group">
-                        <div className="absolute -inset-1 rounded-full blur opacity-40 bg-gradient-to-tr from-cyan-500 to-cyan-700"></div>
-                        <div className="relative w-32 h-32 rounded-full bg-card overflow-hidden border-4 border-card shadow-2xl">
-                            {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={56} className="text-muted-foreground m-8" />}
+                    <div className="relative mb-2 group mt-2">
+                        <div className="absolute -inset-1 rounded-full blur-md opacity-40 bg-gradient-to-tr from-cyan-500 to-cyan-700"></div>
+                        <div className="relative w-24 h-24 rounded-full bg-card overflow-hidden border-2 border-slate-800 shadow-xl">
+                            {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={40} className="text-muted-foreground m-5" />}
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-6 w-full mb-8">
+                    <div className="flex flex-col items-center gap-2 w-full mb-5">
                         <div className="flex flex-col items-center">
                             {/* Name & Badge */}
                             <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
@@ -250,80 +250,75 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     </div>
 
                     {/* Stats Grid */}
-                    <div className={`grid grid-cols-2 ${isOwnProfile ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-3 w-full mb-8`}>
-                        {/* Rating Card - Make it prominent by spanning 2 columns on mobile */}
-                        <div className="col-span-2 md:col-span-1 relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center group hover:border-amber-400/50 transition-colors overflow-hidden h-[150px]">
-                            {/* Premium Glow Effect */}
+                    <div className={`grid grid-cols-2 ${isOwnProfile ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-2 w-full mb-5`}>
+                        {/* Rating Card */}
+                        <div className="col-span-1 relative bg-slate-950 border border-slate-800 rounded-xl p-2 flex flex-col items-center justify-center group hover:border-amber-400/50 transition-colors overflow-hidden h-[90px]">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.15)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                            
-                            <div className="relative z-10 w-full h-full">
+                            <div className="relative z-10 w-full h-full flex items-center justify-center scale-75 origin-center">
                                 <PlayerRating playerId={player.id} session={session} compact />
                             </div>
                         </div>
 
+                        {/* View Card */}
+                        {isOwnProfile && (
+                            <div className="col-span-1 relative bg-slate-950 border border-slate-800 rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition-colors overflow-hidden h-[90px]">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                                <Eye size={22} strokeWidth={2} className="text-cyan-400 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                                <span className="text-xl font-black text-foreground drop-shadow-md z-10 leading-none">{viewCount}</span>
+                                <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5 z-10">Views</span>
+                            </div>
+                        )}
+
                         {/* Follower Card */}
                         <div 
-                            className="relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer group hover:border-cyan-400/50 transition-colors overflow-hidden h-[150px]" 
+                            className="col-span-1 relative bg-slate-950 border border-slate-800 rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer group hover:border-cyan-400/50 transition-colors overflow-hidden h-[90px]" 
                             onClick={onShowFollowers}
                         >
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                            
-                            <Users size={32} strokeWidth={1.5} className="text-cyan-400 mb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                            <span className="text-2xl font-black text-foreground drop-shadow-md z-10">{player.followers_count || 0}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 z-10">Follower</span>
+                            <Users size={22} strokeWidth={2} className="text-cyan-400 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                            <span className="text-xl font-black text-foreground drop-shadow-md z-10 leading-none">{player.followers_count || 0}</span>
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5 z-10">Follower</span>
                         </div>
 
                         {/* Clips Card */}
-                        <div className="relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition-colors overflow-hidden h-[150px]">
+                        <div className="col-span-1 relative bg-slate-950 border border-slate-800 rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition-colors overflow-hidden h-[90px]">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                            
-                            <Video size={32} strokeWidth={1.5} className="text-cyan-400 mb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                            <span className="text-2xl font-black text-foreground drop-shadow-md z-10">{highlights.length}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 z-10">Clips</span>
+                            <Video size={22} strokeWidth={2} className="text-cyan-400 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                            <span className="text-xl font-black text-foreground drop-shadow-md z-10 leading-none">{highlights.length}</span>
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5 z-10">Clips</span>
                         </div>
-
-                        {/* Views Card (Only Own Profile) */}
-                        {isOwnProfile && (
-                            <div className="col-span-2 md:col-span-1 relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition-colors overflow-hidden h-[150px]">
-                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                                
-                                <Eye size={32} strokeWidth={1.5} className="text-cyan-400 mb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                                <span className="text-2xl font-black text-foreground drop-shadow-md z-10">{viewCount}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 z-10">Views</span>
-                            </div>
-                        )}
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="w-full flex gap-3 mt-4">
+                    <div className="w-full flex-row flex flex-nowrap gap-2 items-center">
                         {isOwnProfile ? (
                             <>
-                                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onEditReq} className="flex-1 bg-muted text-foreground font-bold py-3 rounded-xl border border-border hover:bg-muted/80 transition flex items-center justify-center gap-2">
-                                    <Edit size={18} /> Profil bearbeiten
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onEditReq} className="flex-1 bg-muted text-foreground font-bold py-2.5 rounded-xl border border-border hover:bg-muted/80 transition flex items-center justify-center gap-2 text-sm">
+                                    <Edit size={16} /> Profil bearbeiten
                                 </motion.button>
-                                <button onClick={() => setShowPlayerCard(true)} className="bg-muted text-foreground p-3 rounded-xl border border-border hover:bg-muted/80 transition" title="Profil teilen">
-                                    <Share2 size={20} />
+                                <button onClick={() => setShowPlayerCard(true)} className="flex-none bg-muted text-foreground p-2.5 rounded-xl border border-border hover:bg-muted/80 transition" title="Profil teilen">
+                                    <Share2 size={18} />
                                 </button>
-                                {player.is_admin && <button onClick={onAdminReq} className="bg-cyan-900/30 text-cyan-400 p-3 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50" title="Admin Dashboard"><Database size={20} /></button>}
+                                {player.is_admin && <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50" title="Admin Dashboard"><Database size={18} /></button>}
                             </>
                         ) : (
                             <>
-                                <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-muted text-foreground border-border' : 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20'} border py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
-                                    {player.isFollowing ? <Check size={18} /> : <Plus size={18} />}
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-muted text-foreground border-border' : 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(34,211,238,0.2)]'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
+                                    {player.isFollowing ? <Check size={16} /> : <Plus size={16} />}
                                     {player.isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </motion.button>
-                                <button onClick={onChatReq} className="bg-muted text-foreground px-5 py-3 rounded-xl border border-border hover:bg-muted/80 transition">
-                                    <MessageCircle size={20} />
+                                <button onClick={onChatReq} className="flex-none bg-muted text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-muted/80 transition">
+                                    <MessageCircle size={18} />
                                 </button>
                                 {session && onWatchlistToggle && (
-                                    <button onClick={onWatchlistToggle} className={`p-3 rounded-xl border transition ${isOnWatchlist ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/30' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground'}`}>
-                                        {isOnWatchlist ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+                                    <button onClick={onWatchlistToggle} className={`flex-none p-2.5 rounded-xl border transition ${isOnWatchlist ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/30' : 'bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground'}`}>
+                                        {isOnWatchlist ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
                                     </button>
                                 )}
                                 {/* Compare button */}
                                 {session && onCompare && (
-                                    <button onClick={onCompare} className="p-3 rounded-xl border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition" title="Vergleichen">
-                                        <ArrowLeftRight size={20} />
+                                    <button onClick={onCompare} className="flex-none p-2.5 rounded-xl border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition" title="Vergleichen">
+                                        <ArrowLeftRight size={18} />
                                     </button>
                                 )}
                             </>
@@ -333,15 +328,15 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
             </div>
 
             {/* Social Links Row */}
-            <div className="flex justify-center gap-6 py-6 border-b border-border">
-                {player.instagram_handle ? <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-pink-500 transition"><Instagram size={24} /></a> : <Instagram size={24} className="text-muted-foreground/40" />}
-                {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground transition"><Video size={24} /></a> : <Video size={24} className="text-muted-foreground/40" />}
-                {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-red-500 transition"><Youtube size={24} /></a> : <Youtube size={24} className="text-muted-foreground/40" />}
+            <div className="flex justify-center gap-6 py-4 border-b border-border">
+                {player.instagram_handle ? <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-pink-500 transition"><Instagram size={20} /></a> : <Instagram size={20} className="text-muted-foreground/40" />}
+                {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground transition"><Video size={20} /></a> : <Video size={20} className="text-muted-foreground/40" />}
+                {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-red-500 transition"><Youtube size={20} /></a> : <Youtube size={20} className="text-muted-foreground/40" />}
             </div>
 
             {/* Scout Rating (non-own profiles) */}
             {!isOwnProfile && session && (
-                <div className="px-4 py-4 border-b border-border">
+                <div className="px-4 py-3 border-b border-border">
                     <PlayerRating playerId={player.id} session={session} />
                 </div>
             )}
@@ -382,7 +377,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 
     return (
         <>
-            <div className="flex px-4 pt-4 pb-2 gap-6 border-b border-border">
+            <div className="flex px-4 pt-4 pb-2 gap-6 border-b border-border sticky top-0 z-40 bg-slate-50/90 dark:bg-slate-950/80 backdrop-blur-md">
                 <TabBtn id="highlights" label="Highlights" />
                 <TabBtn id="stats" label="Stats" />
                 <TabBtn id="karriere" label="Karriere" />
