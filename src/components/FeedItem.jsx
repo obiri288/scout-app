@@ -74,7 +74,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         </div>
                         <div>
                             <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors">
-                                {video.players_master?.full_name} {video.players_master?.is_verified && <VerificationBadge size={14} role={video.players_master?.role} />}
+                                {video.players_master?.full_name} {video.players_master?.verification_status && video.players_master?.verification_status !== 'unverified' && <VerificationBadge size={14} status={video.players_master?.verification_status} />}
                             </div>
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>

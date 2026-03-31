@@ -2,14 +2,14 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Loader2, User, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users, ShieldCheck
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../contexts/ToastContext';
 import { calculateAge } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { ProfileSkeleton } from './SkeletonScreens';
-import { useToast } from '../contexts/ToastContext';
 import { PlayerRating } from './PlayerRating';
 import { SimilarPlayers } from './SimilarPlayers';
 import { ProReadinessCard } from './ProReadinessCard';
@@ -103,6 +103,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
     const [viewCount, setViewCount] = useState(0);
     const [avgRating, setAvgRating] = useState(0);
     const [playerStats, setPlayerStats] = useState(null);
+    const [hasEndorsed, setHasEndorsed] = useState(false);
+    const [vouchLoading, setVouchLoading] = useState(false);
+    const { addToast } = useToast();
 
     useEffect(() => {
         if (!player?.id) return;
@@ -151,7 +154,36 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
             }
         };
         loadAttributes();
-    }, [player?.id, isOwnProfile]);
+
+        // Check if current user has already endorsed this player
+        if (!isOwnProfile && session?.user?.id && player?.user_id) {
+            supabase.from('endorsements')
+                .select('id')
+                .eq('endorser_id', session.user.id)
+                .eq('endorsee_id', player.user_id)
+                .maybeSingle()
+                .then(({ data }) => setHasEndorsed(!!data));
+        }
+    }, [player?.id, isOwnProfile, session?.user?.id]);
+    const handleVouch = async () => {
+        if (!session?.user?.id || !player?.user_id) return;
+        setVouchLoading(true);
+        try {
+            const { data, error } = await supabase.rpc('vouch_for_player', { target_user_id: player.user_id });
+            if (error) throw error;
+            if (data?.success) {
+                setHasEndorsed(true);
+                addToast(data.message || 'Spieler erfolgreich bestätigt! ✓', 'success');
+            } else {
+                addToast(data?.error || 'Bestätigung fehlgeschlagen.', 'error');
+            }
+        } catch (e) {
+            addToast('Fehler: ' + e.message, 'error');
+        } finally {
+            setVouchLoading(false);
+        }
+    };
+
     if (isOwnProfile && !player) return <ProfileSkeleton />;
     if (!player) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Profil nicht gefunden.</div>;
 
@@ -206,7 +238,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             {/* Name & Badge */}
                             <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
                                 {player.full_name}
-                                {player.is_verified && <VerificationBadge size={20} role={player.role} />}
+                                {player.verification_status && player.verification_status !== 'unverified' && <VerificationBadge size={20} status={player.verification_status} />}
                             </h1>
                             <XPLevelBadge playerId={player.id} compact />
 
@@ -319,6 +351,17 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                 {session && onCompare && (
                                     <button onClick={onCompare} className="flex-none p-2.5 rounded-xl border border-border bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition" title="Vergleichen">
                                         <ArrowLeftRight size={18} />
+                                    </button>
+                                )}
+                                {/* Vouch / Endorse button */}
+                                {session && !hasEndorsed && session.user?.id !== player.user_id && (
+                                    <button
+                                        onClick={handleVouch}
+                                        disabled={vouchLoading}
+                                        className="flex-none p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition"
+                                        title="Spieler bestätigen"
+                                    >
+                                        {vouchLoading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
                                     </button>
                                 )}
                             </>

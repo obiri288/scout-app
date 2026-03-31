@@ -154,7 +154,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border group-hover:border-blue-500 transition">
                         {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="m-2.5 text-muted-foreground" />}
                     </div>
-                    <div className="font-bold text-foreground flex items-center gap-1.5">{partner.full_name} {partner.is_verified && <VerificationBadge size={16} role={partner.role} />}</div>
+                    <div className="font-bold text-foreground flex items-center gap-1.5">{partner.full_name} {partner.verification_status && partner.verification_status !== 'unverified' && <VerificationBadge size={16} status={partner.verification_status} />}</div>
                 </div>
                 <div className="relative">
                     <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-muted-foreground hover:text-foreground transition rounded-full hover:bg-black/5 dark:hover:bg-white/5">
