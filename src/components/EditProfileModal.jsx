@@ -258,7 +258,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         <button
             type="button"
             onClick={() => setActiveTab(id)}
-            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === id ? 'border-blue-500 text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all ${activeTab === id ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
         >
             <Icon size={16} /> {label}
         </button>
@@ -274,7 +274,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto">
+                <div className="flex gap-2 py-3 px-4 border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto scrollbar-hide">
                     <TabButton id="general" label="Allgemein" icon={User} />
                     <TabButton id="sport" label="Sportlich" icon={Activity} />
                     <TabButton id="badges" label="Badges" icon={Award} />
@@ -316,18 +316,18 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
                                             <div className="relative">
-                                                <Calendar className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
+                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                                 <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className={`${inputStyle} pl-10`} />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nationalität</label>
                                             <div className="relative">
-                                                <Globe className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
+                                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                                 <input placeholder="z.B. Deutschland" value={formData.nationality} onChange={e => setFormData({ ...formData, nationality: e.target.value })} className={`${inputStyle} pl-10`} />
                                             </div>
                                         </div>
@@ -341,7 +341,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                         <div className="col-span-2">
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Ort</label>
                                             <div className="relative">
-                                                <MapPin className="absolute left-3 top-3.5 text-muted-foreground" size={16} />
+                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                                 <input placeholder="Berlin" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className={`${inputStyle} pl-10`} />
                                             </div>
                                         </div>
