@@ -80,17 +80,38 @@ export const PlayerRating = ({ playerId, session, compact }) => {
         }
     };
 
-    // Compact mode: just show average + stars (for stats grid)
+    // Compact mode: Premium Grid Rating Card
     if (compact) {
+        const displayRating = avgRating || 0; // Remove dash, use 0 or "0.0" if empty
         return (
-            <div className="flex flex-col items-center">
-                <div className="flex items-center gap-0.5 mb-1">
-                    {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} size={12} className={s <= Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
-                    ))}
+            <div className="flex flex-col items-center justify-center w-full h-full">
+                {/* Score in a glowing amber circle */}
+                <div className="relative mb-2 flex items-center justify-center group">
+                    <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full scale-150 transition-transform group-hover:scale-110"></div>
+                    <div className="relative w-14 h-14 rounded-full border border-amber-400/50 bg-amber-500/10 flex items-center justify-center shadow-[0_0_15px_rgba(251,191,36,0.2)]">
+                        <span className="text-2xl font-black text-amber-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                            {displayRating > 0 ? displayRating.toFixed(1) : '0.0'}
+                        </span>
+                    </div>
                 </div>
-                <span className="text-xl font-black text-foreground">{avgRating || '-'}</span>
-                <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">
+                
+                {/* 5 Stars directly below */}
+                <div className="flex items-center justify-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map(s => {
+                        const isFilled = s <= Math.round(displayRating);
+                        return (
+                            <Star 
+                                key={s} 
+                                size={14} 
+                                strokeWidth={isFilled ? 0 : 2}
+                                className={isFilled ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.6)]' : 'text-slate-700'} 
+                            />
+                        );
+                    })}
+                </div>
+                
+                {/* Ratings count at the bottom */}
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold z-10 drop-shadow-md">
                     {totalRatings} Bewertung{totalRatings !== 1 ? 'en' : ''}
                 </span>
             </div>

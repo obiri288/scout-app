@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Loader2, User, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
@@ -201,81 +201,110 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         </div>
                     </div>
 
-                    {/* Name & Badge */}
-                    <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
-                        {player.full_name}
-                        {player.is_verified && <VerificationBadge size={20} role={player.role} />}
-                    </h1>
-                    <XPLevelBadge playerId={player.id} compact />
+                    <div className="flex flex-col items-center gap-6 w-full mb-8">
+                        <div className="flex flex-col items-center">
+                            {/* Name & Badge */}
+                            <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
+                                {player.full_name}
+                                {player.is_verified && <VerificationBadge size={20} role={player.role} />}
+                            </h1>
+                            <XPLevelBadge playerId={player.id} compact />
 
-                    {/* Signature Badges */}
-                    {player.signature_badges && player.signature_badges.length > 0 && (
-                        <div className="flex items-center gap-2 mt-2 mb-1">
-                            {player.signature_badges.map(badgeId => {
-                                const badge = getBadgeById(badgeId);
-                                if (!badge) return null;
-                                const colors = getBadgeColors(badge);
-                                const Icon = badge.icon;
-                                return (
-                                    <div
-                                        key={badgeId}
-                                        className={`relative flex flex-col items-center px-3 py-2 rounded-xl bg-white/5 dark:bg-white/5 backdrop-blur-lg border ${colors.border} shadow-lg ${colors.glow} transition-all hover:scale-105`}
-                                        title={badge.description}
-                                    >
-                                        <Icon size={18} className={colors.text} />
-                                        <span className={`text-[9px] font-bold mt-1 ${colors.text} uppercase tracking-wider whitespace-nowrap`}>{badge.name}</span>
-                                    </div>
-                                );
-                            })}
+                            {/* Signature Badges */}
+                            {player.signature_badges && player.signature_badges.length > 0 && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    {player.signature_badges.map(badgeId => {
+                                        const badge = getBadgeById(badgeId);
+                                        if (!badge) return null;
+                                        const colors = getBadgeColors(badge);
+                                        const Icon = badge.icon;
+                                        return (
+                                            <div
+                                                key={badgeId}
+                                                className={`relative flex flex-col items-center px-3 py-2 rounded-xl bg-white/5 dark:bg-white/5 backdrop-blur-lg border ${colors.border} shadow-lg ${colors.glow} transition-all hover:scale-105`}
+                                                title={badge.description}
+                                            >
+                                                <Icon size={18} className={colors.text} />
+                                                <span className={`text-[9px] font-bold mt-1 ${colors.text} uppercase tracking-wider whitespace-nowrap`}>{badge.name}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-                    )}
 
-                    {/* Club & Position */}
-                    <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-4">
-                        {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
-                        <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || "Vereinslos"}</span>
-                        <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-                        <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
-                    </div>
+                        <div className="flex flex-col items-center gap-3">
+                            {/* Club & Position */}
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
+                                {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
+                                <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || "Vereinslos"}</span>
+                                <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
+                                <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
+                            </div>
 
-                    {/* Transfer Status Pill */}
-                    <div className={`mb-6 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide ${statusTextClass}`}>
-                        {player.transfer_status}
+                            {/* Transfer Status Pill */}
+                            <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide ${statusTextClass}`}>
+                                {player.transfer_status}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Stats Grid */}
-                    <div className={`grid ${isOwnProfile ? 'grid-cols-4' : 'grid-cols-3'} gap-3 w-full mb-6`}>
-                        <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition" onClick={onShowFollowers}>
-                            <span className="text-xl font-black text-foreground">{player.followers_count || 0}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Follower</span>
+                    <div className={`grid grid-cols-2 ${isOwnProfile ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-3 w-full mb-8`}>
+                        {/* Rating Card - Make it prominent by spanning 2 columns on mobile */}
+                        <div className="col-span-2 md:col-span-1 relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center group hover:border-amber-400/50 transition-colors overflow-hidden h-[150px]">
+                            {/* Premium Glow Effect */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.15)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                            
+                            <div className="relative z-10 w-full h-full">
+                                <PlayerRating playerId={player.id} session={session} compact />
+                            </div>
                         </div>
-                        <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <span className="text-xl font-black text-foreground">{highlights.length}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Clips</span>
+
+                        {/* Follower Card */}
+                        <div 
+                            className="relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer group hover:border-cyan-400/50 transition-colors overflow-hidden h-[150px]" 
+                            onClick={onShowFollowers}
+                        >
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                            
+                            <Users size={32} strokeWidth={1.5} className="text-cyan-400 mb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                            <span className="text-2xl font-black text-foreground drop-shadow-md z-10">{player.followers_count || 0}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 z-10">Follower</span>
                         </div>
-                        <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center">
-                            <PlayerRating playerId={player.id} session={session} compact />
+
+                        {/* Clips Card */}
+                        <div className="relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition-colors overflow-hidden h-[150px]">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                            
+                            <Video size={32} strokeWidth={1.5} className="text-cyan-400 mb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                            <span className="text-2xl font-black text-foreground drop-shadow-md z-10">{highlights.length}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 z-10">Clips</span>
                         </div>
+
+                        {/* Views Card (Only Own Profile) */}
                         {isOwnProfile && (
-                            <div className="bg-white/5 border border-border rounded-2xl p-3 flex flex-col items-center justify-center">
-                                <div className="flex items-center gap-1 mb-1"><Eye size={12} className="text-blue-400" /></div>
-                                <span className="text-xl font-black text-foreground">{viewCount}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Views</span>
+                            <div className="col-span-2 md:col-span-1 relative bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition-colors overflow-hidden h-[150px]">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                                
+                                <Eye size={32} strokeWidth={1.5} className="text-cyan-400 mb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                                <span className="text-2xl font-black text-foreground drop-shadow-md z-10">{viewCount}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 z-10">Views</span>
                             </div>
                         )}
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="w-full flex gap-3">
+                    <div className="w-full flex gap-3 mt-4">
                         {isOwnProfile ? (
                             <>
                                 <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={onEditReq} className="flex-1 bg-muted text-foreground font-bold py-3 rounded-xl border border-border hover:bg-muted/80 transition flex items-center justify-center gap-2">
-                                    <Edit size={18} /> Profil
+                                    <Edit size={18} /> Profil bearbeiten
                                 </motion.button>
-                                <button onClick={() => setShowPlayerCard(true)} className="bg-muted text-foreground p-3 rounded-xl border border-border hover:bg-muted/80 transition">
+                                <button onClick={() => setShowPlayerCard(true)} className="bg-muted text-foreground p-3 rounded-xl border border-border hover:bg-muted/80 transition" title="Profil teilen">
                                     <Share2 size={20} />
                                 </button>
-                                {player.is_admin && <button onClick={onAdminReq} className="bg-cyan-900/30 text-cyan-400 p-3 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50"><Database size={20} /></button>}
+                                {player.is_admin && <button onClick={onAdminReq} className="bg-cyan-900/30 text-cyan-400 p-3 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50" title="Admin Dashboard"><Database size={20} /></button>}
                             </>
                         ) : (
                             <>
