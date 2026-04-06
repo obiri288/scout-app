@@ -37,6 +37,7 @@ const NOTIF_CONFIG = {
     rating: { icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/15', textDE: 'hat dich bewertet.', textEN: 'rated your profile.' },
     likes_milestone: { icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15', textDE: 'Likes erreicht!', textEN: 'likes reached!' },
     comment: { icon: Mail, color: 'text-purple-400', bg: 'bg-purple-500/15', textDE: 'hat kommentiert.', textEN: 'left a comment.' },
+    endorse: { icon: ShieldCheck, color: 'text-emerald-400', bg: 'bg-emerald-500/15', textDE: 'hat einen deiner Skills verifiziert.', textEN: 'verified one of your skills.' },
 };
 
 const FILTER_TABS = [
@@ -140,7 +141,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
         const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.like;
         const Icon = config.icon;
 
-        let message = config.textDE;
+        let message = n.message || config.textDE;
         if (n.type === 'likes_milestone' && n.metadata?.count) {
             message = `Dein Video hat ${n.metadata.count} Likes erreicht! 🎉`;
         }

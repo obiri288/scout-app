@@ -191,6 +191,19 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                 if (error) throw error;
                 // Replace temp ID with real ID
                 setSkillEndorsements(prev => prev.map(e => e.id === tempId ? data : e));
+                
+                // Erstelle die Notifikation
+                try {
+                    await supabase.from('notifications').insert({
+                        actor_id: session.user.id,
+                        receiver_id: player.user_id,
+                        type: 'endorse',
+                        metadata: { skill: skillName },
+                        message: `Hat dein ${skillName} verifiziert`
+                    });
+                } catch(e) {
+                    console.warn('Silent fail for endorsement notification:', e);
+                }
             } catch (e) {
                 setSkillEndorsements(prev => prev.filter(e => e.id !== tempId)); // Revert on fail
                 addToast("Bestätigung fehlgeschlagen", 'error');
