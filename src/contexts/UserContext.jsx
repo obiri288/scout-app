@@ -61,6 +61,9 @@ export const UserProvider = ({ children }) => {
                     followers_count: 0,
                     is_verified: false,
                     is_admin: false,
+                    role: 'player',
+                    verification_status: 'approved',
+                    email: s.user.email || null,
                     ...(metaUsername ? { username: metaUsername } : {})
                 };
                 const { data: created, error } = await supabase

@@ -15,6 +15,7 @@ import { InboxScreen } from './components/InboxScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ClubScreen } from './components/ClubScreen';
 import { CelebrationAnimation } from './components/CelebrationAnimation';
+import { PendingVerificationScreen } from './components/PendingVerificationScreen';
 
 // Lazy loaded — only fetched when needed
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -278,6 +279,12 @@ const App = () => {
     const needsOnboarding = session && !currentUserProfile;
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
+    // Gate: users with non-player role AND pending/rejected verification get blocked
+    const isPendingVerification = session && currentUserProfile
+        && currentUserProfile.role !== 'player'
+        && currentUserProfile.role !== 'admin'
+        && (currentUserProfile.verification_status === 'pending' || currentUserProfile.verification_status === 'rejected');
+
     // Show landing page for unauthenticated users
     const isLanding = showLanding && !session;
 
@@ -293,6 +300,17 @@ const App = () => {
                     {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={(s) => { handleLoginSuccess(s); setShowLanding(false); }} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 </Suspense>
             </>
+        );
+    }
+
+    // Render pending verification screen for non-player roles awaiting approval
+    if (isPendingVerification) {
+        return (
+            <PendingVerificationScreen
+                profile={currentUserProfile}
+                onLogout={() => { logout(); switchTab('home'); }}
+                onRoleChanged={() => refreshProfile()}
+            />
         );
     }
 

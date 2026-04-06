@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload, X, AtSign, ShieldAlert } from 'lucide-react';
+import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload, X, AtSign, ShieldAlert, Search, Crosshair } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
@@ -10,17 +10,52 @@ import { calculateAgeInfo, AGE_ERROR_MESSAGE } from '../lib/ageValidation';
 
 const POSITIONS = ['Torwart', 'Innenverteidiger', 'Außenverteidiger', 'Defensives Mittelfeld', 'Zentrales Mittelfeld', 'Offensives Mittelfeld', 'Linksaußen', 'Rechtsaußen', 'Mittelstürmer'];
 
+const ROLE_OPTIONS = [
+    {
+        value: 'player',
+        label: 'Spieler',
+        emoji: '⚽',
+        description: 'Zeig dein Talent und werde entdeckt.',
+        color: 'from-cyan-500 to-blue-600',
+        border: 'border-cyan-500/40',
+        bg: 'bg-cyan-500/10',
+    },
+    {
+        value: 'scout',
+        label: 'Scout',
+        emoji: '🔍',
+        description: 'Entdecke die nächste Generation.',
+        color: 'from-amber-500 to-orange-600',
+        border: 'border-amber-500/40',
+        bg: 'bg-amber-500/10',
+    },
+    {
+        value: 'coach',
+        label: 'Trainer',
+        emoji: '🎯',
+        description: 'Finde Spieler für dein Team.',
+        color: 'from-emerald-500 to-green-600',
+        border: 'border-emerald-500/40',
+        bg: 'bg-emerald-500/10',
+    },
+];
+
 const slideVariants = {
     enter: (dir) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
     center: { x: 0, opacity: 1 },
     exit: (dir) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
 };
 
+const TOTAL_STEPS = 4;
+
 export const OnboardingWizard = ({ session, onComplete }) => {
     const [step, setStep] = useState(0);
     const [dir, setDir] = useState(1);
     const [loading, setLoading] = useState(false);
     const { addToast } = useToast();
+
+    // Step 0: Role selection
+    const [selectedRole, setSelectedRole] = useState('player');
 
     // Step 1 data
     const [fullName, setFullName] = useState('');
@@ -111,34 +146,40 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const goNext = () => { setDir(1); setStep(s => s + 1); };
     const goBack = () => { setDir(-1); setStep(s => s - 1); };
 
-    // Step 1 validation: name, username, position
-    const isStep1Valid = fullName.trim() && position && username.trim() && usernameStatus === 'available' && birthDate && !ageInfo.isUnder16;
+    // Step 1 validation: name, username, position (only required for players)
+    const isStep1Valid = selectedRole === 'player'
+        ? fullName.trim() && position && username.trim() && usernameStatus === 'available' && birthDate && !ageInfo.isUnder16
+        : fullName.trim() && username.trim() && usernameStatus === 'available';
 
     const handleFinish = async (skipVideo = true) => {
-        if (!fullName.trim() || !position) {
-            addToast('Bitte fülle Name und Position aus.', 'error');
+        if (!fullName.trim()) {
+            addToast('Bitte fülle deinen Namen aus.', 'error');
             setDir(-1);
-            setStep(0);
+            setStep(1);
             return;
         }
 
         if (!username.trim() || usernameStatus !== 'available') {
             addToast('Bitte wähle einen gültigen, verfügbaren Username.', 'error');
             setDir(-1);
-            setStep(0);
+            setStep(1);
             return;
         }
 
         setLoading(true);
         try {
             // 1. Create or update player profile
+            const isPlayer = selectedRole === 'player';
             const profileData = {
                 user_id: session.user.id,
                 full_name: fullName.trim(),
                 username: username.toLowerCase().trim(),
-                position_primary: position,
-                birth_date: birthDate || null,
-                transfer_status: 'Suche Verein',
+                position_primary: isPlayer ? position : null,
+                birth_date: isPlayer ? (birthDate || null) : null,
+                transfer_status: isPlayer ? 'Suche Verein' : null,
+                role: selectedRole,
+                verification_status: isPlayer ? 'approved' : 'pending',
+                email: session.user.email || null,
             };
 
             // Check if player already exists
@@ -168,7 +209,11 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 player = await api.updatePlayer(player.id, { avatar_url: avatarUrl });
             }
 
-            addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
+            if (isPlayer) {
+                addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
+            } else {
+                addToast('Registrierung abgeschlossen! Dein Profil wird jetzt geprüft.', 'info');
+            }
             onComplete(player);
         } catch (e) {
             console.error('Onboarding error:', e);
@@ -192,9 +237,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
     const steps = [
         {
+            icon: <Sparkles className="text-cyan-400" size={28} />,
+            title: 'Willkommen bei Cavio',
+            subtitle: 'Was beschreibt dich am besten?',
+        },
+        {
             icon: <Target className="text-cyan-400" size={28} />,
             title: 'Wer bist du?',
-            subtitle: 'Erzähl uns ein bisschen über dich.',
+            subtitle: selectedRole === 'player' ? 'Erzähl uns ein bisschen über dich.' : 'Wie sollen wir dich nennen?',
         },
         {
             icon: <Camera className="text-cyan-400" size={28} />,
@@ -204,7 +254,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
         {
             icon: <Sparkles className="text-cyan-400" size={28} />,
             title: 'Fast geschafft!',
-            subtitle: 'Starte jetzt und werde entdeckt.',
+            subtitle: selectedRole === 'player' ? 'Starte jetzt und werde entdeckt.' : 'Dein Profil wird nach Absenden geprüft.',
         },
     ];
 
@@ -215,14 +265,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 <motion.div
                     className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400"
                     initial={false}
-                    animate={{ width: `${((step + 1) / 3) * 100}%` }}
+                    animate={{ width: `${((step + 1) / TOTAL_STEPS) * 100}%` }}
                     transition={{ duration: 0.4, ease: 'easeOut' }}
                 />
             </div>
 
             {/* Step Indicator */}
             <div className="absolute top-6 left-0 right-0 flex justify-center gap-2 px-6">
-                {[0, 1, 2].map(i => (
+                {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
                     <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i <= step ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-zinc-700'}`} />
                 ))}
             </div>
@@ -246,8 +296,50 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         <h2 className="text-2xl font-black text-foreground mb-1">{steps[step].title}</h2>
                         <p className="text-muted-foreground text-sm text-center mb-8">{steps[step].subtitle}</p>
 
-                        {/* Step 1: Name, Username, Position, Birthday */}
+                        {/* Step 0: Role Selection */}
                         {step === 0 && (
+                            <div className="w-full space-y-3">
+                                {ROLE_OPTIONS.map((role) => (
+                                    <button
+                                        key={role.value}
+                                        onClick={() => setSelectedRole(role.value)}
+                                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 text-left group ${
+                                            selectedRole === role.value
+                                                ? `${role.border} ${role.bg} shadow-lg`
+                                                : 'border-border bg-white/5 hover:border-white/20 hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-transform duration-300 ${
+                                            selectedRole === role.value ? 'scale-110' : 'group-hover:scale-105'
+                                        } ${role.bg}`}>
+                                            {role.emoji}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className={`font-bold text-base ${
+                                                selectedRole === role.value ? 'text-foreground' : 'text-foreground/70'
+                                            }`}>{role.label}</p>
+                                            <p className="text-muted-foreground text-xs mt-0.5">{role.description}</p>
+                                        </div>
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                            selectedRole === role.value
+                                                ? `${role.border} bg-gradient-to-r ${role.color}`
+                                                : 'border-zinc-600'
+                                        }`}>
+                                            {selectedRole === role.value && <Check size={12} className="text-white" />}
+                                        </div>
+                                    </button>
+                                ))}
+                                {selectedRole !== 'player' && (
+                                    <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs flex items-start gap-2 animate-in fade-in slide-in-from-bottom-2">
+                                        <ShieldAlert size={16} className="flex-shrink-0 mt-0.5" />
+                                        <span>Scout- und Trainer-Accounts werden von unserem Team manuell geprüft. Dies kann bis zu 48h dauern.</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Step 1: Name, Username, Position, Birthday */}
+                        {step === 1 && (
                             <div className="w-full space-y-4">
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Vollständiger Name *</label>
@@ -298,51 +390,56 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     )}
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Position *</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {POSITIONS.map(pos => (
-                                            <button
-                                                key={pos}
-                                                onClick={() => setPosition(pos)}
-                                                className={`px-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${position === pos
-                                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-600 dark:text-cyan-400'
-                                                    : 'bg-slate-100 dark:bg-zinc-900 border-border text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
-                                                    }`}
-                                            >
-                                                {pos}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geburtsdatum *</label>
-                                    <input
-                                        type="date"
-                                        value={birthDate}
-                                        onChange={(e) => setBirthDate(e.target.value)}
-                                        max={new Date().toISOString().split('T')[0]}
-                                        className={`${inputStyle} ${ageInfo.isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : birthDate && !ageInfo.isUnder16 ? '!border-emerald-500/50' : ''}`}
-                                    />
-                                    {ageInfo.isUnder16 && (
-                                        <div className="flex items-start gap-2 mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                                            <ShieldAlert size={16} className="text-rose-500 flex-shrink-0 mt-0.5" />
-                                            <p className="text-rose-500 text-xs font-medium leading-relaxed">
-                                                {AGE_ERROR_MESSAGE}
-                                            </p>
+                                {/* Position & Birthday — only for players */}
+                                {selectedRole === 'player' && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Position *</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {POSITIONS.map(pos => (
+                                                    <button
+                                                        key={pos}
+                                                        onClick={() => setPosition(pos)}
+                                                        className={`px-2 py-2.5 rounded-xl text-xs font-bold transition-all border ${position === pos
+                                                            ? 'bg-cyan-500/20 border-cyan-500 text-cyan-600 dark:text-cyan-400'
+                                                            : 'bg-slate-100 dark:bg-zinc-900 border-border text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
+                                                            }`}
+                                                    >
+                                                        {pos}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    )}
-                                    {birthDate && !ageInfo.isUnder16 && (
-                                        <p className="text-emerald-400 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
-                                            <Check size={12} /> Alter: {ageInfo.age} Jahre ✓
-                                        </p>
-                                    )}
-                                </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geburtsdatum *</label>
+                                            <input
+                                                type="date"
+                                                value={birthDate}
+                                                onChange={(e) => setBirthDate(e.target.value)}
+                                                max={new Date().toISOString().split('T')[0]}
+                                                className={`${inputStyle} ${ageInfo.isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : birthDate && !ageInfo.isUnder16 ? '!border-emerald-500/50' : ''}`}
+                                            />
+                                            {ageInfo.isUnder16 && (
+                                                <div className="flex items-start gap-2 mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                                                    <ShieldAlert size={16} className="text-rose-500 flex-shrink-0 mt-0.5" />
+                                                    <p className="text-rose-500 text-xs font-medium leading-relaxed">
+                                                        {AGE_ERROR_MESSAGE}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {birthDate && !ageInfo.isUnder16 && (
+                                                <p className="text-emerald-400 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
+                                                    <Check size={12} /> Alter: {ageInfo.age} Jahre ✓
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {/* Step 2: Avatar */}
-                        {step === 1 && (
+                        {step === 2 && (
                             <div className="w-full flex flex-col items-center space-y-6">
                                 <label className="cursor-pointer group">
                                     <div className="relative w-36 h-36 rounded-full bg-slate-100 dark:bg-zinc-800 border-2 border-dashed border-border group-hover:border-cyan-500 transition-colors overflow-hidden flex items-center justify-center">
@@ -364,7 +461,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         )}
 
                         {/* Step 3: Finish */}
-                        {step === 2 && (
+                        {step === 3 && (
                             <div className="w-full space-y-4">
                                 <div className="bg-card border border-border rounded-2xl p-5 space-y-3 relative">
                                     <div className="flex items-center gap-3">
@@ -374,7 +471,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         <div>
                                             <p className="font-bold text-foreground">{fullName || 'Dein Name'}</p>
                                             <p className="text-xs text-cyan-500 font-medium">@{username || 'username'}</p>
-                                            <p className="text-xs text-muted-foreground">{position || 'Position'}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedRole === 'player' ? (position || 'Position') : ROLE_OPTIONS.find(r => r.value === selectedRole)?.label}</p>
                                         </div>
                                     </div>
                                     <div className="h-px bg-border"></div>
@@ -389,10 +486,17 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                             <Check size={14} className={avatarPreview ? 'text-cyan-500' : 'text-muted-foreground'} />
                                             <span className={avatarPreview ? '' : 'text-muted-foreground'}>Profilbild hochladen</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Video size={14} className="text-muted-foreground" />
-                                            <span className="text-muted-foreground">Erstes Highlight (später möglich)</span>
-                                        </div>
+                                        {selectedRole === 'player' ? (
+                                            <div className="flex items-center gap-2">
+                                                <Video size={14} className="text-muted-foreground" />
+                                                <span className="text-muted-foreground">Erstes Highlight (später möglich)</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-amber-400">
+                                                <ShieldAlert size={14} />
+                                                <span>Account-Prüfung durch Team (bis 48h)</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -413,10 +517,10 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                     </button>
                 )}
                 <div className="flex-1" />
-                {step < 2 ? (
+                {step < TOTAL_STEPS - 1 ? (
                     <button
                         onClick={goNext}
-                        disabled={step === 0 && !isStep1Valid}
+                        disabled={step === 1 && !isStep1Valid}
                         className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-30 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
                     >
                         Weiter <ArrowRight size={16} />
@@ -432,8 +536,8 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 )}
             </div>
 
-            {/* Skip for step 1 (avatar) */}
-            {step === 1 && !avatarPreview && (
+            {/* Skip for step 2 (avatar) */}
+            {step === 2 && !avatarPreview && (
                 <button onClick={goNext} className="absolute bottom-20 text-muted-foreground text-xs hover:text-foreground transition">
                     Überspringen →
                 </button>
