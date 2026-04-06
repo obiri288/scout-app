@@ -97,14 +97,13 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
     );
 });
 
-export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onCreateProfile, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, onCompare, onPlayerClick, onReport, onBlock, onUpload }) => {
+export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onLoginReq, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, currentUserProfile, onCompare, onPlayerClick, onReport, onBlock, onUpload }) => {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showPlayerCard, setShowPlayerCard] = useState(false);
     const [viewCount, setViewCount] = useState(0);
     const [avgRating, setAvgRating] = useState(0);
     const [playerStats, setPlayerStats] = useState(null);
-    const [hasEndorsed, setHasEndorsed] = useState(false);
-    const [vouchLoading, setVouchLoading] = useState(false);
+    const [skillEndorsements, setSkillEndorsements] = useState([]);
     const { addToast } = useToast();
 
     useEffect(() => {
@@ -155,32 +154,47 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
         };
         loadAttributes();
 
-        // Check if current user has already endorsed this player
-        if (!isOwnProfile && session?.user?.id && player?.user_id) {
+        // Fetch specific skill endorsements
+        if (player?.user_id) {
             supabase.from('endorsements')
-                .select('id')
-                .eq('endorser_id', session.user.id)
-                .eq('endorsee_id', player.user_id)
-                .maybeSingle()
-                .then(({ data }) => setHasEndorsed(!!data));
+                .select('id, sender_id, skill_name')
+                .eq('receiver_id', player.user_id)
+                .then(({ data }) => setSkillEndorsements(data || []));
         }
-    }, [player?.id, isOwnProfile, session?.user?.id]);
-    const handleVouch = async () => {
+    }, [player?.id, player?.user_id, isOwnProfile, session?.user?.id]);
+
+    const handleEndorseSkill = async (skillName) => {
         if (!session?.user?.id || !player?.user_id) return;
-        setVouchLoading(true);
-        try {
-            const { data, error } = await supabase.rpc('vouch_for_player', { target_user_id: player.user_id });
-            if (error) throw error;
-            if (data?.success) {
-                setHasEndorsed(true);
-                addToast(data.message || 'Spieler erfolgreich bestätigt! ✓', 'success');
-            } else {
-                addToast(data?.error || 'Bestätigung fehlgeschlagen.', 'error');
+        
+        // Optimistic UI update
+        const existing = skillEndorsements.find(e => e.skill_name === skillName && e.sender_id === session.user.id);
+        
+        if (existing) {
+            setSkillEndorsements(prev => prev.filter(e => e.id !== existing.id));
+            try {
+                await supabase.from('endorsements').delete().eq('id', existing.id);
+            } catch (e) {
+                setSkillEndorsements(prev => [...prev, existing]); // Revert on fail
+                addToast("Fehler beim Entfernen der Bestätigung", 'error');
             }
-        } catch (e) {
-            addToast('Fehler: ' + e.message, 'error');
-        } finally {
-            setVouchLoading(false);
+        } else {
+            const tempId = `temp-${Date.now()}`;
+            const newEndorsement = { id: tempId, sender_id: session.user.id, receiver_id: player.user_id, skill_name: skillName };
+            setSkillEndorsements(prev => [...prev, newEndorsement]);
+            try {
+                const { data, error } = await supabase.from('endorsements').insert({
+                    sender_id: session.user.id,
+                    receiver_id: player.user_id,
+                    skill_name: skillName
+                }).select().single();
+                
+                if (error) throw error;
+                // Replace temp ID with real ID
+                setSkillEndorsements(prev => prev.map(e => e.id === tempId ? data : e));
+            } catch (e) {
+                setSkillEndorsements(prev => prev.filter(e => e.id !== tempId)); // Revert on fail
+                addToast("Bestätigung fehlgeschlagen", 'error');
+            }
         }
     };
 
@@ -353,17 +367,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                         <ArrowLeftRight size={18} />
                                     </button>
                                 )}
-                                {/* Vouch / Endorse button */}
-                                {session && !hasEndorsed && session.user?.id !== player.user_id && (
-                                    <button
-                                        onClick={handleVouch}
-                                        disabled={vouchLoading}
-                                        className="flex-none p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition"
-                                        title="Spieler bestätigen"
-                                    >
-                                        {vouchLoading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-                                    </button>
-                                )}
+                                {/* Old Vouch button removed as we now use skill-specific endorsements */}
                             </>
                         )}
                     </div>
@@ -390,7 +394,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
             )}
 
             {/* Content Tabs */}
-            <ProfileTabs player={player} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} onUpload={onUpload} session={session} playerStats={playerStats} />
+            <ProfileTabs player={player} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} onUpload={onUpload} session={session} currentUserProfile={currentUserProfile} playerStats={playerStats} skillEndorsements={skillEndorsements} onEndorseSkill={handleEndorseSkill} />
 
             {/* Similar Players */}
             {!isOwnProfile && onPlayerClick && (
@@ -406,7 +410,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
 };
 
 // --- Profile Tabs Component ---
-const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteVideo, onUpload, session, playerStats }) => {
+const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteVideo, onUpload, session, currentUserProfile, playerStats, skillEndorsements, onEndorseSkill }) => {
     const [activeTab, setActiveTab] = useState('highlights');
 
     const TabBtn = ({ id, label }) => (
@@ -515,20 +519,44 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                                 { label: 'DRI', value: playerStats.dribbling },
                                                 { label: 'DEF', value: playerStats.defending },
                                                 { label: 'PHY', value: playerStats.physical },
-                                            ].map((attr) => (
-                                                <div key={attr.label} className="flex items-center gap-3">
-                                                    <span className="text-xs font-bold text-muted-foreground w-8">{attr.label}</span>
-                                                    <div className="flex-1 h-3 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${attr.value || 0}%` }}
-                                                            transition={{ duration: 0.8, ease: "easeOut" }}
-                                                            className="h-full bg-cyan-500 rounded-full"
-                                                        />
+                                            ].map((attr) => {
+                                                const skillCount = (skillEndorsements || []).filter(e => e.skill_name === attr.label).length;
+                                                const hasEndorsedSkill = session && (skillEndorsements || []).some(e => e.skill_name === attr.label && e.sender_id === session?.user?.id);
+                                                const canEndorse = session && currentUserProfile && (currentUserProfile.role === 'scout' || currentUserProfile.role === 'coach') && !isOwnProfile;
+
+                                                return (
+                                                    <div key={attr.label} className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-muted-foreground w-8">{attr.label}</span>
+                                                        <div className="flex-1 h-3 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${attr.value || 0}%` }}
+                                                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                                                className="h-full bg-cyan-500 rounded-full"
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm font-bold text-foreground w-6 text-right">{attr.value || '0'}</span>
+                                                        
+                                                        {/* Endorsement UI */}
+                                                        <div className="flex items-center gap-1 w-10 justify-end">
+                                                            {skillCount > 0 && (
+                                                                <span className="text-[10px] font-bold text-emerald-500">{skillCount}</span>
+                                                            )}
+                                                            {canEndorse ? (
+                                                                <button
+                                                                    onClick={() => onEndorseSkill?.(attr.label)}
+                                                                    className={`p-1 rounded-full transition ${hasEndorsedSkill ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10'}`}
+                                                                    title="Skill bestätigen"
+                                                                >
+                                                                    <ShieldCheck size={14} />
+                                                                </button>
+                                                            ) : (
+                                                                skillCount > 0 ? <ShieldCheck size={14} className="text-emerald-500/50" /> : <div className="w-[22px]" />
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <span className="text-sm font-bold text-foreground w-8 text-right">{attr.value || '0'}</span>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                             {/* Minimalistic Rating Action */}
                                             {session && !isOwnProfile && player?.id && (
                                                 <div className="pt-4 border-t border-border mt-6">

@@ -343,10 +343,10 @@ const App = () => {
                     onFollow={handleFollow}
                     onShowFollowers={() => setShowFollowersModal(true)}
                     onLoginReq={() => setShowLogin(true)}
-                    onCreateProfile={() => { }}
                     onWatchlistToggle={handleWatchlistToggle}
                     isOnWatchlist={isOnWatchlist}
                     session={session}
+                    currentUserProfile={currentUserProfile}
                     onCompare={() => setComparePlayer(viewedProfile)}
                     onPlayerClick={loadProfile}
                     onReport={(target) => setReportTarget(target)}
