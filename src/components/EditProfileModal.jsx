@@ -7,7 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import { ImageCropModal } from './ImageCropModal';
 import { geocodeCity } from '../lib/api';
 import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
-
+import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
 export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
@@ -206,6 +206,13 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
     const handleSave = async (e) => {
         e.preventDefault();
+        
+        const ageInfo = calculateAgeInfo(formData.birth_date);
+        if (ageInfo.isUnder16) {
+            addToast(`Du musst mindestens ${MIN_AGE} Jahre alt sein.`, 'error');
+            return;
+        }
+
         setLoading(true);
         try {
             let av = player.avatar_url;
@@ -321,8 +328,19 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
                                             <div className="relative">
                                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                                <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className={`${inputStyle} pl-10`} />
+                                                <input 
+                                                    type="date" 
+                                                    value={formData.birth_date} 
+                                                    onChange={e => setFormData({ ...formData, birth_date: e.target.value })} 
+                                                    max={new Date().toISOString().split('T')[0]}
+                                                    className={`${inputStyle} pl-10 ${calculateAgeInfo(formData.birth_date).isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : ''}`} 
+                                                />
                                             </div>
+                                            {calculateAgeInfo(formData.birth_date).isUnder16 && (
+                                                <p className="text-rose-500 text-[10px] mt-1.5 ml-1 font-medium leading-tight">
+                                                    {AGE_ERROR_MESSAGE}
+                                                </p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nationalität</label>

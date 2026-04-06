@@ -59,13 +59,13 @@ export const ToastProvider = ({ children }) => {
 
             {/* Offline banner */}
             {isOffline && (
-                <div className="fixed top-0 left-0 right-0 z-[200] bg-red-600 text-white text-xs font-bold text-center py-1.5 flex items-center justify-center gap-2 animate-in slide-in-from-top">
+                <div className="fixed top-0 left-0 right-0 z-[20000] bg-red-600 text-white text-xs font-bold text-center py-1.5 flex items-center justify-center gap-2 animate-in slide-in-from-top">
                     <WifiOff size={14} /> Offline
                 </div>
             )}
 
             {/* Toast Container */}
-            <div className={`fixed ${isOffline ? 'top-12' : 'top-6'} left-0 right-0 z-[120] flex flex-col items-center gap-3 pointer-events-none px-4 transition-all`}>
+            <div className={`fixed ${isOffline ? 'top-12' : 'top-6'} left-0 right-0 z-[20000] flex flex-col items-center gap-3 pointer-events-none px-4 transition-all`}>
                 {toasts.map(t => (
                     <div
                         key={t.id}

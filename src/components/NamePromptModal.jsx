@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { inputStyle } from '../lib/styles';
 import { isUsernameBlocked, validateUsernameFormat } from '../lib/restrictedUsernames';
+import { calculateAgeInfo, AGE_ERROR_MESSAGE } from '../lib/ageValidation';
 
 export const NamePromptModal = () => {
     const { currentUserProfile, refreshProfile } = useUser();
@@ -17,21 +18,12 @@ export const NamePromptModal = () => {
     const [birthDate, setBirthDate] = useState('');
 
     // Age Gate: calculate age and validate >= 16
-    const ageInfo = useMemo(() => {
-        if (!birthDate) return { age: null, isUnder16: false };
-        const today = new Date();
-        const dob = new Date(birthDate);
-        let age = today.getFullYear() - dob.getFullYear();
-        const monthDiff = today.getMonth() - dob.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-            age--;
-        }
-        return { age, isUnder16: age < 16 };
-    }, [birthDate]);
+    const ageInfo = useMemo(() => calculateAgeInfo(birthDate), [birthDate]);
 
     // Username validation
     const [usernameStatus, setUsernameStatus] = useState('idle');
     const [usernameError, setUsernameError] = useState('');
+    const [errors, setErrors] = useState({});
     const debounceRef = useRef(null);
 
     // Pre-fill from existing profile or user_metadata
@@ -90,30 +82,39 @@ export const NamePromptModal = () => {
         const trimmedFirst = firstName.trim();
         const trimmedLast = lastName.trim();
 
-        if (!trimmedFirst || !trimmedLast) {
-            addToast('Bitte gib Vor- und Nachname ein.', 'error');
-            return;
+        let newErrors = {};
+
+        if (!trimmedFirst) newErrors.firstName = 'Vorname wird benötigt.';
+        if (!trimmedLast) newErrors.lastName = 'Nachname wird benötigt.';
+        if (!birthDate) newErrors.birthDate = 'Geburtsdatum wird benötigt.';
+        else if (ageInfo.isUnder16) newErrors.birthDate = 'Du musst mindestens 16 Jahre alt sein.';
+
+        if (!hasExistingUsername) {
+            if (!username.trim()) {
+                newErrors.username = 'Username wird benötigt.';
+            } else if (usernameStatus !== 'available') {
+                newErrors.username = 'Bitte wähle einen verfügbaren Username.';
+            }
         }
 
-        if (!birthDate) {
-            addToast('Bitte gib dein Geburtsdatum ein.', 'error');
-            return;
-        }
+        setErrors(newErrors);
 
-        if (ageInfo.isUnder16) {
-            addToast('Du musst mindestens 16 Jahre alt sein.', 'error');
-            return;
-        }
-
-        if (!hasExistingUsername && (!username.trim() || usernameStatus !== 'available')) {
-            addToast('Bitte wähle einen verfügbaren Username.', 'error');
+        if (Object.keys(newErrors).length > 0) {
+            addToast('Bitte korrigiere die markierten Felder.', 'error');
             return;
         }
 
         setLoading(true);
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Nicht authentifiziert');
+
             const fullName = `${trimmedFirst} ${trimmedLast}`;
-            const updateData = { full_name: fullName };
+            const updateData = { 
+                full_name: fullName,
+                first_name: trimmedFirst,
+                last_name: trimmedLast
+            };
             if (!hasExistingUsername && username.trim()) {
                 updateData.username = username.toLowerCase().trim();
             }
@@ -121,47 +122,47 @@ export const NamePromptModal = () => {
                 updateData.birth_date = birthDate;
             }
 
-            const { error } = await supabase
+            console.log('Sende Daten an Supabase:', updateData);
+
+            const { error, data } = await supabase
                 .from('players_master')
                 .update(updateData)
-                .eq('id', currentUserProfile.id);
+                .eq('id', currentUserProfile.id)
+                .select();
 
             if (error) throw error;
 
             addToast(`Willkommen, ${trimmedFirst}! 🎉`, 'success');
             await refreshProfile();
+            // Next.js router.push equivalent in this hash-based architecture
+            window.location.hash = '#profile';
         } catch (err) {
             console.error('Name update error:', err);
-            if (err.message?.includes('username') || err.code === '23505') {
-                addToast('Dieser Username ist bereits vergeben.', 'error');
-            } else {
-                addToast('Fehler beim Speichern. Versuche es erneut.', 'error');
-            }
+            addToast(err.message || 'Fehler beim Speichern. Versuche es erneut.', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const isFormValid = firstName.trim() && lastName.trim() && birthDate && !ageInfo.isUnder16 && (hasExistingUsername || usernameStatus === 'available');
-
     return (
-        <div className="fixed inset-0 z-[10001] bg-background/95 backdrop-blur-xl flex items-center justify-center p-6">
-            <motion.div
-                initial={{ opacity: 0, y: 30, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="w-full max-w-md"
-            >
+        <div className="fixed inset-0 z-[10001] bg-background/95 backdrop-blur-xl overflow-y-auto">
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 py-12">
+                <motion.div
+                    initial={{ opacity: 0, y: 30, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                    className="w-full max-w-md pb-24"
+                >
                 {/* Icon */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="p-4 bg-cyan-500/10 rounded-2xl mb-4">
                         <User className="text-cyan-600 dark:text-cyan-400" size={32} />
                     </div>
                     <h2 className="text-2xl font-black text-foreground text-center mb-2">
-                        Wie heißt du auf dem Platz?
+                        Dein Athleten-Profil
                     </h2>
                     <p className="text-muted-foreground text-sm text-center max-w-xs">
-                        Zeig Scouts und Mitspielern, wer du bist. Dein echter Name schafft Vertrauen.
+                        Zeig der Sportwelt, wer du bist. Echte Daten schaffen Vertrauen.
                     </p>
                 </div>
 
@@ -172,22 +173,23 @@ export const NamePromptModal = () => {
                         <input
                             type="text"
                             value={firstName}
-                            onChange={(e) => setFirstName(e.target.value)}
-                            className={inputStyle}
+                            onChange={(e) => { setFirstName(e.target.value); setErrors(prev => ({ ...prev, firstName: '' })); }}
+                            className={`${inputStyle} ${errors.firstName ? '!border-rose-500/50 focus:!border-rose-500' : ''}`}
                             autoFocus
                             placeholder="Max"
                         />
+                        {errors.firstName && <p className="text-rose-500 text-[10px] mt-1 ml-1 font-medium">{errors.firstName}</p>}
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Nachname *</label>
                         <input
                             type="text"
                             value={lastName}
-                            onChange={(e) => setLastName(e.target.value)}
-                            className={inputStyle}
+                            onChange={(e) => { setLastName(e.target.value); setErrors(prev => ({ ...prev, lastName: '' })); }}
+                            className={`${inputStyle} ${errors.lastName ? '!border-rose-500/50 focus:!border-rose-500' : ''}`}
                             placeholder="Mustermann"
-                            required
                         />
+                        {errors.lastName && <p className="text-rose-500 text-[10px] mt-1 ml-1 font-medium">{errors.lastName}</p>}
                     </div>
 
                     {/* Username mit @-Prefix — nur wenn noch kein Username gesetzt */}
@@ -199,11 +201,11 @@ export const NamePromptModal = () => {
                                 <input
                                     type="text"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                    onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setErrors(prev => ({ ...prev, username: '' })); }}
                                     maxLength={20}
                                     className={`${inputStyle} pl-8 pr-10 ${
                                         usernameStatus === 'available' ? '!border-emerald-500/50 focus:!border-emerald-500' :
-                                        (usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'blocked') ? '!border-rose-500/50 focus:!border-rose-500' : ''
+                                        (usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'blocked' || errors.username) ? '!border-rose-500/50 focus:!border-rose-500' : ''
                                     }`}
                                     placeholder="dein_username"
                                     autoComplete="username"
@@ -222,9 +224,9 @@ export const NamePromptModal = () => {
                                     <Check size={12} /> Username ist verfügbar!
                                 </p>
                             )}
-                            {usernameStatus === 'idle' && username === '' && (
-                                <p className="text-muted-foreground text-xs mt-1 ml-1">
-                                    Nur Kleinbuchstaben, Zahlen und _ (3–20 Zeichen)
+                            {errors.username && !usernameError && (
+                                <p className="text-rose-500 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
+                                    <X size={12} /> {errors.username}
                                 </p>
                             )}
                         </div>
@@ -236,17 +238,20 @@ export const NamePromptModal = () => {
                         <input
                             type="date"
                             value={birthDate}
-                            onChange={(e) => setBirthDate(e.target.value)}
+                            onChange={(e) => { setBirthDate(e.target.value); setErrors(prev => ({ ...prev, birthDate: '' })); }}
                             max={new Date().toISOString().split('T')[0]}
-                            className={`${inputStyle} ${ageInfo.isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : birthDate && !ageInfo.isUnder16 ? '!border-emerald-500/50' : ''}`}
+                            className={`${inputStyle} ${(ageInfo.isUnder16 || errors.birthDate) ? '!border-rose-500/50 focus:!border-rose-500' : birthDate && !ageInfo.isUnder16 ? '!border-emerald-500/50' : ''}`}
                         />
                         {ageInfo.isUnder16 && (
                             <div className="flex items-start gap-2 mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                                 <ShieldAlert size={16} className="text-rose-500 flex-shrink-0 mt-0.5" />
-                                <p className="text-rose-500 text-xs font-medium leading-relaxed">
-                                    Du musst mindestens 16 Jahre alt sein, um Cavio zu nutzen. Für jüngere Spieler folgt in Zukunft ein Managed-Account-System.
+                                <p className="text-rose-500 text-[10px] font-medium leading-relaxed">
+                                    {AGE_ERROR_MESSAGE}
                                 </p>
                             </div>
+                        )}
+                        {errors.birthDate && !ageInfo.isUnder16 && (
+                            <p className="text-rose-500 text-[10px] mt-1 ml-1 font-medium">{errors.birthDate}</p>
                         )}
                         {birthDate && !ageInfo.isUnder16 && (
                             <p className="text-emerald-400 text-xs mt-1 ml-1 font-medium flex items-center gap-1">
@@ -257,10 +262,10 @@ export const NamePromptModal = () => {
 
                     <motion.button
                         type="submit"
-                        disabled={loading || !isFormValid}
+                        disabled={loading}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.97 }}
-                        className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-600/30 disabled:text-cyan-300/50 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 mt-6"
+                        className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-600/50 disabled:text-cyan-100 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 mt-6 shadow-lg shadow-cyan-600/20"
                     >
                         {loading ? (
                             <><Loader2 size={18} className="animate-spin" /> Wird gespeichert...</>
@@ -274,6 +279,7 @@ export const NamePromptModal = () => {
                     Dein Name und Username werden öffentlich auf deinem Profil angezeigt.
                 </p>
             </motion.div>
+            </div>
         </div>
     );
 };

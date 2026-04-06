@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, Check, AtSign } from 'lucide-react';
+import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, AtSign } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, cardStyle } from '../lib/styles';
 import { Input } from './ui/input';
 import { PasswordInput } from './ui/PasswordInput';
-import { isUsernameBlocked, validateUsernameFormat } from '../lib/restrictedUsernames';
+
 
 export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot' | 'registerSuccess'
@@ -19,67 +19,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     const [msg, setMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
-    // Username state (nur Register)
-    const [username, setUsername] = useState('');
-    const [usernameStatus, setUsernameStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'blocked'
-    const [usernameError, setUsernameError] = useState('');
-    const debounceRef = useRef(null);
 
-    // Live-Validierung: Username (Debounce 500ms)
-    const checkUsername = useCallback(async (value) => {
-        const lower = value.toLowerCase().trim();
-
-        // Client-seitig: Format prüfen
-        const formatResult = validateUsernameFormat(lower);
-        if (!formatResult.valid) {
-            setUsernameStatus('invalid');
-            setUsernameError(formatResult.reason);
-            return;
-        }
-
-        // Client-seitig: Blocklist prüfen
-        const blockResult = isUsernameBlocked(lower);
-        if (blockResult.blocked) {
-            setUsernameStatus('blocked');
-            setUsernameError(blockResult.reason);
-            return;
-        }
-
-        // Server-seitig: Verfügbarkeit prüfen
-        setUsernameStatus('checking');
-        setUsernameError('');
-        try {
-            const { data, error } = await supabase.rpc('check_username_available', { p_username: lower });
-            if (error) throw error;
-            if (data) {
-                setUsernameStatus('available');
-                setUsernameError('');
-            } else {
-                setUsernameStatus('taken');
-                setUsernameError('Dieser Username ist bereits vergeben.');
-            }
-        } catch (err) {
-            console.error('Username check error:', err);
-            setUsernameStatus('invalid');
-            setUsernameError('Prüfung fehlgeschlagen. Versuche es erneut.');
-        }
-    }, []);
-
-    useEffect(() => {
-        if (view !== 'register' || !username) {
-            setUsernameStatus('idle');
-            setUsernameError('');
-            return;
-        }
-        // Debounce 500ms
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            checkUsername(username);
-        }, 500);
-        return () => {
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-        };
-    }, [username, view, checkUsername]);
 
     const handleAuth = async (e) => {
         e.preventDefault();
@@ -108,27 +48,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
             return;
         }
 
-        // Registrierung: Username-Checks
-        if (isSignUp) {
-            const lower = username.toLowerCase().trim();
-            const formatResult = validateUsernameFormat(lower);
-            if (!formatResult.valid) {
-                setMsg(formatResult.reason);
-                setLoading(false);
-                return;
-            }
-            const blockResult = isUsernameBlocked(lower);
-            if (blockResult.blocked) {
-                setMsg(blockResult.reason);
-                setLoading(false);
-                return;
-            }
-            if (usernameStatus !== 'available') {
-                setMsg("Bitte wähle einen verfügbaren Username.");
-                setLoading(false);
-                return;
-            }
-        }
+
 
         try {
             if (isSignUp) {
@@ -136,8 +56,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     email,
                     password,
                     options: {
-                        emailRedirectTo: window.location.origin,
-                        data: { username: username.toLowerCase().trim() }
+                        emailRedirectTo: import.meta.env.VITE_SITE_URL || window.location.origin
                     }
                 });
                 if (error) throw error;
@@ -191,7 +110,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
         setLoading(true); setMsg('');
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-                redirectTo: `${window.location.origin}/#reset-password`
+                redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/#reset-password`
             });
             if (error) throw error;
             setSuccessMsg('📧 Link zum Zurücksetzen wurde an deine E-Mail gesendet!');
@@ -202,17 +121,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
         }
     };
 
-    // Username-Indikator Inline-Komponente
-    const UsernameIndicator = () => {
-        if (usernameStatus === 'idle') return null;
-        if (usernameStatus === 'checking') {
-            return <Loader2 className="animate-spin text-cyan-400" size={16} />;
-        }
-        if (usernameStatus === 'available') {
-            return <Check className="text-emerald-400" size={16} />;
-        }
-        return <X className="text-rose-500" size={16} />;
-    };
+
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 dark:bg-black/90 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
@@ -229,7 +138,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                             {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Willkommen zurück'}
                         </h2>
                         <p className="text-muted-foreground text-sm text-center">
-                            {view === 'register' ? 'Dein Fundament für den Profifußball.' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Melde dich an, um fortzufahren'}
+                            {view === 'register' ? 'Dein Fundament für den Profisport.' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Melde dich an, um fortzufahren'}
                         </p>
                     </div>
 
@@ -298,32 +207,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                         />
-                                        <div className="animate-in slide-in-from-top-2 fade-in">
-                                            <div className="relative">
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Username (z.B. max_mustermann)"
-                                                    required
-                                                    className={`bg-white text-slate-950 dark:bg-white/5 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 pr-10 ${
-                                                        usernameStatus === 'available' ? 'border-emerald-500/50 focus:border-emerald-500' :
-                                                        (usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'blocked') ? 'border-rose-500/50 focus:border-rose-500' : ''
-                                                    }`}
-                                                    value={username}
-                                                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                                                    maxLength={20}
-                                                    autoComplete="username"
-                                                />
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                    <UsernameIndicator />
-                                                </div>
-                                            </div>
-                                            {usernameError && (
-                                                <p className="text-rose-500 text-xs mt-1.5 ml-1 font-medium">{usernameError}</p>
-                                            )}
-                                            {usernameStatus === 'available' && (
-                                                <p className="text-emerald-400 text-xs mt-1.5 ml-1 font-medium">Username ist verfügbar ✓</p>
-                                            )}
-                                        </div>
+
                                     </>
                                 )}
                                 <PasswordInput
@@ -360,7 +244,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     {(view !== 'forgot' && view !== 'registerSuccess') && (
                         <div className="mt-6 pt-6 border-t border-border text-center">
                             <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei Cavio?'}</p>
-                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); setUsername(''); setUsernameStatus('idle'); setUsernameError(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
+                            <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Jetzt anmelden' : 'Kostenlos registrieren'}</button>
                         </div>
                     )}
                     {/* Legal Links */}

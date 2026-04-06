@@ -4,7 +4,7 @@ import { X, UploadCloud, Loader2, Trash2, AlertTriangle, FileVideo, Zap, Wind, C
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { generateVideoThumbnail, isValidVideoFile, ALLOWED_VIDEO_EXTENSIONS } from '../lib/helpers';
-import { getSafeErrorMessage } from '../lib/errorMessages';
+
 import { useToast } from '../contexts/ToastContext';
 
 // Available skill tags for videos
@@ -47,12 +47,12 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
     };
 
     const processFile = (selectedFile) => {
-        if (selectedFile.size > MAX_FILE_SIZE) {
-            setErrorMsg("Datei zu groß! Max 50 MB.");
+        if (selectedFile.size > 250 * 1024 * 1024) { // Max 250 MB
+            addToast('Video zu groß (Max. 250MB)', 'error');
             return;
         }
         if (!isValidVideoFile(selectedFile)) {
-            setErrorMsg(`Nur Videodateien erlaubt (${ALLOWED_VIDEO_EXTENSIONS.join(', ').toUpperCase()}).`);
+            addToast(`Nur Videodateien erlaubt (${ALLOWED_VIDEO_EXTENSIONS.join(', ').toUpperCase()}).`, 'error');
             return;
         }
         setErrorMsg("");
@@ -93,74 +93,61 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
             setProgress(p => Math.min(p + Math.random() * 5, 90));
         }, 500);
 
-        const maxRetries = 1;
-        let attempts = 0;
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
+            const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
 
-        const attemptUpload = async () => {
+            // 1. Thumbnail generation & upload
+            let thumbUrl = null;
             try {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
-                const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
-
-                // 1. Thumbnail generation & upload
-                let thumbUrl = null;
-                try {
-                    const thumbBlob = await generateVideoThumbnail(file);
-                    if (thumbBlob) {
-                        await supabase.storage.from('player-videos').upload(thumbName, thumbBlob);
-                        const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
-                        thumbUrl = data.publicUrl;
-                    }
-                } catch (e) {
-                    console.warn("Thumbnail failed", e);
-                    thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video";
+                const thumbBlob = await generateVideoThumbnail(file);
+                if (thumbBlob) {
+                    await supabase.storage.from('player-videos').upload(thumbName, thumbBlob);
+                    const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
+                    thumbUrl = data.publicUrl;
                 }
-
-                // 2. Video Upload
-                const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file);
-                if (upErr) throw upErr;
-
-                const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName);
-
-                // 3. Database entry
-                const { error: dbErr } = await supabase.from('media_highlights').insert({
-                    player_id: player.id,
-                    video_url: publicUrl,
-                    thumbnail_url: thumbUrl,
-                    category_tag: category,
-                    description: description || null,
-                    skill_tags: selectedTags.length > 0 ? selectedTags : null,
-                    action_tags: selectedActionTags.length > 0 ? selectedActionTags : [],
-                    created_at: new Date().toISOString()
-                });
-
-                if (dbErr) throw dbErr;
-
-                clearInterval(progressInterval);
-                setProgress(100);
-                addToast("Video erfolgreich hochgeladen! 🎉", 'success');
-                setTimeout(() => {
-                    onUploadComplete();
-                    onClose();
-                }, 800);
-
-            } catch (error) {
-                attempts++;
-                if (attempts <= maxRetries && (error.message?.includes('network') || error.message?.includes('fetch'))) {
-                    addToast("Verbindungsproblem, neuer Versuch...", 'info');
-                    await new Promise(r => setTimeout(r, 2000));
-                    return attemptUpload();
-                }
-                console.error(error);
-                const safeMsg = getSafeErrorMessage(error, 'Upload fehlgeschlagen.');
-                setErrorMsg(safeMsg);
-                addToast(safeMsg, 'error');
-                setUploading(false);
-                clearInterval(progressInterval);
+            } catch (e) {
+                console.warn("Thumbnail failed", e);
+                thumbUrl = "https://placehold.co/600x400/18181b/ffffff/png?text=Video";
             }
-        };
 
-        await attemptUpload();
+            // 2. Video Upload
+            const { error: upErr } = await supabase.storage.from('player-videos').upload(fileName, file);
+            if (upErr) throw upErr;
+
+            const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName);
+
+            // 3. Database entry
+            const { error: dbErr } = await supabase.from('media_highlights').insert({
+                player_id: player.id,
+                video_url: publicUrl,
+                thumbnail_url: thumbUrl,
+                category_tag: category,
+                description: description || null,
+                skill_tags: selectedTags.length > 0 ? selectedTags : null,
+                action_tags: selectedActionTags.length > 0 ? selectedActionTags : [],
+                created_at: new Date().toISOString()
+            });
+
+            if (dbErr) throw dbErr;
+
+            clearInterval(progressInterval);
+            setProgress(100);
+            addToast("Video erfolgreich hochgeladen! 🎉", 'success');
+            setTimeout(() => {
+                onUploadComplete();
+                onClose();
+            }, 800);
+
+        } catch (error) {
+            console.error("Upload error details:", error);
+            const errorMessage = error?.message || 'Upload fehlgeschlagen';
+            setErrorMsg(errorMessage);
+            addToast(errorMessage, 'error');
+            setUploading(false);
+            clearInterval(progressInterval);
+        }
     };
 
     useEffect(() => {
@@ -184,7 +171,7 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
                         </div>
                         <div className="flex items-center justify-center gap-2 text-muted-foreground font-medium text-sm">
                             <Loader2 className="animate-spin" size={16} />
-                            <span>Wird verarbeitet... {Math.round(progress)}%</span>
+                            <span>Video wird hochgeladen... Bitte warten ({Math.round(progress)}%)</span>
                         </div>
                         <p className="text-xs text-muted-foreground/60">Bitte Fenster nicht schließen.</p>
                     </div>

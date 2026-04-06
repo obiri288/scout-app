@@ -6,6 +6,7 @@ import * as api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
 import { inputStyle } from '../lib/styles';
 import { isUsernameBlocked, validateUsernameFormat } from '../lib/restrictedUsernames';
+import { calculateAgeInfo, AGE_ERROR_MESSAGE } from '../lib/ageValidation';
 
 const POSITIONS = ['Torwart', 'Innenverteidiger', 'Außenverteidiger', 'Defensives Mittelfeld', 'Zentrales Mittelfeld', 'Offensives Mittelfeld', 'Linksaußen', 'Rechtsaußen', 'Mittelstürmer'];
 
@@ -28,17 +29,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const [birthDate, setBirthDate] = useState('');
 
     // Age Gate: calculate age and validate >= 16
-    const ageInfo = useMemo(() => {
-        if (!birthDate) return { age: null, isUnder16: false };
-        const today = new Date();
-        const dob = new Date(birthDate);
-        let age = today.getFullYear() - dob.getFullYear();
-        const monthDiff = today.getMonth() - dob.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-            age--;
-        }
-        return { age, isUnder16: age < 16 };
-    }, [birthDate]);
+    const ageInfo = useMemo(() => calculateAgeInfo(birthDate), [birthDate]);
 
     // Username validation state
     const [usernameStatus, setUsernameStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'blocked'
@@ -337,7 +328,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         <div className="flex items-start gap-2 mt-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                                             <ShieldAlert size={16} className="text-rose-500 flex-shrink-0 mt-0.5" />
                                             <p className="text-rose-500 text-xs font-medium leading-relaxed">
-                                                Du musst mindestens 16 Jahre alt sein, um Cavio zu nutzen. Für jüngere Spieler folgt in Zukunft ein Managed-Account-System.
+                                                {AGE_ERROR_MESSAGE}
                                             </p>
                                         </div>
                                     )}
