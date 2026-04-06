@@ -238,7 +238,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             {/* Name & Badge */}
                             <h1 className="text-3xl font-black text-foreground flex items-center justify-center gap-2 mb-1 text-center leading-tight">
                                 {player.full_name}
-                                {player.verification_status && player.verification_status !== 'unverified' && <VerificationBadge size={20} status={player.verification_status} />}
+                                {player.verification_status && player.verification_status !== 'unverified' && <VerificationBadge size={20} status={player.verification_status} verificationStatus={player.verification_status} />}
                             </h1>
                             <XPLevelBadge playerId={player.id} compact />
 

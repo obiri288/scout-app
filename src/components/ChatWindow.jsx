@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, Send, Check, CheckCheck, MoreVertical, Flag, ShieldOff } from 'lucide-react';
+import { ArrowLeft, User, Send, Check, CheckCheck, MoreVertical, Flag, ShieldOff, ShieldAlert } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
-export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, onBlock }) => {
+export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, onBlock, currentUserProfile }) => {
     const [messages, setMessages] = useState([]);
     const [txt, setTxt] = useState('');
     const [showMenu, setShowMenu] = useState(false);
@@ -154,7 +154,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border group-hover:border-blue-500 transition">
                         {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="m-2.5 text-muted-foreground" />}
                     </div>
-                    <div className="font-bold text-foreground flex items-center gap-1.5">{partner.full_name} {partner.verification_status && partner.verification_status !== 'unverified' && <VerificationBadge size={16} status={partner.verification_status} />}</div>
+                    <div className="font-bold text-foreground flex items-center gap-1.5">{partner.full_name} {partner.verification_status && partner.verification_status !== 'unverified' && <VerificationBadge size={16} status={partner.verification_status} verificationStatus={partner.verification_status} />}</div>
                 </div>
                 <div className="relative">
                     <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-muted-foreground hover:text-foreground transition rounded-full hover:bg-black/5 dark:hover:bg-white/5">
@@ -209,10 +209,32 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                 })}
                 <div ref={endRef} />
             </div>
-            <form onSubmit={send} className="p-4 bg-white dark:bg-zinc-900 border-t border-border flex gap-3 pb-8 sm:pb-4">
-                <input value={txt} onChange={e => setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-slate-100 dark:bg-zinc-950 border border-border text-foreground rounded-full px-5 py-3 outline-none focus:border-blue-500 transition" />
-                <button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20} /></button>
-            </form>
+            {(() => {
+                // Messaging gate: unverified scouts/coaches cannot send messages
+                const isUnverifiedScoutCoach = currentUserProfile
+                    && (currentUserProfile.role === 'scout' || currentUserProfile.role === 'coach')
+                    && currentUserProfile.verification_status !== 'approved';
+
+                if (isUnverifiedScoutCoach) {
+                    return (
+                        <div className="p-4 bg-white dark:bg-zinc-900 border-t border-border pb-8 sm:pb-4">
+                            <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                <ShieldAlert size={18} className="text-amber-400 flex-shrink-0" />
+                                <p className="text-xs text-amber-400 font-medium leading-relaxed">
+                                    Du musst erst verifiziert werden, um Kontakt aufzunehmen. Unser Team prüft deinen Account.
+                                </p>
+                            </div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <form onSubmit={send} className="p-4 bg-white dark:bg-zinc-900 border-t border-border flex gap-3 pb-8 sm:pb-4">
+                        <input value={txt} onChange={e => setTxt(e.target.value)} placeholder="Schreib eine Nachricht..." className="flex-1 bg-slate-100 dark:bg-zinc-950 border border-border text-foreground rounded-full px-5 py-3 outline-none focus:border-blue-500 transition" />
+                        <button className="bg-blue-600 hover:bg-blue-500 p-3 rounded-full text-white shadow-lg shadow-blue-900/20 transition-transform active:scale-90"><Send size={20} /></button>
+                    </form>
+                );
+            })()}
         </div>
     );
 };

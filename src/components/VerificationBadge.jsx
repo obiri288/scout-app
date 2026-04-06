@@ -14,7 +14,12 @@ import { BadgeCheck, ShieldCheck } from 'lucide-react';
  * @param {string} status - verification_status from players_master
  * @param {string} role - LEGACY: still accepted for backward compatibility
  */
-export const VerificationBadge = ({ size = 16, className = '', status, role }) => {
+export const VerificationBadge = ({ size = 16, className = '', status, role, verificationStatus }) => {
+    // Role-based verification gate: only 'approved' users may show a badge
+    // verificationStatus prop = the role approval status (pending/approved/rejected)
+    // status prop = the visual badge tier (blue_athlete/gold_official/neon_endorsed)
+    if (verificationStatus && verificationStatus !== 'approved') return null;
+
     // Backward compatibility: if no status prop, derive from old is_verified/role pattern
     const resolvedStatus = status || (role ? 'gold_official' : null);
 

@@ -212,7 +212,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             if (isPlayer) {
                 addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
             } else {
-                addToast('Registrierung abgeschlossen! Dein Profil wird jetzt geprüft.', 'info');
+                addToast('Willkommen! Dein Verifiziert-Badge wird nach Prüfung freigeschaltet.', 'success');
             }
             onComplete(player);
         } catch (e) {

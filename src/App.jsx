@@ -15,7 +15,6 @@ import { InboxScreen } from './components/InboxScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ClubScreen } from './components/ClubScreen';
 import { CelebrationAnimation } from './components/CelebrationAnimation';
-import { PendingVerificationScreen } from './components/PendingVerificationScreen';
 
 // Lazy loaded — only fetched when needed
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -279,12 +278,6 @@ const App = () => {
     const needsOnboarding = session && !currentUserProfile;
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
-    // Gate: users with non-player role AND pending/rejected verification get blocked
-    const isPendingVerification = session && currentUserProfile
-        && currentUserProfile.role !== 'player'
-        && currentUserProfile.role !== 'admin'
-        && (currentUserProfile.verification_status === 'pending' || currentUserProfile.verification_status === 'rejected');
-
     // Show landing page for unauthenticated users
     const isLanding = showLanding && !session;
 
@@ -303,16 +296,6 @@ const App = () => {
         );
     }
 
-    // Render pending verification screen for non-player roles awaiting approval
-    if (isPendingVerification) {
-        return (
-            <PendingVerificationScreen
-                profile={currentUserProfile}
-                onLogout={() => { logout(); switchTab('home'); }}
-                onRoleChanged={() => refreshProfile()}
-            />
-        );
-    }
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/30 pb-32">
@@ -474,7 +457,7 @@ const App = () => {
                 )}
 
                 {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
-                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
+                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} currentUserProfile={currentUserProfile} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
                 {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}

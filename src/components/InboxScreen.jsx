@@ -195,7 +195,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                 <div className="flex justify-between items-center mb-1">
                     <h4 className="text-base font-bold text-foreground truncate flex items-center gap-1.5">
                         {c.full_name}
-                        {c.verification_status && c.verification_status !== 'unverified' && <VerificationBadge size={14} status={c.verification_status} />}
+                        {c.verification_status && c.verification_status !== 'unverified' && <VerificationBadge size={14} status={c.verification_status} verificationStatus={c.verification_status} />}
                     </h4>
                     <span className="text-[10px] text-muted-foreground">{timeAgo(c.time)}</span>
                 </div>
