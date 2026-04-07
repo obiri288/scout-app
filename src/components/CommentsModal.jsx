@@ -109,7 +109,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
             addToast("Kommentar gepostet!", 'success');
         } catch (error) {
             console.error("Kommentar erstellen fehler:", error);
-            addToast("Kommentar konnte nicht gesendet werden.", 'error');
+            addToast(error?.message || "Kommentar konnte nicht gesendet werden.", 'error');
         }
     };
 

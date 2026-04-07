@@ -385,12 +385,18 @@ export const fetchComments = async (videoId) => {
 };
 
 export const addComment = async (videoId, userId, content) => {
-    const { data, error } = await supabase.from('media_comments')
-        .insert({ video_id: videoId, user_id: userId, content })
-        .select('*, players_master!inner(full_name, avatar_url)')
-        .single();
-    if (error) throw error;
-    return data;
+    const payload = { video_id: videoId, user_id: userId, content };
+    try {
+        const { data, error } = await supabase.from('media_comments')
+            .insert(payload)
+            .select('*, players_master!inner(full_name, avatar_url)')
+            .single();
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error("DB Error in addComment. Payload:", payload, "Error:", error);
+        throw error;
+    }
 };
 
 export const deleteComment = async (commentId) => {
