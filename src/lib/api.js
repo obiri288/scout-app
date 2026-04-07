@@ -377,11 +377,38 @@ export const fetchConversationList = async (userId) => {
 // ============================================================
 
 export const fetchComments = async (videoId) => {
-    const { data } = await supabase.from('media_comments')
-        .select('*, players_master!inner(full_name, avatar_url)')
+    const { data: comments, error } = await supabase.from('media_comments')
+        .select('*')
         .eq('video_id', videoId)
         .order('created_at', { ascending: true });
-    return data || [];
+        
+    if (error) throw error;
+    if (!comments || comments.length === 0) return [];
+
+    const userIds = [...new Set(comments.map(c => c.user_id))];
+    if (userIds.length === 0) return comments;
+    
+    // Step 2: Fetch profiles for the unique user_ids
+    const { data: profiles, error: profileError } = await supabase.from('players_master')
+        .select('user_id, full_name, avatar_url')
+        .in('user_id', userIds);
+        
+    if (profileError) {
+        console.error("Failed to fetch comment profiles:", profileError);
+        return comments; // return comments even if profiles fail
+    }
+
+    const profileMap = {};
+    if (profiles) {
+        profiles.forEach(p => {
+            profileMap[p.user_id] = p;
+        });
+    }
+
+    return comments.map(comment => ({
+        ...comment,
+        players_master: profileMap[comment.user_id] || null
+    }));
 };
 
 export const addComment = async (videoId, userId, content) => {
@@ -389,7 +416,7 @@ export const addComment = async (videoId, userId, content) => {
     try {
         const { data, error } = await supabase.from('media_comments')
             .insert(payload)
-            .select('*, players_master!inner(full_name, avatar_url)')
+            .select()
             .single();
         if (error) throw error;
         return data;

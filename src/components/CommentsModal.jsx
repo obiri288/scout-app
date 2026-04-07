@@ -103,8 +103,17 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
 
         const currentText = text.trim();
         try {
-            const newComment = await api.addComment(video.id, session.user.id, currentText);
-            setComments(prev => [...prev, newComment]);
+            const newCommentData = await api.addComment(video.id, session.user.id, currentText);
+            
+            const optimisticComment = {
+                ...newCommentData,
+                players_master: {
+                    full_name: session?.user?.user_metadata?.full_name || 'User',
+                    avatar_url: session?.user?.user_metadata?.avatar_url || ''
+                }
+            };
+            
+            setComments(prev => [...prev, optimisticComment]);
             setText('');
             addToast("Kommentar gepostet!", 'success');
         } catch (error) {
