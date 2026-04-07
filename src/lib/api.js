@@ -377,20 +377,56 @@ export const fetchConversationList = async (userId) => {
 // ============================================================
 
 export const fetchComments = async (videoId) => {
-    const { data } = await supabase.from('video_comments')
-        .select('*, players_master(full_name, avatar_url)')
+    const { data } = await supabase.from('media_comments')
+        .select('*, players_master!inner(full_name, avatar_url)')
         .eq('video_id', videoId)
         .order('created_at', { ascending: true });
     return data || [];
 };
 
 export const addComment = async (videoId, userId, content) => {
-    const { data, error } = await supabase.from('video_comments')
+    const { data, error } = await supabase.from('media_comments')
         .insert({ video_id: videoId, user_id: userId, content })
-        .select('*, players_master(full_name, avatar_url)')
+        .select('*, players_master!inner(full_name, avatar_url)')
         .single();
     if (error) throw error;
     return data;
+};
+
+export const deleteComment = async (commentId) => {
+    const { error } = await supabase.from('media_comments').delete().eq('id', commentId);
+    if (error) throw error;
+};
+
+export const toggleCommentLike = async (userId, commentId, isLiked) => {
+    if (!isLiked) {
+        const { error } = await supabase.from('comment_likes')
+            .insert({ user_id: userId, comment_id: commentId });
+        if (error) throw error;
+    } else {
+        const { error } = await supabase.from('comment_likes')
+            .delete()
+            .match({ user_id: userId, comment_id: commentId });
+        if (error) throw error;
+    }
+};
+
+export const getCommentLikes = async (commentId, userId) => {
+    const countRes = await supabase.from('comment_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('comment_id', commentId);
+        
+    let isLiked = false;
+    if (userId) {
+        const { data } = await supabase.from('comment_likes')
+            .select('id')
+            .eq('comment_id', commentId)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (data) isLiked = true;
+    }
+    
+    return { count: countRes.count || 0, isLiked };
 };
 
 // ============================================================
