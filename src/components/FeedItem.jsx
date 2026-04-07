@@ -158,9 +158,9 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         whileTap={{ scale: 0.92 }}
                         whileHover={{ scale: 1.05, backgroundColor: "rgba(51,65,85,0.5)" }}
                         onClick={(e) => { e.stopPropagation(); onCommentClick(video); }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
+                        className="flex items-center justify-center p-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
                     >
-                        <MessageCircle size={20} /> <span className="font-medium text-sm">Chat</span>
+                        <MessageCircle size={20} />
                     </motion.button>
                     <div className="ml-auto">
                         <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
