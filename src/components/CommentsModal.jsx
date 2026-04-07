@@ -115,6 +115,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
             
             setComments(prev => [...prev, optimisticComment]);
             setText('');
+            window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: video.id, delta: 1 } }));
             addToast("Kommentar gepostet!", 'success');
         } catch (error) {
             console.error("Kommentar erstellen fehler:", error);
@@ -126,6 +127,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         try {
             await api.deleteComment(commentId);
             setComments(prev => prev.filter(c => c.id !== commentId));
+            window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: video.id, delta: -1 } }));
             addToast("Kommentar gelöscht", 'success');
         } catch (error) {
             console.error("Kommentar löschen fehler:", error);

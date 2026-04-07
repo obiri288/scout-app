@@ -14,7 +14,19 @@ const ACTION_TAG_ICONS = { Traumpass: Zap, Dribbling: Wind, Abschluss: Crosshair
 export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
     const [likes, setLikes] = useState(video.likes_count || 0);
     const [liked, setLiked] = useState(false);
+    const [commentCount, setCommentCount] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
+    
+    // Global listener for comment updates
+    useEffect(() => {
+        const handleCommentChange = (e) => {
+            if (e.detail.videoId === video.id) {
+                setCommentCount(prev => Math.max(0, prev + e.detail.delta));
+            }
+        };
+        window.addEventListener('commentChange', handleCommentChange);
+        return () => window.removeEventListener('commentChange', handleCommentChange);
+    }, [video.id]);
     const videoRef = useRef(null);
     const { ref: observerRef, isIntersecting } = useIntersectionObserver({ threshold: 0.5 });
     const { addToast } = useToast();
@@ -25,10 +37,15 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         let isMounted = true;
 
         const fetchInitState = async () => {
-            // 1. Fetch der Like-Anzahl (Count)
-            const countRes = await supabase.from('media_likes').select('*', { count: 'exact', head: true }).eq('video_id', video.id);
-            if (isMounted && countRes.count !== null) {
-                setLikes(countRes.count);
+            // 1. Fetch count für Likes und Comments (parallel)
+            const [likeRes, commentRes] = await Promise.all([
+                supabase.from('media_likes').select('*', { count: 'exact', head: true }).eq('video_id', video.id),
+                supabase.from('media_comments').select('*', { count: 'exact', head: true }).eq('video_id', video.id)
+            ]);
+            
+            if (isMounted) {
+                if (likeRes.count !== null) setLikes(likeRes.count);
+                if (commentRes.count !== null) setCommentCount(commentRes.count);
             }
 
             // 2. Fetch on Mount for currentUser
@@ -158,9 +175,9 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         whileTap={{ scale: 0.92 }}
                         whileHover={{ scale: 1.05, backgroundColor: "rgba(51,65,85,0.5)" }}
                         onClick={(e) => { e.stopPropagation(); onCommentClick(video); }}
-                        className="flex items-center justify-center p-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
                     >
-                        <MessageCircle size={20} />
+                        <MessageCircle size={20} /> <span className="font-medium text-sm">{commentCount}</span>
                     </motion.button>
                     <div className="ml-auto">
                         <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
