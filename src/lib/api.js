@@ -4,6 +4,12 @@
  */
 import { supabase } from './supabase';
 
+const cleanPayload = (obj) => {
+    return Object.fromEntries(
+        Object.entries(obj).filter(([_, v]) => v != null)
+    );
+};
+
 // ============================================================
 // PLAYERS
 // ============================================================
@@ -178,30 +184,64 @@ export const fetchFollowers = async (userId) => {
 // NOTIFICATIONS
 // ============================================================
 
-export const createNotification = async ({ userId, actorId, type, metadata }) => {
-    await supabase.from('notifications').insert({
-        receiver_id: userId,
-        actor_id: actorId,
+export const createNotification = async ({ userId, actorId, type, message, entityId, videoId }) => {
+    const payload = cleanPayload({
+        user_id: userId,
+        actor_id: actorId, // Auslöser
         type,
-        read: false,
-        ...(metadata ? { metadata } : {}),
+        message,
+        is_read: false,
+        entity_id: entityId,
+        video_id: videoId
     });
+
+    try {
+        const { error } = await supabase.from('notifications').insert(payload);
+        if (error) throw error;
+    } catch (error) {
+        console.error("DB Error in createNotification. Payload:", payload, "Error:", error);
+        throw error;
+    }
 };
 
 export const fetchNotifications = async (userId) => {
     const { data } = await supabase.from('notifications')
-        .select('*, actor:players_master!actor_id(full_name, avatar_url)')
-        .eq('receiver_id', userId)
+        .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
-    return data || [];
+
+    if (!data || data.length === 0) return [];
+
+    // Batch-fetch actor profiles for display
+    const actorIds = [...new Set(data.filter(n => n.actor_id).map(n => n.actor_id))];
+    let actorMap = {};
+    if (actorIds.length > 0) {
+        const { data: profiles } = await supabase.from('players_master')
+            .select('user_id, full_name, avatar_url')
+            .in('user_id', actorIds);
+        if (profiles) {
+            for (const p of profiles) actorMap[p.user_id] = p;
+        }
+    }
+
+    return data.map(n => ({
+        ...n,
+        actor: n.actor_id ? (actorMap[n.actor_id] || null) : null,
+    }));
 };
 
 export const markNotificationsRead = async (userId) => {
     await supabase.from('notifications')
-        .update({ read: true })
-        .eq('receiver_id', userId)
-        .eq('read', false);
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+};
+
+export const markNotificationRead = async (notificationId) => {
+    await supabase.from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
 };
 
 const LIKE_MILESTONES = [10, 25, 50, 100, 250, 500];
@@ -216,7 +256,7 @@ export const checkAndCreateLikeMilestone = async (videoId, videoOwnerUserId, lik
                 userId: videoOwnerUserId,
                 actorId: likerId,
                 type: 'likes_milestone',
-                metadata: { count, videoId },
+                message: `Dein Video hat ${count} Likes erreicht! 🎉`,
             });
         }
     } catch (_) { /* non-critical */ }
@@ -258,16 +298,41 @@ export const fetchWatchlist = async (scoutId) => {
 // LIKES
 // ============================================================
 
+export const checkIsLiked = async (userId, videoId) => {
+    if (!userId || !videoId) return false;
+    const { data } = await supabase.from('media_likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('video_id', videoId);
+    return data && data.length > 0;
+};
+
 export const likeVideo = async (userId, videoId) => {
-    const { error } = await supabase.from('media_likes')
-        .insert({ user_id: userId, video_id: videoId });
-    if (error) throw error;
+    const payload = cleanPayload({ 
+        user_id: userId, 
+        video_id: videoId // strict: video_id, not media_id
+    });
+    
+    try {
+        const { error } = await supabase.from('media_likes').insert(payload);
+        if (error) throw error;
+    } catch (error) {
+        console.error("DB Error in likeVideo. Payload:", payload, "Error:", error);
+        throw error;
+    }
 };
 
 export const unlikeVideo = async (userId, videoId) => {
-    await supabase.from('media_likes')
-        .delete()
-        .match({ user_id: userId, video_id: videoId });
+    const matchCriteria = { user_id: userId, video_id: videoId };
+    try {
+        const { error } = await supabase.from('media_likes')
+            .delete()
+            .match(matchCriteria);
+        if (error) throw error;
+    } catch (error) {
+        console.error("DB Error in unlikeVideo. Criteria:", matchCriteria, "Error:", error);
+        throw error;
+    }
 };
 
 // ============================================================

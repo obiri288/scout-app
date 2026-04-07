@@ -4,7 +4,7 @@ import { Heart, MessageCircle, Share2, MoreHorizontal, Flag, Play, User, Zap, Wi
 import { VerificationBadge } from './VerificationBadge';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
-import { checkAndCreateLikeMilestone } from '../lib/api';
+import * as api from '../lib/api';
 import { getClubStyle } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
@@ -18,6 +18,37 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     const videoRef = useRef(null);
     const { ref: observerRef, isIntersecting } = useIntersectionObserver({ threshold: 0.5 });
     const { addToast } = useToast();
+
+    // Force Initial State Fetching
+    useEffect(() => {
+        if (!video.id) return;
+        let isMounted = true;
+
+        const fetchInitState = async () => {
+            // 1. Fetch der Like-Anzahl (Count)
+            const countRes = await supabase.from('media_likes').select('*', { count: 'exact', head: true }).eq('video_id', video.id);
+            if (isMounted && countRes.count !== null) {
+                setLikes(countRes.count);
+            }
+
+            // 2. Fetch on Mount for currentUser
+            if (session?.user?.id) {
+                const { data } = await supabase.from('media_likes')
+                    .select('id')
+                    .eq('user_id', session.user.id)
+                    .eq('video_id', video.id)
+                    .maybeSingle();
+
+                if (isMounted) {
+                    if (data) setLiked(true);
+                    else setLiked(false);
+                }
+            }
+        };
+
+        fetchInitState();
+        return () => { isMounted = false; };
+    }, [session?.user?.id, video.id]);
 
     // Intersection Observer driven play/pause
     useEffect(() => {
@@ -34,26 +65,28 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     const like = async (e) => {
         e.stopPropagation();
         if (!session) { onLikeReq(); return; }
-        setLiked(!liked);
-        setLikes(l => liked ? l - 1 : l + 1);
+        
+        // Optimistic UI update
+        const wasLiked = liked;
+        setLiked(!wasLiked);
+        setLikes(l => wasLiked ? l - 1 : l + 1);
+        
         try {
-            if (!liked) {
-                const { error } = await supabase.from('media_likes').insert({ user_id: session.user.id, video_id: video.id });
-                if (error) throw error;
+            if (!wasLiked) {
+                await api.likeVideo(session.user.id, video.id);
                 // Check for ego-trigger milestone (non-blocking)
-                checkAndCreateLikeMilestone(video.id, video.players_master?.user_id, session.user.id);
+                api.checkAndCreateLikeMilestone(video.id, video.players_master?.user_id, session.user.id);
                 // Award XP to video owner
                 if (video.players_master?.id) {
-                    import('../lib/api').then(api => api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`));
+                    api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`);
                 }
             } else {
-                const { error } = await supabase.from('media_likes').delete().match({ user_id: session.user.id, video_id: video.id });
-                if (error) throw error;
+                await api.unlikeVideo(session.user.id, video.id);
             }
         } catch (error) {
             // Revert optimistic update
-            setLiked(prev => !prev);
-            setLikes(l => liked ? l + 1 : l - 1);
+            setLiked(wasLiked);
+            setLikes(l => wasLiked ? l + 1 : l - 1);
             addToast(error?.message || "Like fehlgeschlagen.", 'error');
         }
     };

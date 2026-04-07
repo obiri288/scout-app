@@ -15,6 +15,7 @@ import { InboxScreen } from './components/InboxScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ClubScreen } from './components/ClubScreen';
 import { CelebrationAnimation } from './components/CelebrationAnimation';
+import { NotificationBell } from './components/NotificationBell';
 
 // Lazy loaded — only fetched when needed
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -357,6 +358,13 @@ const App = () => {
 
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
             {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} /></Suspense>}
+
+            {/* Notification Bell — fixed top-right */}
+            {session && currentUserProfile && (
+                <div className="fixed top-12 right-4 z-[8500]">
+                    <NotificationBell />
+                </div>
+            )}
 
             {/* Decoupled Upload FAB */}
             <div className="fixed bottom-24 right-4 sm:right-6 sm:bottom-28 z-[9000]">
