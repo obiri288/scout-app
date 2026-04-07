@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Loader2, User, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users, ShieldCheck
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users, ShieldCheck, Briefcase, Target, Radar, Globe
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
@@ -293,18 +293,33 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         </div>
 
                         <div className="flex flex-col items-center gap-3">
-                            {/* Club & Position */}
+                            {/* Club & Position / Scout Title */}
                             <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
                                 {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
-                                <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || "Vereinslos"}</span>
+                                <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || (player.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')}</span>
                                 <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-                                <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
+                                {player.role === 'scout' ? (
+                                    <span className="text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded text-xs font-bold border border-amber-500/20">
+                                        {player.club_affiliation || 'Scout'}
+                                    </span>
+                                ) : (
+                                    <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
+                                )}
                             </div>
 
-                            {/* Transfer Status Pill */}
-                            <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide ${statusTextClass}`}>
-                                {player.transfer_status}
-                            </div>
+                            {/* Transfer Status Pill – only for players */}
+                            {player.role !== 'scout' && (
+                                <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide ${statusTextClass}`}>
+                                    {player.transfer_status}
+                                </div>
+                            )}
+
+                            {/* Scout Suchradius Pill */}
+                            {player.role === 'scout' && player.preferred_system && (
+                                <div className="px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide text-emerald-400 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-1.5">
+                                    <Globe size={12} /> {player.preferred_system}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -439,7 +454,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
         <>
             <div className="flex px-4 pt-4 pb-2 gap-6 border-b border-border sticky top-0 z-40 bg-slate-50/90 dark:bg-slate-950/80 backdrop-blur-md">
                 <TabBtn id="highlights" label="Highlights" />
-                <TabBtn id="stats" label="Stats" />
+                <TabBtn id="stats" label={player.role === 'scout' ? 'Visitenkarte' : 'Stats'} />
                 <TabBtn id="karriere" label="Karriere" />
                 <TabBtn id="about" label="Über" />
             </div>
@@ -476,8 +491,83 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
             {/* TAB: Stats */}
             {activeTab === 'stats' && (
                 <div className="px-4 py-6 space-y-4 animate-in fade-in">
-                    {(() => {
-                        return (
+                    {player.role === 'scout' ? (
+                        /* ===== SCOUT VISITENKARTE ===== */
+                        <>
+                            {/* Scout Business Card */}
+                            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-amber-500/20 rounded-2xl p-6 shadow-2xl">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.08)_0%,transparent_60%)]" />
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full" />
+                                
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <div className="p-2 bg-amber-500/15 rounded-xl border border-amber-500/20">
+                                            <Briefcase size={18} className="text-amber-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-foreground text-base tracking-tight">Visitenkarte</h3>
+                                            <p className="text-[10px] text-amber-400/70 uppercase font-bold tracking-widest">Scout Profil</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Title */}
+                                    {player.club_affiliation && (
+                                        <div className="mb-4">
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Bezeichnung</span>
+                                            <span className="text-lg font-black text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">{player.club_affiliation}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Radius */}
+                                    {player.preferred_system && (
+                                        <div className="mb-4">
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Suchradius</span>
+                                            <div className="flex items-center gap-2">
+                                                <Globe size={16} className="text-emerald-400" />
+                                                <span className="text-sm font-bold text-foreground">{player.preferred_system}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Focus Age Groups */}
+                                    {player.tactical_identity && player.tactical_identity.length > 0 && (
+                                        <div className="mb-4">
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-2">Fokus-Altersklassen</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {player.tactical_identity.map(age => (
+                                                    <span key={age} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold">
+                                                        <Target size={12} /> {age}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Expertise & Services */}
+                                    {player.specializations && player.specializations.length > 0 && (
+                                        <div>
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-2">Expertise & Services</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {player.specializations.map(skill => (
+                                                    <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-bold">
+                                                        ⚡ {skill}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Quick Stats */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <StatCard label="Follower" value={player?.followers_count ?? 0} />
+                                <StatCard label="Clips" value={highlights?.length ?? 0} />
+                                <StatCard label="Verein" value={player?.clubs?.name ?? 'Freiberuflich'} small />
+                            </div>
+                        </>
+                    ) : (
+                        /* ===== PLAYER / COACH STATS ===== */
                             <>
                                 {/* Basis-Statistiken (Safe) */}
                                 <div className="bg-slate-50 dark:bg-white/5 backdrop-blur-xl border border-border rounded-2xl p-5 space-y-4 shadow-sm">
@@ -580,8 +670,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                     )}
                                 </div>
                             </>
-                        );
-                    })()}
+                    )}
                 </div>
             )}
 

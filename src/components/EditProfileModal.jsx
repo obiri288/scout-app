@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award } from 'lucide-react';
+import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award, Briefcase, Target, Radar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { getClubBorderColor } from '../lib/helpers';
@@ -15,6 +15,9 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
     const initialFirstName = player.first_name || (player.full_name ? player.full_name.split(' ')[0] : '');
     const initialLastName = player.last_name || (player.full_name ? player.full_name.split(' ').slice(1).join(' ') : '');
+
+    const isCoach = player.role === 'coach';
+    const isScout = player.role === 'scout';
 
     const [formData, setFormData] = useState({
         first_name: initialFirstName,
@@ -38,7 +41,18 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         jersey_number: player.jersey_number || '',
         nationality: player.nationality || '',
         player_archetype: player.player_archetype || '',
-        signature_badges: player.signature_badges || []
+        signature_badges: player.signature_badges || [],
+        // Coach-specific fields
+        preferred_formation: player.preferred_system || '',
+        coaching_license: (player.licenses && player.licenses[0]) || '',
+        experience_years: player.experience_years || '',
+        leadership_styles: player.specializations || [],
+        tactical_identity: player.tactical_identity || [],
+        // Scout-specific fields
+        scout_title: player.club_affiliation || '',
+        focus_age_groups: player.tactical_identity || [],
+        scout_expertise: player.specializations || [],
+        scout_radius: player.preferred_system || ''
     });
 
     const [avatarFile, setAvatarFile] = useState(null);
@@ -236,18 +250,54 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
             }
 
             const full_name = `${formData.first_name} ${formData.last_name}`.trim();
+            
+            // Build base updates (shared fields)
             const updates = {
-                ...formData,
+                first_name: formData.first_name,
+                last_name: formData.last_name,
                 full_name,
-                height_user: formData.height_user ? parseInt(formData.height_user) : null,
-                weight: formData.weight ? parseInt(formData.weight) : null,
-                jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+                bio: formData.bio,
+                zip_code: formData.zip_code,
+                city: formData.city,
+                birth_date: formData.birth_date || null,
+                nationality: formData.nationality,
+                instagram_handle: formData.instagram_handle,
+                tiktok_handle: formData.tiktok_handle,
+                youtube_handle: formData.youtube_handle,
+                transfermarkt_url: formData.transfermarkt_url,
+                fupa_url: formData.fupa_url,
                 avatar_url: av,
                 club_id: selectedClub?.id || null,
                 latitude,
                 longitude,
                 signature_badges: formData.signature_badges || []
             };
+
+            if (isScout) {
+                // Scout-specific field mapping
+                updates.club_affiliation = formData.scout_title || null;
+                updates.tactical_identity = formData.focus_age_groups || [];
+                updates.specializations = formData.scout_expertise || [];
+                updates.preferred_system = formData.scout_radius || null;
+            } else if (isCoach) {
+                // Coach-specific field mapping
+                updates.preferred_system = formData.preferred_formation || null;
+                updates.licenses = formData.coaching_license ? [formData.coaching_license] : [];
+                updates.experience_years = formData.experience_years ? parseInt(formData.experience_years) : null;
+                updates.specializations = formData.leadership_styles || [];
+                updates.tactical_identity = formData.tactical_identity || [];
+            } else {
+                // Player-specific field mapping
+                updates.position_primary = formData.position_primary;
+                updates.position_secondary = formData.position_secondary;
+                updates.height_user = formData.height_user ? parseInt(formData.height_user) : null;
+                updates.weight = formData.weight ? parseInt(formData.weight) : null;
+                updates.jersey_number = formData.jersey_number ? parseInt(formData.jersey_number) : null;
+                updates.strong_foot = formData.strong_foot;
+                updates.transfer_status = formData.transfer_status;
+                updates.contract_end = formData.contract_end || null;
+                updates.player_archetype = formData.player_archetype;
+            }
 
             const { data, error } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*, leagues(name))').single();
             if (error) throw error;
@@ -283,7 +333,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 {/* Tabs */}
                 <div className="flex gap-2 py-3 px-4 border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto scrollbar-hide">
                     <TabButton id="general" label="Allgemein" icon={User} />
-                    <TabButton id="sport" label="Sportlich" icon={Activity} />
+                    <TabButton id="sport" label={isScout ? 'Scouting' : 'Sportlich'} icon={isScout ? Briefcase : Activity} />
                     <TabButton id="badges" label="Badges" icon={Award} />
                     <TabButton id="historie" label="Historie" icon={History} />
                     <TabButton id="social" label="Socials" icon={Share2} />
@@ -376,8 +426,9 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                         {/* TAB 2: SPORTLICH */}
                         {activeTab === 'sport' && (
                             <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+                                {/* Club – shared for all roles */}
                                 <div>
-                                    <label className="text-xs text-muted-foreground font-bold uppercase ml-1 mb-1 block">Aktueller Verein</label>
+                                    <label className="text-xs text-muted-foreground font-bold uppercase ml-1 mb-1 block">{isScout ? 'Organisation / Agentur' : isCoach ? 'Aktueller Verein / Organisation' : 'Aktueller Verein'}</label>
                                     {selectedClub ? (
                                         <div
                                             className="bg-slate-100 dark:bg-zinc-800 p-3 rounded-xl flex justify-between items-center border border-blue-500/30 shadow-lg shadow-blue-900/10 transition-colors"
@@ -425,80 +476,295 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Hauptposition</label>
-                                        <select value={formData.position_primary} onChange={e => setFormData({ ...formData, position_primary: e.target.value })} className={inputStyle}>
-                                            {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p => <option key={p}>{p}</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nebenposition</label>
-                                        <select value={formData.position_secondary} onChange={e => setFormData({ ...formData, position_secondary: e.target.value })} className={inputStyle}>
-                                            <option value="">Keine</option>
-                                            {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p => <option key={p}>{p}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Transfer-Status</label>
-                                        <select value={formData.transfer_status} onChange={e => setFormData({ ...formData, transfer_status: e.target.value })} className={inputStyle}>
-                                            <option>Gebunden</option>
-                                            <option>Suche Verein</option>
-                                            <option>Vertrag läuft aus</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vertrag bis</label>
-                                        <input type="date" value={formData.contract_end} onChange={e => setFormData({ ...formData, contract_end: e.target.value })} className={inputStyle} />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-4 gap-2">
-                                    <div className="col-span-1">
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nr.</label>
-                                        <input type="number" min="0" placeholder="#" value={formData.jersey_number} onChange={e => setFormData({ ...formData, jersey_number: e.target.value })} className={`${inputStyle} text-center`} />
-                                    </div>
-                                    <div className="col-span-1">
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Größe</label>
-                                        <input type="number" min="0" placeholder="cm" value={formData.height_user} onChange={e => setFormData({ ...formData, height_user: e.target.value })} className={inputStyle} />
-                                    </div>
-                                    <div className="col-span-1">
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Gewicht</label>
-                                        <input type="number" min="0" placeholder="kg" value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value })} className={inputStyle} />
-                                    </div>
-                                    <div className="col-span-1">
-                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Fuß</label>
-                                        <select value={formData.strong_foot} onChange={e => setFormData({ ...formData, strong_foot: e.target.value })} className={`${inputStyle} px-1 text-xs`}>
-                                            <option>Rechts</option>
-                                            <option>Links</option>
-                                            <option>Beidfüßig</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Spielertyp Section */}
-                                <div className="pt-2 border-t border-border">
-                                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⚡ Spielertyp</h3>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        <div>
-                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Dein Profil</label>
-                                            <select value={formData.player_archetype} onChange={e => setFormData({ ...formData, player_archetype: e.target.value })} className={inputStyle}>
-                                                <option value="">Keinen auswählen</option>
-                                                <option>Spielmacher</option>
-                                                <option>Flügelflitzer</option>
-                                                <option>Knipser</option>
-                                                <option>Zerstörer</option>
-                                                <option>Wandspieler</option>
-                                                <option>Box-to-Box</option>
-                                                <option>Modern Defender</option>
-                                                <option>Sweeper Keeper</option>
+                                {/* ===== ROLE-SPECIFIC FIELDS ===== */}
+                                {isScout ? (
+                                    /* ===== SCOUT-SPECIFIC FIELDS ===== */
+                                    <>
+                                        {/* Berufsbezeichnung */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Briefcase size={14} /> Berufsbezeichnung</h3>
+                                            <select value={formData.scout_title} onChange={e => setFormData({ ...formData, scout_title: e.target.value })} className={inputStyle}>
+                                                <option value="">Bitte auswählen</option>
+                                                {['Vereins-Scout', 'Freier Scout', 'Spielervermittler/Agent', 'Kaderplaner/Sportdirektor'].map(t => <option key={t}>{t}</option>)}
                                             </select>
                                         </div>
-                                    </div>
-                                </div>
+
+                                        {/* Fokus-Altersklassen */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Target size={14} /> Fokus-Altersklassen</h3>
+                                            <p className="text-[10px] text-muted-foreground mb-2 ml-1">Wähle die Altersklassen, auf die du dich fokussierst.</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['U15 - U17', 'U19', 'U23 / Übergang', 'Herrenbereich'].map(age => {
+                                                    const isSelected = formData.focus_age_groups.includes(age);
+                                                    return (
+                                                        <button
+                                                            key={age}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    focus_age_groups: isSelected
+                                                                        ? prev.focus_age_groups.filter(a => a !== age)
+                                                                        : [...prev.focus_age_groups, age]
+                                                                }));
+                                                            }}
+                                                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                                isSelected
+                                                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-lg shadow-cyan-900/10'
+                                                                    : 'border-border bg-white/5 hover:bg-white/10 hover:border-white/20 text-foreground/80'
+                                                            }`}
+                                                        >
+                                                            {isSelected && <span className="mr-1">✓</span>}{age}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Expertise & Services */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-violet-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⚡ Expertise & Services</h3>
+                                            <p className="text-[10px] text-muted-foreground mb-2 ml-1">Wähle max. 3 Schwerpunkte deiner Arbeit.</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Live-Scouting', 'Daten- & Videoanalyse', 'Karriereplanung', 'Vertragsverhandlung'].map(skill => {
+                                                    const isSelected = formData.scout_expertise.includes(skill);
+                                                    const isMaxed = formData.scout_expertise.length >= 3 && !isSelected;
+                                                    return (
+                                                        <button
+                                                            key={skill}
+                                                            type="button"
+                                                            disabled={isMaxed}
+                                                            onClick={() => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    scout_expertise: isSelected
+                                                                        ? prev.scout_expertise.filter(s => s !== skill)
+                                                                        : [...prev.scout_expertise, skill]
+                                                                }));
+                                                            }}
+                                                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                                isSelected
+                                                                    ? 'bg-violet-500/20 border-violet-500/50 text-violet-400 shadow-lg shadow-violet-900/10'
+                                                                    : isMaxed
+                                                                        ? 'border-border bg-muted/30 opacity-30 cursor-not-allowed text-muted-foreground'
+                                                                        : 'border-border bg-white/5 hover:bg-white/10 hover:border-white/20 text-foreground/80'
+                                                            }`}
+                                                        >
+                                                            {isSelected && <span className="mr-1">✓</span>}{skill}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-1.5">
+                                                {[0, 1, 2].map(i => (
+                                                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < formData.scout_expertise.length ? 'bg-violet-400' : 'bg-white/20'}`} />
+                                                ))}
+                                                <span className="text-[10px] text-muted-foreground ml-1">{formData.scout_expertise.length}/3</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Suchradius */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Radar size={14} /> Suchradius</h3>
+                                            <select value={formData.scout_radius} onChange={e => setFormData({ ...formData, scout_radius: e.target.value })} className={inputStyle}>
+                                                <option value="">Bitte auswählen</option>
+                                                {['Regional', 'National', 'International'].map(r => <option key={r}>{r}</option>)}
+                                            </select>
+                                        </div>
+                                    </>
+                                ) : isCoach ? (
+                                    /* ===== COACH-SPECIFIC FIELDS ===== */
+                                    <>
+                                        {/* Basis-Trainerdaten */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">🎯 Trainerdaten</h3>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Bevorzugte Formation</label>
+                                                    <select value={formData.preferred_formation} onChange={e => setFormData({ ...formData, preferred_formation: e.target.value })} className={inputStyle}>
+                                                        <option value="">Keine auswählen</option>
+                                                        {['4-4-2', '4-3-3', '4-2-3-1', '3-5-2', '3-4-3', '4-1-4-1', '4-3-1-2', '5-3-2', '3-4-2-1', '4-2-2-2'].map(f => <option key={f}>{f}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Höchste Lizenz</label>
+                                                        <select value={formData.coaching_license} onChange={e => setFormData({ ...formData, coaching_license: e.target.value })} className={inputStyle}>
+                                                            <option value="">Keine</option>
+                                                            {['UEFA Pro', 'UEFA A', 'UEFA B', 'UEFA C', 'Torwart-Lizenz', 'Ohne Lizenz'].map(l => <option key={l}>{l}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Erfahrung (Jahre)</label>
+                                                        <input type="number" min="0" max="50" placeholder="z.B. 5" value={formData.experience_years} onChange={e => setFormData({ ...formData, experience_years: e.target.value })} className={inputStyle} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Führungsstil & Charakter */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⚡ Führungsstil</h3>
+                                            <p className="text-[10px] text-muted-foreground mb-2 ml-1">Wähle max. 2 Eigenschaften, die dich als Trainer auszeichnen.</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Motivator', 'Taktiker', 'Detail-verliebt', 'Mentor', 'Schleifer'].map(style => {
+                                                    const isSelected = formData.leadership_styles.includes(style);
+                                                    const isMaxed = formData.leadership_styles.length >= 2 && !isSelected;
+                                                    return (
+                                                        <button
+                                                            key={style}
+                                                            type="button"
+                                                            disabled={isMaxed}
+                                                            onClick={() => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    leadership_styles: isSelected
+                                                                        ? prev.leadership_styles.filter(s => s !== style)
+                                                                        : [...prev.leadership_styles, style]
+                                                                }));
+                                                            }}
+                                                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                                isSelected
+                                                                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-lg shadow-amber-900/10'
+                                                                    : isMaxed
+                                                                        ? 'border-border bg-muted/30 opacity-30 cursor-not-allowed text-muted-foreground'
+                                                                        : 'border-border bg-white/5 hover:bg-white/10 hover:border-white/20 text-foreground/80'
+                                                            }`}
+                                                        >
+                                                            {isSelected && <span className="mr-1">✓</span>}{style}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-1.5">
+                                                {[0, 1].map(i => (
+                                                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < formData.leadership_styles.length ? 'bg-amber-400' : 'bg-white/20'}`} />
+                                                ))}
+                                                <span className="text-[10px] text-muted-foreground ml-1">{formData.leadership_styles.length}/2</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Taktische Identität */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">🧠 Taktische Identität</h3>
+                                            <p className="text-[10px] text-muted-foreground mb-2 ml-1">Wähle max. 2 taktische Schwerpunkte.</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Gegenpressing', 'Ballbesitz-Dominanz', 'Umschaltspiel', 'Defensive Kompaktheit'].map(tactic => {
+                                                    const isSelected = formData.tactical_identity.includes(tactic);
+                                                    const isMaxed = formData.tactical_identity.length >= 2 && !isSelected;
+                                                    return (
+                                                        <button
+                                                            key={tactic}
+                                                            type="button"
+                                                            disabled={isMaxed}
+                                                            onClick={() => {
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    tactical_identity: isSelected
+                                                                        ? prev.tactical_identity.filter(t => t !== tactic)
+                                                                        : [...prev.tactical_identity, tactic]
+                                                                }));
+                                                            }}
+                                                            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                                isSelected
+                                                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-lg shadow-cyan-900/10'
+                                                                    : isMaxed
+                                                                        ? 'border-border bg-muted/30 opacity-30 cursor-not-allowed text-muted-foreground'
+                                                                        : 'border-border bg-white/5 hover:bg-white/10 hover:border-white/20 text-foreground/80'
+                                                            }`}
+                                                        >
+                                                            {isSelected && <span className="mr-1">✓</span>}{tactic}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-1.5">
+                                                {[0, 1].map(i => (
+                                                    <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < formData.tactical_identity.length ? 'bg-cyan-400' : 'bg-white/20'}`} />
+                                                ))}
+                                                <span className="text-[10px] text-muted-foreground ml-1">{formData.tactical_identity.length}/2</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    /* ===== PLAYER-SPECIFIC FIELDS ===== */
+                                    <>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Hauptposition</label>
+                                                <select value={formData.position_primary} onChange={e => setFormData({ ...formData, position_primary: e.target.value })} className={inputStyle}>
+                                                    {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p => <option key={p}>{p}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nebenposition</label>
+                                                <select value={formData.position_secondary} onChange={e => setFormData({ ...formData, position_secondary: e.target.value })} className={inputStyle}>
+                                                    <option value="">Keine</option>
+                                                    {['TW', 'IV', 'RV', 'LV', 'ZDM', 'ZM', 'ZOM', 'RA', 'LA', 'ST'].map(p => <option key={p}>{p}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Transfer-Status</label>
+                                                <select value={formData.transfer_status} onChange={e => setFormData({ ...formData, transfer_status: e.target.value })} className={inputStyle}>
+                                                    <option>Gebunden</option>
+                                                    <option>Suche Verein</option>
+                                                    <option>Vertrag läuft aus</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vertrag bis</label>
+                                                <input type="date" value={formData.contract_end} onChange={e => setFormData({ ...formData, contract_end: e.target.value })} className={inputStyle} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-4 gap-2">
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nr.</label>
+                                                <input type="number" min="0" placeholder="#" value={formData.jersey_number} onChange={e => setFormData({ ...formData, jersey_number: e.target.value })} className={`${inputStyle} text-center`} />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Größe</label>
+                                                <input type="number" min="0" placeholder="cm" value={formData.height_user} onChange={e => setFormData({ ...formData, height_user: e.target.value })} className={inputStyle} />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Gewicht</label>
+                                                <input type="number" min="0" placeholder="kg" value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value })} className={inputStyle} />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Fuß</label>
+                                                <select value={formData.strong_foot} onChange={e => setFormData({ ...formData, strong_foot: e.target.value })} className={`${inputStyle} px-1 text-xs`}>
+                                                    <option>Rechts</option>
+                                                    <option>Links</option>
+                                                    <option>Beidfüßig</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Spielertyp Section */}
+                                        <div className="pt-2 border-t border-border">
+                                            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⚡ Spielertyp</h3>
+                                            <div className="grid grid-cols-1 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Dein Profil</label>
+                                                    <select value={formData.player_archetype} onChange={e => setFormData({ ...formData, player_archetype: e.target.value })} className={inputStyle}>
+                                                        <option value="">Keinen auswählen</option>
+                                                        <option>Spielmacher</option>
+                                                        <option>Flügelflitzer</option>
+                                                        <option>Knipser</option>
+                                                        <option>Zerstörer</option>
+                                                        <option>Wandspieler</option>
+                                                        <option>Box-to-Box</option>
+                                                        <option>Modern Defender</option>
+                                                        <option>Sweeper Keeper</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 

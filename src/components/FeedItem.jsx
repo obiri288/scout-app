@@ -38,7 +38,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         setLikes(l => liked ? l - 1 : l + 1);
         try {
             if (!liked) {
-                const { error } = await supabase.from('media_likes').insert({ user_id: session.user.id, video_id: video.id });
+                const { error } = await supabase.from('media_likes').insert({ user_id: session.user.id, media_id: video.id });
                 if (error) throw error;
                 // Check for ego-trigger milestone (non-blocking)
                 checkAndCreateLikeMilestone(video.id, video.players_master?.user_id, session.user.id);
@@ -47,13 +47,14 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     import('../lib/api').then(api => api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`));
                 }
             } else {
-                await supabase.from('media_likes').delete().match({ user_id: session.user.id, video_id: video.id });
+                const { error } = await supabase.from('media_likes').delete().match({ user_id: session.user.id, media_id: video.id });
+                if (error) throw error;
             }
-        } catch (e) {
+        } catch (error) {
             // Revert optimistic update
             setLiked(prev => !prev);
             setLikes(l => liked ? l + 1 : l - 1);
-            addToast("Like fehlgeschlagen.", 'error');
+            addToast(error?.message || "Like fehlgeschlagen.", 'error');
         }
     };
 
