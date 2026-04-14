@@ -51,28 +51,8 @@ export const UserProvider = ({ children }) => {
                 .maybeSingle();
 
             if (!data) {
-                // Username aus user_metadata lesen (wird bei Registrierung gesetzt)
-                const metaUsername = s.user.user_metadata?.username || null;
-                const newProfile = {
-                    user_id: s.user.id,
-                    full_name: '',
-                    position_primary: 'ZM',
-                    transfer_status: 'Gebunden',
-                    followers_count: 0,
-                    is_verified: false,
-                    is_admin: false,
-                    role: 'player',
-                    verification_status: 'approved',
-                    email: s.user.email || null,
-                    ...(metaUsername ? { username: metaUsername } : {})
-                };
-                const { data: created, error } = await supabase
-                    .from('players_master')
-                    .upsert(newProfile)
-                    .select('*, clubs(*)')
-                    .single();
-                if (error) throw error;
-                data = created;
+                setCurrentUserProfile(null);
+                return null;
             }
             setCurrentUserProfile(data);
             return data;

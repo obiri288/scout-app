@@ -102,10 +102,15 @@ export const useAppState = () => {
     const handleLoginSuccess = async (sessionData) => {
         setSession(sessionData);
         setShowLogin(false);
-        // Don't call refreshProfile() — UserContext auto-fetch handles it via session?.user?.id dep
-        setViewedProfile(null);
-        setActiveTab('profile');
-        navigateToHash(`profile/${sessionData.user.id}`);
+        const profile = await refreshProfile(sessionData);
+        if (profile && profile.full_name) {
+            addToast(`Willkommen zurück, ${profile.first_name || profile.full_name}!`, 'success');
+            setViewedProfile(null);
+            setActiveTab('profile');
+            navigateToHash(`profile/${sessionData.user.id}`);
+        } else {
+            addToast('Willkommen bei Cavio! 👋', 'success');
+        }
     };
 
     // Bridge: after login, UserContext sets currentUserProfile asynchronously.

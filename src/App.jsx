@@ -199,8 +199,7 @@ const DeleteAccountModal = ({ onClose, session, onDeleted }) => {
         setDeleting(true);
         try {
             await api.deleteUserAccount();
-            // Kill local session immediately after server-side deletion
-            await api.signOut();
+            // Local state reset happens via onDeleted() calling logout()
             addToast('Dein Account wurde vollständig gelöscht.', 'info');
             onDeleted();
         } catch (e) {
@@ -500,6 +499,7 @@ const App = () => {
                         onClose={() => setActiveSettingsModal(null)}
                         session={session}
                         onDeleted={() => {
+                            logout();
                             setActiveSettingsModal(null);
                             switchTab('home');
                         }}
