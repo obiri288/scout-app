@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 
 /**
@@ -35,6 +36,7 @@ export const useAppState = () => {
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showFollowersModal, setShowFollowersModal] = useState(false);
+    const [showFollowingModal, setShowFollowingModal] = useState(false);
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [showWatchlist, setShowWatchlist] = useState(false);
     const [showMap, setShowMap] = useState(false);
@@ -138,14 +140,20 @@ export const useAppState = () => {
         let p = { ...targetPlayer };
         try {
             if (session) {
-                p.isFollowing = await api.checkIsFollowing(session.user.id, p.user_id);
+                // Resolve the current user's players_master.id for follows queries
+                const myPlayerId = currentUserProfile?.id || await api.getPlayerIdFromUserId(session.user.id);
+
+                // Both IDs must be players_master.id (matching FK constraints)
+                p.isFollowing = await api.checkIsFollowing(myPlayerId, p.id);
                 setIsOnWatchlist(await api.checkIsOnWatchlist(session.user.id, p.id));
                 // Record profile view (not own profile)
                 if (p.user_id !== session.user.id) {
                     api.recordProfileView(p.id, session.user.id);
                 }
             }
-            p.followers_count = await api.getFollowersCount(p.user_id);
+            // Count followers and following using players_master.id (matching FK constraints)
+            p.followers_count = await api.getFollowersCount(p.id);
+            p.following_count = await api.getFollowingCount(p.id);
 
             setViewedProfile(p);
             setProfileHighlights(await api.fetchPlayerHighlights(p.id));
@@ -172,43 +180,59 @@ export const useAppState = () => {
     };
 
     const handleFollow = async () => {
-        if (!session) { setShowLogin(true); return; }
-        if (!viewedProfile) return;
+        if (!session || !viewedProfile) return;
 
-        const wasFollowing = viewedProfile.isFollowing;
+        // Verify authenticated user identity fresh from Supabase
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser?.id) {
+            addToast("Bitte erneut einloggen.", 'error');
+            return;
+        }
+
+        // Resolve current user's players_master.id (FK-consistent)
+        const myPlayerId = currentUserProfile?.id || await api.getPlayerIdFromUserId(authUser.id);
+        if (!myPlayerId) {
+            addToast("Profil nicht gefunden.", 'error');
+            return;
+        }
+        const targetPlayerId = viewedProfile.id;
+
+        // 1. Optimistic UI Update (Sofortiges Feedback)
+        const previousIsFollowing = viewedProfile.isFollowing;
+        const previousFollowerCount = viewedProfile.followers_count;
 
         setViewedProfile(prev => ({
             ...prev,
-            isFollowing: !wasFollowing,
-            followers_count: wasFollowing ? (prev.followers_count - 1) : (prev.followers_count + 1)
+            isFollowing: !previousIsFollowing,
+            followers_count: previousIsFollowing ? (prev.followers_count - 1) : (prev.followers_count + 1)
         }));
 
         try {
-            if (wasFollowing) {
-                await api.unfollow(session.user.id, viewedProfile.user_id);
+            if (!previousIsFollowing) {
+                // User möchte folgen -> REINER INSERT
+                const { error } = await supabase
+                    .from('follows')
+                    .insert({ follower_id: myPlayerId, following_id: targetPlayerId });
+
+                if (error) throw error;
             } else {
-                await api.follow(session.user.id, viewedProfile.user_id);
-                try {
-                    await api.createNotification({
-                        userId: viewedProfile.user_id,
-                        actorId: session.user.id,
-                        type: 'follow'
-                    });
-                } catch (notifErr) {
-                    console.warn("Notification insert failed:", notifErr);
-                }
-                // Award XP to the followed player
-                api.awardXP(viewedProfile.id, 20, 'follower', session.user.id);
-                setShowCelebration(true);
-                addToast(`${t('toast_follow')} ${viewedProfile.full_name}!`, 'success');
+                // User möchte entfolgen
+                const { error } = await supabase
+                    .from('follows')
+                    .delete()
+                    .match({ follower_id: myPlayerId, following_id: targetPlayerId });
+
+                if (error) throw error;
             }
-        } catch (e) {
+        } catch (error) {
+            // 2. Rollback bei Fehler
+            console.error("EXAKTER FOLLOW ERROR:", error);
+            addToast(error?.message || error?.details || error?.hint || JSON.stringify(error) || "Unbekannter Fehler", 'error');
             setViewedProfile(prev => ({
                 ...prev,
-                isFollowing: wasFollowing,
-                followers_count: wasFollowing ? (prev.followers_count + 1) : (prev.followers_count - 1)
+                isFollowing: previousIsFollowing,
+                followers_count: previousFollowerCount
             }));
-            addToast(t('toast_follow_error'), 'error');
         }
     };
 
@@ -290,6 +314,7 @@ export const useAppState = () => {
         showEditProfile, setShowEditProfile,
         showSettings, setShowSettings,
         showFollowersModal, setShowFollowersModal,
+        showFollowingModal, setShowFollowingModal,
         showVerificationModal, setShowVerificationModal,
         showWatchlist, setShowWatchlist,
         showMap, setShowMap,

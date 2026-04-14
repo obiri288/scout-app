@@ -1,316 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import { Database, ShieldAlert, Trash2, X, Users, CheckCircle, XCircle, Loader2, Mail, Search as SearchIcon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ShieldAlert, X, Check, XCircle, Search, Shield, Building, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { inputStyle, cardStyle } from '../lib/styles';
+import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 
-const ROLE_LABELS = {
-    scout: { label: 'Scout', emoji: '🔍', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-    coach: { label: 'Trainer', emoji: '🎯', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-};
-
-export const AdminDashboard = ({ session }) => {
-    const [tab, setTab] = useState('accounts');
-    const [pendingClubs, setPendingClubs] = useState([]);
-    const [reports, setReports] = useState([]);
-    const [pendingAccounts, setPendingAccounts] = useState([]);
-    const [accountsLoading, setAccountsLoading] = useState(false);
-    const [actionLoading, setActionLoading] = useState(null); // ID of account being acted on
-    const [editingClub, setEditingClub] = useState(null);
-    const [editForm, setEditForm] = useState({ logo_url: '', league: '' });
+export const AdminDashboard = ({ onClose }) => {
+    const { currentUserProfile } = useUser();
     const { addToast } = useToast();
-
-    // --- Data Fetching ---
-
-    const fetchPending = async () => {
-        try {
-            const { data } = await supabase.from('clubs').select('*').eq('is_verified', false);
-            setPendingClubs(data || []);
-        } catch (e) {
-            addToast("Fehler beim Laden der Vereine.", 'error');
-        }
-    };
-
-    const fetchReports = async () => {
-        try {
-            const { data } = await supabase.from('reports').select('*').eq('status', 'pending');
-            setReports(data || []);
-        } catch (e) {
-            addToast("Fehler beim Laden der Meldungen.", 'error');
-        }
-    };
-
-    const fetchPendingAccounts = async () => {
-        setAccountsLoading(true);
-        try {
-            const { data, error } = await supabase.from('players_master')
-                .select('id, full_name, username, role, verification_status, email, created_at, avatar_url')
-                .eq('verification_status', 'pending')
-                .not('role', 'in', '("player","admin")')
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            setPendingAccounts(data || []);
-        } catch (e) {
-            console.error('Fetch pending accounts error:', e);
-            addToast("Fehler beim Laden der Accounts.", 'error');
-        } finally {
-            setAccountsLoading(false);
-        }
-    };
+    const [claims, setClaims] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchPending();
-        fetchReports();
-        fetchPendingAccounts();
-    }, []);
-
-    // --- Club Handlers ---
-
-    const handleVerify = async (club) => {
-        if (!editForm.logo_url || !editForm.league) {
-            addToast("Bitte Logo und Liga ausfüllen.", 'error');
-            return;
+        if (currentUserProfile?.role === 'admin') {
+            loadClaims();
+        } else {
+            setLoading(false);
         }
+    }, [currentUserProfile]);
+
+    const loadClaims = async () => {
         try {
-            const { error } = await supabase.from('clubs').update({ is_verified: true, logo_url: editForm.logo_url, league: editForm.league }).eq('id', club.id);
+            const { data, error } = await supabase
+                .from('club_claims')
+                .select('*, club:clubs(name), user:players_master(full_name, username)')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+            
             if (error) throw error;
-            setEditingClub(null);
-            addToast(`${club.name} verifiziert! ✅`, 'success');
-            fetchPending();
-        } catch (e) {
-            addToast(e.message, 'error');
-        }
-    };
-
-    const handleDelete = async (clubId) => {
-        try {
-            const { error } = await supabase.from('clubs').delete().eq('id', clubId);
-            if (error) throw error;
-            addToast("Verein gelöscht.", 'success');
-            fetchPending();
-        } catch (e) {
-            addToast("Fehler beim Löschen.", 'error');
-        }
-    };
-
-    // --- Report Handlers ---
-
-    const handleResolveReport = async (id) => {
-        try {
-            const { error } = await supabase.from('reports').update({ status: 'resolved' }).eq('id', id);
-            if (error) throw error;
-            addToast("Meldung als erledigt markiert.", 'success');
-            fetchReports();
-        } catch (e) {
-            addToast(e.message, 'error');
-        }
-    };
-
-    // --- Account Verification Handlers ---
-
-    const handleApproveAccount = async (account) => {
-        setActionLoading(account.id);
-        try {
-            const { error } = await supabase.from('players_master')
-                .update({ verification_status: 'approved' })
-                .eq('id', account.id);
-            if (error) throw error;
-            addToast(`${account.full_name || account.username} als ${ROLE_LABELS[account.role]?.label || account.role} freigegeben! ✅`, 'success');
-            fetchPendingAccounts();
-        } catch (e) {
-            console.error('Approve error:', e);
-            addToast(e.message || 'Fehler beim Freischalten.', 'error');
+            setClaims(data || []);
+        } catch (error) {
+            console.error('Error loading claims:', error);
+            addToast('Fehler beim Laden der Anfragen', 'error');
         } finally {
-            setActionLoading(null);
+            setLoading(false);
         }
     };
 
-    const handleRejectAccount = async (account) => {
-        setActionLoading(account.id);
+    const handleAction = async (claim, action) => {
         try {
-            const { error } = await supabase.from('players_master')
-                .update({ verification_status: 'rejected' })
-                .eq('id', account.id);
-            if (error) throw error;
-            addToast(`${account.full_name || account.username} wurde abgelehnt.`, 'info');
-            fetchPendingAccounts();
-        } catch (e) {
-            console.error('Reject error:', e);
-            addToast(e.message || 'Fehler beim Ablehnen.', 'error');
-        } finally {
-            setActionLoading(null);
+            if (action === 'approved') {
+                // 1. Update claim status
+                const { error: claimError } = await supabase
+                    .from('club_claims')
+                    .update({ status: 'approved' })
+                    .eq('id', claim.id);
+                if (claimError) throw claimError;
+
+                // 2. Update club verification & ownership
+                const { error: clubError } = await supabase
+                    .from('clubs')
+                    .update({ is_verified: true, created_by: claim.user_id })
+                    .eq('id', claim.club_id);
+                if (clubError) throw clubError;
+
+                addToast('Anfrage zugelassen & Verein verifiziert ✅', 'success');
+            } else if (action === 'rejected') {
+                // Update claim status
+                const { error } = await supabase
+                    .from('club_claims')
+                    .update({ status: 'rejected' })
+                    .eq('id', claim.id);
+                if (error) throw error;
+
+                addToast('Anfrage abgelehnt ❌', 'success');
+            }
+
+            // Optimistic UI update
+            setClaims((prev) => prev.filter((c) => c.id !== claim.id));
+        } catch (error) {
+            console.error(`Error processing action: ${action}`, error);
+            addToast(`Fehler bei Aktion: ${error.message}`, 'error');
         }
     };
 
-    // --- Tab Counts ---
-    const tabCounts = {
-        accounts: pendingAccounts.length,
-        clubs: pendingClubs.length,
-        reports: reports.length,
-    };
+    if (currentUserProfile?.role !== 'admin') {
+        return (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md">
+                <div className="bg-card border border-red-500/30 p-8 rounded-3xl flex flex-col items-center">
+                    <ShieldAlert size={48} className="text-red-500 mb-4" />
+                    <h2 className="text-2xl font-bold text-foreground">Zugriff verweigert</h2>
+                    <p className="text-muted-foreground mt-2 mb-6">Dieser Bereich ist nur für Administratoren.</p>
+                    <button onClick={onClose} className="px-6 py-2 bg-muted text-foreground rounded-full hover:bg-muted/80 transition">Schließen</button>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="pb-32 pt-8 px-4 max-w-md mx-auto min-h-screen">
-            <h2 className="text-3xl font-black text-white mb-6 flex items-center gap-3"><Database className="text-blue-500" /> Admin</h2>
-
-            {/* Tabs */}
-            <div className="flex gap-1 mb-6 bg-zinc-900/50 p-1 rounded-xl border border-border">
-                {[
-                    { key: 'accounts', label: 'Accounts', icon: Users },
-                    { key: 'clubs', label: 'Vereine', icon: ShieldAlert },
-                    { key: 'reports', label: 'Meldungen', icon: ShieldAlert },
-                ].map(({ key, label, icon: Icon }) => (
-                    <button
-                        key={key}
-                        onClick={() => setTab(key)}
-                        className={`flex-1 text-xs font-bold py-2.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                            tab === key
-                                ? 'bg-white/10 text-white shadow-sm'
-                                : 'text-zinc-500 hover:text-zinc-300'
-                        }`}
-                    >
-                        {label}
-                        {tabCounts[key] > 0 && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                                tab === key ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-400'
-                            }`}>{tabCounts[key]}</span>
-                        )}
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in">
+            <div className="w-full max-w-2xl h-[85vh] bg-card border border-border shadow-2xl flex flex-col sm:rounded-3xl animate-in slide-in-from-bottom-8">
+                
+                {/* Header */}
+                <div className="flex justify-between items-center p-6 border-b border-border bg-black/20">
+                    <div className="flex items-center gap-3">
+                        <Shield className="text-cyan-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" size={28} />
+                        <h2 className="text-xl font-bold text-foreground">Admin Control Center</h2>
+                    </div>
+                    <button onClick={onClose} className="p-2 bg-black/20 hover:bg-black/40 rounded-full transition text-muted-foreground hover:text-foreground">
+                        <X size={20} />
                     </button>
-                ))}
-            </div>
+                </div>
 
-            {/* ============= ACCOUNTS TAB ============= */}
-            {tab === 'accounts' && (
-                <div className="space-y-4">
-                    {accountsLoading ? (
-                        <div className="text-center py-16">
-                            <Loader2 className="animate-spin text-blue-500 mx-auto mb-3" size={28} />
-                            <p className="text-zinc-500 text-sm">Lade ausstehende Accounts...</p>
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    <h3 className="text-sm uppercase tracking-wider font-bold text-muted-foreground mb-4">Offene Verifizierungsanfragen ({claims.length})</h3>
+
+                    {loading ? (
+                        <div className="flex items-center justify-center h-40">
+                            <span className="text-muted-foreground animate-pulse">Lade Anfragen...</span>
                         </div>
-                    ) : pendingAccounts.length === 0 ? (
-                        <div className="text-center py-16 space-y-3">
-                            <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto">
-                                <CheckCircle size={28} className="text-emerald-400" />
-                            </div>
-                            <p className="text-zinc-500 text-sm">Keine ausstehenden Accounts. Alles erledigt! 🧹</p>
+                    ) : claims.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-2xl bg-black/10">
+                            <Check size={32} className="text-emerald-500 mb-3" />
+                            <p className="text-muted-foreground font-medium">Alle Anfragen wurden abgearbeitet!</p>
                         </div>
                     ) : (
-                        pendingAccounts.map((account) => {
-                            const roleInfo = ROLE_LABELS[account.role] || { label: account.role, emoji: '❓', color: 'text-zinc-400', bg: 'bg-zinc-800', border: 'border-zinc-700' };
-                            const isActing = actionLoading === account.id;
+                        <div className="space-y-4">
+                            {claims.map((claim) => (
+                                <div key={claim.id} className="bg-black/20 border border-border rounded-2xl p-4 transition-all hover:border-cyan-500/50">
+                                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        
+                                        {/* Info */}
+                                        <div className="flex-1 space-y-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30">
+                                                    <Building size={20} className="text-cyan-400" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-foreground">{claim.club?.name || 'Unbekannter Verein'}</div>
+                                                    <div className="text-xs text-muted-foreground">Club ID: {claim.club_id}</div>
+                                                </div>
+                                            </div>
 
-                            return (
-                                <div key={account.id} className={`${cardStyle} p-4 border-l-4 ${account.role === 'scout' ? 'border-l-amber-500/50' : 'border-l-emerald-500/50'}`}>
-                                    {/* Header */}
-                                    <div className="flex items-start gap-3 mb-4">
-                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center text-lg flex-shrink-0 ${roleInfo.bg} border ${roleInfo.border}`}>
-                                            {account.avatar_url
-                                                ? <img src={account.avatar_url} className="w-full h-full rounded-full object-cover" alt="" />
-                                                : roleInfo.emoji
-                                            }
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-white text-sm truncate">{account.full_name || '(Kein Name)'}</p>
-                                            {account.username && (
-                                                <p className="text-cyan-500 text-xs font-medium">@{account.username}</p>
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-black/20 rounded-lg">
+                                                <User size={14} className="text-slate-400" />
+                                                <span className="text-sm font-medium text-slate-300">
+                                                    {claim.user?.full_name} <span className="text-muted-foreground text-xs">(@{claim.user?.username})</span>
+                                                </span>
+                                            </div>
+
+                                            {claim.proof_text && (
+                                                <div className="text-sm text-muted-foreground bg-white/5 p-3 rounded-lg border border-white/5 italic">
+                                                    "{claim.proof_text}"
+                                                </div>
                                             )}
-                                            {account.email && (
-                                                <p className="text-zinc-500 text-xs mt-0.5 flex items-center gap-1 truncate">
-                                                    <Mail size={10} /> {account.email}
-                                                </p>
-                                            )}
                                         </div>
-                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${roleInfo.bg} ${roleInfo.color} border ${roleInfo.border}`}>
-                                            {roleInfo.label}
-                                        </span>
-                                    </div>
 
-                                    {/* Meta */}
-                                    <div className="text-xs text-zinc-600 mb-4 flex items-center gap-3">
-                                        <span>Registriert: {new Date(account.created_at).toLocaleDateString('de-DE')}</span>
-                                        <span className="text-zinc-700">•</span>
-                                        <span className="font-mono text-zinc-600">ID: {account.id.slice(0, 8)}</span>
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleApproveAccount(account)}
-                                            disabled={isActing}
-                                            className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold py-3 rounded-xl transition flex items-center justify-center gap-1.5"
-                                        >
-                                            {isActing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                                            Zulassen
-                                        </button>
-                                        <button
-                                            onClick={() => handleRejectAccount(account)}
-                                            disabled={isActing}
-                                            className="flex-1 bg-rose-900/30 hover:bg-rose-900/50 disabled:opacity-50 text-rose-400 text-xs font-bold py-3 rounded-xl border border-rose-500/20 transition flex items-center justify-center gap-1.5"
-                                        >
-                                            {isActing ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
-                                            Ablehnen
-                                        </button>
+                                        {/* Actions */}
+                                        <div className="flex flex-row sm:flex-col gap-2">
+                                            <button 
+                                                onClick={() => handleAction(claim, 'approved')} 
+                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/20 transition-all font-bold text-sm"
+                                            >
+                                                Zulassen ✅
+                                            </button>
+                                            <button 
+                                                onClick={() => handleAction(claim, 'rejected')} 
+                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-sm"
+                                            >
+                                                Ablehnen ❌
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            );
-                        })
+                            ))}
+                        </div>
                     )}
                 </div>
-            )}
-
-            {/* ============= CLUBS TAB ============= */}
-            {tab === 'clubs' && (
-                <div className="space-y-4">
-                    {pendingClubs.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Vereine. Gute Arbeit! 🧹</div>}
-                    {pendingClubs.map(c => (
-                        <div key={c.id} className={`p-4 ${cardStyle}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div><h3 className="font-bold text-white">{c.name}</h3><span className="text-xs text-zinc-500 font-mono">ID: {c.id.slice(0, 8)}</span></div>
-                                <ShieldAlert className="text-amber-500" size={20} />
-                            </div>
-                            {editingClub === c.id ? (
-                                <div className="space-y-3">
-                                    <input placeholder="Logo URL" value={editForm.logo_url} onChange={e => setEditForm({ ...editForm, logo_url: e.target.value })} className={inputStyle} />
-                                    <select value={editForm.league} onChange={e => setEditForm({ ...editForm, league: e.target.value })} className={inputStyle}>
-                                        <option value="">Liga wählen...</option>
-                                        <option>1. Bundesliga</option><option>2. Bundesliga</option><option>3. Liga</option>
-                                        <option>Regionalliga</option><option>Oberliga</option><option>Verbandsliga</option>
-                                        <option>Landesliga</option><option>Bezirksliga</option><option>Kreisliga</option>
-                                    </select>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleVerify(c)} className="bg-green-600 text-white text-xs font-bold px-3 py-3 rounded-xl flex-1 flex items-center justify-center gap-1">Verifizieren</button>
-                                        <button onClick={() => setEditingClub(null)} className="bg-zinc-700 text-white text-xs px-3 py-3 rounded-xl">Abbruch</button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex gap-2">
-                                    <button onClick={() => { setEditingClub(c.id); setEditForm({ logo_url: c.logo_url || '', league: c.league || '' }); }} className="bg-blue-600 text-white text-xs font-bold px-4 py-3 rounded-xl flex-1">Bearbeiten</button>
-                                    <button onClick={() => handleDelete(c.id)} className="bg-red-900/30 text-red-500 text-xs font-bold px-3 py-3 rounded-xl border border-red-500/20"><Trash2 size={16} /></button>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* ============= REPORTS TAB ============= */}
-            {tab === 'reports' && (
-                <div className="space-y-4">
-                    {reports.length === 0 && <div className="text-zinc-500 text-center py-10">Keine offenen Meldungen. 🧹</div>}
-                    {reports.map(r => (
-                        <div key={r.id} className={`p-4 border-red-900/30 ${cardStyle}`}>
-                            <div className="flex justify-between items-start mb-3">
-                                <span className="text-red-400 text-xs font-bold uppercase bg-red-900/20 px-2 py-1 rounded-md border border-red-500/20">{r.reason}</span>
-                                <span className="text-xs text-zinc-500">{new Date(r.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <p className="text-white text-sm mb-4">Gemeldetes Objekt: <span className="font-mono text-zinc-400 bg-black/30 px-1 rounded">{r.target_type} {r.target_id.slice(0, 6)}...</span></p>
-                            <div className="flex gap-2">
-                                <button onClick={() => handleResolveReport(r.id)} className="flex-1 bg-zinc-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-zinc-700">Als erledigt markieren</button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+            </div>
         </div>
     );
 };

@@ -23,6 +23,15 @@ export const fetchPlayerByUserId = async (userId) => {
     return data;
 };
 
+export const fetchPlayerByUsername = async (username) => {
+    const { data, error } = await supabase.from('players_master')
+        .select('*, clubs(*, leagues(name))')
+        .eq('username', username)
+        .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+};
+
 export const fetchPlayersByIds = async (ids) => {
     const { data } = await supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
@@ -146,37 +155,70 @@ export const insertHighlight = async (highlight) => {
 // FOLLOWS
 // ============================================================
 
-export const checkIsFollowing = async (followerId, followingId) => {
-    const { data } = await supabase.from('follows').select('*')
-        .eq('follower_id', followerId)
-        .eq('following_id', followingId);
-    return data && data.length > 0;
+/**
+ * Resolves an auth user_id to the corresponding players_master.id.
+ * The follows table FKs reference players_master.id, NOT auth user_id.
+ */
+export const getPlayerIdFromUserId = async (userId) => {
+    const { data } = await supabase.from('players_master')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    return data?.id || null;
 };
 
-export const getFollowersCount = async (userId) => {
+/**
+ * Checks if followerPlayerId follows followingPlayerId.
+ * Both args must be players_master.id (NOT auth user_id).
+ */
+export const checkIsFollowing = async (followerPlayerId, followingPlayerId) => {
+    if (!followerPlayerId || !followingPlayerId) return false;
+    const { data } = await supabase.from('follows').select('follower_id')
+        .eq('follower_id', followerPlayerId)
+        .eq('following_id', followingPlayerId)
+        .maybeSingle();
+    return !!data;
+};
+
+/**
+ * Returns follower count for a given players_master.id.
+ */
+export const getFollowersCount = async (playerId) => {
+    if (!playerId) return 0;
     const { count } = await supabase.from('follows')
         .select('*', { count: 'exact', head: true })
-        .eq('following_id', userId);
+        .eq('following_id', playerId);
     return count || 0;
 };
 
-export const follow = async (followerId, followingId) => {
+/**
+ * Returns the count of users that a given players_master.id follows.
+ */
+export const getFollowingCount = async (playerId) => {
+    if (!playerId) return 0;
+    const { count } = await supabase.from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', playerId);
+    return count || 0;
+};
+
+export const follow = async (followerPlayerId, followingPlayerId) => {
     const { error } = await supabase.from('follows')
-        .insert({ follower_id: followerId, following_id: followingId });
+        .insert({ follower_id: followerPlayerId, following_id: followingPlayerId });
     if (error) throw error;
 };
 
-export const unfollow = async (followerId, followingId) => {
+export const unfollow = async (followerPlayerId, followingPlayerId) => {
     const { error } = await supabase.from('follows')
         .delete()
-        .match({ follower_id: followerId, following_id: followingId });
+        .match({ follower_id: followerPlayerId, following_id: followingPlayerId });
     if (error) throw error;
 };
 
-export const fetchFollowers = async (userId) => {
+export const fetchFollowers = async (playerId) => {
     const { data } = await supabase.from('follows')
         .select('follower_id')
-        .eq('following_id', userId);
+        .eq('following_id', playerId);
     return data || [];
 };
 
@@ -206,29 +248,12 @@ export const createNotification = async ({ userId, actorId, type, message, entit
 
 export const fetchNotifications = async (userId) => {
     const { data } = await supabase.from('notifications')
-        .select('*')
+        .select('*, actor:players_master!actor_id(full_name, username, avatar_url)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
 
-    if (!data || data.length === 0) return [];
-
-    // Batch-fetch actor profiles for display
-    const actorIds = [...new Set(data.filter(n => n.actor_id).map(n => n.actor_id))];
-    let actorMap = {};
-    if (actorIds.length > 0) {
-        const { data: profiles } = await supabase.from('players_master')
-            .select('user_id, full_name, avatar_url')
-            .in('user_id', actorIds);
-        if (profiles) {
-            for (const p of profiles) actorMap[p.user_id] = p;
-        }
-    }
-
-    return data.map(n => ({
-        ...n,
-        actor: n.actor_id ? (actorMap[n.actor_id] || null) : null,
-    }));
+    return data || [];
 };
 
 export const markNotificationsRead = async (userId) => {
@@ -378,9 +403,10 @@ export const fetchConversationList = async (userId) => {
 
 export const fetchComments = async (videoId) => {
     const { data: comments, error } = await supabase.from('media_comments')
-        .select('*')
+        .select('*, comment_likes(user_id)')
         .eq('video_id', videoId)
-        .order('created_at', { ascending: true });
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
         
     if (error) throw error;
     if (!comments || comments.length === 0) return [];
@@ -428,6 +454,20 @@ export const addComment = async (videoId, userId, content) => {
 
 export const deleteComment = async (commentId) => {
     const { error } = await supabase.from('media_comments').delete().eq('id', commentId);
+    if (error) throw error;
+};
+
+export const toggleCommentPin = async (videoId, commentId, pinState) => {
+    if (pinState) {
+        // Unpin all other comments for this video first
+        await supabase.from('media_comments')
+            .update({ is_pinned: false })
+            .eq('video_id', videoId);
+    }
+
+    const { error } = await supabase.from('media_comments')
+        .update({ is_pinned: pinState })
+        .eq('id', commentId);
     if (error) throw error;
 };
 

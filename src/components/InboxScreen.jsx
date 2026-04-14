@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare } from 'lucide-react';
+import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, Shirt } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { cardStyle, glassHeader } from '../lib/styles';
+import { useToast } from '../contexts/ToastContext';
 import { GuestFallback } from './GuestFallback';
 import { EmptyState } from './EmptyState';
 import { VerificationBadge } from './VerificationBadge';
@@ -38,6 +39,8 @@ const NOTIF_CONFIG = {
     likes_milestone: { icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15', textDE: 'Likes erreicht!', textEN: 'likes reached!' },
     comment: { icon: Mail, color: 'text-purple-400', bg: 'bg-purple-500/15', textDE: 'hat kommentiert.', textEN: 'left a comment.' },
     endorse: { icon: ShieldCheck, color: 'text-emerald-400', bg: 'bg-emerald-500/15', textDE: 'hat einen deiner Skills verifiziert.', textEN: 'verified one of your skills.' },
+    team_join: { icon: Shirt, color: 'text-indigo-400', bg: 'bg-indigo-500/15', textDE: 'ist deinem Verein beigetreten.', textEN: 'joined your club.' },
+    new_registration: { icon: UserPlus, color: 'text-cyan-400', bg: 'bg-cyan-500/15', textDE: 'hat sich neu registriert.', textEN: 'just joined.' },
 };
 
 const FILTER_TABS = [
@@ -65,12 +68,15 @@ const timeAgo = (dateStr) => {
 };
 
 export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
+    const { addToast } = useToast();
     const [subTab, setSubTab] = useState('notifications');
     const [notis, setNotis] = useState([]);
     const [chats, setChats] = useState([]);
     const [notifFilter, setNotifFilter] = useState('all');
     const [hasUnread, setHasUnread] = useState(false);
     const [msgTab, setMsgTab] = useState('inbox'); // 'inbox' | 'requests'
+    const [greetedUsers, setGreetedUsers] = useState(new Set());
+    const [followedUsers, setFollowedUsers] = useState(new Set());
 
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
 
@@ -137,6 +143,57 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
     const hasUnreadInbox = inboxChats.some(c => c.hasUnread);
     const requestCount = requestChats.length;
 
+    const handleGreetTeamMember = async (actor) => {
+        if (!actor || !actor.user_id) return;
+        try {
+            const firstName = actor.full_name?.split(' ')[0] || 'Neuzugang';
+            await api.sendMessage(session.user.id, actor.user_id, `Hey ${firstName}, willkommen im Team! 🚀`);
+            setGreetedUsers(prev => new Set(prev).add(actor.user_id));
+        } catch (error) {
+            console.error("Fehler beim Senden der Willkommensnachricht:", error);
+        }
+    };
+
+    const handleSayHey = async (actor) => {
+        if (!actor || !actor.user_id) return;
+        try {
+            const firstName = actor.full_name?.split(' ')[0] || 'Hey';
+            await api.sendMessage(session.user.id, actor.user_id, `Hey ${firstName} 👋, willkommen bei Cavio!`);
+            setGreetedUsers(prev => new Set(prev).add(actor.user_id));
+        } catch (error) {
+            console.error("Fehler beim Senden der Hey-Nachricht:", error);
+        }
+    };
+
+    const handleQuickFollow = async (actor) => {
+        if (!actor || !actor.id || !session) return;
+
+        // 1. Optimistic UI Update (Sofortiges Feedback)
+        setFollowedUsers(prev => new Set(prev).add(actor.user_id));
+
+        try {
+            // Resolve current user's players_master.id (FK-consistent)
+            const myPlayerId = await api.getPlayerIdFromUserId(session.user.id);
+            if (!myPlayerId) throw new Error('Player profile not found');
+
+            // User möchte folgen -> REINER INSERT (both IDs are players_master.id)
+            const { error } = await supabase
+                .from('follows')
+                .insert({ follower_id: myPlayerId, following_id: actor.id });
+
+            if (error) throw error;
+        } catch (error) {
+            // 2. Rollback bei Fehler (Aus dem Set entfernen)
+            console.error("Follow Error:", error);
+            addToast("Aktion fehlgeschlagen.", 'error');
+            setFollowedUsers(prev => {
+                const updated = new Set(prev);
+                updated.delete(actor.user_id);
+                return updated;
+            });
+        }
+    };
+
     const renderNotification = (n) => {
         const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.like;
         const Icon = config.icon;
@@ -147,27 +204,78 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
         }
 
         return (
-            <motion.div key={n.id} variants={listItemVariants} className={`flex items-start gap-3.5 p-4 ${cardStyle} ${!n.read ? 'border-l-2 border-l-cyan-400' : ''}`}>
-                {/* Icon */}
-                <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center shrink-0 mt-0.5`}>
-                    <Icon size={18} className={config.color} />
+            <motion.div key={n.id} variants={listItemVariants} className={`flex flex-col gap-3 p-4 ${cardStyle} ${!n.read ? 'border-l-2 border-l-cyan-400' : ''}`}>
+                <div className="flex items-start gap-3.5">
+                    {/* Icon */}
+                    <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                        <Icon size={18} className={config.color} />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground leading-snug">
+                            {n.type !== 'likes_milestone' && (
+                                <span className="font-bold">{n.actor?.full_name || n.actor?.username || 'Ein Nutzer'} </span>
+                            )}
+                            <span className="text-muted-foreground">{message}</span>
+                        </p>
+                        <span className="text-[10px] text-muted-foreground/60 mt-1 block">{timeAgo(n.created_at)}</span>
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="w-9 h-9 rounded-full bg-card overflow-hidden border border-border shrink-0">
+                        {n.actor?.avatar_url ? <img src={n.actor.avatar_url} className="w-full h-full object-cover" /> : <User size={14} className="text-muted-foreground m-2" />}
+                    </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground leading-snug">
-                        {n.type !== 'likes_milestone' && (
-                            <span className="font-bold">{n.actor?.full_name || "Jemand"} </span>
+                {/* Interactive Action: team_join */}
+                {n.type === 'team_join' && n.actor && (
+                    <div className="mt-1 pl-[54px]">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleGreetTeamMember(n.actor); }}
+                            disabled={greetedUsers.has(n.actor.user_id)}
+                            className={`text-xs font-bold py-1.5 px-3 rounded-lg transition-all ${
+                                greetedUsers.has(n.actor.user_id)
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-none cursor-default'
+                                    : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20'
+                            }`}
+                        >
+                            {greetedUsers.has(n.actor.user_id) ? 'Begrüßt ✅' : 'Willkommen heißen 👋'}
+                        </button>
+                    </div>
+                )}
+
+                {/* Interactive Action: new_registration */}
+                {n.type === 'new_registration' && n.actor && (
+                    <div className="mt-1 pl-[54px] flex items-center gap-2">
+                        {!followedUsers.has(n.actor.user_id) ? (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleQuickFollow(n.actor); }}
+                                className="text-xs font-bold py-1.5 px-4 rounded-lg transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20"
+                            >
+                                Folgen
+                            </button>
+                        ) : (
+                            <span className="text-xs font-bold py-1.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 cursor-default">
+                                <CheckCheck size={14} /> Folge ich
+                            </span>
                         )}
-                        <span className="text-muted-foreground">{message}</span>
-                    </p>
-                    <span className="text-[10px] text-muted-foreground/60 mt-1 block">{timeAgo(n.created_at)}</span>
-                </div>
-
-                {/* Avatar */}
-                <div className="w-9 h-9 rounded-full bg-card overflow-hidden border border-border shrink-0">
-                    {n.actor?.avatar_url ? <img src={n.actor.avatar_url} className="w-full h-full object-cover" /> : <User size={14} className="text-muted-foreground m-2" />}
-                </div>
+                        
+                        {followedUsers.has(n.actor.user_id) && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleSayHey(n.actor); }}
+                                disabled={greetedUsers.has(n.actor.user_id)}
+                                className={`text-xs font-bold py-1.5 px-3 rounded-lg transition-all ${
+                                    greetedUsers.has(n.actor.user_id)
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-none cursor-default'
+                                        : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20'
+                                }`}
+                            >
+                                {greetedUsers.has(n.actor.user_id) ? 'Gesendet ✅' : 'Sag Hey 👋'}
+                            </button>
+                        )}
+                    </div>
+                )}
             </motion.div>
         );
     };

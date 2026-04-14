@@ -140,27 +140,65 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     </div>
                 </div>
 
-                {/* Video */}
-                <div onClick={() => onClick(video)} className="aspect-[4/5] bg-background relative overflow-hidden group cursor-pointer">
-                    <video
-                        ref={videoRef}
-                        src={video.video_url}
-                        className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-500"
-                        muted loop playsInline
-                        preload="none"
-                        poster={video.thumbnail_url}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
-                    <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-xl border border-white/20 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1.5"><Play size={10} fill="white" /> Watch</div>
-                    {/* Skill tags overlay */}
-                    {video.skill_tags && video.skill_tags.length > 0 && (
-                        <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">
-                            {video.skill_tags.slice(0, 3).map(tag => (
-                                <span key={tag} className="bg-cyan-500/20 backdrop-blur-xl border border-cyan-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
-                            ))}
+                {/* Content: Video or Transfer Card */}
+                {video.post_type === 'transfer' ? (
+                    <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 aspect-[4/5] relative flex flex-col items-center justify-center p-6 cursor-default">
+                        <div className="absolute inset-0 bg-transparent opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, white 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                        <div className="z-10 text-center mb-8 w-full px-4">
+                            <h3 className="text-white font-black text-2xl drop-shadow-lg tracking-tight">
+                                {video.players_master?.full_name || 'Spieler'} hat gewechselt! 🚀
+                            </h3>
                         </div>
-                    )}
-                </div>
+                        <div className="flex items-center justify-center w-full max-w-sm gap-2 z-10 px-2">
+                            <div className="flex-1 flex flex-col items-center">
+                                <span className="text-white/60 text-[10px] uppercase font-bold tracking-widest mb-2">Von</span>
+                                <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-3 w-full text-center min-h-[80px] flex items-center justify-center shadow-inner">
+                                    <span className="text-white/80 font-bold text-sm leading-tight line-clamp-2">{video.transfer_data?.old_club_name || 'Vereinslos'}</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-center justify-center px-1">
+                                <div className="w-16 h-16 rounded-full border-2 border-white/50 bg-slate-800 overflow-hidden shadow-2xl z-10 cursor-pointer" onClick={(e) => { e.stopPropagation(); onUserClick(video.players_master); }}>
+                                    {video.players_master?.avatar_url ? (
+                                        <img src={video.players_master.avatar_url} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User className="m-3 text-white/50 w-10 h-10" />
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex-1 flex flex-col items-center">
+                                <span className="text-white/90 text-[10px] uppercase font-bold tracking-widest mb-2 shadow-sm">Zu</span>
+                                <div className="bg-white/20 backdrop-blur-md border border-white/40 rounded-xl p-3 w-full text-center min-h-[80px] flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                                    <span className="text-white font-black text-sm leading-tight drop-shadow-md line-clamp-2">{video.transfer_data?.new_club_name}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="absolute bottom-6 bg-black/30 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full z-10 flex items-center gap-2">
+                            <Wind size={16} className="text-cyan-400" />
+                            <span className="text-white font-medium text-xs tracking-wide">Neues Kapitel</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div onClick={() => onClick(video)} className="aspect-[4/5] bg-background relative overflow-hidden group cursor-pointer">
+                        <video
+                            ref={videoRef}
+                            src={video.video_url}
+                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-500"
+                            muted loop playsInline
+                            preload="none"
+                            poster={video.thumbnail_url}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
+                        <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-xl border border-white/20 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1.5"><Play size={10} fill="white" /> Watch</div>
+                        {/* Skill tags overlay */}
+                        {video.skill_tags && video.skill_tags.length > 0 && (
+                            <div className="absolute bottom-4 left-4 flex flex-wrap gap-1.5">
+                                {video.skill_tags.slice(0, 3).map(tag => (
+                                    <span key={tag} className="bg-cyan-500/20 backdrop-blur-xl border border-cyan-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Actions */}
                 <div className="px-4 py-4 flex items-center gap-3">

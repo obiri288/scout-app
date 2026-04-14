@@ -20,6 +20,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const isScout = player.role === 'scout';
 
     const [formData, setFormData] = useState({
+        username: player.username || '',
         first_name: initialFirstName,
         last_name: initialLastName,
         position_primary: player.position_primary || 'ZOM',
@@ -61,6 +62,8 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
     const [clubSearch, setClubSearch] = useState('');
     const [clubResults, setClubResults] = useState([]);
     const [selectedClub, setSelectedClub] = useState(player.clubs || null);
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [transferData, setTransferData] = useState(null);
 
     // Career History State
     const [careerEntries, setCareerEntries] = useState([]);
@@ -256,6 +259,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 first_name: formData.first_name,
                 last_name: formData.last_name,
                 full_name,
+                username: formData.username?.toLowerCase().replace(/[@\s]/g, '') || null,
                 bio: formData.bio,
                 zip_code: formData.zip_code,
                 city: formData.city,
@@ -303,10 +307,24 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
             if (error) throw error;
             onUpdate(data);
             addToast("Profil erfolgreich gespeichert! ✅", 'success');
-            onClose();
+
+            const oldClub = player.clubs;
+            const newClub = selectedClub;
+            const hasClubChanged = newClub && (!oldClub || oldClub.id !== newClub.id);
+
+            if (hasClubChanged) {
+                setTransferData({
+                    old_club_id: oldClub?.id || null,
+                    old_club_name: oldClub?.name || 'Vereinslos',
+                    new_club_id: newClub.id,
+                    new_club_name: newClub.name
+                });
+                setShowTransferModal(true);
+            } else {
+                onClose();
+            }
         } catch (e) {
             addToast("Fehler beim Speichern: " + e.message, 'error');
-        } finally {
             setLoading(false);
         }
     };
@@ -315,7 +333,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         <button
             type="button"
             onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all ${activeTab === id ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all ${activeTab === id ? 'bg-slate-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm' : 'text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-white/5 dark:hover:text-slate-200'}`}
         >
             <Icon size={16} /> {label}
         </button>
@@ -371,6 +389,20 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nachname</label>
                                             <input value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} className={inputStyle} placeholder="Mustermann" />
                                         </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Dein @Handle (Username)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">@</span>
+                                            <input 
+                                                value={formData.username || ''} 
+                                                onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '') })} 
+                                                className={`${inputStyle} pl-7`} 
+                                                placeholder="deinname" 
+                                            />
+                                        </div>
+                                        <p className="text-[9px] text-muted-foreground mt-1 ml-1 italic">Wird für Markierungen (@mentions) verwendet.</p>
                                     </div>
 
                                     <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
@@ -1064,6 +1096,57 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Transfer Modal Overlay */}
+            {showTransferModal && (
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/80 backdrop-blur-md p-6 animate-in zoom-in-95 duration-200">
+                    <div className="bg-card w-full max-w-sm rounded-3xl p-8 shadow-2xl border border-blue-500/30 text-center flex flex-col items-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                        <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
+                            <Activity className="text-blue-500 w-10 h-10" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-3 text-foreground">Transfer verkünden? 🚀</h3>
+                        <p className="text-sm text-muted-foreground mb-8">
+                            Möchtest du deinen Wechsel von <strong className="text-foreground">{transferData?.old_club_name}</strong> zu <strong className="text-foreground">{transferData?.new_club_name}</strong> offiziell im Feed teilen?
+                        </p>
+                        <div className="flex flex-col gap-3 w-full">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        setLoading(true);
+                                        const { error: hlErr } = await supabase.from('media_highlights').insert({
+                                            player_id: player.id,
+                                            post_type: 'transfer',
+                                            transfer_data: transferData,
+                                        });
+                                        if (hlErr) throw hlErr;
+                                        addToast("Transfer im Feed geteilt! 🎉", "success");
+                                    } catch(e) {
+                                        addToast("Fehler beim Teilen: " + e.message, "error");
+                                    } finally {
+                                        setLoading(false);
+                                        setShowTransferModal(false);
+                                        onClose();
+                                    }
+                                }}
+                                className={`${btnPrimary} w-full py-3.5 text-base shadow-lg shadow-blue-500/20`}
+                            >
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Ja, im Feed teilen!'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowTransferModal(false);
+                                    onClose();
+                                }}
+                                className="p-3 text-sm font-bold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl transition w-full"
+                                disabled={loading}
+                            >
+                                Nein, geheim halten
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Image Crop Modal */}
             {cropImageSrc && (

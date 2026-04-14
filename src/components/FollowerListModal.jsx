@@ -12,7 +12,7 @@ export const FollowerListModal = ({ userId, onClose, onUserClick }) => {
                 const { data } = await supabase.from('follows').select('follower_id').eq('following_id', userId);
                 if (data?.length) {
                     const ids = data.map(f => f.follower_id);
-                    const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('user_id', ids);
+                    const { data: u } = await supabase.from('players_master').select('*, clubs(*)').in('id', ids);
                     setFollowers(u || []);
                 }
             } catch (e) {

@@ -26,6 +26,7 @@ const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => 
 const CommentsModal = lazy(() => import('./components/CommentsModal').then(m => ({ default: m.CommentsModal })));
 const ChatWindow = lazy(() => import('./components/ChatWindow').then(m => ({ default: m.ChatWindow })));
 const FollowerListModal = lazy(() => import('./components/FollowerListModal').then(m => ({ default: m.FollowerListModal })));
+const FollowingListModal = lazy(() => import('./components/FollowingListModal').then(m => ({ default: m.FollowingListModal })));
 const ReportModal = lazy(() => import('./components/ReportModal').then(m => ({ default: m.ReportModal })));
 const VerificationModal = lazy(() => import('./components/VerificationModal').then(m => ({ default: m.VerificationModal })));
 const WatchlistModal = lazy(() => import('./components/WatchlistModal').then(m => ({ default: m.WatchlistModal })));
@@ -254,6 +255,7 @@ const App = () => {
         showEditProfile, setShowEditProfile,
         showSettings, setShowSettings,
         showFollowersModal, setShowFollowersModal,
+        showFollowingModal, setShowFollowingModal,
         showVerificationModal, setShowVerificationModal,
         activeChatPartner, setActiveChatPartner,
         reportTarget, setReportTarget,
@@ -343,6 +345,7 @@ const App = () => {
                     onAdminReq={() => switchTab('admin')}
                     onFollow={handleFollow}
                     onShowFollowers={() => setShowFollowersModal(true)}
+                    onShowFollowing={() => setShowFollowingModal(true)}
                     onLoginReq={() => setShowLogin(true)}
                     onWatchlistToggle={handleWatchlistToggle}
                     isOnWatchlist={isOnWatchlist}
@@ -357,7 +360,7 @@ const App = () => {
             )}
 
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
-            {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} /></Suspense>}
+            {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} onClose={() => switchTab('home')} /></Suspense>}
 
             {/* Notification Bell — fixed top-right */}
             {session && currentUserProfile && (
@@ -458,9 +461,17 @@ const App = () => {
 
                 {showFollowersModal && viewedProfile && (
                     <FollowerListModal
-                        userId={viewedProfile.user_id}
+                        userId={viewedProfile.id}
                         onClose={() => setShowFollowersModal(false)}
                         onUserClick={(p) => { setShowFollowersModal(false); loadProfile(p); }}
+                    />
+                )}
+
+                {showFollowingModal && viewedProfile && (
+                    <FollowingListModal
+                        userId={viewedProfile.id}
+                        onClose={() => setShowFollowingModal(false)}
+                        onUserClick={(p) => { setShowFollowingModal(false); loadProfile(p); }}
                     />
                 )}
 

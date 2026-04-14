@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload, X, AtSign, ShieldAlert, Search, Crosshair } from 'lucide-react';
+import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload, X, AtSign, ShieldAlert, Search, Crosshair, Trophy, ClipboardList, Binoculars } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';
@@ -13,30 +13,39 @@ const POSITIONS = ['Torwart', 'Innenverteidiger', 'Außenverteidiger', 'Defensiv
 const ROLE_OPTIONS = [
     {
         value: 'player',
-        label: 'Spieler',
+        label: 'Spieler / Athlet',
+        icon: <Trophy size={24} />,
         emoji: '⚽',
         description: 'Zeig dein Talent und werde entdeckt.',
         color: 'from-cyan-500 to-blue-600',
         border: 'border-cyan-500/40',
         bg: 'bg-cyan-500/10',
-    },
-    {
-        value: 'scout',
-        label: 'Scout',
-        emoji: '🔍',
-        description: 'Entdecke die nächste Generation.',
-        color: 'from-amber-500 to-orange-600',
-        border: 'border-amber-500/40',
-        bg: 'bg-amber-500/10',
+        iconColor: 'text-cyan-400',
+        profileTitle: 'Dein Athleten-Profil',
     },
     {
         value: 'coach',
-        label: 'Trainer',
+        label: 'Trainer / Coach',
+        icon: <ClipboardList size={24} />,
         emoji: '🎯',
         description: 'Finde Spieler für dein Team.',
         color: 'from-emerald-500 to-green-600',
         border: 'border-emerald-500/40',
         bg: 'bg-emerald-500/10',
+        iconColor: 'text-emerald-400',
+        profileTitle: 'Dein Trainer-Profil',
+    },
+    {
+        value: 'scout',
+        label: 'Scout / Manager',
+        icon: <Binoculars size={24} />,
+        emoji: '🔍',
+        description: 'Entdecke die nächste Generation.',
+        color: 'from-amber-500 to-orange-600',
+        border: 'border-amber-500/40',
+        bg: 'bg-amber-500/10',
+        iconColor: 'text-amber-400',
+        profileTitle: 'Dein Manager-Profil',
     },
 ];
 
@@ -58,10 +67,17 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const [selectedRole, setSelectedRole] = useState('player');
 
     // Step 1 data
-    const [fullName, setFullName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [username, setUsername] = useState('');
     const [position, setPosition] = useState('');
     const [birthDate, setBirthDate] = useState('');
+
+    // Derived full name
+    const fullName = useMemo(() => `${firstName.trim()} ${lastName.trim()}`.trim(), [firstName, lastName]);
+
+    // Current role config helper
+    const currentRole = useMemo(() => ROLE_OPTIONS.find(r => r.value === selectedRole), [selectedRole]);
 
     // Age Gate: calculate age and validate >= 16
     const ageInfo = useMemo(() => calculateAgeInfo(birthDate), [birthDate]);
@@ -146,14 +162,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const goNext = () => { setDir(1); setStep(s => s + 1); };
     const goBack = () => { setDir(-1); setStep(s => s - 1); };
 
-    // Step 1 validation: name, username, position (only required for players)
+    // Step 1 validation: first/last name, username, position (only required for players)
     const isStep1Valid = selectedRole === 'player'
-        ? fullName.trim() && position && username.trim() && usernameStatus === 'available' && birthDate && !ageInfo.isUnder16
-        : fullName.trim() && username.trim() && usernameStatus === 'available';
+        ? firstName.trim() && lastName.trim() && position && username.trim() && usernameStatus === 'available' && birthDate && !ageInfo.isUnder16
+        : firstName.trim() && lastName.trim() && username.trim() && usernameStatus === 'available';
 
     const handleFinish = async (skipVideo = true) => {
-        if (!fullName.trim()) {
-            addToast('Bitte fülle deinen Namen aus.', 'error');
+        if (!firstName.trim() || !lastName.trim()) {
+            addToast('Bitte fülle deinen Vor- und Nachnamen aus.', 'error');
             setDir(-1);
             setStep(1);
             return;
@@ -172,7 +188,9 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             const isPlayer = selectedRole === 'player';
             const profileData = {
                 user_id: session.user.id,
-                full_name: fullName.trim(),
+                full_name: fullName,
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
                 username: username.toLowerCase().trim(),
                 position_primary: isPlayer ? position : null,
                 birth_date: isPlayer ? (birthDate || null) : null,
@@ -238,12 +256,12 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const steps = [
         {
             icon: <Sparkles className="text-cyan-400" size={28} />,
-            title: 'Willkommen bei Cavio',
-            subtitle: 'Was beschreibt dich am besten?',
+            title: 'Willkommen bei Cavio!',
+            subtitle: 'Wie möchtest du die Plattform nutzen?',
         },
         {
             icon: <Target className="text-cyan-400" size={28} />,
-            title: 'Wer bist du?',
+            title: currentRole?.profileTitle || 'Dein Profil',
             subtitle: selectedRole === 'player' ? 'Erzähl uns ein bisschen über dich.' : 'Wie sollen wir dich nennen?',
         },
         {
@@ -309,10 +327,10 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                                 : 'border-border bg-white/5 hover:border-white/20 hover:bg-white/5'
                                         }`}
                                     >
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-transform duration-300 ${
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 ${
                                             selectedRole === role.value ? 'scale-110' : 'group-hover:scale-105'
-                                        } ${role.bg}`}>
-                                            {role.emoji}
+                                        } ${role.bg} ${role.iconColor}`}>
+                                            {role.icon}
                                         </div>
                                         <div className="flex-1">
                                             <p className={`font-bold text-base ${
@@ -338,18 +356,31 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                             </div>
                         )}
 
-                        {/* Step 1: Name, Username, Position, Birthday */}
+                        {/* Step 1: First Name, Last Name, Username, Position, Birthday */}
                         {step === 1 && (
                             <div className="w-full space-y-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Vollständiger Name *</label>
-                                    <input
-                                        type="text"
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
-                                        className={inputStyle}
-                                        placeholder="Dein vollständiger Name"
-                                    />
+                                {/* First & Last Name side by side */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Vorname *</label>
+                                        <input
+                                            type="text"
+                                            value={firstName}
+                                            onChange={(e) => setFirstName(e.target.value)}
+                                            className={inputStyle}
+                                            placeholder="Max"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Nachname *</label>
+                                        <input
+                                            type="text"
+                                            value={lastName}
+                                            onChange={(e) => setLastName(e.target.value)}
+                                            className={inputStyle}
+                                            placeholder="Mustermann"
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Username mit @-Prefix */}
@@ -471,7 +502,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         <div>
                                             <p className="font-bold text-foreground">{fullName || 'Dein Name'}</p>
                                             <p className="text-xs text-cyan-500 font-medium">@{username || 'username'}</p>
-                                            <p className="text-xs text-muted-foreground">{selectedRole === 'player' ? (position || 'Position') : ROLE_OPTIONS.find(r => r.value === selectedRole)?.label}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedRole === 'player' ? (position || 'Position') : currentRole?.label}</p>
                                         </div>
                                     </div>
                                     <div className="h-px bg-border"></div>
