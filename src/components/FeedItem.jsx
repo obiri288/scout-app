@@ -97,6 +97,21 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                 if (video.players_master?.id) {
                     api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`);
                 }
+                
+                // Manual Like Notification (Decoupled from interaction)
+                if (video.players_master?.user_id && video.players_master.user_id !== session.user.id) {
+                    try {
+                        await api.createNotification({
+                            userId: video.players_master.user_id,
+                            actorId: session.user.id,
+                            type: 'like',
+                            message: 'hat dein Video gelikt.',
+                            videoId: video.id
+                        });
+                    } catch (error) {
+                        console.warn("Notification failed, but interaction saved", error);
+                    }
+                }
             } else {
                 await api.unlikeVideo(session.user.id, video.id);
             }

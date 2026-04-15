@@ -150,6 +150,8 @@ export const useAppState = () => {
 
                 // Both IDs must be players_master.id (matching FK constraints)
                 p.isFollowing = await api.checkIsFollowing(myPlayerId, p.id);
+                p.followsMe = await api.checkIsFollowing(p.id, myPlayerId);
+                p.mutualFriends = await api.getMutualFollowers(myPlayerId, p.id);
                 setIsOnWatchlist(await api.checkIsOnWatchlist(session.user.id, p.id));
                 // Record profile view (not own profile)
                 if (p.user_id !== session.user.id) {

@@ -192,6 +192,39 @@ export const getFollowersCount = async (playerId) => {
 };
 
 /**
+ * Returns up to 3 mutual friends (people the viewing user follows, who also follow the target profile).
+ */
+export const getMutualFollowers = async (myPlayerId, profilePlayerId) => {
+    if (!myPlayerId || !profilePlayerId) return [];
+    try {
+        const { data: myFollowingData } = await supabase.from('follows')
+            .select('following_id')
+            .eq('follower_id', myPlayerId);
+            
+        if (!myFollowingData || myFollowingData.length === 0) return [];
+        const myFollowingIds = myFollowingData.map(f => f.following_id);
+        
+        const { data: mutualFollows } = await supabase.from('follows')
+            .select('follower_id')
+            .eq('following_id', profilePlayerId)
+            .in('follower_id', myFollowingIds);
+            
+        if (!mutualFollows || mutualFollows.length === 0) return [];
+        const mutualIds = mutualFollows.map(m => m.follower_id);
+        
+        const { data: mutualPlayers } = await supabase.from('players_master')
+            .select('id, full_name, avatar_url')
+            .in('id', mutualIds)
+            .limit(3);
+            
+        return mutualPlayers || [];
+    } catch(e) {
+        console.warn("Error fetching mutuals", e);
+        return [];
+    }
+};
+
+/**
  * Returns the count of users that a given players_master.id follows.
  */
 export const getFollowingCount = async (playerId) => {

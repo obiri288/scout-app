@@ -31,6 +31,14 @@ export const UpdatePasswordModal = ({ onClose, onSuccess }) => {
         }
 
         try {
+            // Verify we have an active session before attempting update
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                setMsg('Deine Sitzung ist abgelaufen. Bitte fordere einen neuen Reset-Link an.');
+                setLoading(false);
+                return;
+            }
+
             const { error } = await supabase.auth.updateUser({ password });
             if (error) throw error;
 
@@ -41,7 +49,12 @@ export const UpdatePasswordModal = ({ onClose, onSuccess }) => {
             }, 2000);
         } catch (error) {
             console.error("Update Password Error:", error);
-            setMsg(getSafeErrorMessage(error, 'Fehler beim Aktualisieren des Passworts.'));
+            const message = error?.message || '';
+            if (message.includes('session') || message.includes('token') || message.includes('expired')) {
+                setMsg('Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.');
+            } else {
+                setMsg(getSafeErrorMessage(error, 'Fehler beim Aktualisieren des Passworts.'));
+            }
         } finally {
             setLoading(false);
         }

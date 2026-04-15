@@ -155,6 +155,21 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         try {
             const newCommentData = await api.addComment(video.id, session.user.id, currentText);
             
+            // Standard Comment Notification
+            if (videoCreatorId && videoCreatorId !== session.user.id) {
+                try {
+                    await api.createNotification({
+                        userId: videoCreatorId,
+                        actorId: session.user.id,
+                        type: 'comment',
+                        message: 'hat dein Video kommentiert.',
+                        videoId: video.id
+                    });
+                } catch (error) {
+                    console.warn("Notification failed, but interaction saved", error);
+                }
+            }
+
             // @Mention Logic
             const mentions = currentText.match(/@[\w.-]+/g);
             if (mentions) {
@@ -162,13 +177,17 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                     const username = m.substring(1).toLowerCase();
                     const targetPlayer = await api.fetchPlayerByUsername(username);
                     if (targetPlayer && targetPlayer.user_id !== session.user.id) {
-                        await supabase.from('notifications').insert({
-                            user_id: targetPlayer.user_id,
-                            type: 'mention',
-                            message: `${session.user.user_metadata?.full_name || 'Jemand'} hat dich in einem Kommentar markiert.`,
-                            related_id: video.id,
-                            is_read: false
-                        });
+                        try {
+                            await supabase.from('notifications').insert({
+                                user_id: targetPlayer.user_id,
+                                type: 'mention',
+                                message: `${session.user.user_metadata?.full_name || 'Jemand'} hat dich in einem Kommentar markiert.`,
+                                related_id: video.id,
+                                is_read: false
+                            });
+                        } catch (error) {
+                            console.warn("Notification failed, but interaction saved", error);
+                        }
                     }
                 }
             }

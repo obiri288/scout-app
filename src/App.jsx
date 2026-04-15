@@ -359,7 +359,7 @@ const App = () => {
             )}
 
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
-            {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} onClose={() => switchTab('home')} /></Suspense>}
+            {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} onClose={() => switchTab('home')} onUserClick={loadProfile} /></Suspense>}
 
             {/* Notification Bell — fixed top-right */}
             {session && currentUserProfile && (
@@ -484,7 +484,15 @@ const App = () => {
                 {isRecoveryMode && (
                     <UpdatePasswordModal
                         onClose={() => setIsRecoveryMode(false)}
-                        onSuccess={() => { setIsRecoveryMode(false); switchTab('home'); }}
+                        onSuccess={() => {
+                            setIsRecoveryMode(false);
+                            // Redirect to profile/dashboard after successful password update
+                            if (currentUserProfile) {
+                                loadProfile(currentUserProfile);
+                            } else {
+                                switchTab('home');
+                            }
+                        }}
                     />
                 )}
 

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Loader2, User, ArrowLeft, Settings, Edit, Share2, MessageCircle,
-    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users, ShieldCheck, Briefcase, Target, Radar, Globe, UserPlus
+    Plus, Check, Crown, Shield, Instagram, Video, Youtube, Play, Database, Bookmark, BookmarkCheck, Trash2, ArrowLeftRight, MoreVertical, Flag, ShieldOff, Eye, CheckCircle, Users, ShieldCheck, Briefcase, Target, Radar, Globe, UserPlus, UserCheck
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
@@ -279,7 +279,14 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                 {player.verification_status && player.verification_status !== 'unverified' && <VerificationBadge size={18} status={player.verification_status} verificationStatus={player.verification_status} />}
                                 {player.role === 'admin' && <Database size={18} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] flex-shrink-0" title="Admin" />}
                             </div>
-                            {player.username && <p className="text-muted-foreground text-sm font-medium">@{player.username}</p>}
+                            {player.username && (
+                                <div className="flex items-center gap-2">
+                                    <p className="text-muted-foreground text-sm font-medium">@{player.username}</p>
+                                    {!isOwnProfile && player.followsMe && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">Folgt dir</span>
+                                    )}
+                                </div>
+                            )}
                             <XPLevelBadge playerId={player.id} compact />
 
                             {/* Signature Badges */}
@@ -331,6 +338,23 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             {player.role === 'scout' && player.preferred_system && (
                                 <div className="px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide text-emerald-400 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-1.5">
                                     <Globe size={12} /> {player.preferred_system}
+                                </div>
+                            )}
+
+                            {/* Mutual Friends / Social Proof */}
+                            {!isOwnProfile && player.mutualFriends && player.mutualFriends.length > 0 && (
+                                <div className="flex items-center justify-center gap-2 mt-1">
+                                    <div className="flex -space-x-1.5">
+                                        {player.mutualFriends.slice(0, 3).map((mf) => (
+                                            <div key={mf.id} className="w-5 h-5 rounded-full border border-card bg-slate-200 dark:bg-slate-800 overflow-hidden relative z-10 shadow-sm border-[1.5px]">
+                                                {mf.avatar_url ? <img src={mf.avatar_url} className="w-full h-full object-cover" /> : <User size={12} className="m-auto mt-0.5 text-slate-500" />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground font-medium">
+                                        Gefolgt von <span className="text-foreground">{player.mutualFriends[0].full_name}</span>
+                                        {player.mutualFriends.length > 1 && ` und ${player.mutualFriends.length - 1} weiteren`}
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -393,9 +417,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             </>
                         ) : (
                             <>
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(34,211,238,0.2)]'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
-                                    {player.isFollowing ? <Check size={16} className="text-emerald-400" /> : <Plus size={16} />}
-                                    {player.isFollowing ? 'Folge ich' : 'Folgen'}
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-secondary text-secondary-foreground border-border' : 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(34,211,238,0.2)] border-cyan-500'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
+                                    {player.isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
+                                    {player.isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </motion.button>
                                 <button onClick={onChatReq} className="flex-none bg-muted text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-muted/80 transition">
                                     <MessageCircle size={18} />

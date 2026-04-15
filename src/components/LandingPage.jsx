@@ -76,13 +76,14 @@ export const LandingPage = ({ onLogin, onRegister }) => (
     <nav className="fixed top-0 inset-x-0 z-50 bg-slate-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2 group">
+        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.href = '/'}>
           <img
             src="/cavio-icon.png"
-            alt="Cavio"
+            alt="Cavio Icon"
             className="h-10 w-10 object-contain mix-blend-screen rounded-lg transition-transform duration-300 group-hover:scale-110"
           />
-        </a>
+          <span className="text-xl sm:text-2xl font-black tracking-[0.15em] text-white">CAVIO</span>
+        </div>
 
         {/* Nav Actions */}
         <div className="flex items-center gap-3">

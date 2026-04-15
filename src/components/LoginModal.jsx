@@ -98,7 +98,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
 
     const handlePasswordReset = async (e) => {
         e.preventDefault();
-        const resetEmail = email || identifier;
+        let resetEmail = (email || identifier || '').trim();
         if (!resetEmail) { setMsg("Bitte E-Mail eingeben."); return; }
 
         const rl = checkRateLimit(`reset:${resetEmail}`, 3, 3600000);
@@ -109,8 +109,43 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
 
         setLoading(true); setMsg('');
         try {
+            // --- PRE-FLIGHT: Resolve username to email if needed ---
+            if (!resetEmail.includes('@')) {
+                const { data: resolvedEmail, error: rpcError } = await supabase.rpc(
+                    'get_email_by_username',
+                    { p_username: resetEmail.toLowerCase() }
+                );
+                if (rpcError || !resolvedEmail) {
+                    setMsg('Es existiert kein Account mit diesem Benutzernamen.');
+                    setLoading(false);
+                    return;
+                }
+                resetEmail = resolvedEmail;
+            }
+
+            // --- PRE-FLIGHT: Account existence check against players_master ---
+            const { data: existingProfile, error: profileError } = await supabase
+                .from('players_master')
+                .select('id')
+                .eq('email', resetEmail)
+                .maybeSingle();
+
+            if (profileError) {
+                console.error('Profile lookup error:', profileError);
+                setMsg('Fehler bei der Überprüfung. Bitte versuche es erneut.');
+                setLoading(false);
+                return;
+            }
+
+            if (!existingProfile) {
+                setMsg('Es existiert kein Account mit dieser E-Mail-Adresse.');
+                setLoading(false);
+                return;
+            }
+
+            // --- TRIGGER: Supabase Password Reset ---
             const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-                redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/#reset-password`
+                redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/update-password`
             });
             if (error) throw error;
             setSuccessMsg('📧 Link zum Zurücksetzen wurde an deine E-Mail gesendet!');
