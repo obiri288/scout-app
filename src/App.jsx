@@ -35,6 +35,7 @@ const BlockUserModal = lazy(() => import('./components/BlockUserModal').then(m =
 const OnboardingWizard = lazy(() => import('./components/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })));
 const NamePromptModal = lazy(() => import('./components/NamePromptModal').then(m => ({ default: m.NamePromptModal })));
 const UpdatePasswordModal = lazy(() => import('./components/UpdatePasswordModal').then(m => ({ default: m.UpdatePasswordModal })));
+const UpdateEmailModal = lazy(() => import('./components/UpdateEmailModal').then(m => ({ default: m.UpdateEmailModal })));
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center">
@@ -499,6 +500,7 @@ const App = () => {
                 {/* Custom Sub-Modals */}
                 {activeSettingsModal === 'push' && <PushSettingsModal onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'password' && <ChangePasswordModal onClose={() => setActiveSettingsModal(null)} />}
+                {activeSettingsModal === 'email' && <UpdateEmailModal onClose={() => setActiveSettingsModal(null)} session={session} />}
                 {activeSettingsModal === 'privacy' && <LegalModal title="Datenschutz" onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'imprint' && <LegalModal title="Impressum" onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'tos' && <LegalModal title="AGB" onClose={() => setActiveSettingsModal(null)} />}

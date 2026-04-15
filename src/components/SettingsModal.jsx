@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Settings, ChevronRight, Download, Bell, RefreshCw, Edit, BadgeCheck, Share2, Key, Lock, FileText, LogOut, Trash2, Globe, Sun, Moon } from 'lucide-react';
+import { X, Settings, ChevronRight, Download, Bell, RefreshCw, Edit, BadgeCheck, Share2, Key, Lock, FileText, LogOut, Trash2, Globe, Sun, Moon, Mail } from 'lucide-react';
 import { SafeErrorBoundary } from './SafeErrorBoundary';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -43,10 +43,13 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
         }
     };
 
-    const SettingsItem = ({ icon: Icon, label, onClick, danger = false, highlight = false }) => (
+    const SettingsItem = ({ icon: Icon, label, value, onClick, danger = false, highlight = false }) => (
         <motion.button whileHover={{ x: 4 }} whileTap={{ scale: 0.98 }} onClick={onClick} className={`w-full p-3 flex items-center justify-between group transition-all rounded-xl ${danger ? 'hover:bg-red-500/10' : highlight ? 'bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}>
             <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${danger ? 'bg-red-500/20 text-red-500' : highlight ? 'bg-blue-500 text-white' : 'bg-black/5 dark:bg-white/5 text-muted-foreground group-hover:text-foreground'}`}><Icon size={18} /></div><span className={`font-medium text-sm ${danger ? 'text-red-500' : highlight ? 'text-blue-600 dark:text-blue-100' : 'text-foreground/80 group-hover:text-foreground'}`}>{label}</span></div>
-            <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-muted-foreground/50 group-hover:text-muted-foreground'} />
+            <div className="flex items-center gap-2">
+                {value && <span className="text-xs text-muted-foreground font-medium truncate max-w-[160px]">{value}</span>}
+                <ChevronRight size={16} className={danger ? 'text-red-500' : highlight ? 'text-blue-400' : 'text-muted-foreground/50 group-hover:text-muted-foreground'} />
+            </div>
         </motion.button>
     );
 
@@ -73,7 +76,8 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
                             </button>
                         </div>
                         <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Bell} label={t('settings_push') || "Push-Benachrichtigungen"} onClick={() => handleCloseAndOpen('push')} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={() => handleCloseAndOpen('verification')} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => handleCloseAndOpen('password')} /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={() => handleCloseAndOpen('verification')} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /></div>
+                        <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Konto-Sicherheit</h3><SettingsItem icon={Mail} label="E-Mail-Adresse" value={user.email} onClick={() => handleCloseAndOpen('email')} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => handleCloseAndOpen('password')} /></div>
                         <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => handleCloseAndOpen('privacy')} /><SettingsItem icon={FileText} label="Impressum" onClick={() => handleCloseAndOpen('imprint')} /></div>
                         <div className="pt-4 border-t border-border space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={() => handleCloseAndOpen('delete-account')} danger /></div>
                         <div className="text-center text-muted-foreground text-xs py-4">v3.0.0 Live</div>
