@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -55,6 +55,9 @@ export const useAppState = () => {
         window.location.hash = hash;
     }, []);
 
+    // Use a ref for loadProfile to avoid stale closures in hashchange listener
+    const loadProfileRef = useRef(null);
+
     const handleHashRoute = useCallback(async () => {
         const hash = window.location.hash;
         if (!hash) return;
@@ -65,10 +68,10 @@ export const useAppState = () => {
 
         switch (route) {
             case 'profile':
-                if (param) {
+                if (param && loadProfileRef.current) {
                     try {
                         const player = await api.fetchPlayerByUserId(param);
-                        if (player) await loadProfile(player);
+                        if (player) await loadProfileRef.current(player);
                     } catch (e) {
                         console.error("Deep link profile load failed:", e);
                     }
@@ -143,15 +146,26 @@ export const useAppState = () => {
 
     const loadProfile = async (targetPlayer) => {
         let p = { ...targetPlayer };
+        // Always initialize follow state to safe defaults
+        p.isFollowing = false;
+        p.followsMe = false;
+        p.mutualFriends = [];
         try {
             if (session) {
                 // Resolve the current user's players_master.id for follows queries
                 const myPlayerId = currentUserProfile?.id || await api.getPlayerIdFromUserId(session.user.id);
 
                 // Both IDs must be players_master.id (matching FK constraints)
-                p.isFollowing = await api.checkIsFollowing(myPlayerId, p.id);
-                p.followsMe = await api.checkIsFollowing(p.id, myPlayerId);
-                p.mutualFriends = await api.getMutualFollowers(myPlayerId, p.id);
+                if (myPlayerId && p.id) {
+                    const [following, followsMe, mutuals] = await Promise.all([
+                        api.checkIsFollowing(myPlayerId, p.id),
+                        api.checkIsFollowing(p.id, myPlayerId),
+                        api.getMutualFollowers(myPlayerId, p.id)
+                    ]);
+                    p.isFollowing = following;
+                    p.followsMe = followsMe;
+                    p.mutualFriends = mutuals;
+                }
                 setIsOnWatchlist(await api.checkIsOnWatchlist(session.user.id, p.id));
                 // Record profile view (not own profile)
                 if (p.user_id !== session.user.id) {
@@ -171,6 +185,7 @@ export const useAppState = () => {
             addToast(t('toast_profile_error'), 'error');
         }
     };
+    loadProfileRef.current = loadProfile;
 
     const handleProfileTabClick = () => {
         if (!session) {
