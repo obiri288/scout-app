@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Key, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Key, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, cardStyle } from '../lib/styles';
@@ -11,7 +11,7 @@ export const UpdatePasswordModal = ({ onClose, onSuccess }) => {
     const [isPasswordValid, setIsPasswordValid] = useState(false);
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -42,11 +42,11 @@ export const UpdatePasswordModal = ({ onClose, onSuccess }) => {
             const { error } = await supabase.auth.updateUser({ password });
             if (error) throw error;
 
-            setSuccessMsg('✅ Dein Passwort wurde erfolgreich aktualisiert!');
+            setIsSuccess(true);
             setTimeout(() => {
                 if (onSuccess) onSuccess();
                 else onClose();
-            }, 2000);
+            }, 3000);
         } catch (error) {
             console.error("Update Password Error:", error);
             const message = error?.message || '';
@@ -67,23 +67,36 @@ export const UpdatePasswordModal = ({ onClose, onSuccess }) => {
                     <X size={20} />
                 </button>
                 <div className="animate-in fade-in slide-in-from-bottom-4">
-                    <div className="flex flex-col items-center gap-3 mb-8">
-                        <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-900/20 ring-1 ring-cyan-500/20 text-cyan-400">
-                            <Key size={32} />
-                        </div>
-                        <h2 className="text-2xl font-bold text-white text-center">
-                            Neues Passwort setzen
-                        </h2>
-                        <p className="text-muted-foreground text-sm text-center">
-                            Bitte wähle ein neues, sicheres Passwort für deinen Account.
-                        </p>
-                    </div>
-
-                    {successMsg ? (
-                        <div className="text-center space-y-4 animate-in fade-in zoom-in-95">
-                            <div className="bg-green-500/10 text-green-400 p-4 rounded-xl border border-green-500/20 text-sm">
-                                {successMsg}
+                    {!isSuccess && (
+                        <div className="flex flex-col items-center gap-3 mb-8">
+                            <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-900/20 ring-1 ring-cyan-500/20 text-cyan-400">
+                                <Key size={32} />
                             </div>
+                            <h2 className="text-2xl font-bold text-white text-center">
+                                Neues Passwort setzen
+                            </h2>
+                            <p className="text-muted-foreground text-sm text-center">
+                                Bitte wähle ein neues, sicheres Passwort für deinen Account.
+                            </p>
+                        </div>
+                    )}
+
+                    {isSuccess ? (
+                        <div className="flex flex-col items-center gap-4 py-4 text-center animate-in zoom-in-95 fade-in">
+                            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center animate-pulse">
+                                <CheckCircle size={40} className="text-emerald-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-white mt-2">Passwort geändert!</h2>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                Dein neues Passwort ist ab sofort aktiv. Viel Erfolg bei deinem nächsten Match!
+                            </p>
+                            
+                            <button
+                                onClick={() => { if (onSuccess) onSuccess(); else onClose(); }}
+                                className="mt-4 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3.5 rounded-xl transition flex justify-center items-center gap-2 group"
+                            >
+                                Weiter zur App
+                            </button>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-4">
