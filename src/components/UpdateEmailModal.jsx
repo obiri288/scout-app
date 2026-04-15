@@ -66,6 +66,8 @@ export const UpdateEmailModal = ({ onClose, session }) => {
                 throw updateError;
             }
 
+            // Save pending email to localStorage to show banner
+            localStorage.setItem('pending_email_update', newEmail);
             setIsPending(true);
 
         } catch (error) {

@@ -36,6 +36,7 @@ const OnboardingWizard = lazy(() => import('./components/OnboardingWizard').then
 const NamePromptModal = lazy(() => import('./components/NamePromptModal').then(m => ({ default: m.NamePromptModal })));
 const UpdatePasswordModal = lazy(() => import('./components/UpdatePasswordModal').then(m => ({ default: m.UpdatePasswordModal })));
 const UpdateEmailModal = lazy(() => import('./components/UpdateEmailModal').then(m => ({ default: m.UpdateEmailModal })));
+import { EmailConfirmedPage } from './components/EmailConfirmedPage';
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center">
@@ -272,6 +273,22 @@ const App = () => {
     const [blockTarget, setBlockTarget] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showLanding, setShowLanding] = useState(true);
+
+    // Watch for successful email changes based on localStorage pending state
+    useEffect(() => {
+        if (session?.user?.email) {
+            const pendingEmail = localStorage.getItem('pending_email_update');
+            if (pendingEmail && session.user.email === pendingEmail) {
+                localStorage.removeItem('pending_email_update');
+                addToast('E-Mail-Adresse erfolgreich aktualisiert!', 'success');
+            }
+        }
+    }, [session?.user?.email, addToast]);
+
+    // If we're strictly on the email-confirmed standalone page
+    if (window.location.pathname === '/auth/email-confirmed') {
+        return <EmailConfirmedPage />;
+    }
 
     // Block ALL rendering until auth state AND initial profile fetch are resolved
     // Also show splash during auth callback processing (email confirmation redirect)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Settings, ChevronRight, Download, Bell, RefreshCw, Edit, BadgeCheck, Share2, Key, Lock, FileText, LogOut, Trash2, Globe, Sun, Moon, Mail } from 'lucide-react';
+import { X, Settings, ChevronRight, Download, Bell, RefreshCw, Edit, BadgeCheck, Share2, Key, Lock, FileText, LogOut, Trash2, Globe, Sun, Moon, Mail, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { SafeErrorBoundary } from './SafeErrorBoundary';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -12,6 +13,7 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
     const { addToast } = useToast();
     const { lang, toggleLanguage, t } = useLanguage();
     const { isDark, toggleTheme } = useTheme();
+    const pendingEmail = localStorage.getItem('pending_email_update');
 
     if (!user) return null;
 
@@ -40,6 +42,16 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
         if (confirm("ACHTUNG: Möchtest du deinen Account wirklich unwiderruflich löschen?")) {
             onLogout();
             addToast("Account gelöscht.", 'info');
+        }
+    };
+
+    const handleResendVerification = async () => {
+        try {
+            const { error } = await supabase.auth.updateUser({ email: pendingEmail });
+            if (error) throw error;
+            addToast('Bestätigungsmail erneut gesendet', 'success');
+        } catch (e) {
+            addToast('Fehler beim erneuten Senden', 'error');
         }
     };
 
@@ -77,7 +89,29 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
                         </div>
                         <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">App</h3><SettingsItem icon={Bell} label={t('settings_push') || "Push-Benachrichtigungen"} onClick={() => handleCloseAndOpen('push')} /></div>
                         <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Account</h3><SettingsItem icon={Edit} label="Profil bearbeiten" onClick={onEditReq} />{!user.is_verified && <SettingsItem icon={BadgeCheck} label="Verifizierung beantragen" onClick={() => handleCloseAndOpen('verification')} highlight />}<SettingsItem icon={Share2} label="Profil teilen" onClick={handleShare} /></div>
-                        <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Konto-Sicherheit</h3><SettingsItem icon={Mail} label="E-Mail-Adresse" value={user.email} onClick={() => handleCloseAndOpen('email')} /><SettingsItem icon={Key} label="Passwort ändern" onClick={() => handleCloseAndOpen('password')} /></div>
+                        
+                        <div className="space-y-1">
+                            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Konto-Sicherheit</h3>
+                            {pendingEmail && (
+                                <div className="mb-3 mx-1 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-2">
+                                    <div className="flex items-start gap-2">
+                                        <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                                        <div className="text-sm text-amber-500 font-medium">
+                                            Bestätige deine neue E-Mail: <span className="font-bold">{pendingEmail}</span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={handleResendVerification}
+                                        className="self-end text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 font-bold px-3 py-1.5 rounded-lg transition"
+                                    >
+                                        Erneut senden
+                                    </button>
+                                </div>
+                            )}
+                            <SettingsItem icon={Mail} label="E-Mail-Adresse" value={user.email} onClick={() => handleCloseAndOpen('email')} />
+                            <SettingsItem icon={Key} label="Passwort ändern" onClick={() => handleCloseAndOpen('password')} />
+                        </div>
+
                         <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => handleCloseAndOpen('privacy')} /><SettingsItem icon={FileText} label="Impressum" onClick={() => handleCloseAndOpen('imprint')} /></div>
                         <div className="pt-4 border-t border-border space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={() => handleCloseAndOpen('delete-account')} danger /></div>
                         <div className="text-center text-muted-foreground text-xs py-4">v3.0.0 Live</div>
