@@ -290,6 +290,19 @@ const App = () => {
         return <EmailConfirmedPage />;
     }
 
+    // If we are on the password recovery redirect page
+    if (window.location.pathname === '/update-password') {
+        // Render the rest of the app or a blank screen behind the modal
+        return (
+            <div className="min-h-screen bg-background">
+                <UpdatePasswordModal 
+                    onClose={() => { window.location.pathname = '/'; }} 
+                    onSuccess={() => { window.location.pathname = '/'; }} 
+                />
+            </div>
+        );
+    }
+
     // Block ALL rendering until auth state AND initial profile fetch are resolved
     // Also show splash during auth callback processing (email confirmation redirect)
     if (authLoading || isAuthCallback || (session && !currentUserProfile && profileLoading)) return <SplashScreen />;
