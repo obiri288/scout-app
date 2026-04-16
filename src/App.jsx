@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2 } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
@@ -273,6 +273,7 @@ const App = () => {
         showDeactivate, setShowDeactivate
     } = useAppState();
 
+    const { addToast } = useToast();
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
     const [blockTarget, setBlockTarget] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
