@@ -39,8 +39,14 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         const fetchInitState = async () => {
             // 1. Fetch count für Likes und Comments (parallel)
             const [likeRes, commentRes] = await Promise.all([
-                supabase.from('media_likes').select('*', { count: 'exact', head: true }).eq('video_id', video.id),
-                supabase.from('media_comments').select('*', { count: 'exact', head: true }).eq('video_id', video.id)
+                supabase.from('media_likes')
+                    .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
+                    .eq('video_id', video.id)
+                    .eq('players_master.is_deactivated', false),
+                supabase.from('media_comments')
+                    .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
+                    .eq('video_id', video.id)
+                    .eq('players_master.is_deactivated', false)
             ]);
             
             if (isMounted) {

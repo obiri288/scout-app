@@ -98,7 +98,7 @@ export const SearchScreen = ({ onUserClick }) => {
 
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         try {
-            let q = supabase.from('players_master').select('*, clubs(*)');
+            let q = supabase.from('players_master').select('*, clubs(*)').eq('is_deactivated', false);
             if (query) q = q.ilike('full_name', `%${query}%`);
             if (pos !== 'Alle') q = q.eq('position_primary', pos);
             if (status !== 'Alle') q = q.eq('transfer_status', status);
@@ -151,7 +151,8 @@ export const SearchScreen = ({ onUserClick }) => {
             try {
                 const { data } = await supabase
                     .from('media_highlights')
-                    .select('*, players_master(full_name, avatar_url, position_primary, user_id, clubs(name))')
+                    .select('*, players_master!inner(*, clubs(name))')
+                    .eq('players_master.is_deactivated', false)
                     .contains('action_tags', [selectedActionTag])
                     .order('created_at', { ascending: false })
                     .limit(20);

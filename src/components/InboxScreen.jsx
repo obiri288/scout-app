@@ -111,7 +111,10 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                     });
 
                     if (map.size > 0) {
-                        const { data: users } = await supabase.from('players_master').select('*').in('user_id', [...map.keys()]);
+                        const { data: users } = await supabase.from('players_master')
+                            .select('*')
+                            .in('user_id', [...map.keys()])
+                            .eq('is_deactivated', false);
                         setChats((users || []).map(u => ({
                             ...u,
                             lastMsg: map.get(u.user_id)?.content,

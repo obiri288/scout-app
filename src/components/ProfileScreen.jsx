@@ -316,14 +316,14 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             {/* Club & Position / Scout Title */}
                             <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
                                 {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
-                                <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || (player.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')}</span>
+                                <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || (player?.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')}</span>
                                 <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-                                {player.role === 'scout' ? (
+                                {player?.role === 'scout' ? (
                                     <span className="text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded text-xs font-bold border border-amber-500/20">
                                         {player.club_affiliation || 'Scout'}
                                     </span>
                                 ) : (
-                                    <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary}</span>
+                                    <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary || 'Position n.a.'}</span>
                                 )}
                             </div>
 
@@ -603,7 +603,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                             <div className="grid grid-cols-3 gap-3">
                                 <StatCard label="Follower" value={player?.followers_count ?? 0} />
                                 <StatCard label="Clips" value={highlights?.length ?? 0} />
-                                <StatCard label="Verein" value={player?.clubs?.name ?? 'Freiberuflich'} small />
+                                <StatCard label="Verein" value={typeof player?.clubs === 'object' ? (player?.clubs?.name || (player?.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')) : 'Vereinslos'} small />
                             </div>
                         </>
                     ) : (

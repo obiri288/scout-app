@@ -36,6 +36,8 @@ const OnboardingWizard = lazy(() => import('./components/OnboardingWizard').then
 const NamePromptModal = lazy(() => import('./components/NamePromptModal').then(m => ({ default: m.NamePromptModal })));
 const UpdatePasswordModal = lazy(() => import('./components/UpdatePasswordModal').then(m => ({ default: m.UpdatePasswordModal })));
 const UpdateEmailModal = lazy(() => import('./components/UpdateEmailModal').then(m => ({ default: m.UpdateEmailModal })));
+const DeactivateAccountModal = lazy(() => import('./components/DeactivateAccountModal').then(m => ({ default: m.DeactivateAccountModal })));
+const ReactivateAccountModal = lazy(() => import('./components/ReactivateAccountModal').then(m => ({ default: m.ReactivateAccountModal })));
 import { EmailConfirmedPage } from './components/EmailConfirmedPage';
 
 const LazyFallback = () => (
@@ -267,6 +269,8 @@ const App = () => {
         deferredPrompt,
         isRecoveryMode, setIsRecoveryMode,
         isAuthCallback,
+        pendingReactivationProfile, confirmReactivation,
+        showDeactivate, setShowDeactivate
     } = useAppState();
 
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
@@ -304,8 +308,21 @@ const App = () => {
     }
 
     // Block ALL rendering until auth state AND initial profile fetch are resolved
-    // Also show splash during auth callback processing (email confirmation redirect)
-    if (authLoading || isAuthCallback || (session && !currentUserProfile && profileLoading)) return <SplashScreen />;
+    // Also block if a reactivation is pending (force modal decision)
+    if (authLoading || isAuthCallback || pendingReactivationProfile || (session && !currentUserProfile && profileLoading)) {
+        if (pendingReactivationProfile) {
+            return (
+                <Suspense fallback={<SplashScreen />}>
+                    <ReactivateAccountModal 
+                        profile={pendingReactivationProfile} 
+                        onConfirm={confirmReactivation}
+                        onLogout={logout}
+                    />
+                </Suspense>
+            );
+        }
+        return <SplashScreen />;
+    }
 
     // Check for onboarding: session exists but no profile yet
     const needsOnboarding = session && !currentUserProfile;
@@ -475,6 +492,8 @@ const App = () => {
                             setShowSettings(false);
                             if (target === 'verification') {
                                 setShowVerificationModal(true);
+                            } else if (target === 'deactivate-account') {
+                                setShowDeactivate(true);
                             } else {
                                 setActiveSettingsModal(target);
                             }
@@ -539,6 +558,17 @@ const App = () => {
                         onClose={() => setActiveSettingsModal(null)}
                         session={session}
                         onDeleted={() => {
+                            logout();
+                            setActiveSettingsModal(null);
+                            switchTab('home');
+                        }}
+                    />
+                )}
+                {activeSettingsModal === 'deactivate-account' && (
+                    <DeactivateAccountModal
+                        onClose={() => setActiveSettingsModal(null)}
+                        user={currentUserProfile}
+                        onDeactivated={() => {
                             logout();
                             setActiveSettingsModal(null);
                             switchTab('home');

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { useToast } from './ToastContext';
 
 const UserContext = createContext(null);
 
@@ -13,9 +14,11 @@ export const UserProvider = ({ children }) => {
     const [session, setSession] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [currentUserProfile, setCurrentUserProfile] = useState(null);
+    const [pendingReactivationProfile, setPendingReactivationProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    const { addToast } = useToast();
 
     // Detect if we're in an auth callback flow (email confirmation redirect)
     const [isAuthCallback, setIsAuthCallback] = useState(() => {
@@ -47,15 +50,18 @@ export const UserProvider = ({ children }) => {
         fetchingRef.current = true;
         setProfileLoading(true);
         try {
-            let { data } = await supabase.from('players_master')
+            let { data, error: fetchError } = await supabase.from('players_master')
                 .select('*, clubs(*)')
                 .eq('user_id', s.user.id)
                 .maybeSingle();
 
-            if (!data) {
-                setCurrentUserProfile(null);
+            if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+            if (data?.is_deactivated) {
+                setPendingReactivationProfile(data);
                 return null;
             }
+
             setCurrentUserProfile(data);
             return data;
         } catch (e) {
@@ -155,16 +161,39 @@ export const UserProvider = ({ children }) => {
         await supabase.auth.signOut();
         setSession(null);
         setCurrentUserProfile(null);
+        setPendingReactivationProfile(null);
         setUnreadCount(0);
     }, []);
+
+    const confirmReactivation = useCallback(async () => {
+        if (!pendingReactivationProfile) return;
+        
+        try {
+            const { error } = await supabase.from('players_master')
+                .update({ is_deactivated: false })
+                .eq('id', pendingReactivationProfile.id);
+                
+            if (error) throw error;
+            
+            const reactivated = { ...pendingReactivationProfile, is_deactivated: false };
+            setCurrentUserProfile(reactivated);
+            setPendingReactivationProfile(null);
+            addToast('Account erfolgreich reaktiviert! Willkommen zurück.', 'success');
+        } catch (e) {
+            console.error("Reactivation failed:", e);
+            addToast('Reaktivierung fehlgeschlagen. Bitte versuche es erneut.', 'error');
+        }
+    }, [pendingReactivationProfile, addToast]);
 
     const value = {
         authLoading,
         session,
         setSession,
         currentUserProfile,
+        pendingReactivationProfile,
         profileLoading,
         updateProfile,
+        confirmReactivation,
         refreshProfile: fetchOrCreateProfile,
         unreadCount,
         resetUnreadCount,

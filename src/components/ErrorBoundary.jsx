@@ -48,6 +48,23 @@ export class ErrorBoundary extends React.Component {
                             >
                                 Seite neu laden
                             </button>
+
+                            {/* Technical Details for Support/Dev */}
+                            <details className="mt-8 text-left group">
+                                <summary className="text-[10px] text-zinc-600 cursor-pointer hover:text-zinc-400 transition list-none flex items-center gap-1 justify-center">
+                                    Technische Details anzeigen
+                                </summary>
+                                {this.state.error && (
+                                    <div className="mt-6 p-4 bg-zinc-900 border border-white/10 rounded-xl text-left overflow-auto max-h-[300px]">
+                                        <p className="text-pink-500 font-mono text-xs mb-2">Technical Details:</p>
+                                        <div className="text-white/60 font-mono text-[10px] whitespace-pre-wrap break-all leading-relaxed">
+                                            {this.state.error.toString()}
+                                            {"\n\n"}
+                                            {this.state.errorInfo?.componentStack}
+                                        </div>
+                                    </div>
+                                )}
+                            </details>
                         </div>
 
                     </div>

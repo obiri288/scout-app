@@ -14,7 +14,8 @@ export const useAppState = () => {
         authLoading, profileLoading,
         session, setSession, currentUserProfile, updateProfile,
         refreshProfile, unreadCount, resetUnreadCount, logout,
-        isRecoveryMode, setIsRecoveryMode, isAuthCallback
+        isRecoveryMode, setIsRecoveryMode, isAuthCallback,
+        pendingReactivationProfile, confirmReactivation
     } = useUser();
     const { addToast } = useToast();
     const { t } = useLanguage();
@@ -40,6 +41,7 @@ export const useAppState = () => {
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [showWatchlist, setShowWatchlist] = useState(false);
     const [showMap, setShowMap] = useState(false);
+    const [showDeactivate, setShowDeactivate] = useState(false);
 
     // --- Interaction State ---
     const [activeChatPartner, setActiveChatPartner] = useState(null);
@@ -71,7 +73,11 @@ export const useAppState = () => {
                 if (param && loadProfileRef.current) {
                     try {
                         const player = await api.fetchPlayerByUserId(param);
-                        if (player) await loadProfileRef.current(player);
+                        if (player) {
+                            await loadProfileRef.current(player);
+                        } else {
+                            addToast("Profil nicht gefunden oder deaktiviert.", "info");
+                        }
                     } catch (e) {
                         console.error("Deep link profile load failed:", e);
                     }
@@ -314,6 +320,7 @@ export const useAppState = () => {
         unreadCount, resetUnreadCount, logout,
         isRecoveryMode, setIsRecoveryMode,
         isAuthCallback,
+        pendingReactivationProfile, confirmReactivation,
 
         // Navigation
         activeTab, switchTab, navigateToHash,
@@ -340,6 +347,7 @@ export const useAppState = () => {
         showVerificationModal, setShowVerificationModal,
         showWatchlist, setShowWatchlist,
         showMap, setShowMap,
+        showDeactivate, setShowDeactivate,
 
         // Interaction
         activeChatPartner, setActiveChatPartner,

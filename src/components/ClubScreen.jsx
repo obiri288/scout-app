@@ -8,7 +8,7 @@ export const ClubScreen = ({ club, onBack, onUserClick }) => {
     useEffect(() => {
         const fetchPlayers = async () => {
             try {
-                const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id);
+                const { data } = await supabase.from('players_master').select('*').eq('club_id', club.id).eq('is_deactivated', false);
                 setPlayers(data || []);
             } catch (e) {
                 console.error("Failed loading club players:", e);

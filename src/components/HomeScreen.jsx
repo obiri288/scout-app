@@ -45,7 +45,8 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     const fetchFeed = useCallback(async (offset = 0, reset = false) => {
         try {
             const { data } = await supabase.from('media_highlights')
-                .select('*, players_master(*, clubs(*))')
+                .select('*, players_master!inner(*, clubs(*))')
+                .eq('players_master.is_deactivated', false)
                 .order('created_at', { ascending: false })
                 .range(offset, offset + PAGE_SIZE - 1);
 

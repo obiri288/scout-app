@@ -33,7 +33,7 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
 
     const handleShare = () => {
         if (user?.id) {
-            navigator.clipboard.writeText(`https://probase.app/u/${user.id}`);
+            navigator.clipboard.writeText(`https://${window.location.host}/u/${user.id}`);
             addToast('Link in Zwischenablage!', 'success');
         }
     };
@@ -113,7 +113,11 @@ export const SettingsModal = ({ onClose, onLogout, onRequestPush, user, onEditRe
                         </div>
 
                         <div className="space-y-1"><h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Rechtliches</h3><SettingsItem icon={Lock} label="Datenschutz" onClick={() => handleCloseAndOpen('privacy')} /><SettingsItem icon={FileText} label="Impressum" onClick={() => handleCloseAndOpen('imprint')} /></div>
-                        <div className="pt-4 border-t border-border space-y-2"><SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger /><SettingsItem icon={Trash2} label="Account löschen" onClick={() => handleCloseAndOpen('delete-account')} danger /></div>
+                        <div className="pt-4 border-t border-border space-y-2">
+                            <SettingsItem icon={LogOut} label="Abmelden" onClick={onLogout} danger />
+                            <SettingsItem icon={RefreshCw} label="Account deaktivieren" onClick={() => handleCloseAndOpen('deactivate-account')} danger />
+                            <SettingsItem icon={Trash2} label="Account löschen" onClick={() => handleCloseAndOpen('delete-account')} danger />
+                        </div>
                         <div className="text-center text-muted-foreground text-xs py-4">v3.0.0 Live</div>
                     </div>
                 </SafeErrorBoundary>

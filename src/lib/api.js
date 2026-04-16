@@ -18,6 +18,7 @@ export const fetchPlayerByUserId = async (userId) => {
     const { data, error } = await supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('user_id', userId)
+        .eq('is_deactivated', false)
         .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     return data;
@@ -27,6 +28,7 @@ export const fetchPlayerByUsername = async (username) => {
     const { data, error } = await supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('username', username)
+        .eq('is_deactivated', false)
         .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     return data;
@@ -35,6 +37,7 @@ export const fetchPlayerByUsername = async (username) => {
 export const fetchPlayersByIds = async (ids) => {
     const { data } = await supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
+        .eq('is_deactivated', false)
         .in('id', ids);
     return data || [];
 };
@@ -50,7 +53,7 @@ export const updatePlayer = async (playerId, updates) => {
 };
 
 export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15 }) => {
-    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))');
+    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))').eq('is_deactivated', false);
     if (query) q = q.ilike('full_name', `%${query}%`);
     if (pos && pos !== 'Alle') q = q.eq('position_primary', pos);
     if (status && status !== 'Alle') q = q.eq('transfer_status', status);
@@ -63,13 +66,16 @@ export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, of
 export const fetchSimilarPlayers = async (excludeId, limit = 100) => {
     const { data } = await supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
+        .eq('is_deactivated', false)
         .neq('id', excludeId)
         .limit(limit);
     return data || [];
 };
 
 export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 200 }) => {
-    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))').not('city', 'is', null);
+    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
+        .eq('is_deactivated', false)
+        .not('city', 'is', null);
     if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
     if (statusFilter && statusFilter !== 'Alle') q = q.eq('transfer_status', statusFilter);
     const { data } = await q.limit(limit);
@@ -78,6 +84,7 @@ export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 20
 
 export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200 }) => {
     let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
+        .eq('is_deactivated', false)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
     if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
@@ -127,7 +134,8 @@ export const fetchPlayerHighlights = async (playerId) => {
 
 export const fetchFeed = async (offset = 0, limit = 10) => {
     const { data } = await supabase.from('media_highlights')
-        .select('*, players_master(*, clubs(*, leagues(name)))')
+        .select('*, players_master!inner(*, clubs(*, leagues(name)))')
+        .eq('players_master.is_deactivated', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
     return data || [];
@@ -186,8 +194,9 @@ export const checkIsFollowing = async (followerPlayerId, followingPlayerId) => {
 export const getFollowersCount = async (playerId) => {
     if (!playerId) return 0;
     const { count } = await supabase.from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('following_id', playerId);
+        .select('follower:players_master!inner(is_deactivated)', { count: 'exact', head: true })
+        .eq('following_id', playerId)
+        .eq('follower.is_deactivated', false);
     return count || 0;
 };
 
@@ -230,8 +239,9 @@ export const getMutualFollowers = async (myPlayerId, profilePlayerId) => {
 export const getFollowingCount = async (playerId) => {
     if (!playerId) return 0;
     const { count } = await supabase.from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('follower_id', playerId);
+        .select('following:players_master!inner(is_deactivated)', { count: 'exact', head: true })
+        .eq('follower_id', playerId)
+        .eq('following.is_deactivated', false);
     return count || 0;
 };
 
@@ -250,8 +260,9 @@ export const unfollow = async (followerPlayerId, followingPlayerId) => {
 
 export const fetchFollowers = async (playerId) => {
     const { data } = await supabase.from('follows')
-        .select('follower_id')
-        .eq('following_id', playerId);
+        .select('follower_id, follower:players_master!inner(is_deactivated)')
+        .eq('following_id', playerId)
+        .eq('follower.is_deactivated', false);
     return data || [];
 };
 
@@ -307,8 +318,9 @@ const LIKE_MILESTONES = [10, 25, 50, 100, 250, 500];
 export const checkAndCreateLikeMilestone = async (videoId, videoOwnerUserId, likerId) => {
     try {
         const { count } = await supabase.from('media_likes')
-            .select('id', { count: 'exact', head: true })
-            .eq('video_id', videoId);
+            .select('players_master!inner(user_id, is_deactivated)', { count: 'exact', head: true })
+            .eq('video_id', videoId)
+            .eq('players_master.is_deactivated', false);
         if (count && LIKE_MILESTONES.includes(count)) {
             await createNotification({
                 userId: videoOwnerUserId,
@@ -436,8 +448,9 @@ export const fetchConversationList = async (userId) => {
 
 export const fetchComments = async (videoId) => {
     const { data: comments, error } = await supabase.from('media_comments')
-        .select('*, comment_likes(user_id)')
+        .select('*, players_master!inner(user_id, full_name, avatar_url, is_deactivated), comment_likes(user_id)')
         .eq('video_id', videoId)
+        .eq('players_master.is_deactivated', false)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false });
         
@@ -450,6 +463,7 @@ export const fetchComments = async (videoId) => {
     // Step 2: Fetch profiles for the unique user_ids
     const { data: profiles, error: profileError } = await supabase.from('players_master')
         .select('user_id, full_name, avatar_url')
+        .eq('is_deactivated', false)
         .in('user_id', userIds);
         
     if (profileError) {
@@ -519,8 +533,9 @@ export const toggleCommentLike = async (userId, commentId, isLiked) => {
 
 export const getCommentLikes = async (commentId, userId) => {
     const countRes = await supabase.from('comment_likes')
-        .select('*', { count: 'exact', head: true })
-        .eq('comment_id', commentId);
+        .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
+        .eq('comment_id', commentId)
+        .eq('players_master.is_deactivated', false);
         
     let isLiked = false;
     if (userId) {
