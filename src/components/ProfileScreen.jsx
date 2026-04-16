@@ -107,6 +107,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
         initialStatus: player.isFollowing || false
     });
 
+    const [followersCount_deprecated, setFollowersCount_deprecated] = useState(player.followers_count || 0); // Kept for requested naming but hook provides better management
+    const [followingCount, setFollowingCount] = useState(player.following_count || 0);
+
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showPlayerCard, setShowPlayerCard] = useState(false);
     const [viewCount, setViewCount] = useState(0);
@@ -388,7 +391,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         >
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.08)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
                             <UserPlus size={22} strokeWidth={2} className="text-cyan-500 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                            <span className="text-xl font-black text-gray-900 dark:text-white z-10 leading-none">{player.following_count || 0}</span>
+                            <span className="text-xl font-black text-gray-900 dark:text-white z-10 leading-none">{followingCount}</span>
                             <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-widest mt-0.5 z-10">Folgt</span>
                         </div>
 
@@ -620,7 +623,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 
                             {/* Quick Stats */}
                             <div className="grid grid-cols-3 gap-3">
-                                <StatCard label="Follower" value={player?.followers_count ?? 0} />
+                                <StatCard label="Follower" value={followersCount} />
                                 <StatCard label="Clips" value={highlights?.length ?? 0} />
                                 <StatCard label="Verein" value={typeof player?.clubs === 'object' ? (player?.clubs?.name || (player?.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')) : 'Vereinslos'} small />
                             </div>
@@ -788,7 +791,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 pt-2">
-                        <StatCard label="Follower" value={player?.followers_count ?? 0} />
+                        <StatCard label="Follower" value={followersCount} />
                         <StatCard label="Clips" value={highlights?.length ?? 0} />
                         <StatCard label="Verein" value={player?.clubs?.name ?? 'Vereinslos'} small />
                     </div>
