@@ -237,25 +237,19 @@ export const useAppState = () => {
 
         try {
             if (!previousIsFollowing) {
-                // User möchte folgen -> REINER INSERT
-                const { error } = await supabase
-                    .from('follows')
-                    .insert({ follower_id: myPlayerId, following_id: targetPlayerId });
-
-                if (error) throw error;
+                await api.follow(myPlayerId, targetPlayerId);
+                
+                // Side effect: XP for target
+                if (viewedProfile.id) {
+                    api.awardXP(viewedProfile.id, 10, 'follow', `${myPlayerId}_${targetPlayerId}`);
+                }
             } else {
-                // User möchte entfolgen
-                const { error } = await supabase
-                    .from('follows')
-                    .delete()
-                    .match({ follower_id: myPlayerId, following_id: targetPlayerId });
-
-                if (error) throw error;
+                await api.unfollow(myPlayerId, targetPlayerId);
             }
         } catch (error) {
             // 2. Rollback bei Fehler
             console.error("EXAKTER FOLLOW ERROR:", error);
-            addToast(error?.message || error?.details || error?.hint || JSON.stringify(error) || "Unbekannter Fehler", 'error');
+            addToast(error?.message || "Aktion fehlgeschlagen", 'error');
             setViewedProfile(prev => ({
                 ...prev,
                 isFollowing: previousIsFollowing,

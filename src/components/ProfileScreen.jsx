@@ -19,6 +19,7 @@ import { RadarChart } from './RadarChart';
 import { XPLevelBadge } from './XPLevelBadge';
 import { CareerTimeline } from './CareerTimeline';
 import * as api from '../lib/api';
+import { useInteractionStatus } from '../hooks/useInteractionStatus';
 import { getBadgeById, getBadgeColors } from '../lib/badges';
 
 import {
@@ -98,6 +99,14 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
 });
 
 export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onShowFollowing, onLoginReq, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, currentUserProfile, onCompare, onPlayerClick, onReport, onBlock, onUpload }) => {
+    const { status: isFollowing, count: followersCount, toggle: toggleFollow } = useInteractionStatus({
+        type: 'user_follow',
+        targetId: player.id,
+        session,
+        initialCount: player.followers_count || 0,
+        initialStatus: player.isFollowing || false
+    });
+
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showPlayerCard, setShowPlayerCard] = useState(false);
     const [viewCount, setViewCount] = useState(0);
@@ -105,6 +114,16 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
     const [playerStats, setPlayerStats] = useState(null);
     const [skillEndorsements, setSkillEndorsements] = useState([]);
     const { addToast } = useToast();
+
+    // Internal handle follow
+    const handleFollowClick = async () => {
+        if (!session) { onLoginReq(); return; }
+        try {
+            await toggleFollow();
+        } catch (err) {
+            addToast(err?.message || "Aktion fehlgeschlagen", "error");
+        }
+    };
 
     const handleShare = async () => {
         const url = window.location.href;
@@ -380,7 +399,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         >
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.08)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
                             <Users size={22} strokeWidth={2} className="text-cyan-500 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                            <span className="text-xl font-black text-gray-900 dark:text-white z-10 leading-none">{player.followers_count || 0}</span>
+                            <span className="text-xl font-black text-gray-900 dark:text-white z-10 leading-none">{followersCount}</span>
                             <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-widest mt-0.5 z-10">Follower</span>
                         </div>
 
@@ -417,9 +436,9 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                             </>
                         ) : (
                             <>
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onFollow} className={`flex-1 ${player.isFollowing ? 'bg-secondary text-secondary-foreground border-border' : 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(34,211,238,0.2)] border-cyan-500'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
-                                    {player.isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
-                                    {player.isFollowing ? 'Gefolgt' : 'Folgen'}
+                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleFollowClick} className={`flex-1 ${isFollowing ? 'bg-secondary text-secondary-foreground border-border' : 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(34,211,238,0.2)] border-cyan-500'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
+                                    {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
+                                    {isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </motion.button>
                                 <button onClick={onChatReq} className="flex-none bg-muted text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-muted/80 transition">
                                     <MessageCircle size={18} />

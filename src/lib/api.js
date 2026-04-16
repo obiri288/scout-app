@@ -247,7 +247,7 @@ export const getFollowingCount = async (playerId) => {
 
 export const follow = async (followerPlayerId, followingPlayerId) => {
     const { error } = await supabase.from('follows')
-        .insert({ follower_id: followerPlayerId, following_id: followingPlayerId });
+        .upsert({ follower_id: followerPlayerId, following_id: followingPlayerId }, { onConflict: 'follower_id,following_id' });
     if (error) throw error;
 };
 
@@ -384,7 +384,7 @@ export const likeVideo = async (userId, videoId) => {
     });
     
     try {
-        const { error } = await supabase.from('media_likes').insert(payload);
+        const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,video_id' });
         if (error) throw error;
     } catch (error) {
         console.error("DB Error in likeVideo. Payload:", payload, "Error:", error);
@@ -521,7 +521,7 @@ export const toggleCommentPin = async (videoId, commentId, pinState) => {
 export const toggleCommentLike = async (userId, commentId, isLiked) => {
     if (!isLiked) {
         const { error } = await supabase.from('comment_likes')
-            .insert({ user_id: userId, comment_id: commentId });
+            .upsert({ user_id: userId, comment_id: commentId }, { onConflict: 'user_id,comment_id' });
         if (error) throw error;
     } else {
         const { error } = await supabase.from('comment_likes')

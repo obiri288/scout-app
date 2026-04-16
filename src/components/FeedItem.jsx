@@ -8,12 +8,19 @@ import * as api from '../lib/api';
 import { getClubStyle } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
+import { useInteractionStatus } from '../hooks/useInteractionStatus';
 
 const ACTION_TAG_ICONS = { Traumpass: Zap, Dribbling: Wind, Abschluss: Crosshair, Flanke: ArrowUpRight, Zweikampf: Swords, Balleroberung: ShieldCheck, Speed: Gauge, Ballkontrolle: CircleDot, Einsatz: Flame, Parade: Hand };
 
 export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
-    const [likes, setLikes] = useState(video.likes_count || 0);
-    const [liked, setLiked] = useState(false);
+    const { status: liked, count: likes, toggle: toggleLike } = useInteractionStatus({
+        type: 'video_like',
+        targetId: video.id,
+        session,
+        initialCount: video.likes_count || 0,
+        initialStatus: false
+    });
+    
     const [commentCount, setCommentCount] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
     
@@ -31,47 +38,25 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     const { ref: observerRef, isIntersecting } = useIntersectionObserver({ threshold: 0.5 });
     const { addToast } = useToast();
 
-    // Force Initial State Fetching
+    // Force Initial State Fetching for Comment Count (Status/Likes now handled by hook)
     useEffect(() => {
         if (!video.id) return;
         let isMounted = true;
 
-        const fetchInitState = async () => {
-            // 1. Fetch count für Likes und Comments (parallel)
-            const [likeRes, commentRes] = await Promise.all([
-                supabase.from('media_likes')
-                    .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
-                    .eq('video_id', video.id)
-                    .eq('players_master.is_deactivated', false),
-                supabase.from('media_comments')
-                    .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
-                    .eq('video_id', video.id)
-                    .eq('players_master.is_deactivated', false)
-            ]);
+        const fetchCommentState = async () => {
+            const { count } = await supabase.from('media_comments')
+                .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
+                .eq('video_id', video.id)
+                .eq('players_master.is_deactivated', false);
             
-            if (isMounted) {
-                if (likeRes.count !== null) setLikes(likeRes.count);
-                if (commentRes.count !== null) setCommentCount(commentRes.count);
-            }
-
-            // 2. Fetch on Mount for currentUser
-            if (session?.user?.id) {
-                const { data } = await supabase.from('media_likes')
-                    .select('id')
-                    .eq('user_id', session.user.id)
-                    .eq('video_id', video.id)
-                    .maybeSingle();
-
-                if (isMounted) {
-                    if (data) setLiked(true);
-                    else setLiked(false);
-                }
+            if (isMounted && count !== null) {
+                setCommentCount(count);
             }
         };
 
-        fetchInitState();
+        fetchCommentState();
         return () => { isMounted = false; };
-    }, [session?.user?.id, video.id]);
+    }, [video.id]);
 
     // Intersection Observer driven play/pause
     useEffect(() => {
@@ -89,14 +74,12 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         e.stopPropagation();
         if (!session) { onLikeReq(); return; }
         
-        // Optimistic UI update
-        const wasLiked = liked;
-        setLiked(!wasLiked);
-        setLikes(l => wasLiked ? l - 1 : l + 1);
-        
         try {
+            const wasLiked = liked;
+            await toggleLike();
+
+            // Side Effects (Notifications, XP) - only on Like action
             if (!wasLiked) {
-                await api.likeVideo(session.user.id, video.id);
                 // Check for ego-trigger milestone (non-blocking)
                 api.checkAndCreateLikeMilestone(video.id, video.players_master?.user_id, session.user.id);
                 // Award XP to video owner
@@ -104,7 +87,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`);
                 }
                 
-                // Manual Like Notification (Decoupled from interaction)
+                // Manual Like Notification
                 if (video.players_master?.user_id && video.players_master.user_id !== session.user.id) {
                     try {
                         await api.createNotification({
@@ -118,13 +101,8 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         console.warn("Notification failed, but interaction saved", error);
                     }
                 }
-            } else {
-                await api.unlikeVideo(session.user.id, video.id);
             }
         } catch (error) {
-            // Revert optimistic update
-            setLiked(wasLiked);
-            setLikes(l => wasLiked ? l + 1 : l - 1);
             addToast(error?.message || "Like fehlgeschlagen.", 'error');
         }
     };
