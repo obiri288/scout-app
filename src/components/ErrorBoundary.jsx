@@ -67,6 +67,22 @@ export class ErrorBoundary extends React.Component {
                             </details>
                         </div>
 
+                        {import.meta.env.DEV && this.state.error && (
+                            <div className="mt-8 text-left bg-zinc-900 border border-red-500/30 rounded-xl p-4 overflow-hidden max-w-xl mx-auto">
+                                <h2 className="text-red-400 font-bold text-sm mb-2 flex items-center gap-2">
+                                    <AlertTriangle size={14} /> Developer Info:
+                                </h2>
+                                <div className="bg-black/50 rounded-lg p-3 overflow-auto max-h-[300px]">
+                                    <p className="text-red-400 font-mono text-xs mb-2 font-bold">{this.state.error.toString()}</p>
+                                    <pre className="text-zinc-500 font-mono text-[10px] leading-relaxed">
+                                        {this.state.error.stack}
+                                    </pre>
+                                </div>
+                                <p className="mt-3 text-[10px] text-zinc-500 italic">
+                                    Dieser Bereich ist nur im Entwicklungsmodus (Localhost) sichtbar.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             );

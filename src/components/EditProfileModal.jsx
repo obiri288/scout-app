@@ -8,60 +8,60 @@ import { ImageCropModal } from './ImageCropModal';
 import { geocodeCity } from '../lib/api';
 import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
 import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
-export const EditProfileModal = ({ player, onClose, onUpdate }) => {
+export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
     const { addToast } = useToast();
 
-    const initialFirstName = player.first_name || (player.full_name ? player.full_name.split(' ')[0] : '');
-    const initialLastName = player.last_name || (player.full_name ? player.full_name.split(' ').slice(1).join(' ') : '');
+    const initialFirstName = profile.first_name || (profile.full_name ? profile.full_name.split(' ')[0] : '');
+    const initialLastName = profile.last_name || (profile.full_name ? profile.full_name.split(' ').slice(1).join(' ') : '');
 
-    const isCoach = player.role === 'coach';
-    const isScout = player.role === 'scout';
+    const isCoach = profile.role === 'coach';
+    const isScout = profile.role === 'scout';
 
     const [formData, setFormData] = useState({
-        username: player.username || '',
+        username: profile.username || '',
         first_name: initialFirstName,
         last_name: initialLastName,
-        position_primary: player.position_primary || 'ZOM',
-        position_secondary: player.position_secondary || '',
-        height_user: player.height_user || '',
-        weight: player.weight || '',
-        strong_foot: player.strong_foot || 'Rechts',
-        transfer_status: player.transfer_status || 'Gebunden',
-        contract_end: player.contract_end || '',
-        bio: player.bio || '',
-        zip_code: player.zip_code || '',
-        city: player.city || '',
-        instagram_handle: player.instagram_handle || '',
-        tiktok_handle: player.tiktok_handle || '',
-        youtube_handle: player.youtube_handle || '',
-        transfermarkt_url: player.transfermarkt_url || '',
-        fupa_url: player.fupa_url || '',
-        birth_date: player.birth_date || '',
-        jersey_number: player.jersey_number || '',
-        nationality: player.nationality || '',
-        player_archetype: player.player_archetype || '',
-        signature_badges: player.signature_badges || [],
+        position_primary: profile.position_primary || 'ZOM',
+        position_secondary: profile.position_secondary || '',
+        height_user: profile.height_user || '',
+        weight: profile.weight || '',
+        strong_foot: profile.strong_foot || 'Rechts',
+        transfer_status: profile.transfer_status || 'Gebunden',
+        contract_end: profile.contract_end || '',
+        bio: profile.bio || '',
+        zip_code: profile.zip_code || '',
+        city: profile.city || '',
+        instagram_handle: profile.instagram_handle || '',
+        tiktok_handle: profile.tiktok_handle || '',
+        youtube_handle: profile.youtube_handle || '',
+        transfermarkt_url: profile.transfermarkt_url || '',
+        fupa_url: profile.fupa_url || '',
+        birth_date: profile.birth_date || '',
+        jersey_number: profile.jersey_number || '',
+        nationality: profile.nationality || '',
+        player_archetype: profile.player_archetype || '',
+        signature_badges: profile.signature_badges || [],
         // Coach-specific fields
-        preferred_formation: player.preferred_system || '',
-        coaching_license: (player.licenses && player.licenses[0]) || '',
-        experience_years: player.experience_years || '',
-        leadership_styles: player.specializations || [],
-        tactical_identity: player.tactical_identity || [],
+        preferred_formation: profile.preferred_system || '',
+        coaching_license: (profile.licenses && profile.licenses[0]) || '',
+        experience_years: profile.experience_years || '',
+        leadership_styles: profile.specializations || [],
+        tactical_identity: profile.tactical_identity || [],
         // Scout-specific fields
-        scout_title: player.club_affiliation || '',
-        focus_age_groups: player.tactical_identity || [],
-        scout_expertise: player.specializations || [],
-        scout_radius: player.preferred_system || ''
+        scout_title: profile.club_affiliation || '',
+        focus_age_groups: profile.tactical_identity || [],
+        scout_expertise: profile.specializations || [],
+        scout_radius: profile.preferred_system || ''
     });
 
     const [avatarFile, setAvatarFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(player.avatar_url);
+    const [previewUrl, setPreviewUrl] = useState(profile.avatar_url);
     const [cropImageSrc, setCropImageSrc] = useState(null);
     const [clubSearch, setClubSearch] = useState('');
     const [clubResults, setClubResults] = useState([]);
-    const [selectedClub, setSelectedClub] = useState(player.clubs || null);
+    const [selectedClub, setSelectedClub] = useState(profile.clubs || null);
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [transferData, setTransferData] = useState(null);
 
@@ -79,14 +79,14 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
     // Fetch career entries
     useEffect(() => {
-        if (!player.user_id) return;
+        if (!profile.user_id) return;
         const loadCareer = async () => {
             setCareerLoading(true);
             try {
                 const { data, error } = await supabase
                     .from('career_history')
                     .select('*')
-                    .eq('user_id', player.user_id)
+                    .eq('user_id', profile.user_id)
                     .order('start_date', { ascending: false });
                 if (error) throw error;
                 setCareerEntries(data || []);
@@ -97,7 +97,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
             }
         };
         loadCareer();
-    }, [player.user_id]);
+    }, [profile.user_id]);
 
     const resetCareerForm = () => {
         setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false });
@@ -129,7 +129,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
         setCareerLoading(true);
         try {
             const payload = {
-                user_id: player.user_id,
+                user_id: profile.user_id,
                 club_name: careerForm.club_name.trim(),
                 league: careerForm.league.trim() || null,
                 start_date: careerForm.start_date + '-01',
@@ -232,7 +232,7 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
 
         setLoading(true);
         try {
-            let av = player.avatar_url;
+            let av = profile.avatar_url;
             if (avatarFile) {
                 const p = `${player.user_id}/${Date.now()}.jpg`;
                 const { error: uploadErr } = await supabase.storage.from('avatars').upload(p, avatarFile);
@@ -242,9 +242,9 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
             }
 
             // Geocode city if changed
-            let latitude = player.latitude || null;
-            let longitude = player.longitude || null;
-            if (formData.city && formData.city !== player.city) {
+            let latitude = profile.latitude || null;
+            let longitude = profile.longitude || null;
+            if (formData.city && formData.city !== profile.city) {
                 const coords = await geocodeCity(formData.city);
                 if (coords) {
                     latitude = coords.lat;
@@ -303,12 +303,12 @@ export const EditProfileModal = ({ player, onClose, onUpdate }) => {
                 updates.player_archetype = formData.player_archetype;
             }
 
-            const { data, error } = await supabase.from('players_master').update(updates).eq('id', player.id).select('*, clubs(*, leagues(name))').single();
+            const { data, error } = await supabase.from('players_master').update(updates).eq('id', profile.id).select('*, clubs(*, leagues(name))').single();
             if (error) throw error;
             onUpdate(data);
             addToast("Profil erfolgreich gespeichert! ✅", 'success');
 
-            const oldClub = player.clubs;
+            const oldClub = profile.clubs;
             const newClub = selectedClub;
             const hasClubChanged = newClub && (!oldClub || oldClub.id !== newClub.id);
 

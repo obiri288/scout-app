@@ -7,8 +7,8 @@ import { calculateProReadinessScore } from '../lib/helpers';
  * Gamified Pro-Readiness Card.
  * Replaces ProfileCompletenessCard.
  */
-export const ProReadinessCard = ({ player, highlights = [], onEditProfile }) => {
-    const { score, quests } = useMemo(() => calculateProReadinessScore(player, highlights), [player, highlights]);
+export const ProReadinessCard = ({ profile, highlights = [], onEditProfile }) => {
+    const { score, quests } = useMemo(() => calculateProReadinessScore(profile, highlights), [profile, highlights]);
 
     if (score >= 100) return null; // Fully complete — no need to show unless desired
 

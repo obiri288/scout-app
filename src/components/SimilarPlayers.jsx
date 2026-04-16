@@ -11,39 +11,39 @@ import { calculateAge } from '../lib/helpers';
  * 3. Similar age (±3 years)
  * 4. Same league level
  */
-export const SimilarPlayers = ({ player, onUserClick }) => {
+export const SimilarPlayers = ({ profile, onUserClick }) => {
     const [similar, setSimilar] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!player) return;
+        if (!profile) return;
 
         const findSimilar = async () => {
             try {
                 // Fetch candidates: same position OR same city
                 const { data } = await supabase.from('players_master')
                     .select('*, clubs(*)')
-                    .neq('id', player.id)
+                    .neq('id', profile.id)
                     .limit(100);
 
                 if (!data) { setLoading(false); return; }
 
-                const playerAge = player.birth_date ? calculateAge(player.birth_date) : null;
+                const playerAge = profile.birth_date ? calculateAge(profile.birth_date) : null;
 
                 // Score each candidate
                 const scored = data.map(p => {
                     let score = 0;
 
                     // Position match (strongest signal)
-                    if (p.position_primary === player.position_primary) score += 5;
-                    if (p.position_secondary === player.position_primary) score += 2;
-                    if (player.position_secondary && p.position_primary === player.position_secondary) score += 2;
+                    if (p.position_primary === profile.position_primary) score += 5;
+                    if (p.position_secondary === profile.position_primary) score += 2;
+                    if (profile.position_secondary && p.position_primary === profile.position_secondary) score += 2;
 
                     // City match
-                    if (player.city && p.city && p.city.toLowerCase() === player.city.toLowerCase()) score += 4;
+                    if (profile.city && p.city && p.city.toLowerCase() === profile.city.toLowerCase()) score += 4;
 
                     // Same region (zip prefix match)
-                    if (player.zip_code && p.zip_code && p.zip_code.substring(0, 2) === player.zip_code.substring(0, 2)) score += 2;
+                    if (profile.zip_code && p.zip_code && p.zip_code.substring(0, 2) === profile.zip_code.substring(0, 2)) score += 2;
 
                     // Age similarity (±3 years)
                     if (playerAge && p.birth_date) {
@@ -55,16 +55,16 @@ export const SimilarPlayers = ({ player, onUserClick }) => {
                     }
 
                     // Same league level
-                    if (player.clubs?.league && p.clubs?.league && p.clubs.league === player.clubs.league) score += 2;
+                    if (profile.clubs?.league && p.clubs?.league && p.clubs.league === profile.clubs.league) score += 2;
 
                     // Same transfer status
-                    if (player.transfer_status && p.transfer_status === player.transfer_status) score += 1;
+                    if (profile.transfer_status && p.transfer_status === profile.transfer_status) score += 1;
 
                     // Same strong foot
-                    if (player.strong_foot && p.strong_foot === player.strong_foot) score += 1;
+                    if (profile.strong_foot && p.strong_foot === profile.strong_foot) score += 1;
 
                     // Same nationality
-                    if (player.nationality && p.nationality === player.nationality) score += 1;
+                    if (profile.nationality && p.nationality === profile.nationality) score += 1;
 
                     return { ...p, _score: score };
                 });
@@ -84,7 +84,7 @@ export const SimilarPlayers = ({ player, onUserClick }) => {
         };
 
         findSimilar();
-    }, [player]);
+    }, [profile]);
 
     if (loading || similar.length === 0) return null;
 

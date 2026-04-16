@@ -9,19 +9,19 @@ import { calculateAge } from '../lib/helpers';
  * The VIP Elite Player Card for sharing.
  * DOM-based, no Canvas. Uses Web Share API.
  */
-export const ElitePlayerCard = ({ player, avgRating, onClose, highlights }) => {
+export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => {
     // Score
-    const { score } = useMemo(() => calculateProReadinessScore(player, highlights), [player, highlights]);
+    const { score } = useMemo(() => calculateProReadinessScore(profile, highlights), [profile, highlights]);
 
     const handleShare = async () => {
         // Construct a URL to the profile
-        const profileUrl = window.location.origin + `/profile/${player.id}`;
+        const profileUrl = window.location.origin + `/profile/${profile.id}`;
 
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `${player.full_name} – ProBase Elite Card`,
-                    text: `Sieh dir das Profil von ${player.full_name} auf ProBase an. Pro-Readiness: ${score}%.`,
+                    title: `${profile.full_name} – ProBase Elite Card`,
+                    text: `Sieh dir das Profil von ${profile.full_name} auf ProBase an. Pro-Readiness: ${score}%.`,
                     url: profileUrl,
                 });
             } catch (err) {
@@ -60,10 +60,10 @@ export const ElitePlayerCard = ({ player, avgRating, onClose, highlights }) => {
                             </span>
                         </div>
                         <div className="flex flex-col items-end pt-1">
-                            <span className="text-xl font-black text-white">{player.position_primary || 'ST'}</span>
-                            {player.nationality && (
+                            <span className="text-xl font-black text-white">{profile.position_primary || 'ST'}</span>
+                            {profile.nationality && (
                                 <span className="text-xs text-white/50 font-bold uppercase mt-1">
-                                    {player.nationality}
+                                    {profile.nationality}
                                 </span>
                             )}
                         </div>
@@ -73,8 +73,8 @@ export const ElitePlayerCard = ({ player, avgRating, onClose, highlights }) => {
                     <div className="flex justify-center -mt-2 relative z-10">
                         <div className="relative w-32 h-32 rounded-full border-2 border-amber-400/50 p-1 shadow-[0_0_20px_rgba(251,191,36,0.2)]">
                             <div className="w-full h-full rounded-full overflow-hidden bg-zinc-900 flex items-center justify-center">
-                                {player.avatar_url ? (
-                                    <img src={player.avatar_url} className="w-full h-full object-cover" />
+                                {profile.avatar_url ? (
+                                    <img src={profile.avatar_url} className="w-full h-full object-cover" />
                                 ) : (
                                     <User size={40} className="text-zinc-600" />
                                 )}
@@ -85,11 +85,11 @@ export const ElitePlayerCard = ({ player, avgRating, onClose, highlights }) => {
                     {/* Name & Club */}
                     <div className="text-center mt-3 relative z-10">
                         <h2 className="text-2xl font-black text-white tracking-tight uppercase px-4 truncate">
-                            {player.full_name}
+                            {profile.full_name}
                         </h2>
                         <div className="flex items-center justify-center gap-1.5 mt-1 text-sm text-zinc-400 font-medium">
-                            {player.clubs?.is_icon_league && <Crown size={12} className="text-amber-400" />}
-                            <span>{player.clubs?.name || 'Vereinslos'}</span>
+                            {profile.clubs?.is_icon_league && <Crown size={12} className="text-amber-400" />}
+                            <span>{profile.clubs?.name || 'Vereinslos'}</span>
                         </div>
                     </div>
 
@@ -105,17 +105,17 @@ export const ElitePlayerCard = ({ player, avgRating, onClose, highlights }) => {
                             <div>
                                 <h4 className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Spielertyp</h4>
                                 <div className="text-cyan-400 font-bold text-sm bg-cyan-400/10 px-2.5 py-1 rounded-md border border-cyan-400/20 inline-block">
-                                    {player.player_archetype || 'Universell'}
+                                    {profile.player_archetype || 'Universell'}
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs text-zinc-300 font-bold">
                                 <div>
                                     <div className="text-[9px] text-zinc-500 mb-0.5">ALTER</div>
-                                    <div>{player.birth_date ? calculateAge(player.birth_date) : '-'}</div>
+                                    <div>{profile.birth_date ? calculateAge(profile.birth_date) : '-'}</div>
                                 </div>
                                 <div>
                                     <div className="text-[9px] text-zinc-500 mb-0.5">FUß</div>
-                                    <div>{player.strong_foot?.[0] || '-'}</div>
+                                    <div>{profile.strong_foot?.[0] || '-'}</div>
                                 </div>
                             </div>
                         </div>
@@ -124,7 +124,7 @@ export const ElitePlayerCard = ({ player, avgRating, onClose, highlights }) => {
                         <div className="w-1/2 flex items-center justify-center border-l border-white/5 pl-4 -my-2 opacity-90">
                             <div className="transform scale-[0.65] origin-center -ml-8 -mt-6">
                                 {/* Wir übergeben compact=true, damit das Radar keine UI zum bewerten zeigt */}
-                                <RadarChart playerId={player.id} isOwnProfile={true} compact={true} />
+                                <RadarChart playerId={profile.id} isOwnProfile={true} compact={true} />
                             </div>
                         </div>
                     </div>

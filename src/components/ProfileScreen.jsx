@@ -98,17 +98,16 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete }) => {
     );
 });
 
-export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onShowFollowing, onLoginReq, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, currentUserProfile, onCompare, onPlayerClick, onReport, onBlock, onUpload }) => {
+export const ProfileScreen = ({ profile, highlights, onVideoClick, onDeleteVideo, isOwnProfile, onBack, onLogout, onEditReq, onChatReq, onSettingsReq, onFollow, onShowFollowers, onShowFollowing, onLoginReq, onClubClick, onAdminReq, onWatchlistToggle, isOnWatchlist, session, currentUserProfile, onCompare, onPlayerClick, onReport, onBlock, onUpload }) => {
     const { status: isFollowing, count: followersCount, toggle: toggleFollow } = useInteractionStatus({
         type: 'user_follow',
-        targetId: player.id,
+        targetId: profile.id,
         session,
-        initialCount: player.followers_count || 0,
-        initialStatus: player.isFollowing || false
+        initialCount: profile.followers_count || 0,
+        initialStatus: profile.isFollowing || false
     });
 
-    const [followersCount_deprecated, setFollowersCount_deprecated] = useState(player.followers_count || 0); // Kept for requested naming but hook provides better management
-    const [followingCount, setFollowingCount] = useState(player.following_count || 0);
+    const [followingCount, setFollowingCount] = useState(profile.following_count || 0);
 
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showPlayerCard, setShowPlayerCard] = useState(false);
@@ -140,14 +139,14 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
     };
 
     useEffect(() => {
-        if (!player?.id) return;
+        if (!profile?.id) return;
         if (isOwnProfile) {
-            api.getProfileViewCount(player.id).then(setViewCount);
+            api.getProfileViewCount(profile.id).then(setViewCount);
         }
         // Safe fetch for FIFA card avgRating
         const loadAvgRating = async () => {
             try {
-                const { data } = await supabase.from('player_ratings').select('rating').eq('player_id', player.id);
+                const { data } = await supabase.from('player_ratings').select('rating').eq('player_id', profile.id);
                 if (data && data.length > 0) {
                     setAvgRating(Math.round(data.reduce((s, r) => s + r.rating, 0) / data.length * 10) / 10);
                 }
@@ -160,7 +159,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
         // Safe fetch for safe progress-bar attributes
         const loadAttributes = async () => {
             try {
-                const { data } = await supabase.from('player_attributes').select('*').eq('player_id', player.id);
+                const { data } = await supabase.from('player_attributes').select('*').eq('player_id', profile.id);
                 if (data && data.length > 0) {
                     // Calc averages across all raters
                     const attrsList = ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical'];
@@ -188,16 +187,16 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
         loadAttributes();
 
         // Fetch specific skill endorsements
-        if (player?.user_id) {
+        if (profile?.user_id) {
             supabase.from('endorsements')
                 .select('id, sender_id, skill_name')
-                .eq('receiver_id', player.user_id)
+                .eq('receiver_id', profile.user_id)
                 .then(({ data }) => setSkillEndorsements(data || []));
         }
-    }, [player?.id, player?.user_id, isOwnProfile, session?.user?.id]);
+    }, [profile?.id, profile?.user_id, isOwnProfile, session?.user?.id]);
 
     const handleEndorseSkill = async (skillName) => {
-        if (!session?.user?.id || !player?.user_id) return;
+        if (!session?.user?.id || !profile?.user_id) return;
         
         // Optimistic UI update
         const existing = skillEndorsements.find(e => e.skill_name === skillName && e.sender_id === session.user.id);
@@ -212,12 +211,12 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
             }
         } else {
             const tempId = `temp-${Date.now()}`;
-            const newEndorsement = { id: tempId, sender_id: session.user.id, receiver_id: player.user_id, skill_name: skillName };
+            const newEndorsement = { id: tempId, sender_id: session.user.id, receiver_id: profile.user_id, skill_name: skillName };
             setSkillEndorsements(prev => [...prev, newEndorsement]);
             try {
                 const { data, error } = await supabase.from('endorsements').insert({
                     sender_id: session.user.id,
-                    receiver_id: player.user_id,
+                    receiver_id: profile.user_id,
                     skill_name: skillName
                 }).select().single();
                 
@@ -229,7 +228,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                 try {
                     await supabase.from('notifications').insert({
                         actor_id: session.user.id,
-                        receiver_id: player.user_id,
+                        receiver_id: profile.user_id,
                         type: 'endorse',
                         metadata: { skill: skillName },
                         message: `Hat dein ${skillName} verifiziert`
@@ -244,15 +243,15 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
         }
     };
 
-    if (isOwnProfile && !player) return <ProfileSkeleton />;
-    if (!player) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Profil nicht gefunden.</div>;
+    if (isOwnProfile && !profile) return <ProfileSkeleton />;
+    if (!profile) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Profil nicht gefunden.</div>;
 
     const statusColors = {
         'Gebunden': 'bg-red-500 shadow-red-500/50',
         'Vertrag läuft aus': 'bg-cyan-500 shadow-cyan-500/50',
         'Suche Verein': 'bg-cyan-500 shadow-cyan-500/50'
     };
-    const statusTextClass = player.transfer_status === 'Suche Verein' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' : player.transfer_status === 'Vertrag läuft aus' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20';
+    const statusTextClass = profile.transfer_status === 'Suche Verein' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' : profile.transfer_status === 'Vertrag läuft aus' ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' : 'text-red-400 bg-red-500/10 border-red-500/20';
 
     return (
         <div className="min-h-screen pb-32 animate-in fade-in">
@@ -266,14 +265,14 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         {!isOwnProfile && (
                             <div className="relative">
                                 <button onClick={() => setShowProfileMenu(!showProfileMenu)} className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white border border-border">
-                                    <MoreVertical size={20} />
+                                    < MoreVertical size={20} />
                                 </button>
                                 {showProfileMenu && (
                                     <div className="absolute right-0 top-full mt-1 bg-white dark:bg-zinc-800 border border-border rounded-xl shadow-2xl overflow-hidden min-w-[180px] animate-in fade-in slide-in-from-top-2 z-20">
-                                        <button onClick={() => { setShowProfileMenu(false); onReport?.({ id: player.user_id, type: 'user' }); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition">
+                                        <button onClick={() => { setShowProfileMenu(false); onReport?.({ id: profile.user_id, type: 'user' }); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition">
                                             <Flag size={16} className="text-cyan-400" /> Nutzer melden
                                         </button>
-                                        <button onClick={() => { setShowProfileMenu(false); onBlock?.(player); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-red-500 hover:bg-red-500/10 hover:text-red-400 transition border-t border-border">
+                                        <button onClick={() => { setShowProfileMenu(false); onBlock?.(profile); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-red-500 hover:bg-red-500/10 hover:text-red-400 transition border-t border-border">
                                             <ShieldOff size={16} /> Nutzer blockieren
                                         </button>
                                     </div>
@@ -289,7 +288,7 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     <div className="relative mb-2 group mt-2">
                         <div className="absolute -inset-1 rounded-full blur-md opacity-40 bg-gradient-to-tr from-cyan-500 to-cyan-700"></div>
                         <div className="relative w-24 h-24 rounded-full bg-card overflow-hidden border-2 border-slate-800 shadow-xl">
-                            {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={40} className="text-muted-foreground m-5" />}
+                            {profile.avatar_url ? <img src={profile.avatar_url} className="w-full h-full object-cover" /> : <User size={40} className="text-muted-foreground m-5" />}
                         </div>
                     </div>
 
@@ -297,24 +296,24 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         {/* Name & Badges Container */}
                         <div className="flex flex-col items-center justify-center gap-1 mt-2">
                             <div className="flex flex-row items-center justify-center gap-2 flex-wrap text-center">
-                                <h1 className="text-xl font-bold text-foreground text-center leading-snug">{player.full_name}</h1>
-                                {player.verification_status && player.verification_status !== 'unverified' && <VerificationBadge size={18} status={player.verification_status} verificationStatus={player.verification_status} />}
-                                {player.role === 'admin' && <Database size={18} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] flex-shrink-0" title="Admin" />}
+                                <h1 className="text-xl font-bold text-foreground text-center leading-snug">{profile.full_name}</h1>
+                                {profile.verification_status && profile.verification_status !== 'unverified' && <VerificationBadge size={18} status={profile.verification_status} verificationStatus={profile.verification_status} />}
+                                {profile.role === 'admin' && <Database size={18} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] flex-shrink-0" title="Admin" />}
                             </div>
-                            {player.username && (
+                            {profile.username && (
                                 <div className="flex items-center gap-2">
-                                    <p className="text-muted-foreground text-sm font-medium">@{player.username}</p>
-                                    {!isOwnProfile && player.followsMe && (
+                                    <p className="text-muted-foreground text-sm font-medium">@{profile.username}</p>
+                                    {!isOwnProfile && profile.followsMe && (
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">Folgt dir</span>
                                     )}
                                 </div>
                             )}
-                            <XPLevelBadge playerId={player.id} compact />
+                            <XPLevelBadge playerId={profile.id} compact />
 
                             {/* Signature Badges */}
-                            {player.signature_badges && player.signature_badges.length > 0 && (
+                            {profile.signature_badges && profile.signature_badges.length > 0 && (
                                 <div className="flex items-center gap-2 mt-2">
-                                    {player.signature_badges.map(badgeId => {
+                                    {profile.signature_badges.map(badgeId => {
                                         const badge = getBadgeById(badgeId);
                                         if (!badge) return null;
                                         const colors = getBadgeColors(badge);
@@ -337,45 +336,50 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                         <div className="flex flex-col items-center gap-3">
                             {/* Club & Position / Scout Title */}
                             <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
-                                {player.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
-                                <span onClick={() => player.clubs && onClubClick(player.clubs)} className="hover:text-foreground transition cursor-pointer">{player.clubs?.name || (player?.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')}</span>
+                                {profile.clubs?.is_icon_league && <Crown size={14} className="text-cyan-400" />}
+                                <span onClick={() => profile.clubs && onClubClick(profile.clubs)} className="hover:text-foreground transition cursor-pointer">{profile.clubs?.name || (profile.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')}</span>
                                 <span className="w-1 h-1 bg-muted-foreground rounded-full"></span>
-                                {player?.role === 'scout' ? (
+                                {profile.role === 'scout' ? (
                                     <span className="text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded text-xs font-bold border border-amber-500/20">
-                                        {player.club_affiliation || 'Scout'}
+                                        {profile.club_affiliation || 'Scout'}
                                     </span>
                                 ) : (
-                                    <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{player.position_primary || 'Position n.a.'}</span>
+                                    <span className="text-foreground/80 bg-white/10 px-2 py-0.5 rounded text-xs">{profile.position_primary || 'Position n.a.'}</span>
                                 )}
+
                             </div>
 
                             {/* Transfer Status Pill – only for players */}
-                            {player.role !== 'scout' && (
+                            {profile.player_archetype ? (
+                                <div className="text-2xl font-black text-cyan-400 uppercase tracking-tight italic">
+                                    {profile.player_archetype}
+                                </div>
+                            ) : profile.role !== 'scout' && (
                                 <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide ${statusTextClass}`}>
-                                    {player.transfer_status}
+                                    {profile.transfer_status}
                                 </div>
                             )}
 
                             {/* Scout Suchradius Pill */}
-                            {player.role === 'scout' && player.preferred_system && (
+                            {profile.role === 'scout' && profile.preferred_system && (
                                 <div className="px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wide text-emerald-400 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-1.5">
-                                    <Globe size={12} /> {player.preferred_system}
+                                    <Globe size={12} /> {profile.preferred_system}
                                 </div>
                             )}
 
                             {/* Mutual Friends / Social Proof */}
-                            {!isOwnProfile && player.mutualFriends && player.mutualFriends.length > 0 && (
+                            {!isOwnProfile && profile.mutualFriends && profile.mutualFriends.length > 0 && (
                                 <div className="flex items-center justify-center gap-2 mt-1">
                                     <div className="flex -space-x-1.5">
-                                        {player.mutualFriends.slice(0, 3).map((mf) => (
+                                        {profile.mutualFriends.slice(0, 3).map((mf) => (
                                             <div key={mf.id} className="w-5 h-5 rounded-full border border-card bg-slate-200 dark:bg-slate-800 overflow-hidden relative z-10 shadow-sm border-[1.5px]">
                                                 {mf.avatar_url ? <img src={mf.avatar_url} className="w-full h-full object-cover" /> : <User size={12} className="m-auto mt-0.5 text-slate-500" />}
                                             </div>
                                         ))}
                                     </div>
                                     <p className="text-[11px] text-muted-foreground font-medium">
-                                        Gefolgt von <span className="text-foreground">{player.mutualFriends[0].full_name}</span>
-                                        {player.mutualFriends.length > 1 && ` und ${player.mutualFriends.length - 1} weiteren`}
+                                        Gefolgt von <span className="text-foreground">{profile.mutualFriends[0].full_name}</span>
+                                        {profile.mutualFriends.length > 1 && ` und ${profile.mutualFriends.length - 1} weiteren`}
                                     </p>
                                 </div>
                             )}
@@ -385,24 +389,16 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                     {/* Stats Grid */}
                     <div className={`grid ${isOwnProfile ? 'grid-cols-4' : 'grid-cols-3'} gap-2 w-full mb-5`}>
                         {/* Folgt Card (Following Count) */}
-                        <div 
-                            className="col-span-1 relative bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 shadow-sm dark:shadow-none rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer group hover:border-cyan-400/50 transition-colors overflow-hidden h-[90px]"
-                            onClick={onShowFollowing}
-                        >
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.08)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
                             <UserPlus size={22} strokeWidth={2} className="text-cyan-500 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
                             <span className="text-xl font-black text-gray-900 dark:text-white z-10 leading-none">{followingCount}</span>
+
                             <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-widest mt-0.5 z-10">Folgt</span>
                         </div>
 
                         {/* Follower Card */}
-                        <div 
-                            className="col-span-1 relative bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 shadow-sm dark:shadow-none rounded-xl p-2 flex flex-col items-center justify-center cursor-pointer group hover:border-cyan-400/50 transition-colors overflow-hidden h-[90px]" 
-                            onClick={onShowFollowers}
-                        >
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.08)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_bottom,rgba(34,211,238,0.1)_0%,transparent_70%)] opacity-70 group-hover:opacity-100 transition-opacity"></div>
                             <Users size={22} strokeWidth={2} className="text-cyan-500 mb-1 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
                             <span className="text-xl font-black text-gray-900 dark:text-white z-10 leading-none">{followersCount}</span>
+
                             <span className="text-[9px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-widest mt-0.5 z-10">Follower</span>
                         </div>
 
@@ -435,13 +431,14 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
                                 <button onClick={handleShare} className="flex-none bg-muted text-foreground p-2.5 rounded-xl border border-border hover:bg-muted/80 transition" title="Profil teilen">
                                     <Share2 size={18} />
                                 </button>
-                                {player.role === 'admin' && <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50" title="Admin Dashboard"><Database size={18} /></button>}
+                                {profile.role === 'admin' && <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30 hover:bg-cyan-900/50" title="Admin Dashboard"><Database size={18} /></button>}
                             </>
                         ) : (
                             <>
                                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleFollowClick} className={`flex-1 ${isFollowing ? 'bg-secondary text-secondary-foreground border-border' : 'bg-cyan-600 text-white shadow-[0_0_10px_rgba(34,211,238,0.2)] border-cyan-500'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
                                     {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
                                     {isFollowing ? 'Gefolgt' : 'Folgen'}
+
                                 </motion.button>
                                 <button onClick={onChatReq} className="flex-none bg-muted text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-muted/80 transition">
                                     <MessageCircle size={18} />
@@ -466,41 +463,41 @@ export const ProfileScreen = ({ player, highlights, onVideoClick, onDeleteVideo,
 
             {/* Social Links Row */}
             <div className="flex justify-center gap-6 py-4 border-b border-border">
-                {player.instagram_handle ? <a href={`https://instagram.com/${player.instagram_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-pink-500 transition"><Instagram size={20} /></a> : <Instagram size={20} className="text-muted-foreground/40" />}
-                {player.tiktok_handle ? <a href={`https://tiktok.com/@${player.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground transition"><Video size={20} /></a> : <Video size={20} className="text-muted-foreground/40" />}
-                {player.youtube_handle ? <a href={`https://youtube.com/@${player.youtube_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-red-500 transition"><Youtube size={20} /></a> : <Youtube size={20} className="text-muted-foreground/40" />}
+                {profile.instagram_handle ? <a href={`https://instagram.com/${profile.instagram_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-pink-500 transition"><Instagram size={20} /></a> : <Instagram size={20} className="text-muted-foreground/40" />}
+                {profile.tiktok_handle ? <a href={`https://tiktok.com/@${profile.tiktok_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground transition"><Video size={20} /></a> : <Video size={20} className="text-muted-foreground/40" />}
+                {profile.youtube_handle ? <a href={`https://youtube.com/@${profile.youtube_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-red-500 transition"><Youtube size={20} /></a> : <Youtube size={20} className="text-muted-foreground/40" />}
             </div>
 
             {/* Scout Rating (non-own profiles) */}
             {!isOwnProfile && session && (
                 <div className="px-4 py-3 border-b border-border">
-                    <PlayerRating playerId={player.id} session={session} />
+                    <PlayerRating playerId={profile.id} session={session} />
                 </div>
             )}
 
             {/* Gamified Pro-Readiness */}
             {isOwnProfile && (
-                <ProReadinessCard player={player} highlights={highlights} onEditProfile={onEditReq} />
+                <ProReadinessCard profile={profile} highlights={highlights} onEditProfile={onEditReq} />
             )}
 
             {/* Content Tabs */}
-            <ProfileTabs player={player} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} onUpload={onUpload} session={session} currentUserProfile={currentUserProfile} playerStats={playerStats} skillEndorsements={skillEndorsements} onEndorseSkill={handleEndorseSkill} />
+            <ProfileTabs profile={profile} highlights={highlights} onVideoClick={onVideoClick} isOwnProfile={isOwnProfile} onDeleteVideo={onDeleteVideo} onUpload={onUpload} session={session} currentUserProfile={currentUserProfile} playerStats={playerStats} skillEndorsements={skillEndorsements} onEndorseSkill={handleEndorseSkill} />
 
             {/* Similar Players */}
             {!isOwnProfile && onPlayerClick && (
-                <SimilarPlayers player={player} onUserClick={onPlayerClick} />
+                <SimilarPlayers profile={profile} onUserClick={onPlayerClick} />
             )}
 
             {/* Elite Player Card Modal */}
             {showPlayerCard && (
-                <ElitePlayerCard player={player} avgRating={avgRating} highlights={highlights} onClose={() => setShowPlayerCard(false)} />
+                <ElitePlayerCard profile={profile} avgRating={avgRating} highlights={highlights} onClose={() => setShowPlayerCard(false)} />
             )}
         </div>
     );
 };
 
 // --- Profile Tabs Component ---
-const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteVideo, onUpload, session, currentUserProfile, playerStats, skillEndorsements, onEndorseSkill }) => {
+const ProfileTabs = ({ profile, highlights, onVideoClick, isOwnProfile, onDeleteVideo, onUpload, session, currentUserProfile, playerStats, skillEndorsements, onEndorseSkill }) => {
     const [activeTab, setActiveTab] = useState('highlights');
 
     const TabBtn = ({ id, label }) => (
@@ -516,7 +513,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
         <>
             <div className="flex px-4 pt-4 pb-2 gap-6 border-b border-border sticky top-0 z-40 bg-slate-50/90 dark:bg-slate-950/80 backdrop-blur-md">
                 <TabBtn id="highlights" label="Highlights" />
-                <TabBtn id="stats" label={player.role === 'scout' ? 'Visitenkarte' : 'Stats'} />
+                <TabBtn id="stats" label={profile.role === 'scout' ? 'Visitenkarte' : 'Stats'} />
                 <TabBtn id="karriere" label="Karriere" />
                 <TabBtn id="about" label="Über" />
             </div>
@@ -553,7 +550,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
             {/* TAB: Stats */}
             {activeTab === 'stats' && (
                 <div className="px-4 py-6 space-y-4 animate-in fade-in">
-                    {player.role === 'scout' ? (
+                    {profile.role === 'scout' ? (
                         /* ===== SCOUT VISITENKARTE ===== */
                         <>
                             {/* Scout Business Card */}
@@ -573,30 +570,30 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                     </div>
 
                                     {/* Title */}
-                                    {player.club_affiliation && (
+                                    {profile.club_affiliation && (
                                         <div className="mb-4">
                                             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Bezeichnung</span>
-                                            <span className="text-lg font-black text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">{player.club_affiliation}</span>
+                                            <span className="text-lg font-black text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]">{profile.club_affiliation}</span>
                                         </div>
                                     )}
 
                                     {/* Radius */}
-                                    {player.preferred_system && (
+                                    {profile.preferred_system && (
                                         <div className="mb-4">
                                             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Suchradius</span>
                                             <div className="flex items-center gap-2">
                                                 <Globe size={16} className="text-emerald-400" />
-                                                <span className="text-sm font-bold text-foreground">{player.preferred_system}</span>
+                                                <span className="text-sm font-bold text-foreground">{profile.preferred_system}</span>
                                             </div>
                                         </div>
                                     )}
 
                                     {/* Focus Age Groups */}
-                                    {player.tactical_identity && player.tactical_identity.length > 0 && (
+                                    {profile.tactical_identity && profile.tactical_identity.length > 0 && (
                                         <div className="mb-4">
                                             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-2">Fokus-Altersklassen</span>
                                             <div className="flex flex-wrap gap-2">
-                                                {player.tactical_identity.map(age => (
+                                                {profile.tactical_identity.map(age => (
                                                     <span key={age} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold">
                                                         <Target size={12} /> {age}
                                                     </span>
@@ -606,11 +603,11 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                     )}
 
                                     {/* Expertise & Services */}
-                                    {player.specializations && player.specializations.length > 0 && (
+                                    {profile.specializations && profile.specializations.length > 0 && (
                                         <div>
                                             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-2">Expertise & Services</span>
                                             <div className="flex flex-wrap gap-2">
-                                                {player.specializations.map(skill => (
+                                                {profile.specializations.map(skill => (
                                                     <span key={skill} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-bold">
                                                         ⚡ {skill}
                                                     </span>
@@ -625,7 +622,8 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                             <div className="grid grid-cols-3 gap-3">
                                 <StatCard label="Follower" value={followersCount} />
                                 <StatCard label="Clips" value={highlights?.length ?? 0} />
-                                <StatCard label="Verein" value={typeof player?.clubs === 'object' ? (player?.clubs?.name || (player?.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')) : 'Vereinslos'} small />
+                                <StatCard label="Verein" value={profile?.clubs?.name || (profile.role === 'scout' ? 'Freiberuflich' : 'Vereinslos')} small />
+
                             </div>
                         </>
                     ) : (
@@ -635,16 +633,16 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                 <div className="bg-slate-50 dark:bg-white/5 backdrop-blur-xl border border-border rounded-2xl p-5 space-y-4 shadow-sm">
                                     <h3 className="font-['Montserrat'] font-bold text-foreground text-lg tracking-tight uppercase border-b border-border pb-2">Kader-Basisdaten</h3>
                                     <div className="grid grid-cols-2 gap-3 pb-3">
-                                        <StatCard label="Position" value={player?.position_primary || '-'} sub={player?.position_secondary ? `Neben: ${player.position_secondary}` : null} />
-                                        <StatCard label="Starker Fuß" value={player?.strong_foot || '-'} />
-                                        <StatCard label="Größe" value={player?.height_user ? `${player.height_user} cm` : '-'} isVerified={player?.is_verified} />
-                                        <StatCard label="Gewicht" value={player?.weight ? `${player.weight} kg` : '-'} isVerified={player?.is_verified} />
-                                        <StatCard label="Trikotnummer" value={player?.jersey_number ? `#${player.jersey_number}` : '-'} />
-                                        <StatCard label="Alter" value={player?.birth_date ? `${calculateAge(player.birth_date)} Jahre` : '-'} isVerified={player?.is_verified} />
+                                        <StatCard label="Position" value={profile?.position_primary || '-'} sub={profile?.position_secondary ? `Neben: ${profile.position_secondary}` : null} />
+                                        <StatCard label="Starker Fuß" value={profile?.strong_foot || '-'} />
+                                        <StatCard label="Größe" value={profile?.height_user ? `${profile.height_user} cm` : '-'} isVerified={profile?.is_verified} />
+                                        <StatCard label="Gewicht" value={profile?.weight ? `${profile.weight} kg` : '-'} isVerified={profile?.is_verified} />
+                                        <StatCard label="Trikotnummer" value={profile?.jersey_number ? `#${profile.jersey_number}` : '-'} />
+                                        <StatCard label="Alter" value={profile?.birth_date ? `${calculateAge(profile.birth_date)} Jahre` : '-'} isVerified={profile?.is_verified} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                                        <StatCard label="Transfer-Status" value={player?.transfer_status || '-'} highlight={player?.transfer_status === 'Suche Verein'} />
-                                        <StatCard label="Vertrag bis" value={player?.contract_end ? new Date(player.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
+                                        <StatCard label="Transfer-Status" value={profile?.transfer_status || '-'} highlight={profile?.transfer_status === 'Suche Verein'} />
+                                        <StatCard label="Vertrag bis" value={profile?.contract_end ? new Date(profile.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
                                     </div>
                                 </div>
 
@@ -656,11 +654,11 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Bevorzugtes System</span>
-                                            <span className="text-sm font-medium text-foreground">{player?.preferred_system || 'Nicht angegeben'}</span>
+                                            <span className="text-sm font-medium text-foreground">{profile?.preferred_system || 'Nicht angegeben'}</span>
                                         </div>
-                                        <div>
-                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Spielerrolle</span>
-                                            <span className="text-sm font-medium text-foreground">{player?.tactical_role || 'Nicht angegeben'}</span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Bevorzugte Rolle</span>
+                                            <span className="text-sm font-medium text-foreground">{profile?.tactical_role || 'Nicht angegeben'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -723,9 +721,9 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                                                 );
                                             })}
                                             {/* Minimalistic Rating Action */}
-                                            {session && !isOwnProfile && player?.id && (
+                                            {session && !isOwnProfile && profile?.id && (
                                                 <div className="pt-4 border-t border-border mt-6">
-                                                    <RadarChart playerId={player.id} session={session} isOwnProfile={isOwnProfile} onlyRatingUI />
+                                                    <RadarChart playerId={profile.id} session={session} isOwnProfile={isOwnProfile} onlyRatingUI />
                                                 </div>
                                             )}
                                         </div>
@@ -736,6 +734,7 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                 </div>
             )}
 
+<<<<<<< HEAD
             {/* --- OLD STATS TAB (COMMENTED OUT FOR MOCK-FIRST ISOLATION) --- 
             {activeTab === 'stats' && (
                 <div className="px-4 py-6 space-y-4 animate-in fade-in">
@@ -764,11 +763,11 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Bevorzugtes System</span>
-                                <span className="text-sm font-medium text-foreground">{player?.preferred_system ?? 'Nicht angegeben'}</span>
+                                <span className="text-sm font-medium text-foreground">{profile?.preferred_system ?? 'Nicht angegeben'}</span>
                             </div>
                             <div>
                                 <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Spielerrolle</span>
-                                <span className="text-sm font-medium text-foreground">{player?.tactical_role ?? 'Nicht angegeben'}</span>
+                                <span className="text-sm font-medium text-foreground">{profile?.tactical_role ?? 'Nicht angegeben'}</span>
                             </div>
                         </div>
                     </motion.div>
@@ -777,28 +776,28 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                         <h3 className="font-['Montserrat'] font-bold text-foreground text-lg tracking-tight uppercase border-b border-border pb-2">Kader-Basisdaten</h3>
 
                         <div className="grid grid-cols-2 gap-3 pb-3">
-                            <StatCard label="Position" value={player?.position_primary ?? '-'} sub={player?.position_secondary ? `Neben: ${player.position_secondary}` : null} />
-                            <StatCard label="Starker Fuß" value={player?.strong_foot ?? '-'} />
-                            <StatCard label="Größe" value={player?.height_user ? `${player.height_user} cm` : '-'} isVerified={player?.is_verified} />
-                            <StatCard label="Gewicht" value={player?.weight ? `${player.weight} kg` : '-'} isVerified={player?.is_verified} />
-                            <StatCard label="Trikotnummer" value={player?.jersey_number ? `#${player.jersey_number}` : '-'} />
-                            <StatCard label="Alter" value={player?.birth_date ? `${calculateAge(player.birth_date)} Jahre` : '-'} isVerified={player?.is_verified} />
+                            <StatCard label="Position" value={profile?.position_primary ?? '-'} sub={profile?.position_secondary ? `Neben: ${profile.position_secondary}` : null} />
+                            <StatCard label="Starker Fuß" value={profile?.strong_foot ?? '-'} />
+                            <StatCard label="Größe" value={profile?.height_user ? `${profile.height_user} cm` : '-'} isVerified={profile?.is_verified} />
+                            <StatCard label="Gewicht" value={profile?.weight ? `${profile.weight} kg` : '-'} isVerified={profile?.is_verified} />
+                            <StatCard label="Trikotnummer" value={profile?.jersey_number ? `#${profile.jersey_number}` : '-'} />
+                            <StatCard label="Alter" value={profile?.birth_date ? `${calculateAge(profile.birth_date)} Jahre` : '-'} isVerified={profile?.is_verified} />
                         </div>
                         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                            <StatCard label="Transfer-Status" value={player?.transfer_status ?? '-'} highlight={player?.transfer_status === 'Suche Verein'} />
-                            <StatCard label="Vertrag bis" value={player?.contract_end ? new Date(player.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
+                            <StatCard label="Transfer-Status" value={profile?.transfer_status ?? '-'} highlight={profile?.transfer_status === 'Suche Verein'} />
+                            <StatCard label="Vertrag bis" value={profile?.contract_end ? new Date(profile.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 pt-2">
                         <StatCard label="Follower" value={followersCount} />
                         <StatCard label="Clips" value={highlights?.length ?? 0} />
-                        <StatCard label="Verein" value={player?.clubs?.name ?? 'Vereinslos'} small />
+                        <StatCard label="Verein" value={profile?.clubs?.name ?? 'Vereinslos'} small />
                     </div>
 
                     <div className="pt-4">
                         <h4 className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-3 px-1">Spieler-Attribute</h4>
-                        <RadarChart playerId={player.id} session={session} isOwnProfile={isOwnProfile} />
+                        <RadarChart playerId={profile.id} session={session} isOwnProfile={isOwnProfile} />
                     </div>
                 </div>
             )}
@@ -806,17 +805,17 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
 
             {/* TAB: Karriere */}
             {activeTab === 'karriere' && (
-                <CareerTimeline userId={player.user_id} />
+                <CareerTimeline userId={profile.user_id} />
             )}
 
             {/* TAB: Über */}
             {activeTab === 'about' && (
                 <div className="px-4 py-6 space-y-6 animate-in fade-in">
                     {/* Bio */}
-                    {player.bio ? (
+                    {profile.bio ? (
                         <div>
                             <h4 className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-2">Über mich</h4>
-                            <p className="text-foreground/80 text-sm leading-relaxed bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-border">{player.bio}</p>
+                            <p className="text-foreground/80 text-sm leading-relaxed bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-border">{profile.bio}</p>
                         </div>
                     ) : (
                         <div className="text-muted-foreground text-sm text-center py-4">Keine Bio vorhanden.</div>
@@ -826,24 +825,24 @@ const ProfileTabs = ({ player, highlights, onVideoClick, isOwnProfile, onDeleteV
                     <div>
                         <h4 className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-3">Persönliche Daten</h4>
                         <div className="space-y-2">
-                            {player.birth_date && <InfoRow icon="📅" label="Geburtsdatum" value={new Date(player.birth_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })} />}
-                            {player.nationality && <InfoRow icon="🌍" label="Nationalität" value={player.nationality} />}
-                            {(player.city || player.zip_code) && <InfoRow icon="📍" label="Standort" value={[player.zip_code, player.city].filter(Boolean).join(' ')} />}
+                            {profile.birth_date && <InfoRow icon="📅" label="Geburtsdatum" value={new Date(profile.birth_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })} />}
+                            {profile.nationality && <InfoRow icon="🌍" label="Nationalität" value={profile.nationality} />}
+                            {(profile.city || profile.zip_code) && <InfoRow icon="📍" label="Standort" value={[profile.zip_code, profile.city].filter(Boolean).join(' ')} />}
                         </div>
                     </div>
 
                     {/* External Links */}
-                    {(player.transfermarkt_url || player.fupa_url) && (
+                    {(profile.transfermarkt_url || profile.fupa_url) && (
                         <div>
                             <h4 className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-3">Externe Profile</h4>
                             <div className="space-y-2">
-                                {player.transfermarkt_url && (
-                                    <a href={player.transfermarkt_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl text-sm text-cyan-400 hover:bg-slate-100 dark:hover:bg-white/10 transition border border-border">
+                                {profile.transfermarkt_url && (
+                                    <a href={profile.transfermarkt_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl text-sm text-cyan-400 hover:bg-slate-100 dark:hover:bg-white/10 transition border border-border">
                                         🔗 Transfermarkt Profil
                                     </a>
                                 )}
-                                {player.fupa_url && (
-                                    <a href={player.fupa_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl text-sm text-cyan-400 hover:bg-slate-100 dark:hover:bg-white/10 transition border border-border">
+                                {profile.fupa_url && (
+                                    <a href={profile.fupa_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl text-sm text-cyan-400 hover:bg-slate-100 dark:hover:bg-white/10 transition border border-border">
                                         🔗 FuPa Profil
                                     </a>
                                 )}

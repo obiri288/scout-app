@@ -138,7 +138,9 @@ export const fetchFeed = async (offset = 0, limit = 10) => {
         .eq('players_master.is_deactivated', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
-    return data || [];
+        
+    // Filter out posts without profiles to prevent crashes
+    return (data || []).filter(post => post.players_master !== null);
 };
 
 export const fetchHighlightCount = async (playerId) => {

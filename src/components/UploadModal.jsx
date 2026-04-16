@@ -24,7 +24,7 @@ const ACTION_TAGS = [
     { label: 'Parade', icon: Hand },
 ];
 
-export const UploadModal = ({ player, onClose, onUploadComplete }) => {
+export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
     const [category, setCategory] = useState("Training");
     const [description, setDescription] = useState("");
@@ -80,7 +80,7 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
     };
 
     const handleUpload = async () => {
-        if (!player?.user_id || !file) {
+        if (!profile?.user_id || !file) {
             setErrorMsg("Bitte Profil erst vervollständigen.");
             return;
         }
@@ -95,8 +95,8 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
 
         try {
             const fileExt = file.name.split('.').pop();
-            const fileName = `${player.user_id}/${Date.now()}.${fileExt}`;
-            const thumbName = `${player.user_id}/${Date.now()}_thumb.jpg`;
+            const fileName = `${profile.user_id}/${Date.now()}.${fileExt}`;
+            const thumbName = `${profile.user_id}/${Date.now()}_thumb.jpg`;
 
             // 1. Thumbnail generation & upload
             let thumbUrl = null;
@@ -120,7 +120,7 @@ export const UploadModal = ({ player, onClose, onUploadComplete }) => {
 
             // 3. Database entry
             const { error: dbErr } = await supabase.from('media_highlights').insert({
-                player_id: player.id,
+                player_id: profile.id,
                 video_url: publicUrl,
                 thumbnail_url: thumbUrl,
                 category_tag: category,

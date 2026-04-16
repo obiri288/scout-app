@@ -50,13 +50,13 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
                 .order('created_at', { ascending: false })
                 .range(offset, offset + PAGE_SIZE - 1);
 
-            const newItems = data || [];
+            const newItems = (data || []).filter(item => item.players_master !== null);
             if (reset) {
                 setFeed(newItems);
             } else {
                 setFeed(prev => [...prev, ...newItems]);
             }
-            setHasMore(newItems.length === PAGE_SIZE);
+            setHasMore((data || []).length === PAGE_SIZE);
         } catch (e) {
             console.error("Feed load failed:", e);
         } finally {

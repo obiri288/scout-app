@@ -272,6 +272,7 @@ const App = () => {
         pendingReactivationProfile, confirmReactivation,
         showDeactivate, setShowDeactivate
     } = useAppState();
+    const { addToast } = useToast();
 
     const { addToast } = useToast();
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
@@ -379,7 +380,7 @@ const App = () => {
 
             {activeTab === 'profile' && (
                 <ProfileScreen
-                    player={viewedProfile}
+                    profile={viewedProfile}
                     highlights={profileHighlights}
                     onVideoClick={setActiveVideo}
                     onDeleteVideo={handleDeleteVideo}
@@ -473,7 +474,7 @@ const App = () => {
             <Suspense fallback={<LazyFallback />}>
                 {showEditProfile && currentUserProfile && (
                     <EditProfileModal
-                        player={currentUserProfile}
+                        profile={currentUserProfile}
                         onClose={() => setShowEditProfile(false)}
                         onUpdate={(updated) => { updateProfile(updated); setViewedProfile(updated); }}
                     />
@@ -528,7 +529,7 @@ const App = () => {
                 {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
                 {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} currentUserProfile={currentUserProfile} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
                 {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
-                {showUpload && <UploadModal player={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
+                {showUpload && <UploadModal profile={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}
                 {comparePlayer !== undefined && <CompareModal initialPlayer={comparePlayer} onClose={() => setComparePlayer(undefined)} />}
                 {blockTarget && session && <BlockUserModal targetUser={blockTarget} session={session} onClose={() => setBlockTarget(null)} onBlocked={() => setBlockTarget(null)} />}

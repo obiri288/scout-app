@@ -86,12 +86,11 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                 if (video.players_master?.id) {
                     api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`);
                 }
-                
-                // Manual Like Notification
-                if (video.players_master?.user_id && video.players_master.user_id !== session.user.id) {
+                // Manual Like Notification (Decoupled from interaction)
+                if (video.players_master?.user_id && video.players_master?.user_id !== session.user.id) {
                     try {
                         await api.createNotification({
-                            userId: video.players_master.user_id,
+                            userId: video.players_master?.user_id,
                             actorId: session.user.id,
                             type: 'like',
                             message: 'hat dein Video gelikt.',
@@ -116,15 +115,22 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             <Card className="bg-card border-border backdrop-blur-sm overflow-hidden mb-5 shadow-lg shadow-black/40">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onUserClick(video.players_master)}>
+                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => video.players_master && onUserClick(video.players_master)}>
                         <div className={`w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden p-[1px] ${getClubStyle(video.players_master?.clubs?.is_icon_league)} shadow-inner`}>
                             <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-950">
-                                {video.players_master?.avatar_url ? <img src={video.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-muted-foreground" />}
+                                {video.players_master?.avatar_url ? (
+                                    <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt={video.players_master?.full_name || 'Profil'} title={video.players_master?.full_name || 'Profil'} />
+                                ) : (
+                                    <User className="m-2 text-muted-foreground" />
+                                )}
                             </div>
                         </div>
                         <div>
                             <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors">
-                                {video.players_master?.full_name} {video.players_master?.verification_status && video.players_master?.verification_status !== 'unverified' && <VerificationBadge size={14} status={video.players_master?.verification_status} verificationStatus={video.players_master?.verification_status} />}
+                                {video.players_master?.full_name || 'Unbekannter Spieler'} 
+                                {video.players_master?.verification_status && video.players_master?.verification_status !== 'unverified' && (
+                                    <VerificationBadge size={14} status={video.players_master?.verification_status} verificationStatus={video.players_master?.verification_status} />
+                                )}
                             </div>
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
@@ -145,7 +151,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         <div className="absolute inset-0 bg-transparent opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, white 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                         <div className="z-10 text-center mb-8 w-full px-4">
                             <h3 className="text-white font-black text-2xl drop-shadow-lg tracking-tight">
-                                {video.players_master?.full_name || 'Spieler'} hat gewechselt! 🚀
+                                {video.players_master?.full_name || 'Ein Spieler'} hat gewechselt! 🚀
                             </h3>
                         </div>
                         <div className="flex items-center justify-center w-full max-w-sm gap-2 z-10 px-2">
@@ -156,9 +162,9 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                 </div>
                             </div>
                             <div className="flex flex-col items-center justify-center px-1">
-                                <div className="w-16 h-16 rounded-full border-2 border-white/50 bg-slate-800 overflow-hidden shadow-2xl z-10 cursor-pointer" onClick={(e) => { e.stopPropagation(); onUserClick(video.players_master); }}>
+                                <div className="w-16 h-16 rounded-full border-2 border-white/50 bg-slate-800 overflow-hidden shadow-2xl z-10 cursor-pointer" onClick={(e) => { e.stopPropagation(); video.players_master && onUserClick(video.players_master); }}>
                                     {video.players_master?.avatar_url ? (
-                                        <img src={video.players_master.avatar_url} className="w-full h-full object-cover" />
+                                        <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt="Spieler Avatar" title={video.players_master?.full_name || 'Spieler'} />
                                     ) : (
                                         <User className="m-3 text-white/50 w-10 h-10" />
                                     )}
@@ -167,7 +173,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                             <div className="flex-1 flex flex-col items-center">
                                 <span className="text-white/90 text-[10px] uppercase font-bold tracking-widest mb-2 shadow-sm">Zu</span>
                                 <div className="bg-white/20 backdrop-blur-md border border-white/40 rounded-xl p-3 w-full text-center min-h-[80px] flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                    <span className="text-white font-black text-sm leading-tight drop-shadow-md line-clamp-2">{video.transfer_data?.new_club_name}</span>
+                                    <span className="text-white font-black text-sm leading-tight drop-shadow-md line-clamp-2">{video.transfer_data?.new_club_name || '-'}</span>
                                 </div>
                             </div>
                         </div>
@@ -219,9 +225,9 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     <div className="ml-auto">
                         <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
                             e.stopPropagation();
-                            const shareUrl = `${window.location.origin}/#profile/${video.players_master?.user_id}`;
+                            const shareUrl = `${window.location.origin}/#profile/${video.players_master?.user_id || video.id}`;
                             if (navigator.share) {
-                                navigator.share({ title: `${video.players_master?.full_name} – Highlight`, url: shareUrl }).catch(() => { });
+                                navigator.share({ title: `${video.players_master?.full_name || 'Highlight'} – Cavio`, url: shareUrl }).catch(() => { });
                             } else {
                                 navigator.clipboard.writeText(shareUrl);
                                 addToast('Link kopiert!', 'success');
