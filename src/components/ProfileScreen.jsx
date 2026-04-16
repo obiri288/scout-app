@@ -734,9 +734,8 @@ const ProfileTabs = ({ profile, highlights, onVideoClick, isOwnProfile, onDelete
                 </div>
             )}
 
-<<<<<<< HEAD
-            {/* --- OLD STATS TAB (COMMENTED OUT FOR MOCK-FIRST ISOLATION) --- 
-            {activeTab === 'stats' && (
+            {/* --- OLD STATS TAB (HIDDEN) --- */}
+            {activeTab === 'old_stats_hidden' && (
                 <div className="px-4 py-6 space-y-4 animate-in fade-in">
                     <motion.div
                         whileHover={{ boxShadow: '0 0 15px rgba(79,70,229,0.3)' }}
@@ -744,32 +743,13 @@ const ProfileTabs = ({ profile, highlights, onVideoClick, isOwnProfile, onDelete
                         className="bg-slate-100 dark:bg-slate-900/80 border border-border dark:border-slate-800 rounded-2xl p-5 space-y-3"
                     >
                         <h3 className="font-['Montserrat'] font-bold text-foreground text-lg tracking-tight uppercase">Spielertyp</h3>
-                        {player.player_archetype ? (
+                        {profile.player_archetype ? (
                             <span className="inline-block text-sm font-bold text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-4 py-1.5 rounded-full">
-                                {player.player_archetype}
+                                {profile.player_archetype}
                             </span>
                         ) : (
                             <p className="text-xs text-muted-foreground/60 italic">Spielertyp noch nicht festgelegt.</p>
                         )}
-                    </motion.div>
-
-                    <motion.div
-                        whileHover={{ boxShadow: '0 0 15px rgba(255,255,255,0.05)' }}
-                        transition={{ duration: 0.3 }}
-                        className="bg-slate-50 dark:bg-white/5 backdrop-blur-xl border border-border rounded-2xl p-5 space-y-4"
-                    >
-                        <h3 className="font-['Montserrat'] font-bold text-foreground text-lg tracking-tight uppercase border-b border-border pb-2">Taktische DNA</h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Bevorzugtes System</span>
-                                <span className="text-sm font-medium text-foreground">{profile?.preferred_system ?? 'Nicht angegeben'}</span>
-                            </div>
-                            <div>
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block mb-1">Spielerrolle</span>
-                                <span className="text-sm font-medium text-foreground">{profile?.tactical_role ?? 'Nicht angegeben'}</span>
-                            </div>
-                        </div>
                     </motion.div>
 
                     <div className="bg-slate-50 dark:bg-white/5 backdrop-blur-xl border border-border rounded-2xl p-5 space-y-4">
@@ -801,8 +781,7 @@ const ProfileTabs = ({ profile, highlights, onVideoClick, isOwnProfile, onDelete
                     </div>
                 </div>
             )}
-            --- END OLD STATS TAB --- */}
-
+            --- END OLD STATS TAB --- */
             {/* TAB: Karriere */}
             {activeTab === 'karriere' && (
                 <CareerTimeline userId={profile.user_id} />
