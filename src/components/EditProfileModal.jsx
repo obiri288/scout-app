@@ -12,6 +12,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
     const { addToast } = useToast();
+    const [errors, setErrors] = useState({});
 
     const initialFirstName = profile.first_name || (profile.full_name ? profile.full_name.split(' ')[0] : '');
     const initialLastName = profile.last_name || (profile.full_name ? profile.full_name.split(' ').slice(1).join(' ') : '');
@@ -230,6 +231,37 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
             return;
         }
 
+        // Validate sports data
+        const newErrors = {};
+        if (!isCoach && !isScout) {
+            if (formData.jersey_number) {
+                const num = parseInt(formData.jersey_number, 10);
+                if (isNaN(num) || num < 1 || num > 99) {
+                    newErrors.jersey_number = "1 - 99";
+                }
+            }
+            if (formData.height_user) {
+                const height = parseInt(formData.height_user, 10);
+                if (isNaN(height) || height < 120 || height > 250) {
+                    newErrors.height_user = "120 - 250";
+                }
+            }
+            if (formData.weight) {
+                const weight = parseInt(formData.weight, 10);
+                if (isNaN(weight) || weight < 40 || weight > 150) {
+                    newErrors.weight = "40 - 150";
+                }
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            setActiveTab('sport');
+            addToast("Bitte korrigiere die markierten Felder.", 'error');
+            return;
+        }
+        setErrors({});
+
         setLoading(true);
         try {
             let av = profile.avatar_url;
@@ -294,9 +326,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                 // Player-specific field mapping
                 updates.position_primary = formData.position_primary;
                 updates.position_secondary = formData.position_secondary;
-                updates.height_user = formData.height_user ? parseInt(formData.height_user) : null;
-                updates.weight = formData.weight ? parseInt(formData.weight) : null;
-                updates.jersey_number = formData.jersey_number ? parseInt(formData.jersey_number) : null;
+                updates.height_user = formData.height_user && !isNaN(parseInt(formData.height_user, 10)) ? parseInt(formData.height_user, 10) : null;
+                updates.weight = formData.weight && !isNaN(parseInt(formData.weight, 10)) ? parseInt(formData.weight, 10) : null;
+                updates.jersey_number = formData.jersey_number && !isNaN(parseInt(formData.jersey_number, 10)) ? parseInt(formData.jersey_number, 10) : null;
                 updates.strong_foot = formData.strong_foot;
                 updates.transfer_status = formData.transfer_status;
                 updates.contract_end = formData.contract_end || null;
@@ -755,15 +787,18 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                         <div className="grid grid-cols-4 gap-2">
                                             <div className="col-span-1">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nr.</label>
-                                                <input type="number" min="0" placeholder="#" value={formData.jersey_number} onChange={e => setFormData({ ...formData, jersey_number: e.target.value })} className={`${inputStyle} text-center`} />
+                                                <input type="number" min="1" max="99" placeholder="#" value={formData.jersey_number} onChange={e => { setFormData({ ...formData, jersey_number: e.target.value }); setErrors({...errors, jersey_number: null}); }} className={`${inputStyle} text-center ${errors.jersey_number ? '!border-rose-500 bg-rose-500/10 text-rose-500' : ''}`} />
+                                                {errors.jersey_number && <p className="text-rose-500 text-[9px] mt-1 text-center font-bold">{errors.jersey_number}</p>}
                                             </div>
                                             <div className="col-span-1">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Größe</label>
-                                                <input type="number" min="0" placeholder="cm" value={formData.height_user} onChange={e => setFormData({ ...formData, height_user: e.target.value })} className={inputStyle} />
+                                                <input type="number" min="120" max="250" placeholder="cm" value={formData.height_user} onChange={e => { setFormData({ ...formData, height_user: e.target.value }); setErrors({...errors, height_user: null}); }} className={`${inputStyle} ${errors.height_user ? '!border-rose-500 bg-rose-500/10 text-rose-500' : ''}`} />
+                                                {errors.height_user && <p className="text-rose-500 text-[9px] mt-1 text-center font-bold">{errors.height_user}</p>}
                                             </div>
                                             <div className="col-span-1">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Gewicht</label>
-                                                <input type="number" min="0" placeholder="kg" value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value })} className={inputStyle} />
+                                                <input type="number" min="40" max="150" placeholder="kg" value={formData.weight} onChange={e => { setFormData({ ...formData, weight: e.target.value }); setErrors({...errors, weight: null}); }} className={`${inputStyle} ${errors.weight ? '!border-rose-500 bg-rose-500/10 text-rose-500' : ''}`} />
+                                                {errors.weight && <p className="text-rose-500 text-[9px] mt-1 text-center font-bold">{errors.weight}</p>}
                                             </div>
                                             <div className="col-span-1">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Fuß</label>
