@@ -248,16 +248,32 @@ export const getFollowingCount = async (playerId) => {
 };
 
 export const follow = async (followerPlayerId, followingPlayerId) => {
+    const payload = { follower_id: followerPlayerId, following_id: followingPlayerId };
+    console.log('[follow] Payload:', payload);
+    if (!followerPlayerId || !followingPlayerId) {
+        throw new Error(`[follow] Ungültige IDs — follower_id: ${followerPlayerId}, following_id: ${followingPlayerId}`);
+    }
     const { error } = await supabase.from('follows')
-        .upsert({ follower_id: followerPlayerId, following_id: followingPlayerId }, { onConflict: 'follower_id,following_id' });
-    if (error) throw error;
+        .upsert(payload, { onConflict: 'follower_id,following_id' });
+    if (error) {
+        console.error('[follow] Supabase RLS/DB Fehler:', error.message, '| Details:', error.details, '| Hint:', error.hint, '| Payload:', payload);
+        throw new Error(`Follow fehlgeschlagen: ${error.message}`);
+    }
 };
 
 export const unfollow = async (followerPlayerId, followingPlayerId) => {
+    const criteria = { follower_id: followerPlayerId, following_id: followingPlayerId };
+    console.log('[unfollow] Criteria:', criteria);
+    if (!followerPlayerId || !followingPlayerId) {
+        throw new Error(`[unfollow] Ungültige IDs — follower_id: ${followerPlayerId}, following_id: ${followingPlayerId}`);
+    }
     const { error } = await supabase.from('follows')
         .delete()
-        .match({ follower_id: followerPlayerId, following_id: followingPlayerId });
-    if (error) throw error;
+        .match(criteria);
+    if (error) {
+        console.error('[unfollow] Supabase RLS/DB Fehler:', error.message, '| Details:', error.details, '| Hint:', error.hint, '| Criteria:', criteria);
+        throw new Error(`Unfollow fehlgeschlagen: ${error.message}`);
+    }
 };
 
 export const fetchFollowers = async (playerId) => {

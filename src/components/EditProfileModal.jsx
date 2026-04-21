@@ -421,9 +421,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Persönliche Daten</h3>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vorname</label>
                                             <input value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} className={inputStyle} placeholder="Max" />
@@ -448,7 +448,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                         <p className="text-[9px] text-muted-foreground mt-1 ml-1 italic">Wird für Markierungen (@mentions) verwendet.</p>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3">
+                                    {/* Birth date and nationality — each in its own full-width row to prevent
+                                        the Combobox dropdown from collapsing sibling cells or getting clipped */}
+                                    <div className="flex flex-col gap-6">
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
                                             <div className="relative">
@@ -467,7 +469,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                 </p>
                                             )}
                                         </div>
-                                        <div>
+                                        {/* Nationality: full width row so the dropdown overlay doesn't
+                                            push or clip any adjacent sibling field */}
+                                        <div className="relative min-h-[48px]">
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nationalität</label>
                                             <CountryCombobox 
                                                 value={formData.nationality}

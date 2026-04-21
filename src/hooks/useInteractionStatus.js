@@ -74,8 +74,6 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
         const wasStatus = status;
         const prevCount = count;
 
-        // 1. Optimistic Update (Status ONLY - NO manual count math)
-        setStatus(!wasStatus);
         setLoading(true);
 
         try {
@@ -83,27 +81,39 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                 if (!wasStatus) await api.likeVideo(userId, targetId);
                 else await api.unlikeVideo(userId, targetId);
                 
-                // Fetch fresh count from DB directly (Single Source of Truth)
-                const { data } = await supabase.from('media_highlights').select('likes_count').eq('id', targetId).maybeSingle();
-                if (data && isMounted.current) setCount(data.likes_count || 0);
+                // Fetch fresh status and count from DB directly (Single Source of Truth)
+                const [isLiked, { data }] = await Promise.all([
+                    api.checkIsLiked(userId, targetId),
+                    supabase.from('media_highlights').select('likes_count').eq('id', targetId).maybeSingle()
+                ]);
+
+                if (isMounted.current) {
+                    setStatus(isLiked);
+                    if (data) setCount(data.likes_count || 0);
+                }
             } 
             else if (type === 'user_follow') {
                 const myPlayerId = await api.getPlayerIdFromUserId(userId);
-                if (!myPlayerId) throw new Error("Profil nicht gefunden");
+                console.log('[useInteractionStatus] follow toggle — myPlayerId:', myPlayerId, '| targetId:', targetId, '| wasFollowing:', wasStatus);
+                if (!myPlayerId) throw new Error("Eigenes Profil nicht gefunden. Bitte neu einloggen.");
                 
                 if (!wasStatus) await api.follow(myPlayerId, targetId);
                 else await api.unfollow(myPlayerId, targetId);
                 
-                // Fetch fresh count directly from DB to guarantee absolute consistency
-                const { data } = await supabase.from('players_master').select('followers_count').eq('id', targetId).maybeSingle();
-                if (data && isMounted.current) setCount(data.followers_count || 0);
+                // Fetch fresh status and count directly from DB to guarantee absolute consistency
+                const [isFollowing, { data }] = await Promise.all([
+                    api.checkIsFollowing(myPlayerId, targetId),
+                    supabase.from('players_master').select('followers_count').eq('id', targetId).maybeSingle()
+                ]);
+
+                if (isMounted.current) {
+                    setStatus(isFollowing);
+                    if (data) setCount(data.followers_count || 0);
+                }
             }
         } catch (err) {
-            // 2. Rollback on Error
-            if (isMounted.current) {
-                setStatus(wasStatus);
-                setCount(prevCount);
-            }
+            // No need to rollback status here because we didn't update it optimistically
+            console.error(`[useInteractionStatus] Error in toggle (${type}):`, err);
             throw err; // Caller handles toast
         } finally {
             if (isMounted.current) {
