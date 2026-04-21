@@ -271,7 +271,7 @@ export const ProfileScreen = ({
                     <div className="relative mb-4">
                         <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 p-1 bg-gradient-to-tr from-cyan-500 to-indigo-500 overflow-hidden shadow-xl">
                             <img 
-                                src={profile.profile_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=random&size=128`} 
+                                src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'User')}&background=random&size=128`} 
                                 alt={profile.full_name}
                                 className="w-full h-full object-cover rounded-full"
                             />

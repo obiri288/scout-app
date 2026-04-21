@@ -74,9 +74,11 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
         const wasStatus = status;
         const prevCount = count;
 
-        // 1. Optimistic Update
+        // 1. Optimistic Update (Status always, Count conditionally)
         setStatus(!wasStatus);
-        setCount(c => wasStatus ? Math.max(0, c - 1) : c + 1);
+        if (type !== 'user_follow') {
+            setCount(c => wasStatus ? Math.max(0, c - 1) : c + 1);
+        }
         setLoading(true);
 
         try {
