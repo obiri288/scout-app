@@ -74,17 +74,18 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
         const wasStatus = status;
         const prevCount = count;
 
-        // 1. Optimistic Update (Status always, Count conditionally)
+        // 1. Optimistic Update (Status ONLY - NO manual count math)
         setStatus(!wasStatus);
-        if (type !== 'user_follow') {
-            setCount(c => wasStatus ? Math.max(0, c - 1) : c + 1);
-        }
         setLoading(true);
 
         try {
             if (type === 'video_like') {
                 if (!wasStatus) await api.likeVideo(userId, targetId);
                 else await api.unlikeVideo(userId, targetId);
+                
+                // Fetch fresh count from DB directly (Single Source of Truth)
+                const { data } = await supabase.from('media_highlights').select('likes_count').eq('id', targetId).maybeSingle();
+                if (data && isMounted.current) setCount(data.likes_count || 0);
             } 
             else if (type === 'user_follow') {
                 const myPlayerId = await api.getPlayerIdFromUserId(userId);

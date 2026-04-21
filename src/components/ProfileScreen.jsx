@@ -134,7 +134,8 @@ export const ProfileScreen = ({
     const { 
         status: isFollowing, 
         count: followersCount, 
-        toggle: toggleFollow 
+        toggle: toggleFollow,
+        loading: isFollowLoading
     } = useInteractionStatus({
         type: 'user_follow',
         targetId: profile.id,
@@ -348,8 +349,14 @@ export const ProfileScreen = ({
                             </>
                         ) : (
                             <>
-                                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleFollowClick} className={`flex-1 ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-foreground' : 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-500/20'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2`}>
-                                    {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}
+                                <motion.button 
+                                    whileHover={{ scale: 1.02 }} 
+                                    whileTap={{ scale: 0.98 }} 
+                                    onClick={handleFollowClick} 
+                                    disabled={isFollowLoading}
+                                    className={`flex-1 ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-foreground' : 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-500/20'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50`}
+                                >
+                                    {isFollowLoading ? <Loader2 size={16} className="animate-spin" /> : (isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />)}
                                     {isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </motion.button>
                                 <button onClick={onChatReq} className="flex-none bg-slate-100 dark:bg-slate-800 text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-opacity-80 transition">
