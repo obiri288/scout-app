@@ -277,9 +277,9 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     ];
 
     return (
-        <div className="fixed inset-0 z-[10002] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center">
-            {/* Progress Bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-slate-200 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-[10002] bg-background/95 backdrop-blur-xl flex flex-col items-center overflow-y-auto">
+            {/* Progress Bar — sticky so it stays at top while scrolling */}
+            <div className="sticky top-0 left-0 right-0 h-1 bg-slate-200 dark:bg-zinc-800 w-full z-10 flex-shrink-0">
                 <motion.div
                     className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400"
                     initial={false}
@@ -288,14 +288,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 />
             </div>
 
-            {/* Step Indicator */}
-            <div className="absolute top-6 left-0 right-0 flex justify-center gap-2 px-6">
+            {/* Step Indicator — in document flow */}
+            <div className="flex justify-center gap-2 pt-5 pb-2 w-full flex-shrink-0">
                 {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
                     <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i <= step ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-zinc-700'}`} />
                 ))}
             </div>
 
-            <div className="w-full max-w-md px-6 overflow-hidden">
+            <div className="w-full max-w-md px-6 flex-1 py-4">
                 <AnimatePresence mode="wait" custom={dir}>
                     <motion.div
                         key={step}
@@ -488,6 +488,12 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                 <p className="text-muted-foreground text-xs text-center">
                                     {avatarPreview ? 'Tippe nochmal zum Ändern' : 'JPG, PNG oder WebP, max. 5MB'}
                                 </p>
+                                {/* Skip link — in document flow, no absolute positioning */}
+                                {!avatarPreview && (
+                                    <button onClick={goNext} className="text-muted-foreground text-xs hover:text-foreground transition mt-2">
+                                        Überspringen →
+                                    </button>
+                                )}
                             </div>
                         )}
 
@@ -532,47 +538,42 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                 </div>
                             </div>
                         )}
+                        {/* Navigation Buttons — in document flow, always below step content */}
+                        <div className="mt-8 w-full flex gap-3 pb-8">
+                            {step > 0 && (
+                                <button
+                                    onClick={goBack}
+                                    disabled={loading}
+                                    className="px-5 py-3.5 bg-slate-200 dark:bg-zinc-800 text-foreground rounded-xl font-bold text-sm hover:bg-slate-300 dark:hover:bg-zinc-700 transition disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <ArrowLeft size={16} /> Zurück
+                                </button>
+                            )}
+                            <div className="flex-1" />
+                            {step < TOTAL_STEPS - 1 ? (
+                                <button
+                                    onClick={goNext}
+                                    disabled={step === 1 && !isStep1Valid}
+                                    className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-30 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
+                                >
+                                    Weiter <ArrowRight size={16} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => handleFinish(true)}
+                                    disabled={loading}
+                                    className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
+                                >
+                                    {loading ? <><Loader2 size={16} className="animate-spin" /> Speichern...</> : <><Sparkles size={16} /> Los geht's!</>}
+                                </button>
+                            )}
+                        </div>
+
                     </motion.div>
                 </AnimatePresence>
             </div>
 
-            {/* Navigation Buttons */}
-            <div className="absolute bottom-8 left-0 right-0 px-6 flex gap-3 max-w-md mx-auto">
-                {step > 0 && (
-                    <button
-                        onClick={goBack}
-                        disabled={loading}
-                        className="px-5 py-3.5 bg-slate-200 dark:bg-zinc-800 text-foreground rounded-xl font-bold text-sm hover:bg-slate-300 dark:hover:bg-zinc-700 transition disabled:opacity-50 flex items-center gap-2"
-                    >
-                        <ArrowLeft size={16} /> Zurück
-                    </button>
-                )}
-                <div className="flex-1" />
-                {step < TOTAL_STEPS - 1 ? (
-                    <button
-                        onClick={goNext}
-                        disabled={step === 1 && !isStep1Valid}
-                        className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-30 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
-                    >
-                        Weiter <ArrowRight size={16} />
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => handleFinish(true)}
-                        disabled={loading}
-                        className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
-                    >
-                        {loading ? <><Loader2 size={16} className="animate-spin" /> Speichern...</> : <><Sparkles size={16} /> Los geht's!</>}
-                    </button>
-                )}
-            </div>
 
-            {/* Skip for step 2 (avatar) */}
-            {step === 2 && !avatarPreview && (
-                <button onClick={goNext} className="absolute bottom-20 text-muted-foreground text-xs hover:text-foreground transition">
-                    Überspringen →
-                </button>
-            )}
         </div>
     );
 };
