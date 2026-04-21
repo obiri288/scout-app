@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Video, Users, UserPlus, UserCheck, Edit, Share2, MessageCircle, 
-    Bookmark, BookmarkCheck, ArrowLeft, Database, ShieldCheck, 
+    Bookmark, BookmarkCheck, ArrowLeft, Database, ShieldCheck, Settings,
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
     Loader2, X, Trash2, Play
@@ -255,7 +255,7 @@ export const ProfileScreen = ({
                 <div className="absolute top-6 right-4 z-20 flex gap-2">
                     {isOwnProfile && (
                         <button onClick={onSettingsReq} className="p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition">
-                            <Database size={18} />
+                            <Settings size={18} />
                         </button>
                     )}
                     <button onClick={handleShare} className="p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition">
