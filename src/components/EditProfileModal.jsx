@@ -33,7 +33,6 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
         transfer_status: profile.transfer_status || 'Gebunden',
         contract_end: profile.contract_end || '',
         bio: profile.bio || '',
-        zip_code: profile.zip_code || '',
         city: profile.city || '',
         instagram_handle: profile.instagram_handle || '',
         tiktok_handle: profile.tiktok_handle || '',
@@ -294,7 +293,6 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                 full_name,
                 username: formData.username?.toLowerCase().replace(/[@\s]/g, '') || null,
                 bio: formData.bio,
-                zip_code: formData.zip_code,
                 city: formData.city,
                 birth_date: formData.birth_date || null,
                 nationality: formData.nationality,
@@ -438,7 +436,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                         <p className="text-[9px] text-muted-foreground mt-1 ml-1 italic">Wird für Markierungen (@mentions) verwendet.</p>
                                     </div>
 
-                                    <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Geburtsdatum</label>
                                             <div className="relative">
@@ -448,7 +446,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                     value={formData.birth_date} 
                                                     onChange={e => setFormData({ ...formData, birth_date: e.target.value })} 
                                                     max={new Date().toISOString().split('T')[0]}
-                                                    className={`${inputStyle} pl-10 ${calculateAgeInfo(formData.birth_date).isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : ''}`} 
+                                                    className={`${inputStyle} pl-10 py-2.5 min-h-[46px] ${calculateAgeInfo(formData.birth_date).isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : ''}`} 
                                                 />
                                             </div>
                                             {calculateAgeInfo(formData.birth_date).isUnder16 && (
@@ -466,17 +464,16 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <div className="col-span-1">
-                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">PLZ</label>
-                                            <input placeholder="12345" value={formData.zip_code} onChange={e => setFormData({ ...formData, zip_code: e.target.value })} className={inputStyle} />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Ort</label>
-                                            <div className="relative">
-                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                                <input placeholder="Berlin" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className={`${inputStyle} pl-10`} />
-                                            </div>
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Ort</label>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                            <input 
+                                                placeholder="Berlin" 
+                                                value={formData.city} 
+                                                onChange={e => setFormData({ ...formData, city: e.target.value })} 
+                                                className={`${inputStyle} pl-10`} 
+                                            />
                                         </div>
                                     </div>
 
