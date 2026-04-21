@@ -231,8 +231,7 @@ export const useAppState = () => {
 
         setViewedProfile(prev => ({
             ...prev,
-            isFollowing: !previousIsFollowing,
-            followers_count: previousIsFollowing ? (prev.followers_count - 1) : (prev.followers_count + 1)
+            isFollowing: !previousIsFollowing
         }));
 
         try {
