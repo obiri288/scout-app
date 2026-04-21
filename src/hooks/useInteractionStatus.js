@@ -90,9 +90,11 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                 
                 if (!wasStatus) await api.follow(myPlayerId, targetId);
                 else await api.unfollow(myPlayerId, targetId);
+                
+                // Fetch fresh count directly from DB to guarantee absolute consistency
+                const { data } = await supabase.from('players_master').select('followers_count').eq('id', targetId).maybeSingle();
+                if (data && isMounted.current) setCount(data.followers_count || 0);
             }
-            // Success! We keep the optimistic update. 
-            // The triggers in Postgres ensure the counts are synchronized.
         } catch (err) {
             // 2. Rollback on Error
             if (isMounted.current) {

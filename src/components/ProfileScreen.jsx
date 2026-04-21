@@ -152,8 +152,25 @@ export const ProfileScreen = ({
         if (profile?.id) {
             loadPlayerDetails();
             incrementViewCount();
+            fetchFreshCounts();
         }
     }, [profile?.id]);
+
+    const fetchFreshCounts = async () => {
+        try {
+            // Explizit frisch aus der Datenbank laden, um veraltete Session-Stände (insbes. beim eigenen Profil) zu umgehen.
+            const { data } = await api.supabase.from('players_master')
+                .select('following_count')
+                .eq('id', profile.id)
+                .maybeSingle();
+                
+            if (data) {
+                setFollowingCount(data.following_count || 0);
+            }
+        } catch (err) {
+            console.error("Error fetching fresh counts:", err);
+        }
+    };
 
     const loadPlayerDetails = async () => {
         try {
@@ -293,7 +310,7 @@ export const ProfileScreen = ({
                         <div onClick={onShowFollowing} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition cursor-pointer h-[90px]">
                             <UserPlus size={22} className="text-cyan-500 mb-1" />
                             <span className="text-xl font-black text-foreground leading-none">{followingCount}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Folgt</span>
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Gefolgt</span>
                         </div>
 
                         <div onClick={onShowFollowers} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition cursor-pointer h-[90px]">
