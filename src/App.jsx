@@ -273,8 +273,6 @@ const App = () => {
         showDeactivate, setShowDeactivate
     } = useAppState();
     const { addToast } = useToast();
-
-    const { addToast } = useToast();
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
     const [blockTarget, setBlockTarget] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);

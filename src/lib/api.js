@@ -619,6 +619,64 @@ export const upsertPlayerAttributes = async (playerId, raterId, attributes) => {
     if (error) throw error;
 };
 
+export const getPlayerStats = async (playerId) => {
+    const { data } = await supabase.from('player_attributes')
+        .select('*')
+        .eq('player_id', playerId);
+    
+    if (!data || data.length === 0) {
+        return { pace: 50, shooting: 50, passing: 50, dribbling: 50, defending: 50, physical: 50 };
+    }
+
+    const attrs = ['pace', 'shooting', 'passing', 'dribbling', 'defending', 'physical'];
+    const avgs = {};
+    attrs.forEach(attr => {
+        const sum = data.reduce((s, r) => s + (r[attr] || 50), 0);
+        avgs[attr] = Math.round(sum / data.length);
+    });
+    return avgs;
+};
+
+// ============================================================
+// ENDORSEMENTS
+// ============================================================
+
+export const getSkillEndorsements = async (playerId) => {
+    const { data } = await supabase.from('endorsements')
+        .select('*')
+        .eq('receiver_id', playerId);
+    return data || [];
+};
+
+export const endorseSkill = async (playerId, skillName) => {
+    // Get sender_id from session or call must ensure it's handled.
+    // Here we assume the caller handles the session.
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Nicht eingeloggt");
+
+    const senderPlayerId = await getPlayerIdFromUserId(user.id);
+    if (!senderPlayerId) throw new Error("Profil nicht gefunden");
+
+    const { error } = await supabase.from('endorsements').insert({
+        sender_id: senderPlayerId,
+        receiver_id: playerId,
+        skill_name: skillName
+    });
+    if (error) throw error;
+};
+
+// ============================================================
+// PROFILE VIEWS
+// ============================================================
+
+export const incrementProfileViews = async (profileId) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        await recordProfileView(profileId, user.id);
+    }
+    return getProfileViewCount(profileId);
+};
+
 // ============================================================
 // XP SYSTEM
 // ============================================================
