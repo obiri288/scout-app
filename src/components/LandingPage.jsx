@@ -169,21 +169,7 @@ export const LandingPage = ({ onLogin, onRegister }) => (
           </button>
         </motion.div>
 
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-8 z-10"
-        >
-          <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center p-1.5">
-            <motion.div
-              animate={{ y: [0, 12, 0] }}
-              transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-              className="w-1.5 h-1.5 bg-cyan-400 rounded-full"
-            />
-          </div>
-        </motion.div>
+
       </section>
 
       {/* ═══════════════════ SOCIAL PROOF ═══════════════════ */}
