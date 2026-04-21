@@ -15,54 +15,66 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const { addToast } = useToast();
     const [errors, setErrors] = useState({});
 
-    const initialFirstName = profile.first_name || (profile.full_name ? profile.full_name.split(' ')[0] : '');
-    const initialLastName = profile.last_name || (profile.full_name ? profile.full_name.split(' ').slice(1).join(' ') : '');
+    // Loading Guard: prevent crash when profile data is not yet available
+    if (!profile) {
+        return (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3 text-white">
+                    <Loader2 size={32} className="animate-spin" />
+                    <span className="text-sm font-medium">Profil wird geladen…</span>
+                </div>
+            </div>
+        );
+    }
 
-    const isCoach = profile.role === 'coach';
-    const isScout = profile.role === 'scout';
+    const initialFirstName = profile?.first_name || (profile?.full_name ? profile.full_name.split(' ')[0] : '');
+    const initialLastName = profile?.last_name || (profile?.full_name ? profile.full_name.split(' ').slice(1).join(' ') : '');
+
+    const isCoach = profile?.role === 'coach';
+    const isScout = profile?.role === 'scout';
 
     const [formData, setFormData] = useState({
-        username: profile.username || '',
+        username: profile?.username || '',
         first_name: initialFirstName,
         last_name: initialLastName,
-        position_primary: profile.position_primary || 'ZOM',
-        position_secondary: profile.position_secondary || '',
-        height_user: profile.height_user || '',
-        weight: profile.weight || '',
-        strong_foot: profile.strong_foot || 'Rechts',
-        transfer_status: profile.transfer_status || 'Gebunden',
-        contract_end: profile.contract_end || '',
-        bio: profile.bio || '',
-        city: profile.city || '',
-        instagram_handle: profile.instagram_handle || '',
-        tiktok_handle: profile.tiktok_handle || '',
-        youtube_handle: profile.youtube_handle || '',
-        transfermarkt_url: profile.transfermarkt_url || '',
-        fupa_url: profile.fupa_url || '',
-        birth_date: profile.birth_date || '',
-        jersey_number: profile.jersey_number || '',
-        nationality: profile.nationality || '',
-        player_archetype: profile.player_archetype || '',
-        signature_badges: profile.signature_badges || [],
+        position_primary: profile?.position_primary || 'ZOM',
+        position_secondary: profile?.position_secondary || '',
+        height_user: profile?.height_user || '',
+        weight: profile?.weight || '',
+        strong_foot: profile?.strong_foot || 'Rechts',
+        transfer_status: profile?.transfer_status || 'Gebunden',
+        contract_end: profile?.contract_end || '',
+        bio: profile?.bio || '',
+        city: profile?.city || '',
+        instagram_handle: profile?.instagram_handle || '',
+        tiktok_handle: profile?.tiktok_handle || '',
+        youtube_handle: profile?.youtube_handle || '',
+        transfermarkt_url: profile?.transfermarkt_url || '',
+        fupa_url: profile?.fupa_url || '',
+        birth_date: profile?.birth_date || '',
+        jersey_number: profile?.jersey_number || '',
+        nationality: profile?.nationality || '',
+        player_archetype: profile?.player_archetype || '',
+        signature_badges: profile?.signature_badges || [],
         // Coach-specific fields
-        preferred_formation: profile.preferred_system || '',
-        coaching_license: (profile.licenses && profile.licenses[0]) || '',
-        experience_years: profile.experience_years || '',
-        leadership_styles: profile.specializations || [],
-        tactical_identity: profile.tactical_identity || [],
+        preferred_formation: profile?.preferred_system || '',
+        coaching_license: (profile?.licenses && profile.licenses[0]) || '',
+        experience_years: profile?.experience_years || '',
+        leadership_styles: profile?.specializations || [],
+        tactical_identity: profile?.tactical_identity || [],
         // Scout-specific fields
-        scout_title: profile.club_affiliation || '',
-        focus_age_groups: profile.tactical_identity || [],
-        scout_expertise: profile.specializations || [],
-        scout_radius: profile.preferred_system || ''
+        scout_title: profile?.club_affiliation || '',
+        focus_age_groups: profile?.tactical_identity || [],
+        scout_expertise: profile?.specializations || [],
+        scout_radius: profile?.preferred_system || ''
     });
 
     const [avatarFile, setAvatarFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(profile.avatar_url);
+    const [previewUrl, setPreviewUrl] = useState(profile?.avatar_url);
     const [cropImageSrc, setCropImageSrc] = useState(null);
     const [clubSearch, setClubSearch] = useState('');
     const [clubResults, setClubResults] = useState([]);
-    const [selectedClub, setSelectedClub] = useState(profile.clubs || null);
+    const [selectedClub, setSelectedClub] = useState(profile?.clubs || null);
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [transferData, setTransferData] = useState(null);
 
@@ -266,7 +278,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
         try {
             let av = profile.avatar_url;
             if (avatarFile) {
-                const p = `${player.user_id}/${Date.now()}.jpg`;
+                const p = `${profile.user_id}/${Date.now()}.jpg`;
                 const { error: uploadErr } = await supabase.storage.from('avatars').upload(p, avatarFile);
                 if (uploadErr) throw uploadErr;
                 const { data } = supabase.storage.from('avatars').getPublicUrl(p);

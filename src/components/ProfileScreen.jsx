@@ -17,6 +17,7 @@ import * as api from '../lib/api';
 import { useInteractionStatus } from '../hooks/useInteractionStatus';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
+import { useUser } from '../contexts/UserContext';
 import { calculateAge } from '../lib/helpers';
 import { getCountryFlag, getCountryNameOnly } from '../lib/countries';
 
@@ -128,6 +129,7 @@ export const ProfileScreen = ({
     const [activeTab, setActiveTab] = useState('highlights');
     const [showPlayerCard, setShowPlayerCard] = useState(false);
     const { addToast } = useToast();
+    const { refreshProfile } = useUser();
     
     // Hooks for following/follower counts and status
     const { 
@@ -198,6 +200,11 @@ export const ProfileScreen = ({
         if (!session) { onLoginReq(); return; }
         try {
             await toggleFollow();
+            // After successful follow/unfollow: refresh currentUserProfile from DB
+            // so the user's own following_count stays in sync (Single Source of Truth)
+            refreshProfile();
+            // Also refresh the viewed profile's following_count from DB
+            fetchFreshCounts();
         } catch (err) {
             addToast(err?.message || "Aktion fehlgeschlagen", "error");
         }
@@ -309,7 +316,7 @@ export const ProfileScreen = ({
                     <div className={`grid ${isOwnProfile ? 'grid-cols-4' : 'grid-cols-3'} gap-2 w-full mb-5`}>
                         <div onClick={onShowFollowing} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition cursor-pointer h-[90px]">
                             <UserPlus size={22} className="text-cyan-500 mb-1" />
-                            <span className="text-xl font-black text-foreground leading-none">{followingCount}</span>
+                            <span className="text-xl font-black text-foreground leading-none">{profile?.following_count ?? followingCount}</span>
                             <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Gefolgt</span>
                         </div>
 
