@@ -2,14 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Video, Users, UserPlus, UserCheck, Edit, Share2, MessageCircle, 
-    Bookmark, BookmarkCheck, ArrowLeftRight, Database, ShieldCheck, 
+    Bookmark, BookmarkCheck, ArrowLeft, Database, ShieldCheck, 
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
     Loader2, X, Trash2, Play
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
-import { PlayerRating } from './PlayerRating';
 import { ProReadinessCard } from './ProReadinessCard';
 import { CareerTimeline } from './CareerTimeline';
 import { SimilarPlayers } from './SimilarPlayers';
@@ -248,7 +247,7 @@ export const ProfileScreen = ({
                 {/* Back Button */}
                 {!isOwnProfile && (
                     <button onClick={onBack} className="absolute top-6 left-4 z-20 p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition">
-                        <ArrowLeftRight size={20} className="rotate-90 md:rotate-0" />
+                        <ArrowLeft size={20} />
                     </button>
                 )}
 
@@ -380,12 +379,7 @@ export const ProfileScreen = ({
                 {profile.youtube_handle ? <a href={`https://youtube.com/@${profile.youtube_handle}`} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-red-500 transition"><Youtube size={20} /></a> : <Youtube size={20} className="text-muted-foreground/40" />}
             </div>
 
-            {/* Scout Rating UI */}
-            {!isOwnProfile && session && (
-                <div className="px-4 py-3 border-b border-border">
-                    <PlayerRating playerId={profile.id} session={session} />
-                </div>
-            )}
+
 
             {/* Pro-Readiness Card */}
             {isOwnProfile && (
