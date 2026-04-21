@@ -19,6 +19,7 @@ import { useInteractionStatus } from '../hooks/useInteractionStatus';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
 import { calculateAge } from '../lib/helpers';
+import { getCountryFlag, getCountryNameOnly } from '../lib/countries';
 
 import {
     AlertDialog,
@@ -612,7 +613,7 @@ const ProfileTabs = ({
                         <h4 className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-3">Persönliche Daten</h4>
                         <div className="space-y-2">
                             {profile.birth_date && <InfoRow icon="📅" label="Geburtsdatum" value={new Date(profile.birth_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })} />}
-                            {profile.nationality && <InfoRow icon="🌍" label="Nationalität" value={profile.nationality} />}
+                            {profile.nationality && <InfoRow icon={getCountryFlag(profile.nationality)} label="Nationalität" value={getCountryNameOnly(profile.nationality)} />}
                             {(profile.city || profile.zip_code) && <InfoRow icon="📍" label="Standort" value={[profile.zip_code, profile.city].filter(Boolean).join(' ')} />}
                         </div>
                     </div>

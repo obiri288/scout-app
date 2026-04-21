@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X, Download, Share2 } from 'lucide-react';
 import { cardStyle } from '../lib/styles';
 import { calculateAge } from '../lib/helpers';
+import { getFormattedCountry } from '../lib/countries';
 
 /**
  * FIFA-Style Player Card — Canvas-rendered shareable image.
@@ -134,10 +135,11 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
 
             // Nationality flag text  
             if (player.nationality) {
+                const natText = getFormattedCountry(player.nationality);
                 ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
                 ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.textAlign = 'right';
-                ctx.fillText(player.nationality, W - 32, 88);
+                ctx.fillText(natText, W - 32, 88);
             }
 
             setImageReady(true);

@@ -4,6 +4,7 @@ import { X, Share2, Crown, Shield, Navigation } from 'lucide-react';
 import { calculateProReadinessScore } from '../lib/helpers';
 import { RadarChart } from './RadarChart'; // We will build the recharts version
 import { calculateAge } from '../lib/helpers';
+import { getFormattedCountry } from '../lib/countries';
 
 /**
  * The VIP Elite Player Card for sharing.
@@ -63,7 +64,7 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => 
                             <span className="text-xl font-black text-white">{profile.position_primary || 'ST'}</span>
                             {profile.nationality && (
                                 <span className="text-xs text-white/50 font-bold uppercase mt-1">
-                                    {profile.nationality}
+                                    {getFormattedCountry(profile.nationality)}
                                 </span>
                             )}
                         </div>

@@ -8,6 +8,7 @@ import { ImageCropModal } from './ImageCropModal';
 import { geocodeCity } from '../lib/api';
 import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
 import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
+import { CountryCombobox } from './CountryCombobox';
 export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
@@ -458,10 +459,10 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nationalität</label>
-                                            <div className="relative">
-                                                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                                <input placeholder="z.B. Deutschland" value={formData.nationality} onChange={e => setFormData({ ...formData, nationality: e.target.value })} className={`${inputStyle} pl-10`} />
-                                            </div>
+                                            <CountryCombobox 
+                                                value={formData.nationality}
+                                                onChange={(code) => setFormData({ ...formData, nationality: code })}
+                                            />
                                         </div>
                                     </div>
 

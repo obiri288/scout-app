@@ -3,6 +3,7 @@ import { X, Search, User, Shield, ChevronRight, ArrowLeftRight, Plus, Crown, Che
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
 import { calculateAge } from '../lib/helpers';
+import { getFormattedCountry } from '../lib/countries';
 
 export const CompareModal = ({ onClose, initialPlayer }) => {
     const [playerA, setPlayerA] = useState(initialPlayer || null);
@@ -157,7 +158,7 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                             <CompareRow label="Follower" valA={playerA.followers_count || 0} valB={playerB.followers_count || 0} highlight />
                             <CompareRow label="Clips" valA={highlightsA} valB={highlightsB} highlight />
                             <CompareRow label="Verifiziert" valA={playerA.is_verified ? '✓' : '✗'} valB={playerB.is_verified ? '✓' : '✗'} />
-                            <CompareRow label="Nationalität" valA={playerA.nationality || '-'} valB={playerB.nationality || '-'} />
+                            <CompareRow label="Nationalität" valA={playerA.nationality ? getFormattedCountry(playerA.nationality) : '-'} valB={playerB.nationality ? getFormattedCountry(playerB.nationality) : '-'} />
                             <CompareRow label="Stadt" valA={playerA.city || '-'} valB={playerB.city || '-'} />
                         </div>
                     </div>
