@@ -16,7 +16,7 @@ const cleanPayload = (obj) => {
 
 export const fetchPlayerByUserId = async (userId) => {
     const { data, error } = await supabase.from('players_master')
-        .select('*, clubs(*, leagues(name))')
+        .select('*, following_count, clubs(*, leagues(name))')
         .eq('user_id', userId)
         .eq('is_deactivated', false)
         .maybeSingle();
@@ -26,7 +26,7 @@ export const fetchPlayerByUserId = async (userId) => {
 
 export const fetchPlayerByUsername = async (username) => {
     const { data, error } = await supabase.from('players_master')
-        .select('*, clubs(*, leagues(name))')
+        .select('*, following_count, clubs(*, leagues(name))')
         .eq('username', username)
         .eq('is_deactivated', false)
         .maybeSingle();

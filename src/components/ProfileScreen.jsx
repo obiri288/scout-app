@@ -14,7 +14,6 @@ import { CareerTimeline } from './CareerTimeline';
 import { SimilarPlayers } from './SimilarPlayers';
 import { ElitePlayerCard } from './ElitePlayerCard';
 import * as api from '../lib/api';
-import { useInteractionStatus } from '../hooks/useInteractionStatus';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
 import { useUser } from '../contexts/UserContext';
@@ -132,20 +131,9 @@ export const ProfileScreen = ({
     const { refreshProfile } = useUser();
     
     // Hooks for following/follower counts and status
-    const { 
-        status: isFollowing, 
-        count: followersCount, 
-        toggle: toggleFollow,
-        loading: isFollowLoading
-    } = useInteractionStatus({
-        type: 'user_follow',
-        targetId: profile.id,
-        session,
-        initialCount: profile.followers_count || 0,
-        initialStatus: profile.isFollowing || false
-    });
-
-    const [followingCount, setFollowingCount] = useState(profile.following_count || 0);
+    const [isFollowing, setIsFollowing] = useState(profile.isFollowing || false);
+    const [followersCount, setFollowersCount] = useState(profile.followers_count || 0);
+    const [isFollowMutating, setIsFollowMutating] = useState(false);
     const [playerStats, setPlayerStats] = useState(null);
     const [skillEndorsements, setSkillEndorsements] = useState([]);
     const [viewCount, setViewCount] = useState(0);
@@ -161,13 +149,26 @@ export const ProfileScreen = ({
     const fetchFreshCounts = async () => {
         try {
             // Explizit frisch aus der Datenbank laden, um veraltete Session-Stände (insbes. beim eigenen Profil) zu umgehen.
-            const { data } = await api.supabase.from('players_master')
-                .select('following_count')
+            const { data, error } = await api.supabase.from('players_master')
+                .select('following_count, followers_count')
                 .eq('id', profile.id)
                 .maybeSingle();
                 
+            if (error) {
+                console.error("fetchFreshCounts Error:", error.message);
+                return;
+            }
+                
             if (data) {
-                setFollowingCount(data.following_count || 0);
+                setFollowersCount(data.followers_count || 0);
+            }
+
+            if (session?.user?.id) {
+                const myPlayerId = await api.getPlayerIdFromUserId(session.user.id);
+                if (myPlayerId && myPlayerId !== profile.id) {
+                    const following = await api.checkIsFollowing(myPlayerId, profile.id);
+                    setIsFollowing(following);
+                }
             }
         } catch (err) {
             console.error("Error fetching fresh counts:", err);
@@ -198,15 +199,61 @@ export const ProfileScreen = ({
 
     const handleFollowClick = async () => {
         if (!session) { onLoginReq(); return; }
+        if (isFollowMutating) return;
+
+        setIsFollowMutating(true);
         try {
-            await toggleFollow();
-            // After successful follow/unfollow: refresh currentUserProfile from DB
-            // so the user's own following_count stays in sync (Single Source of Truth)
-            refreshProfile();
-            // Also refresh the viewed profile's following_count from DB
-            fetchFreshCounts();
+            const myPlayerId = await api.getPlayerIdFromUserId(session.user.id);
+            if (!myPlayerId) {
+                addToast("Eigenes Profil nicht gefunden. Bitte neu einloggen.", "error");
+                throw new Error("Profil nicht gefunden.");
+            }
+
+            if (!isFollowing) {
+                const { error } = await api.supabase.from('follows')
+                    .upsert({ follower_id: myPlayerId, following_id: profile.id }, { onConflict: 'follower_id,following_id' });
+                
+                if (error) {
+                    addToast(error.message, "error");
+                    throw new Error(error.message);
+                }
+            } else {
+                const { error } = await api.supabase.from('follows')
+                    .delete()
+                    .match({ follower_id: myPlayerId, following_id: profile.id });
+                
+                if (error) {
+                    addToast(error.message, "error");
+                    throw new Error(error.message);
+                }
+            }
+
+            // Hard Re-Fetch als Single Source of Truth
+            const { data: freshProfile, error: fetchError } = await api.supabase
+                .from('players_master')
+                .select('following_count, followers_count')
+                .eq('id', profile.id)
+                .maybeSingle();
+
+            if (fetchError) {
+                addToast(fetchError.message, "error");
+                throw new Error(fetchError.message);
+            }
+
+            if (freshProfile) {
+                setFollowersCount(freshProfile.followers_count || 0);
+            }
+
+            const isNowFollowing = await api.checkIsFollowing(myPlayerId, profile.id);
+            setIsFollowing(isNowFollowing);
+
+            refreshProfile(); // Eigene Daten auch im Context aktualisieren
+
         } catch (err) {
-            addToast(err?.message || "Aktion fehlgeschlagen", "error");
+            console.error("[Follow-Logik] Fehler:", err);
+            throw err; // Ausführung sofort stoppen
+        } finally {
+            setIsFollowMutating(false);
         }
     };
 
@@ -316,7 +363,7 @@ export const ProfileScreen = ({
                     <div className={`grid ${isOwnProfile ? 'grid-cols-4' : 'grid-cols-3'} gap-2 w-full mb-5`}>
                         <div onClick={onShowFollowing} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition cursor-pointer h-[90px]">
                             <UserPlus size={22} className="text-cyan-500 mb-1" />
-                            <span className="text-xl font-black text-foreground leading-none">{profile?.following_count ?? followingCount}</span>
+                            <span className="text-xl font-black text-foreground leading-none">{profile?.following_count || 0}</span>
                             <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Gefolgt</span>
                         </div>
 
@@ -359,10 +406,10 @@ export const ProfileScreen = ({
                                     whileHover={{ scale: 1.02 }} 
                                     whileTap={{ scale: 0.98 }} 
                                     onClick={handleFollowClick} 
-                                    disabled={isFollowLoading}
-                                    className={`flex-1 ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-foreground' : 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-500/20'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50`}
+                                    disabled={isFollowMutating}
+                                    className={`flex-1 ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-foreground' : 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-500/20'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
-                                    {isFollowLoading ? <Loader2 size={16} className="animate-spin" /> : (isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />)}
+                                    {isFollowMutating ? <Loader2 size={16} className="animate-spin" /> : (isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />)}
                                     {isFollowing ? 'Gefolgt' : 'Folgen'}
                                 </motion.button>
                                 <button onClick={onChatReq} className="flex-none bg-slate-100 dark:bg-slate-800 text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-opacity-80 transition">
