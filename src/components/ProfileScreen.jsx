@@ -133,6 +133,7 @@ export const ProfileScreen = ({
     // Hooks for following/follower counts and status
     const [isFollowing, setIsFollowing] = useState(profile.isFollowing || false);
     const [followersCount, setFollowersCount] = useState(profile.followers_count || 0);
+    const [exactFollowingCount, setExactFollowingCount] = useState(profile.following_count || 0);
     const [isFollowMutating, setIsFollowMutating] = useState(false);
     const [playerStats, setPlayerStats] = useState(null);
     const [skillEndorsements, setSkillEndorsements] = useState([]);
@@ -148,6 +149,16 @@ export const ProfileScreen = ({
 
     const fetchFreshCounts = async () => {
         try {
+            // Direkte Zähler-Abfrage (Head Request) für "Gefolgt"
+            const { count: followingCount, error: followingError } = await api.supabase
+                .from('follows')
+                .select('*', { count: 'exact', head: true })
+                .eq('follower_id', profile.id);
+
+            if (!followingError && followingCount !== null) {
+                setExactFollowingCount(followingCount);
+            }
+
             // Explizit frisch aus der Datenbank laden, um veraltete Session-Stände (insbes. beim eigenen Profil) zu umgehen.
             const { data, error } = await api.supabase.from('players_master')
                 .select('following_count, followers_count')
@@ -363,7 +374,7 @@ export const ProfileScreen = ({
                     <div className={`grid ${isOwnProfile ? 'grid-cols-4' : 'grid-cols-3'} gap-2 w-full mb-5`}>
                         <div onClick={onShowFollowing} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-cyan-400/50 transition cursor-pointer h-[90px]">
                             <UserPlus size={22} className="text-cyan-500 mb-1" />
-                            <span className="text-xl font-black text-foreground leading-none">{profile?.following_count || 0}</span>
+                            <span className="text-xl font-black text-foreground leading-none">{exactFollowingCount ?? 0}</span>
                             <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Gefolgt</span>
                         </div>
 
