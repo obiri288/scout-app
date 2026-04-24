@@ -3,6 +3,7 @@
  * All Supabase queries in one place for maintainability and testability.
  */
 import { supabase } from './supabase';
+export { supabase };
 
 const cleanPayload = (obj) => {
     return Object.fromEntries(
