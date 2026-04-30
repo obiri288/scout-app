@@ -4,7 +4,7 @@ import { BadgeCheck, Clock, ExternalLink, Shield, Loader2, Briefcase } from 'luc
 import { supabase } from '../lib/supabase';
 import { EmptyState } from './EmptyState';
 
-export const CareerTimeline = ({ userId }) => {
+export const CareerTimeline = ({ userId, refreshKey }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -15,7 +15,7 @@ export const CareerTimeline = ({ userId }) => {
             try {
                 const { data, error } = await supabase
                     .from('career_history')
-                    .select('*')
+                    .select('*, clubs(is_verified)')
                     .eq('user_id', userId)
                     .order('start_date', { ascending: false });
                 if (error) throw error;
@@ -28,7 +28,7 @@ export const CareerTimeline = ({ userId }) => {
             }
         };
         load();
-    }, [userId]);
+    }, [userId, refreshKey]);
 
     const formatDate = (dateStr) => {
         if (!dateStr) return 'Heute';
@@ -106,11 +106,13 @@ export const CareerTimeline = ({ userId }) => {
                                                 <h4 className="font-bold text-foreground text-sm truncate">
                                                     {entry.club_name}
                                                 </h4>
-                                                {entry.is_verified ? (
-                                                    <BadgeCheck size={16} className="text-cyan-400 flex-shrink-0" />
-                                                ) : (
-                                                    <Clock size={14} className="text-slate-500 flex-shrink-0" />
-                                                )}
+                                                {entry.clubs?.is_verified ? (
+                                                    <BadgeCheck size={16} className="text-cyan-400 flex-shrink-0" title="Offizieller Verein" />
+                                                ) : entry.is_verified ? (
+                                                    <BadgeCheck size={16} className="text-emerald-400 flex-shrink-0" title="Station verifiziert" />
+                                                ) : entry.verification_status === 'pending' ? (
+                                                    <Clock size={14} className="text-amber-500 flex-shrink-0" title="Prüfung ausstehend" />
+                                                ) : null}
                                             </div>
                                             {entry.league && (
                                                 <span className="text-[11px] text-muted-foreground">
@@ -150,18 +152,7 @@ export const CareerTimeline = ({ userId }) => {
                                     </a>
                                 )}
 
-                                {/* Verified status text */}
-                                <div className="mt-2">
-                                    {entry.is_verified ? (
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                                            ✓ Verifiziert durch Cavio
-                                        </span>
-                                    ) : (
-                                        <span className="text-[10px] text-slate-500 italic">
-                                            Prüfung ausstehend
-                                        </span>
-                                    )}
-                                </div>
+                                {/* Status removed as it's now integrated in the header badge */}
                             </motion.div>
                         </motion.div>
                     ))}

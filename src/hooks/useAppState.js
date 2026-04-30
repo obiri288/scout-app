@@ -13,7 +13,8 @@ export const useAppState = () => {
     const {
         authLoading, profileLoading,
         session, setSession, currentUserProfile, updateProfile,
-        refreshProfile, unreadCount, resetUnreadCount, logout,
+        refreshProfile, unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
+        setUnreadMessageUsersCount, checkUnreadMessages,
         isRecoveryMode, setIsRecoveryMode, isAuthCallback,
         pendingReactivationProfile, confirmReactivation
     } = useUser();
@@ -42,6 +43,7 @@ export const useAppState = () => {
     const [showWatchlist, setShowWatchlist] = useState(false);
     const [showMap, setShowMap] = useState(false);
     const [showDeactivate, setShowDeactivate] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // --- Interaction State ---
     const [activeChatPartner, setActiveChatPartner] = useState(null);
@@ -85,6 +87,16 @@ export const useAppState = () => {
                 break;
             case 'search':
                 setActiveTab('search');
+                break;
+            case 'directory':
+                setActiveTab('directory');
+                break;
+            case 'teams':
+                setActiveTab('teams');
+                break;
+            case 'admin':
+                const sub = param || 'overview';
+                setActiveTab(`admin_${sub}`);
                 break;
             case 'inbox':
                 setActiveTab('inbox');
@@ -270,9 +282,10 @@ export const useAppState = () => {
                 setIsOnWatchlist(true);
                 addToast(`${viewedProfile.full_name} ${t('toast_watchlist_added')}`, 'success');
                 try {
+                    const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
                     await api.createNotification({
-                        userId: viewedProfile.user_id,
-                        actorId: session.user.id,
+                        userId: viewedProfile.id,
+                        actorId: myProfileId,
                         type: 'watchlist_add'
                     });
                 } catch (_) { /* non-critical */ }
@@ -299,9 +312,13 @@ export const useAppState = () => {
 
     const switchTab = (tab) => {
         setActiveTab(tab);
+        if (tab === 'inbox') checkUnreadMessages();
         if (tab === 'home') navigateToHash('');
         else if (tab === 'search') navigateToHash('search');
         else if (tab === 'inbox') navigateToHash('inbox');
+        else if (tab === 'directory') navigateToHash('directory');
+        else if (tab === 'teams') navigateToHash('teams');
+        else if (tab.startsWith('admin_')) navigateToHash(`admin/${tab.replace('admin_', '')}`);
     };
 
     return {
@@ -310,7 +327,8 @@ export const useAppState = () => {
 
         // User context
         session, currentUserProfile, updateProfile, refreshProfile,
-        unreadCount, resetUnreadCount, logout,
+        unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
+        setUnreadMessageUsersCount, checkUnreadMessages,
         isRecoveryMode, setIsRecoveryMode,
         isAuthCallback,
         pendingReactivationProfile, confirmReactivation,
@@ -353,5 +371,8 @@ export const useAppState = () => {
 
         // PWA
         deferredPrompt,
+
+        // Sidebar
+        isSidebarOpen, setIsSidebarOpen,
     };
 };

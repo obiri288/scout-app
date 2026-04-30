@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award, Briefcase, Target, Radar } from 'lucide-react';
+import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award, Briefcase, Target, Radar, CheckCircle, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { getClubBorderColor } from '../lib/helpers';
@@ -89,6 +90,41 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const [careerClubSearch, setCareerClubSearch] = useState('');
     const [careerClubResults, setCareerClubResults] = useState([]);
     const [showCareerClubDropdown, setShowCareerClubDropdown] = useState(false);
+    
+    const [suggestForm, setSuggestForm] = useState({
+        name: '',
+        city: '',
+        league: ''
+    });
+    const [showSuggestModal, setShowSuggestModal] = useState(false);
+
+    const [careerError, setCareerError] = useState('');
+
+    // Elite Station Detector
+    const checkIfPremium = (leagueName, clubName) => {
+        const premiumKeywords = ['bundesliga', 'regionalliga', 'oberliga', 'profi', 'nationalmannschaft', 'nlz', 'akademie', 'u19', 'u17', 'jbl', 'auswahl', 'stützpunkt'];
+        const input = `${leagueName || ''} ${clubName || ''}`.toLowerCase();
+        return premiumKeywords.some(kw => input.includes(kw));
+    };
+
+    const hasDateOverlap = (newStartStr, newEndStr, existingEntries, currentId) => {
+        if (!newStartStr) return null;
+        const newStart = new Date(newStartStr + '-01');
+        const newEnd = newEndStr ? new Date(newEndStr + '-01') : new Date();
+
+        for (const entry of existingEntries) {
+            if (currentId && entry.id === currentId) continue;
+
+            const entryStart = new Date(entry.start_date);
+            const entryEnd = entry.end_date ? new Date(entry.end_date) : new Date();
+
+            // Overlap logic: (StartA <= EndB) && (EndA >= StartB)
+            if (newStart <= entryEnd && newEnd >= entryStart) {
+                return entry.club_name;
+            }
+        }
+        return null;
+    };
 
     // Fetch career entries
     useEffect(() => {
@@ -98,7 +134,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
             try {
                 const { data, error } = await supabase
                     .from('career_history')
-                    .select('*')
+                    .select('*, clubs(is_verified)')
                     .eq('user_id', profile.user_id)
                     .order('start_date', { ascending: false });
                 if (error) throw error;
@@ -113,12 +149,13 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     }, [profile.user_id]);
 
     const resetCareerForm = () => {
-        setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false });
+        setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false, club_id: null });
         setCareerClubSearch('');
         setCareerClubResults([]);
         setShowCareerClubDropdown(false);
         setEditingCareer(null);
         setShowCareerForm(false);
+        setCareerError('');
     };
 
     // Career club autocomplete search
@@ -139,15 +176,29 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
             addToast('Vereinsname und Startdatum sind Pflichtfelder.', 'error');
             return;
         }
+
+        const overlapClub = hasDateOverlap(careerForm.start_date, careerForm.is_current ? '' : careerForm.end_date, careerEntries, editingCareer?.id);
+        if (overlapClub) {
+            const errorMsg = `Überschneidung erkannt: Dieser Zeitraum überschneidet sich mit deiner Station bei "${overlapClub}".`;
+            setCareerError(errorMsg);
+            addToast(errorMsg, 'error');
+            return;
+        }
+        setCareerError('');
+
         setCareerLoading(true);
         try {
+            const isPremium = checkIfPremium(careerForm.league, careerForm.club_name);
             const payload = {
                 user_id: profile.user_id,
                 club_name: careerForm.club_name.trim(),
                 league: careerForm.league.trim() || null,
                 start_date: careerForm.start_date + '-01',
                 end_date: careerForm.is_current ? null : (careerForm.end_date ? careerForm.end_date + '-01' : null),
-                proof_url: careerForm.proof_url.trim() || null
+                proof_url: careerForm.proof_url.trim() || null,
+                club_id: careerForm.club_id,
+                is_premium: isPremium,
+                verification_status: isPremium ? 'pending' : 'unverified'
             };
 
             if (editingCareer) {
@@ -170,6 +221,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                 setCareerEntries(prev => [data, ...prev]);
                 addToast('Station hinzugefügt ✅', 'success');
             }
+            onUpdate(profile);
             resetCareerForm();
         } catch (e) {
             addToast('Fehler: ' + e.message, 'error');
@@ -179,11 +231,13 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     };
 
     const handleCareerDelete = async (id) => {
+        if (!window.confirm('Möchtest du diese Karrierestation wirklich unwiderruflich löschen?')) return;
         setCareerLoading(true);
         try {
             const { error } = await supabase.from('career_history').delete().eq('id', id);
             if (error) throw error;
             setCareerEntries(prev => prev.filter(e => e.id !== id));
+            onUpdate(profile);
             addToast('Station gelöscht.', 'success');
         } catch (e) {
             addToast('Fehler: ' + e.message, 'error');
@@ -204,31 +258,52 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
         setCareerClubSearch(entry.club_name || '');
         setEditingCareer(entry);
         setShowCareerForm(true);
+        setCareerError('');
     };
 
     useEffect(() => {
         if (clubSearch.length < 2) { setClubResults([]); return; }
         const t = setTimeout(async () => {
             try {
-                const { data } = await supabase.from('clubs').select('*, leagues(name, tier), countries(iso_code, flag_url)').ilike('name', `%${clubSearch}%`).limit(5);
+                const { data } = await supabase
+                    .from('clubs')
+                    .select('*, leagues(name, tier), countries(iso_code, flag_url)')
+                    .ilike('name', `%${clubSearch}%`)
+                    .limit(8);
                 setClubResults(data || []);
             } catch (e) { /* silent */ }
         }, 300);
         return () => clearTimeout(t);
     }, [clubSearch]);
 
-    const handleCreateClub = async () => {
-        if (!clubSearch.trim()) return;
+    const handleCreateClub = async (e) => {
+        if (e) e.preventDefault();
+        if (!suggestForm.name.trim() || !suggestForm.city.trim()) {
+            addToast('Vereinsname und Stadt sind Pflichtfelder.', 'error');
+            return;
+        }
         setLoading(true);
         try {
-            const { data, error } = await supabase.from('clubs').insert({ name: clubSearch, league_id: null, is_verified: false }).select().single();
+            const { data, error } = await supabase
+                .from('clubs')
+                .insert({ 
+                    name: suggestForm.name.trim(), 
+                    city: suggestForm.city.trim(),
+                    league: suggestForm.league.trim() || null,
+                    is_verified: false 
+                })
+                .select()
+                .single();
+
             if (error) throw error;
+            
             setSelectedClub(data);
             setClubSearch('');
             setClubResults([]);
-            addToast(`"${data.name}" als Verein angelegt.`, 'success');
+            setShowSuggestModal(false);
+            addToast(`"${data.name}" wurde vorgeschlagen und für dich ausgewählt!`, 'success');
         } catch (e) {
-            addToast(e.message, 'error');
+            addToast('Fehler: ' + e.message, 'error');
         } finally {
             setLoading(false);
         }
@@ -517,8 +592,23 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                     {selectedClub.logo_url ? <img src={selectedClub.logo_url} className="w-full h-full rounded-full object-cover" /> : <Shield size={14} />}
                                                 </div>
                                                 <div>
-                                                    <span className="font-bold text-foreground block text-sm">{selectedClub.name}</span>
-                                                    <span className="text-xs text-muted-foreground">{selectedClub.leagues?.name || 'Amateurliga'}</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-bold text-foreground block text-sm">{selectedClub.name}</span>
+                                                        {selectedClub.is_verified ? (
+                                                            <CheckCircle size={14} className="text-blue-500 fill-blue-500/10" />
+                                                        ) : (
+                                                            <div className="group relative">
+                                                                <Clock size={14} className="text-muted-foreground" />
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-zinc-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none font-medium border border-white/10">
+                                                                    Verein wird noch vom Admin geprüft
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {selectedClub.city && `${selectedClub.city} • `}
+                                                        {selectedClub.leagues?.name || selectedClub.league || 'Amateurliga'}
+                                                    </span>
                                                 </div>
                                             </div>
                                             <button type="button" onClick={() => setSelectedClub(null)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition"><X size={16} className="text-muted-foreground" /></button>
@@ -526,27 +616,57 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                     ) : (
                                         <div className="relative">
                                             <Search className="absolute left-4 top-4 text-muted-foreground" size={18} />
-                                            <input placeholder="Verein suchen..." value={clubSearch} onChange={e => setClubSearch(e.target.value)} className={`${inputStyle} pl-12`} />
+                                            <input 
+                                                placeholder="Verein suchen..." 
+                                                value={clubSearch} 
+                                                onChange={e => setClubSearch(e.target.value)} 
+                                                onFocus={() => { if (clubResults.length > 0) {} }}
+                                                className={`${inputStyle} pl-12`} 
+                                            />
                                             {clubResults.length > 0 && (
-                                                <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-2 overflow-hidden shadow-xl max-h-48 overflow-y-auto">
+                                                <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-2 overflow-hidden shadow-xl max-h-56 overflow-y-auto">
                                                     {clubResults.map(c => (
-                                                        <div key={c.id} onClick={() => { setSelectedClub(c); setClubSearch(''); }} className="p-3 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer text-foreground border-b border-border flex items-center gap-3">
-                                                            {c.logo_url && <img src={c.logo_url} className="w-8 h-8 rounded-full border border-white/10" />}
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-bold">{c.name}</span>
-                                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                                                                    {c.countries?.iso_code ? `${c.countries.iso_code} • ` : ''}
-                                                                    {c.leagues?.name || 'Amateurliga'}
+                                                        <div 
+                                                            key={c.id} 
+                                                            onClick={() => { setSelectedClub(c); setClubSearch(''); }} 
+                                                            className="p-3 hover:bg-slate-100 dark:hover:bg-zinc-800 cursor-pointer text-foreground border-b border-border flex items-center gap-3 transition-colors"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center border border-border overflow-hidden shrink-0">
+                                                                {c.logo_url ? <img src={c.logo_url} className="w-full h-full object-cover" /> : <Shield size={14} className="text-muted-foreground" />}
+                                                            </div>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-sm font-bold truncate">{c.name}</span>
+                                                                    {c.is_verified && <CheckCircle size={12} className="text-blue-500 fill-blue-500/10" />}
+                                                                </div>
+                                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">
+                                                                    {c.city && `${c.city} • `}
+                                                                    {c.leagues?.name || c.league || 'Amateurliga'}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                     ))}
+                                                    <div 
+                                                        onClick={() => {
+                                                            setSuggestForm({ ...suggestForm, name: clubSearch });
+                                                            setShowSuggestModal(true);
+                                                        }} 
+                                                        className="p-3 bg-blue-600/5 text-blue-500 cursor-pointer font-bold text-xs hover:bg-blue-600/10 flex items-center gap-2 transition-colors border-t border-border"
+                                                    >
+                                                        <Plus size={14} /> "{clubSearch}" nicht dabei? Vorschlagen
+                                                    </div>
                                                 </div>
                                             )}
-                                            {clubSearch.length > 2 && clubResults.length === 0 && (
+                                            {clubSearch.length > 1 && clubResults.length === 0 && (
                                                 <div className="absolute z-50 w-full bg-white dark:bg-zinc-900 border border-border rounded-xl mt-2 overflow-hidden shadow-xl p-2">
-                                                    <div onClick={handleCreateClub} className="p-3 bg-blue-600/10 text-blue-400 cursor-pointer font-bold text-xs hover:bg-blue-600/20 flex items-center gap-2 rounded-lg">
-                                                        <Plus size={14} /> "{clubSearch}" als neuen Verein anlegen
+                                                    <div 
+                                                        onClick={() => {
+                                                            setSuggestForm({ ...suggestForm, name: clubSearch });
+                                                            setShowSuggestModal(true);
+                                                        }} 
+                                                        className="p-3 bg-blue-600/10 text-blue-500 cursor-pointer font-bold text-xs hover:bg-blue-600/20 flex items-center gap-2 rounded-lg transition-colors"
+                                                    >
+                                                        <Plus size={14} /> "{clubSearch}" als neuen Verein vorschlagen
                                                     </div>
                                                 </div>
                                             )}
@@ -968,7 +1088,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                                 setCareerForm({
                                                                     ...careerForm,
                                                                     club_name: c.name,
-                                                                    league: c.leagues?.name || c.league || careerForm.league
+                                                                    league: c.leagues?.name || c.league || careerForm.league,
+                                                                    club_id: c.id
                                                                 });
                                                                 setCareerClubSearch(c.name);
                                                                 setShowCareerClubDropdown(false);
@@ -1028,6 +1149,15 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                 />
                                             </div>
                                         </div>
+
+                                        {careerError && (
+                                            <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+                                                <p className="text-[11px] font-medium text-red-400 leading-tight">
+                                                    {careerError}
+                                                </p>
+                                            </div>
+                                        )}
                                         <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer py-1">
                                             <input
                                                 type="checkbox"
@@ -1047,6 +1177,16 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                             />
                                             <p className="text-[10px] text-muted-foreground/60 mt-1 ml-1">Beschleunigt die Verifizierung deiner Station!</p>
                                         </div>
+
+                                        {checkIfPremium(careerForm.league, careerForm.club_name) && (
+                                            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in zoom-in-95 duration-300">
+                                                <div className="flex items-center gap-2 text-emerald-400 mb-1">
+                                                    <Award size={16} className="animate-pulse" />
+                                                    <span className="text-xs font-black uppercase tracking-tight">Elite-Station erkannt!</span>
+                                                </div>
+                                                <p className="text-[11px] text-emerald-500/80 leading-tight">Diese Station erfüllt unsere Premium-Kriterien. Nach dem Speichern wird sie zur offiziellen Verifizierung vorgemerkt.</p>
+                                            </div>
+                                        )}
                                         <div className="flex gap-2 pt-1">
                                             <button
                                                 type="button"
@@ -1089,11 +1229,13 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="font-bold text-foreground text-sm truncate">{entry.club_name}</span>
-                                                        {entry.is_verified ? (
-                                                            <span className="text-cyan-400" title="Verifiziert"><Check size={14} /></span>
-                                                        ) : (
-                                                            <span className="text-slate-500" title="Prüfung ausstehend"><Clock size={12} /></span>
-                                                        )}
+                                                        {entry.clubs?.is_verified ? (
+                                                            <span className="text-cyan-400" title="Offizieller Verein"><CheckCircle size={14} fill="currentColor" fillOpacity="0.1" /></span>
+                                                        ) : entry.is_verified ? (
+                                                            <span className="text-emerald-400" title="Station Verifiziert"><Check size={14} /></span>
+                                                        ) : entry.verification_status === 'pending' ? (
+                                                            <span className="text-amber-500" title="Prüfung ausstehend"><Clock size={12} /></span>
+                                                        ) : null}
                                                     </div>
                                                     <div className="text-[11px] text-muted-foreground">
                                                         {entry.league && `${entry.league} · `}
@@ -1102,7 +1244,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                         {entry.end_date ? new Date(entry.end_date).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : 'Heute'}
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                     <button type="button" onClick={() => startEditCareer(entry)} className="p-1.5 rounded-lg hover:bg-white/10 transition text-muted-foreground hover:text-foreground">
                                                         <Edit size={14} />
                                                     </button>
@@ -1208,6 +1350,76 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                         setCropImageSrc(null);
                     }}
                 />
+            )}
+
+            {/* Suggest Club Modal */}
+            {showSuggestModal && (
+                <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+                    <motion.div 
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-white dark:bg-zinc-900 border border-border w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
+                    >
+                        <div className="p-6 space-y-6">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-xl font-black text-foreground tracking-tight">Verein vorschlagen</h2>
+                                    <p className="text-xs text-muted-foreground mt-1 font-medium">Hilf uns, die Vereins-Datenbank aktuell zu halten.</p>
+                                </div>
+                                <button onClick={() => setShowSuggestModal(false)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vereinsname</label>
+                                    <input 
+                                        value={suggestForm.name} 
+                                        onChange={e => setSuggestForm({ ...suggestForm, name: e.target.value })} 
+                                        className={inputStyle} 
+                                        placeholder="z.B. FC Beispielstadt" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Stadt *</label>
+                                    <input 
+                                        value={suggestForm.city} 
+                                        onChange={e => setSuggestForm({ ...suggestForm, city: e.target.value })} 
+                                        className={inputStyle} 
+                                        placeholder="z.B. Berlin" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Liga (Optional)</label>
+                                    <input 
+                                        value={suggestForm.league} 
+                                        onChange={e => setSuggestForm({ ...suggestForm, league: e.target.value })} 
+                                        className={inputStyle} 
+                                        placeholder="z.B. Kreisliga A" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button 
+                                    onClick={() => setShowSuggestModal(false)}
+                                    className="flex-1 py-3 px-4 rounded-xl border border-border font-bold text-sm hover:bg-black/5 dark:hover:bg-white/5 transition"
+                                >
+                                    Abbrechen
+                                </button>
+                                <button 
+                                    onClick={handleCreateClub}
+                                    disabled={loading}
+                                    className="flex-1 py-3 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                    Vorschlagen
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
             )}
         </div>
     );

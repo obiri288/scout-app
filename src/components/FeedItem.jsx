@@ -44,10 +44,12 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         let isMounted = true;
 
         const fetchCommentState = async () => {
+            // Count all comments directly — no inner join on players_master
+            // because media_comments.user_id → auth.users (not players_master),
+            // so !inner silently returned 0.
             const { count } = await supabase.from('media_comments')
-                .select('players_master!inner(is_deactivated)', { count: 'exact', head: true })
-                .eq('video_id', video.id)
-                .eq('players_master.is_deactivated', false);
+                .select('id', { count: 'exact', head: true })
+                .eq('video_id', video.id);
             
             if (isMounted && count !== null) {
                 setCommentCount(count);
@@ -80,18 +82,21 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
 
             // Side Effects (Notifications, XP) - only on Like action
             if (!wasLiked) {
+                // Get my Profile ID for actor tracking
+                const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
+                
                 // Check for ego-trigger milestone (non-blocking)
-                api.checkAndCreateLikeMilestone(video.id, video.players_master?.user_id, session.user.id);
+                api.checkAndCreateLikeMilestone(video.id, video.players_master?.id, myProfileId);
                 // Award XP to video owner
                 if (video.players_master?.id) {
                     api.awardXP(video.players_master.id, 5, 'like', `${video.id}_${session.user.id}`);
                 }
                 // Manual Like Notification (Decoupled from interaction)
-                if (video.players_master?.user_id && video.players_master?.user_id !== session.user.id) {
+                if (video.players_master?.id && video.players_master?.id !== myProfileId) {
                     try {
                         await api.createNotification({
-                            userId: video.players_master?.user_id,
-                            actorId: session.user.id,
+                            userId: video.players_master?.id,
+                            actorId: myProfileId,
                             type: 'like',
                             message: 'hat dein Video gelikt.',
                             videoId: video.id

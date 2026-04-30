@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, RefreshCw, Film } from 'lucide-react';
+import { Loader2, RefreshCw, Film, Menu, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { FeedItem } from './FeedItem';
 import { FeedSkeleton } from './SkeletonScreens';
@@ -30,7 +30,7 @@ const itemVariants = {
     },
 };
 
-export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
+export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq, onMenuOpen }) => {
     const [feed, setFeed] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -124,11 +124,20 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     return (
         <div
             ref={containerRef}
-            className="pb-32 pt-0 max-w-md mx-auto relative"
+            className="pb-32 pt-16 max-w-md mx-auto relative"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
+            {/* Global Header */}
+            <div className="fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5 z-[50] flex items-center justify-between px-4 max-w-md mx-auto">
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <Shield size={20} className="text-cyan-400" />
+                        <span className="font-black text-xl tracking-tight text-foreground">CAVIO</span>
+                    </div>
+                </div>
+            </div>
             {/* Pull-to-Refresh indicator */}
             <AnimatePresence>
                 {(pullDistance > 0 || refreshing) && (

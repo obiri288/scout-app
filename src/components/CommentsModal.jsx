@@ -115,6 +115,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { addToast } = useToast();
     const videoCreatorId = video.players_master?.user_id || video.user_id;
     const isCreator = session?.user?.id === videoCreatorId;
@@ -149,18 +150,20 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const sendComment = async (e) => {
         e.preventDefault();
         if (!session) return onLoginReq();
-        if (!text.trim()) return;
+        if (!text.trim() || isSubmitting) return;
 
         const currentText = text.trim();
+        setIsSubmitting(true);
         try {
             const newCommentData = await api.addComment(video.id, session.user.id, currentText);
             
             // Standard Comment Notification
-            if (videoCreatorId && videoCreatorId !== session.user.id) {
+            const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
+            if (video.players_master?.id && video.players_master?.id !== myProfileId) {
                 try {
                     await api.createNotification({
-                        userId: videoCreatorId,
-                        actorId: session.user.id,
+                        userId: video.players_master?.id,
+                        actorId: myProfileId,
                         type: 'comment',
                         message: 'hat dein Video kommentiert.',
                         videoId: video.id
@@ -176,14 +179,14 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                 for (let m of mentions) {
                     const username = m.substring(1).toLowerCase();
                     const targetPlayer = await api.fetchPlayerByUsername(username);
-                    if (targetPlayer && targetPlayer.user_id !== session.user.id) {
+                    if (targetPlayer && targetPlayer.id !== myProfileId) {
                         try {
-                            await supabase.from('notifications').insert({
-                                user_id: targetPlayer.user_id,
+                            await api.createNotification({
+                                userId: targetPlayer.id,
+                                actorId: myProfileId,
                                 type: 'mention',
-                                message: `${session.user.user_metadata?.full_name || 'Jemand'} hat dich in einem Kommentar markiert.`,
-                                related_id: video.id,
-                                is_read: false
+                                message: 'hat dich in einem Kommentar markiert.',
+                                videoId: video.id
                             });
                         } catch (error) {
                             console.warn("Notification failed, but interaction saved", error);
@@ -193,12 +196,14 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
             }
 
             setText('');
-            loadComments();
+            await loadComments();
             window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: video.id, delta: 1 } }));
             addToast("Kommentar gepostet!", 'success');
         } catch (error) {
             console.error("Kommentar erstellen fehler:", error);
-            addToast("Fehler beim Senden.", 'error');
+            addToast(`Fehler beim Senden: ${error?.message || 'Unbekannter Fehler'}`, 'error');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -276,12 +281,12 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                         </div>
                         <button 
                             type="submit" 
-                            disabled={!text.trim()} 
+                            disabled={!text.trim() || isSubmitting} 
                             className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-300 ${
-                                text.trim() ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-90' : 'bg-muted text-muted-foreground cursor-not-allowed'
+                                text.trim() && !isSubmitting ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 active:scale-90' : 'bg-muted text-muted-foreground cursor-not-allowed'
                             }`}
                         >
-                            <Send size={18} />
+                            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                         </button>
                     </form>
                 </div>

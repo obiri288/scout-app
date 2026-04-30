@@ -25,6 +25,17 @@ export const fetchPlayerByUserId = async (userId) => {
     return data;
 };
 
+export const fetchLatestCareerEntry = async (userId) => {
+    const { data } = await supabase.from('career_history')
+        .select('*')
+        .eq('user_id', userId)
+        .is('end_date', null)
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    return data;
+};
+
 export const fetchPlayerByUsername = async (username) => {
     const { data, error } = await supabase.from('players_master')
         .select('*, following_count, clubs(*, leagues(name))')
@@ -334,21 +345,24 @@ export const markNotificationRead = async (notificationId) => {
 
 const LIKE_MILESTONES = [10, 25, 50, 100, 250, 500];
 
-export const checkAndCreateLikeMilestone = async (videoId, videoOwnerUserId, likerId) => {
+export const checkAndCreateLikeMilestone = async (videoId, videoOwnerProfileId, likerProfileId) => {
     try {
         const { count } = await supabase.from('media_likes')
-            .select('players_master!inner(user_id, is_deactivated)', { count: 'exact', head: true })
-            .eq('video_id', videoId)
-            .eq('players_master.is_deactivated', false);
-        if (count && LIKE_MILESTONES.includes(count)) {
+            .select('id', { count: 'exact', head: true })
+            .eq('video_id', videoId);
+
+        if (LIKE_MILESTONES.includes(count)) {
             await createNotification({
-                userId: videoOwnerUserId,
-                actorId: likerId,
+                userId: videoOwnerProfileId,
+                actorId: likerProfileId,
                 type: 'likes_milestone',
                 message: `Dein Video hat ${count} Likes erreicht! 🎉`,
+                videoId
             });
         }
-    } catch (_) { /* non-critical */ }
+    } catch (e) {
+        console.warn("Milestone check failed:", e);
+    }
 };
 
 // ============================================================
@@ -466,10 +480,12 @@ export const fetchConversationList = async (userId) => {
 // ============================================================
 
 export const fetchComments = async (videoId) => {
+    // Step 1: Fetch all comments WITHOUT an inner join so no comments are silently
+    // filtered out due to missing or indirect FK relationships between
+    // media_comments.user_id (→ auth.users) and players_master.user_id.
     const { data: comments, error } = await supabase.from('media_comments')
-        .select('*, players_master!inner(user_id, full_name, avatar_url, is_deactivated), comment_likes(user_id)')
+        .select('*, comment_likes(user_id)')
         .eq('video_id', videoId)
-        .eq('players_master.is_deactivated', false)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false });
         
@@ -487,7 +503,7 @@ export const fetchComments = async (videoId) => {
         
     if (profileError) {
         console.error("Failed to fetch comment profiles:", profileError);
-        return comments; // return comments even if profiles fail
+        return comments;
     }
 
     const profileMap = {};
@@ -863,6 +879,29 @@ export const deleteUserAccount = async () => {
     // 1. Storage cleanup (videos, thumbnails, avatars)
     // 2. auth.admin.deleteUser() which cascades to all DB records
     const { data, error } = await supabase.functions.invoke('delete-account');
+    if (error) throw error;
+    return data;
+};
+
+// ============================================================
+// NOTIFICATIONS — Test Helper
+// ============================================================
+
+/**
+ * Insert a test notification for the current user.
+ * Used by the Admin Dashboard "Test-Benachrichtigung feuern" button.
+ */
+export const sendTestNotification = async (userId) => {
+    const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+            user_id: userId,
+            type: 'system',
+            title: 'Test-Benachrichtigung',
+            message: '🔔 Echtzeit-Benachrichtigungen funktionieren! Dieser Eintrag wurde live via Supabase Realtime zugestellt.',
+        })
+        .select()
+        .single();
     if (error) throw error;
     return data;
 };

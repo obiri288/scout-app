@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock, Crosshair, Play } from 'lucide-react';
+import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock, Crosshair, Play, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
 import { SearchSkeleton } from './SkeletonScreens';
@@ -39,7 +39,7 @@ const getRecentSearches = () => {
     try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || []; } catch { return []; }
 };
 
-export const SearchScreen = ({ onUserClick }) => {
+export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const [query, setQuery] = useState('');
     const [cityQuery, setCityQuery] = useState('');
     const [clubQuery, setClubQuery] = useState('');
@@ -209,7 +209,7 @@ export const SearchScreen = ({ onUserClick }) => {
 
     return (
         <div className="pb-32 max-w-md mx-auto min-h-screen bg-background">
-            <div className={glassHeader}>
+            <div className={`${glassHeader} flex items-center gap-3`}>
                 <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>
             <div className="px-4 mt-6">

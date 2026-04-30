@@ -46,25 +46,47 @@ const getText = (n) => {
 // Component
 // ═════════════════════════════════════════════════════════════
 export const NotificationBell = () => {
-    const { session, unreadCount, resetUnreadCount } = useUser();
+    const { session, currentUserProfile, unreadCount, resetUnreadCount, liveNotifications, setLiveNotifications } = useUser();
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // Merge live real-time items into the panel list when they arrive
+    // This makes the bell panel update without needing to close and reopen
+    React.useEffect(() => {
+        if (liveNotifications.length === 0) return;
+        setNotifications(prev => {
+            const existingIds = new Set(prev.map(n => n.id));
+            const newItems = liveNotifications.filter(n => !existingIds.has(n.id));
+            if (newItems.length === 0) return prev;
+            return [...newItems, ...prev];
+        });
+    }, [liveNotifications]);
+
     /* ── Open panel ───────────────────────────────────────── */
     const open = useCallback(async () => {
-        if (!session?.user?.id) return;
+        if (!currentUserProfile?.id) return;
         setIsOpen(true);
         setLoading(true);
         try {
-            const data = await api.fetchNotifications(session.user.id);
-            setNotifications(data);
+            const data = await api.fetchNotifications(currentUserProfile.id);
+            setNotifications(prev => {
+                // Merge fetched with any live items already in local state, dedup by id
+                const fetchedIds = new Set(data.map(n => n.id));
+                const liveOnly = prev.filter(n => !fetchedIds.has(n.id));
+                return [...liveOnly, ...data].sort(
+                    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+                );
+            });
         } catch (e) { console.error('Notification fetch failed:', e); }
         finally { setLoading(false); }
 
-        // Mark all as read (optimistic)
-        if (unreadCount > 0) resetUnreadCount();
-    }, [session, unreadCount, resetUnreadCount]);
+        // Mark all as read (optimistic) and clear live queue
+        if (unreadCount > 0) {
+            resetUnreadCount();
+            setLiveNotifications([]);
+        }
+    }, [currentUserProfile?.id, unreadCount, resetUnreadCount, setLiveNotifications]);
 
     /* ── Mark single read ────────────────────────────────── */
     const markOne = async (id) => {

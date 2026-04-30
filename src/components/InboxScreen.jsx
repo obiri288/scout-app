@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, Shirt } from 'lucide-react';
+import { useFocusEffect } from '../hooks/useFocusEffect';
+import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, Shirt, Menu, MoreVertical, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { cardStyle, glassHeader } from '../lib/styles';
@@ -67,9 +68,9 @@ const timeAgo = (dateStr) => {
     return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 };
 
-export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) => {
+export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, onMenuOpen, setUnreadMessageUsersCount }) => {
     const { addToast } = useToast();
-    const [subTab, setSubTab] = useState('notifications');
+    const [subTab, setSubTab] = useState('messages');
     const [notis, setNotis] = useState([]);
     const [chats, setChats] = useState([]);
     const [notifFilter, setNotifFilter] = useState('all');
@@ -77,6 +78,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
     const [msgTab, setMsgTab] = useState('inbox'); // 'inbox' | 'requests'
     const [greetedUsers, setGreetedUsers] = useState(new Set());
     const [followedUsers, setFollowedUsers] = useState(new Set());
+    const [activeMenuChat, setActiveMenuChat] = useState(null);
 
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
 
@@ -86,48 +88,87 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
         setHasUnread(data.some(n => !n.read));
     }, [session]);
 
+    const fetchChats = useCallback(async () => {
+        if (!session?.user?.id) return;
+        try {
+            const { data } = await supabase.from('direct_messages')
+                .select('*')
+                .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            const map = new Map();
+            // Track exact unread message counts per partner
+            const unreadCountMap = new Map();
+            (data || []).forEach(m => {
+                const pid = m.sender_id === session.user.id ? m.receiver_id : m.sender_id;
+                if (!map.has(pid)) map.set(pid, m);
+                // Track if there are unread messages from this partner
+                if (m.sender_id !== session.user.id && !m.is_read) {
+                    unreadCountMap.set(pid, (unreadCountMap.get(pid) || 0) + 1);
+                }
+            });
+
+            if (map.size > 0) {
+                const { data: users } = await supabase.from('players_master')
+                    .select('*')
+                    .in('user_id', [...map.keys()])
+                    .eq('is_deactivated', false);
+                setChats((users || []).map(u => ({
+                    ...u,
+                    lastMsg: map.get(u.user_id)?.content,
+                    time: map.get(u.user_id)?.created_at,
+                    unreadCount: unreadCountMap.get(u.user_id) || 0,
+                })).sort((a, b) => new Date(b.time) - new Date(a.time)));
+            } else {
+                setChats([]);
+            }
+        } catch (e) {
+            console.error("Failed to load chats:", e);
+        }
+    }, [session?.user?.id]);
+
+    useFocusEffect(useCallback(() => {
+        if (subTab === 'messages') {
+            fetchChats();
+        }
+    }, [subTab, fetchChats]));
+
     useEffect(() => {
         if (subTab === 'notifications') {
             loadNotifications();
-        } else if (subTab === 'messages' && session?.user?.id) {
-            (async () => {
-                try {
-                    const { data } = await supabase.from('direct_messages')
-                        .select('*')
-                        .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
-                        .order('created_at', { ascending: false })
-                        .limit(100);
-
-                    const map = new Map();
-                    // Track unread status per partner
-                    const unreadMap = new Map();
-                    (data || []).forEach(m => {
-                        const pid = m.sender_id === session.user.id ? m.receiver_id : m.sender_id;
-                        if (!map.has(pid)) map.set(pid, m);
-                        // Track if there are unread messages from this partner
-                        if (m.sender_id !== session.user.id && !m.is_read) {
-                            unreadMap.set(pid, true);
-                        }
-                    });
-
-                    if (map.size > 0) {
-                        const { data: users } = await supabase.from('players_master')
-                            .select('*')
-                            .in('user_id', [...map.keys()])
-                            .eq('is_deactivated', false);
-                        setChats((users || []).map(u => ({
-                            ...u,
-                            lastMsg: map.get(u.user_id)?.content,
-                            time: map.get(u.user_id)?.created_at,
-                            hasUnread: unreadMap.get(u.user_id) || false,
-                        })).sort((a, b) => new Date(b.time) - new Date(a.time)));
-                    }
-                } catch (e) {
-                    console.error("Failed to load chats:", e);
-                }
-            })();
         }
-    }, [subTab, session, loadNotifications]);
+    }, [subTab, loadNotifications]);
+
+    // Listen for global chat badge clear events
+    useEffect(() => {
+        const handleClearBadge = (e) => {
+            const { chatId } = e.detail;
+            setChats(prev => prev.map(chat => chat.user_id === chatId ? { ...chat, unreadCount: 0 } : chat));
+        };
+        window.addEventListener('clearChatBadge', handleClearBadge);
+        return () => window.removeEventListener('clearChatBadge', handleClearBadge);
+    }, []);
+
+    // Realtime listener for messages to update Inbox list immediately
+    useEffect(() => {
+        if (!session?.user?.id) return;
+        
+        const channel = supabase.channel('inbox-realtime')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'direct_messages',
+                filter: `receiver_id=eq.${session.user.id}`
+            }, () => {
+                if (subTab === 'messages') {
+                    fetchChats();
+                }
+            })
+            .subscribe();
+
+        return () => supabase.removeChannel(channel);
+    }, [session?.user?.id, subTab, fetchChats]);
 
     const handleMarkAllRead = async () => {
         await api.markNotificationsRead(session.user.id);
@@ -143,7 +184,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
     // Gatekeeper: split chats by sender verification status
     const inboxChats = chats.filter(c => c.is_verified);
     const requestChats = chats.filter(c => !c.is_verified);
-    const hasUnreadInbox = inboxChats.some(c => c.hasUnread);
+    const hasUnreadInbox = inboxChats.some(c => c.unreadCount > 0);
     const requestCount = requestChats.length;
 
     const handleGreetTeamMember = async (actor) => {
@@ -194,6 +235,76 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                 updated.delete(actor.user_id);
                 return updated;
             });
+        }
+    };
+
+    const handleOpenChat = (c) => {
+        if (c.unreadCount > 0) {
+            // 1. Optimistic list update
+            setChats(prev => prev.map(chat => chat.id === c.id ? { ...chat, unreadCount: 0 } : chat));
+            // 2. Optimistic global badge update
+            setUnreadMessageUsersCount?.(prev => Math.max(0, prev - 1));
+            // 3. Fire-and-forget DB update with RLS logging
+            supabase.from('direct_messages')
+                .update({ is_read: true })
+                .eq('receiver_id', session.user.id)
+                .eq('sender_id', c.user_id)
+                .eq('is_read', false)
+                .select()
+                .then(({ data, error }) => {
+                    if (error) console.error("Supabase RLS Error in handleOpenChat:", error);
+                    else console.log("Optimistic update confirmed by Supabase:", data);
+                });
+        }
+        
+        // Broadcast global clear just in case
+        window.dispatchEvent(new CustomEvent('clearChatBadge', { detail: { chatId: c.user_id } }));
+        onSelectChat(c);
+    };
+
+    const handleMarkUnread = async (c) => {
+        // Optimistic UI
+        setChats(prev => prev.map(chat => chat.id === c.id ? { ...chat, unreadCount: 1 } : chat));
+        setUnreadMessageUsersCount?.(prev => prev + 1);
+
+        // Find the most recent message received from this user and mark unread
+        const { data } = await supabase.from('direct_messages')
+            .select('id')
+            .eq('receiver_id', session.user.id)
+            .eq('sender_id', c.user_id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+        if (data && data.length > 0) {
+            await supabase.from('direct_messages')
+                .update({ is_read: false })
+                .eq('id', data[0].id);
+        }
+    };
+
+    const handleDeleteChat = async (c) => {
+        if (window.confirm('Wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+            try {
+                // Hard delete all messages between these two users
+                const { error } = await supabase.from('direct_messages')
+                    .delete()
+                    .or(`and(sender_id.eq.${session.user.id},receiver_id.eq.${c.user_id}),and(sender_id.eq.${c.user_id},receiver_id.eq.${session.user.id})`);
+                
+                if (error) {
+                    console.error('Lösch-Fehler:', error);
+                    addToast('Chat konnte nicht gelöscht werden.', 'error');
+                    return;
+                }
+
+                // Successful? Update state locally
+                setChats(prev => prev.filter(chat => chat.id !== c.id));
+                if (c.unreadCount > 0) {
+                    setUnreadMessageUsersCount?.(prev => Math.max(0, prev - 1));
+                }
+                addToast('Chat wurde gelöscht.', 'info');
+            } catch (e) {
+                console.error('Catch-Lösch-Fehler:', e);
+                addToast('Ein unerwarteter Fehler ist aufgetreten.', 'error');
+            }
         }
     };
 
@@ -288,47 +399,78 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
             key={c.id}
             variants={listItemVariants}
             whileHover={{ scale: 1.01 }}
-            onClick={() => onSelectChat(c)}
-            className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition ${cardStyle}`}
+            onClick={() => handleOpenChat(c)}
+            className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-white/5 transition border-b border-white/5 ${cardStyle}`}
         >
-            {/* Avatar */}
-            <div className="relative" onClick={(e) => { e.stopPropagation(); onUserClick(c); }}>
-                <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center overflow-hidden flex-shrink-0 hover:opacity-80 transition border border-border">
-                    <div className="w-full h-full">{c.avatar_url ? <img src={c.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-3.5" />}</div>
+            {/* Column 1: Avatar */}
+            <div className="relative flex-shrink-0" onClick={(e) => { e.stopPropagation(); onUserClick(c); }}>
+                <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center overflow-hidden border border-border shadow-sm">
+                    <div className="w-full h-full">
+                        {c.avatar_url ? (
+                            <img src={c.avatar_url} className="w-full h-full object-cover" />
+                        ) : (
+                            <User size={24} className="text-muted-foreground m-3.5" />
+                        )}
+                    </div>
                 </div>
-                {/* Unread indicator (Inbox only) */}
-                {c.hasUnread && c.is_verified && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-                )}
             </div>
 
-            {/* Content */}
+            {/* Column 2: Content (Flex-1) */}
             <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center mb-1">
-                    <h4 className="text-base font-bold text-foreground truncate flex items-center gap-1.5">
-                        {c.full_name}
-                        {c.verification_status && c.verification_status !== 'unverified' && <VerificationBadge size={14} status={c.verification_status} verificationStatus={c.verification_status} />}
+                <div className="flex flex-col gap-0.5">
+                    <h4 className="text-base font-bold text-foreground truncate flex items-center gap-1.5 leading-tight">
+                        <span className="truncate">{c.full_name}</span>
+                        {c.verification_status && c.verification_status !== 'unverified' && (
+                            <VerificationBadge size={14} status={c.verification_status} verificationStatus={c.verification_status} />
+                        )}
                     </h4>
-                    <span className="text-[10px] text-muted-foreground">{timeAgo(c.time)}</span>
+                    <p className={`text-sm truncate leading-tight ${c.unreadCount > 0 ? 'text-blue-400 font-medium' : 'text-muted-foreground/60'}`}>
+                        {c.unreadCount > 0 
+                            ? `${c.unreadCount > 5 ? '5+' : c.unreadCount} neue Nachricht${c.unreadCount === 1 ? '' : 'en'}` 
+                            : 'Tippe, um den Chat zu öffnen'}
+                    </p>
                 </div>
-                <p className={`text-sm truncate ${c.hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{c.lastMsg}</p>
             </div>
-            <ChevronRight size={16} className="text-muted-foreground" />
+
+            {/* Column 3: Meta & Actions */}
+            <div className="flex flex-col items-end justify-between h-14 py-0.5 flex-shrink-0 min-w-[70px]">
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{timeAgo(c.time)}</span>
+                
+                <div className="flex items-center gap-2 mt-auto">
+                    {c.unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-lg animate-in zoom-in ring-2 ring-background">
+                            {c.unreadCount > 5 ? '5+' : c.unreadCount}
+                        </span>
+                    )}
+                    
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setActiveMenuChat(c); 
+                        }}
+                        className="p-2 text-muted-foreground hover:text-foreground transition rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                    >
+                        <MoreVertical size={16} />
+                    </button>
+                </div>
+            </div>
         </motion.div>
     );
 
     return (
         <div className="pb-32 max-w-md mx-auto min-h-screen bg-background">
-            <div className={glassHeader}><h2 className="text-2xl font-black text-foreground">Inbox</h2></div>
+            <div className={`${glassHeader} flex items-center gap-3`}>
+                <h2 className="text-2xl font-black text-foreground">Inbox</h2>
+            </div>
             <div className="px-4 mt-4">
                 <div className="flex bg-card rounded-xl p-1 mb-4 border border-border relative">
-                    <button onClick={() => setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'notifications' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>
-                        Mitteilungen
-                        {hasUnread && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
-                    </button>
                     <button onClick={() => setSubTab('messages')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'messages' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>
                         Nachrichten
                         {hasUnreadInbox && subTab !== 'messages' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
+                    </button>
+                    <button onClick={() => setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'notifications' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>
+                        Aktivitäten
+                        {hasUnread && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
                     </button>
                 </div>
 
@@ -414,8 +556,8 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                         inboxChats.length > 0 ? inboxChats.map(renderChatItem) : (
                             <EmptyState
                                 icon={ShieldCheck}
-                                title="Keine Elite-Nachrichten"
-                                description="Nachrichten von verifizierten Scouts und Agenten erscheinen hier."
+                                title="Keine offiziellen Nachrichten"
+                                description="Hier erscheinen ausschließlich Nachrichten von verifizierten Trainern, Scouts und Managern."
                                 variant="subtle"
                             />
                         )
@@ -444,6 +586,32 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq }) 
                     )}
                 </motion.div>
             </div>
+
+            {/* Native-like Action Sheet for Chat Options */}
+            {activeMenuChat && (
+                <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={(e) => { e.stopPropagation(); setActiveMenuChat(null); }}></div>
+                    <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 sm:rounded-2xl rounded-t-2xl flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border border-border pb-safe">
+                        <div className="p-4 border-b border-border flex justify-between items-center bg-white dark:bg-zinc-900 sm:rounded-t-2xl rounded-t-2xl">
+                            <h2 className="text-lg font-bold text-foreground">Chat-Optionen</h2>
+                            <button onClick={(e) => { e.stopPropagation(); setActiveMenuChat(null); }} className="p-2 bg-black/5 dark:bg-white/5 rounded-full text-muted-foreground hover:text-foreground transition">
+                                <span className="text-xl font-bold leading-none px-1">×</span>
+                            </button>
+                        </div>
+                        <div className="p-2 space-y-1">
+                            <button onClick={(e) => { e.stopPropagation(); onUserClick(activeMenuChat); setActiveMenuChat(null); }} className="w-full px-4 py-4 flex items-center gap-3 text-base text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition rounded-xl">
+                                <User size={20} /> Profil ansehen
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleMarkUnread(activeMenuChat); setActiveMenuChat(null); }} className="w-full px-4 py-4 flex items-center gap-3 text-base text-foreground/80 hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground transition rounded-xl">
+                                <Mail size={20} /> Als ungelesen markieren
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteChat(activeMenuChat); setActiveMenuChat(null); }} className="w-full px-4 py-4 flex items-center gap-3 text-base text-red-400 hover:bg-red-500/10 hover:text-red-300 transition border-t border-border mt-2 rounded-xl font-medium">
+                                <Trash2 size={20} /> Chat löschen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

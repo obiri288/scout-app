@@ -4,7 +4,7 @@ import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 
-export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, onBlock, currentUserProfile }) => {
+export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, onBlock, currentUserProfile, setHasUnreadMessages }) => {
     const [messages, setMessages] = useState([]);
     const [txt, setTxt] = useState('');
     const [showMenu, setShowMenu] = useState(false);
@@ -12,25 +12,33 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
     const { addToast } = useToast();
 
     // Mark all unread messages from partner as read
-    const markAsRead = async (msgs) => {
-        const unread = (msgs || []).filter(m =>
-            m.sender_id === partner.user_id &&
-            m.receiver_id === session.user.id &&
-            !m.is_read
-        );
-        if (unread.length === 0) return;
-
-        const ids = unread.map(m => m.id).filter(id => !String(id).startsWith('temp-'));
-        if (ids.length === 0) return;
-
+    const markAsRead = async () => {
         try {
-            await supabase.from('direct_messages')
+            // Strict database update: only update where receiver is me, sender is partner, and is_read is false
+            const { error, data } = await supabase.from('direct_messages')
                 .update({ is_read: true })
-                .in('id', ids);
+                .eq('receiver_id', session.user.id)
+                .eq('sender_id', partner.user_id)
+                .eq('is_read', false)
+                .select();
 
-            // Update local state
-            setMessages(prev => prev.map(m =>
-                ids.includes(m.id) ? { ...m, is_read: true } : m
+            if (error) {
+                console.error("Supabase RLS Error in markAsRead:", error);
+            } else {
+                console.log("Successfully marked as read:", data);
+            }
+
+            // Optimistic UI Update for global Inbox badge
+            setHasUnreadMessages?.(false);
+
+            // Hard Sync Trigger: Notify other components (like InboxScreen and UserContext) to refetch
+            window.dispatchEvent(new Event('chat-read-sync'));
+            // Force explicit global clear of this exact chat badge
+            window.dispatchEvent(new CustomEvent('clearChatBadge', { detail: { chatId: partner.user_id } }));
+
+            // Update local messages state optimistically
+            setMessages(prev => prev.map(m => 
+                (m.sender_id === partner.user_id && !m.is_read) ? { ...m, is_read: true } : m
             ));
         } catch (e) {
             console.warn("Failed to mark as read:", e);
@@ -54,7 +62,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                 setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
                 // Mark incoming messages as read
-                markAsRead(filtered);
+                markAsRead();
             } catch (e) {
                 console.error("Failed to load messages:", e);
             }
@@ -76,14 +84,32 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                     (msg.sender_id === partner.user_id && msg.receiver_id === session.user.id)
                 ) {
                     setMessages(prev => {
+                        // Already have real ID — skip
                         if (prev.some(m => m.id === msg.id)) return prev;
-                        return [...prev, msg];
+
+                        // Replace a matching temp-message (same sender + content)
+                        // This eliminates the ghost duplicate from optimistic UI
+                        const tempIdx = prev.findIndex(
+                            m => String(m.id).startsWith('temp-') &&
+                                 m.sender_id === msg.sender_id &&
+                                 m.content === msg.content
+                        );
+                        if (tempIdx !== -1) {
+                            const next = [...prev];
+                            next[tempIdx] = msg; // swap temp → confirmed
+                            return next;
+                        }
+
+                        // Genuine new incoming message — append and keep sorted
+                        return [...prev, msg].sort(
+                            (a, b) => new Date(a.created_at) - new Date(b.created_at)
+                        );
                     });
                     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
-                    // If incoming message, mark as read immediately
+                    // If incoming message from partner, mark as read immediately
                     if (msg.sender_id === partner.user_id) {
-                        markAsRead([msg]);
+                        markAsRead();
                     }
                 }
             })
@@ -93,7 +119,6 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                 table: 'direct_messages',
             }, (payload) => {
                 const updated = payload.new;
-                // Update local message state with new is_read status
                 if (
                     (updated.sender_id === session.user.id && updated.receiver_id === partner.user_id) ||
                     (updated.sender_id === partner.user_id && updated.receiver_id === session.user.id)

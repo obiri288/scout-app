@@ -14,15 +14,19 @@ import { SearchScreen } from './components/SearchScreen';
 import { InboxScreen } from './components/InboxScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { ClubScreen } from './components/ClubScreen';
+import UserDirectoryScreen from './components/UserDirectoryScreen';
+import TeamsScreen from './components/TeamsScreen';
 import { CelebrationAnimation } from './components/CelebrationAnimation';
 import { NotificationBell } from './components/NotificationBell';
+import Sidebar from './components/Sidebar';
 
 // Lazy loaded — only fetched when needed
-const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const ActiveAccountsScreen = lazy(() => import('./components/ActiveAccountsScreen'));
 const LoginModal = lazy(() => import('./components/LoginModal').then(m => ({ default: m.LoginModal })));
 const UploadModal = lazy(() => import('./components/UploadModal').then(m => ({ default: m.UploadModal })));
 const EditProfileModal = lazy(() => import('./components/EditProfileModal').then(m => ({ default: m.EditProfileModal })));
-const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const SettingsScreen = lazy(() => import('./components/SettingsScreen'));
 const CommentsModal = lazy(() => import('./components/CommentsModal').then(m => ({ default: m.CommentsModal })));
 const ChatWindow = lazy(() => import('./components/ChatWindow').then(m => ({ default: m.ChatWindow })));
 const FollowerListModal = lazy(() => import('./components/FollowerListModal').then(m => ({ default: m.FollowerListModal })));
@@ -246,7 +250,8 @@ const App = () => {
     const {
         authLoading, profileLoading,
         session, currentUserProfile, updateProfile, refreshProfile,
-        unreadCount, resetUnreadCount, logout,
+        unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
+        checkUnreadMessages,
         activeTab, switchTab, navigateToHash,
         viewedProfile, setViewedProfile, profileHighlights,
         loadProfile, handleProfileTabClick, isOnWatchlist,
@@ -270,13 +275,15 @@ const App = () => {
         isRecoveryMode, setIsRecoveryMode,
         isAuthCallback,
         pendingReactivationProfile, confirmReactivation,
-        showDeactivate, setShowDeactivate
+        showDeactivate, setShowDeactivate, setUnreadMessageUsersCount
     } = useAppState();
     const { addToast } = useToast();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
     const [blockTarget, setBlockTarget] = useState(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showLanding, setShowLanding] = useState(true);
+    const [careerRefreshKey, setCareerRefreshKey] = useState(0);
 
     // Watch for successful email changes based on localStorage pending state
     useEffect(() => {
@@ -349,6 +356,17 @@ const App = () => {
 
     return (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-cyan-500/30 pb-32">
+            {/* Global Sidebar */}
+            <Sidebar 
+                isOpen={isSidebarOpen} 
+                onClose={() => setIsSidebarOpen(false)} 
+                activeTab={activeTab}
+                onNavigate={switchTab}
+                onLogout={logout}
+                session={session}
+                currentUserProfile={currentUserProfile}
+            />
+
             {/* Celebration Animation */}
             <CelebrationAnimation active={showCelebration} onComplete={() => setShowCelebration(false)} />
             {/* Onboarding Wizard */}
@@ -372,9 +390,9 @@ const App = () => {
                 </Suspense>
             )}
 
-            {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({ id, type })} />}
-            {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} />}
-            {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} onLoginReq={() => setShowLogin(true)} />}
+            {activeTab === 'home' && <HomeScreen onVideoClick={setActiveVideo} session={session} onLikeReq={() => setShowLogin(true)} onCommentClick={setActiveCommentsVideo} onUserClick={loadProfile} onReportReq={(id, type) => setReportTarget({ id, type })} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'search' && <SearchScreen onUserClick={loadProfile} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'inbox' && <InboxScreen session={session} onSelectChat={setActiveChatPartner} onUserClick={loadProfile} onLoginReq={() => setShowLogin(true)} onMenuOpen={() => setIsSidebarOpen(true)} setUnreadMessageUsersCount={setUnreadMessageUsersCount} />}
 
             {activeTab === 'profile' && (
                 <ProfileScreen
@@ -386,10 +404,10 @@ const App = () => {
                     onBack={() => { switchTab('home'); }}
                     onLogout={() => { logout(); switchTab('home'); }}
                     onEditReq={() => setShowEditProfile(true)}
-                    onSettingsReq={() => setShowSettings(true)}
+                    onSettingsReq={() => switchTab('settings')}
                     onChatReq={() => { if (!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
                     onClubClick={(c) => { setViewedClub(c); switchTab('club'); }}
-                    onAdminReq={() => switchTab('admin')}
+                    onAdminReq={() => switchTab('admin_overview')}
                     onFollow={handleFollow}
                     onShowFollowers={() => setShowFollowersModal(true)}
                     onShowFollowing={() => setShowFollowingModal(true)}
@@ -403,11 +421,51 @@ const App = () => {
                     onReport={(target) => setReportTarget(target)}
                     onBlock={(target) => setBlockTarget(target)}
                     onUpload={() => setShowUpload(true)}
+                    onMenuOpen={() => setIsSidebarOpen(true)}
+                    careerRefreshKey={careerRefreshKey}
                 />
             )}
 
+            {activeTab === 'directory' && <UserDirectoryScreen currentUserProfile={currentUserProfile} onUserClick={loadProfile} onBack={() => switchTab('home')} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'teams' && <TeamsScreen currentUserProfile={currentUserProfile} onBack={() => switchTab('home')} onMenuOpen={() => setIsSidebarOpen(true)} />}
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
-            {activeTab === 'admin' && <Suspense fallback={<LazyFallback />}><AdminDashboard session={session} onClose={() => switchTab('home')} onUserClick={loadProfile} /></Suspense>}
+            {activeTab === 'settings' && (
+                <Suspense fallback={<LazyFallback />}>
+                    <SettingsScreen
+                        currentUserProfile={currentUserProfile}
+                        session={session}
+                        onBack={() => switchTab('home')}
+                        onLogout={() => { logout(); switchTab('home'); }}
+                        onEditReq={() => setShowEditProfile(true)}
+                        onOpenEmailModal={() => setActiveSettingsModal('email')}
+                        onOpenPasswordModal={() => setActiveSettingsModal('password')}
+                        onMenuOpen={() => setIsSidebarOpen(true)}
+                    />
+                </Suspense>
+            )}
+            {activeTab === 'admin_active_users' && (
+                <Suspense fallback={<LazyFallback />}>
+                    <ActiveAccountsScreen 
+                        session={session} 
+                        currentUserProfile={currentUserProfile}
+                        onClose={() => switchTab('home')} 
+                        onUserClick={loadProfile} 
+                        onMenuOpen={() => setIsSidebarOpen(true)}
+                    />
+                </Suspense>
+            )}
+
+            {activeTab.startsWith('admin_') && activeTab !== 'admin_active_users' && (
+                <Suspense fallback={<LazyFallback />}>
+                    <AdminDashboard 
+                        session={session} 
+                        activeTab={activeTab}
+                        onClose={() => switchTab('home')} 
+                        onUserClick={loadProfile} 
+                        onMenuOpen={() => setIsSidebarOpen(true)}
+                    />
+                </Suspense>
+            )}
 
             {/* Notification Bell — fixed top-right */}
             {session && currentUserProfile && (
@@ -447,6 +505,11 @@ const App = () => {
                     <div className="relative">
                         <Mail size={22} className={`transition-transform duration-500 ${activeTab === 'inbox' ? 'scale-110' : ''}`} />
                         {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-bounce shadow-sm border border-card">{unreadCount}</span>}
+                        {unreadMessageUsersCount > 0 && (
+                            <span className="absolute -bottom-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow-sm border border-card animate-in zoom-in">
+                                {unreadMessageUsersCount}
+                            </span>
+                        )}
                     </div>
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'inbox' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Inbox</span>
                 </button>
@@ -474,32 +537,14 @@ const App = () => {
                     <EditProfileModal
                         profile={currentUserProfile}
                         onClose={() => setShowEditProfile(false)}
-                        onUpdate={(updated) => { updateProfile(updated); setViewedProfile(updated); }}
-                    />
-                )}
-
-                {showSettings && (
-                    <SettingsModal
-                        onClose={() => setShowSettings(false)}
-                        onLogout={() => { logout(); setShowSettings(false); switchTab('home'); }}
-                        installPrompt={deferredPrompt}
-                        onInstallApp={handleInstallApp}
-                        onRequestPush={handlePushRequest}
-                        user={currentUserProfile}
-                        onEditReq={() => { setShowSettings(false); setShowEditProfile(true); }}
-                        onVerifyReq={() => { setShowSettings(false); setShowVerificationModal(true); }}
-                        onCloseAndOpen={(target) => {
-                            setShowSettings(false);
-                            if (target === 'verification') {
-                                setShowVerificationModal(true);
-                            } else if (target === 'deactivate-account') {
-                                setShowDeactivate(true);
-                            } else {
-                                setActiveSettingsModal(target);
-                            }
+                        onUpdate={(updated) => { 
+                            updateProfile(updated); 
+                            setViewedProfile(updated); 
+                            setCareerRefreshKey(prev => prev + 1);
                         }}
                     />
                 )}
+
 
                 {showVerificationModal && (
                     <VerificationModal
@@ -525,7 +570,7 @@ const App = () => {
                 )}
 
                 {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
-                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} currentUserProfile={currentUserProfile} onClose={() => setActiveChatPartner(null)} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
+                {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} currentUserProfile={currentUserProfile} setHasUnreadMessages={setUnreadMessageUsersCount} onClose={() => { setActiveChatPartner(null); checkUnreadMessages(); }} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
                 {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 {showUpload && <UploadModal profile={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}
                 {reportTarget && session && <ReportModal targetId={reportTarget.id} targetType={reportTarget.type} onClose={() => setReportTarget(null)} session={session} />}

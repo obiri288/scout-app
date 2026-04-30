@@ -17,7 +17,10 @@ export const UserProvider = ({ children }) => {
     const [pendingReactivationProfile, setPendingReactivationProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [unreadMessageUsersCount, setUnreadMessageUsersCount] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    // Live notifications list — updated by Realtime, shared across components
+    const [liveNotifications, setLiveNotifications] = useState([]);
     const { addToast } = useToast();
 
     // Detect if we're in an auth callback flow (email confirmation redirect)
@@ -114,9 +117,26 @@ export const UserProvider = ({ children }) => {
         }
     }, [session?.user?.id]);
 
-    // Realtime notifications listener
-    useEffect(() => {
+    const checkUnreadMessages = useCallback(async () => {
         if (!session?.user?.id) return;
+        try {
+            const { data, error } = await supabase.from('direct_messages')
+                .select('sender_id')
+                .eq('receiver_id', session.user.id)
+                .eq('is_read', false);
+            
+            if (error) throw error;
+            
+            const uniqueSenders = new Set((data || []).map(msg => msg.sender_id)).size;
+            setUnreadMessageUsersCount(uniqueSenders);
+        } catch (e) {
+            console.error("Error checking unread messages:", e);
+        }
+    }, [session?.user?.id]);
+
+    // Realtime notifications & messages listener
+    useEffect(() => {
+        if (!session?.user?.id || !currentUserProfile?.id) return;
 
         const channel = supabase
             .channel('notifications-global')
@@ -124,38 +144,67 @@ export const UserProvider = ({ children }) => {
                 event: 'INSERT',
                 schema: 'public',
                 table: 'notifications',
-                filter: `user_id=eq.${session.user.id}`
+                filter: `user_id=eq.${currentUserProfile.id}`
             }, (payload) => {
+                const newNote = payload.new;
                 setUnreadCount(prev => prev + 1);
+                // Push to live list so NotificationBell updates without refetch
+                setLiveNotifications(prev => [newNote, ...prev]);
+                // Show a subtle in-app toast
+                addToast(
+                    newNote.title || newNote.message || 'Neue Benachrichtigung',
+                    'info',
+                    4000
+                );
             })
             .subscribe();
 
         // Fetch initial unread count
         supabase.from('notifications')
             .select('*', { count: 'exact', head: true })
-            .eq('user_id', session.user.id)
+            .eq('user_id', currentUserProfile.id)
             .eq('is_read', false)
             .then(({ count }) => {
                 setUnreadCount(count || 0);
             });
 
+        // Realtime listener for direct_messages
+        // We listen for any event on direct_messages where we might be the receiver
+        const msgChannel = supabase
+            .channel('messages-global')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'direct_messages',
+                filter: `receiver_id=eq.${session.user.id}`
+            }, (payload) => {
+                checkUnreadMessages();
+            })
+            .subscribe();
+        
+        checkUnreadMessages();
+
+        const handleSync = () => checkUnreadMessages();
+        window.addEventListener('chat-read-sync', handleSync);
+
         return () => {
             supabase.removeChannel(channel);
+            supabase.removeChannel(msgChannel);
+            window.removeEventListener('chat-read-sync', handleSync);
         };
-    }, [session?.user?.id]);
+    }, [session?.user?.id, checkUnreadMessages]);
 
     const resetUnreadCount = useCallback(() => {
         setUnreadCount(0);
         // Mark all as read in background
-        const userId = sessionRef.current?.user?.id;
-        if (userId) {
+        if (currentUserProfile?.id) {
             supabase.from('notifications')
                 .update({ is_read: true })
-                .eq('user_id', userId)
+                .eq('user_id', currentUserProfile.id)
                 .eq('is_read', false)
                 .then(() => { });
         }
-    }, []);
+    }, [currentUserProfile?.id]);
 
     const logout = useCallback(async () => {
         await supabase.auth.signOut();
@@ -163,6 +212,7 @@ export const UserProvider = ({ children }) => {
         setCurrentUserProfile(null);
         setPendingReactivationProfile(null);
         setUnreadCount(0);
+        setUnreadMessageUsersCount(0);
     }, []);
 
     const confirmReactivation = useCallback(async () => {
@@ -197,6 +247,11 @@ export const UserProvider = ({ children }) => {
         refreshProfile: fetchOrCreateProfile,
         unreadCount,
         resetUnreadCount,
+        unreadMessageUsersCount,
+        setUnreadMessageUsersCount,
+        checkUnreadMessages,
+        liveNotifications,
+        setLiveNotifications,
         logout,
         isRecoveryMode,
         setIsRecoveryMode,

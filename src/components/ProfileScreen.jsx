@@ -5,7 +5,7 @@ import {
     Bookmark, BookmarkCheck, ArrowLeft, Database, ShieldCheck, Settings,
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
-    Loader2, X, Trash2, Play
+    Loader2, X, Trash2, Play, Clock, Menu
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
@@ -123,7 +123,9 @@ export const ProfileScreen = ({
     onPlayerClick,
     onReport,
     onBlock,
-    onUpload
+    onUpload,
+    onMenuOpen,
+    careerRefreshKey
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
     const [showPlayerCard, setShowPlayerCard] = useState(false);
@@ -138,6 +140,7 @@ export const ProfileScreen = ({
     const [playerStats, setPlayerStats] = useState(null);
     const [skillEndorsements, setSkillEndorsements] = useState([]);
     const [viewCount, setViewCount] = useState(0);
+    const [latestCareerEntry, setLatestCareerEntry] = useState(null);
 
     useEffect(() => {
         if (profile?.id) {
@@ -182,12 +185,14 @@ export const ProfileScreen = ({
 
     const loadPlayerDetails = async () => {
         try {
-            const [statsData, endorsementsData] = await Promise.all([
+            const [statsData, endorsementsData, careerData] = await Promise.all([
                 api.getPlayerStats(profile.id),
-                api.getSkillEndorsements(profile.id)
+                api.getSkillEndorsements(profile.id),
+                api.fetchLatestCareerEntry(profile.user_id)
             ]);
             setPlayerStats(statsData);
             setSkillEndorsements(endorsementsData);
+            setLatestCareerEntry(careerData);
         } catch (err) {
             console.error("Error loading player details:", err);
         }
@@ -268,6 +273,48 @@ export const ProfileScreen = ({
     const avgRating = playerStats ? 
         Object.values(playerStats).reduce((a, b) => a + (b || 0), 0) / 6 : 0;
 
+    const getSmartTransferStatus = () => {
+        if (profile?.role === 'scout') return null;
+        
+        const isSeeking = profile?.transfer_status === 'Suche Verein';
+        const hasActiveClub = !!latestCareerEntry;
+        
+        if (hasActiveClub && isSeeking) {
+            return { 
+                label: 'Offen für Angebote', 
+                color: 'text-emerald-500 dark:text-emerald-400', 
+                dot: true, 
+                highlight: true,
+                sub: profile.contract_end ? `Vertrag bis ${new Date(profile.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' })}` : null
+            };
+        }
+        if (!hasActiveClub && isSeeking) {
+            return { 
+                label: 'Vereinslos (Suchend)', 
+                color: 'text-amber-500 dark:text-amber-400', 
+                dot: false, 
+                highlight: true 
+            };
+        }
+        if (hasActiveClub && !isSeeking) {
+            return { 
+                label: 'Fest unter Vertrag', 
+                color: 'text-slate-500 dark:text-slate-400', 
+                dot: false, 
+                highlight: false,
+                sub: profile.contract_end ? `Bis ${new Date(profile.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' })}` : null
+            };
+        }
+        return { 
+            label: profile?.transfer_status || '-', 
+            color: 'text-foreground', 
+            dot: false, 
+            highlight: false 
+        };
+    };
+
+    const smartStatus = getSmartTransferStatus();
+
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-500">
             {/* Header / Cover */}
@@ -324,8 +371,14 @@ export const ProfileScreen = ({
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
                             {profile.clubs?.name && (
-                                <span className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
-                                    <Trophy size={14} className="text-amber-500" /> {profile.clubs.name}
+                                <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
+                                    <Trophy size={14} className="text-amber-500" />
+                                    <span className="font-bold">{profile.clubs.name}</span>
+                                    {profile.clubs.is_verified ? (
+                                        <CheckCircle size={12} className="text-blue-500 fill-blue-500/10" title="Verifizierter Verein" />
+                                    ) : (
+                                        <Clock size={12} className="text-muted-foreground" title="Verein wird noch geprüft" />
+                                    )}
                                 </span>
                             )}
                             {profile.city && (
@@ -430,6 +483,8 @@ export const ProfileScreen = ({
                 playerStats={playerStats} 
                 skillEndorsements={skillEndorsements} 
                 onEndorseSkill={handleEndorseSkill} 
+                smartStatus={smartStatus}
+                careerRefreshKey={careerRefreshKey}
             />
 
             {/* Footer / Similar Players */}
@@ -449,7 +504,8 @@ export const ProfileScreen = ({
 const ProfileTabs = ({ 
     profile, highlights, onVideoClick, isOwnProfile, 
     onDeleteVideo, onUpload, session, currentUserProfile, 
-    playerStats, skillEndorsements, onEndorseSkill 
+    playerStats, skillEndorsements, onEndorseSkill, smartStatus,
+    careerRefreshKey
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
 
@@ -574,7 +630,17 @@ const ProfileTabs = ({
                                     <StatCard label="Alter" value={profile?.birth_date ? `${calculateAge(profile.birth_date)} Jahre` : '-'} isVerified={profile?.is_verified} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                                    <StatCard label="Transfer-Status" value={profile?.transfer_status || '-'} highlight={profile?.transfer_status === 'Suche Verein'} />
+                                    <StatCard 
+                                        label="Transfer-Status" 
+                                        value={
+                                            <span className="flex items-center gap-1.5">
+                                                {smartStatus?.dot && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" />}
+                                                <span className={smartStatus?.color}>{smartStatus?.label}</span>
+                                            </span>
+                                        } 
+                                        sub={smartStatus?.sub}
+                                        highlight={smartStatus?.highlight} 
+                                    />
                                     <StatCard label="Vertrag bis" value={profile?.contract_end ? new Date(profile.contract_end).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '-'} />
                                 </div>
                             </div>
@@ -646,7 +712,7 @@ const ProfileTabs = ({
 
             {/* TAB: Karriere */}
             {activeTab === 'karriere' && (
-                <CareerTimeline userId={profile.user_id} />
+                <CareerTimeline userId={profile.user_id} refreshKey={careerRefreshKey} />
             )}
 
             {/* TAB: Über */}
