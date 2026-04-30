@@ -30,7 +30,19 @@ const TARGET_TYPE_LABELS = {
 const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, onMenuOpen }) => {
     const { currentUserProfile, session } = useUser();
     const { addToast } = useToast();
-    const [activeTab, setActiveTab] = useState(externalActiveTab || 'overview');
+    const [activeTab, setActiveTab] = useState(() => {
+        if (externalActiveTab) {
+            const TAB_MAP = {
+                'admin_overview': 'overview',
+                'admin_accounts': 'accounts',
+                'admin_career': 'career',
+                'admin_claims': 'claims',
+                'admin_reports': 'reports',
+            };
+            return TAB_MAP[externalActiveTab] || externalActiveTab.replace('admin_', '');
+        }
+        return 'overview';
+    });
     const [subTab, setSubTab] = useState('pending'); // 'pending' | 'recent'
     const [isSendingTest, setIsSendingTest] = useState(false);
 
