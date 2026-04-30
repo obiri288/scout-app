@@ -9,6 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import { GuestFallback } from './GuestFallback';
 import { EmptyState } from './EmptyState';
 import { VerificationBadge } from './VerificationBadge';
+import { useUser } from '../contexts/UserContext';
 
 // Stagger animation variants
 const listContainerVariants = {
@@ -31,24 +32,37 @@ const listItemVariants = {
     },
 };
 
-// Notification type config
 const NOTIF_CONFIG = {
-    like: { icon: Heart, color: 'text-red-400', bg: 'bg-red-500/15', textDE: 'hat dein Video geliked.', textEN: 'liked your video.' },
-    follow: { icon: UserPlus, color: 'text-blue-400', bg: 'bg-blue-500/15', textDE: 'folgt dir jetzt.', textEN: 'started following you.' },
-    watchlist_add: { icon: Bookmark, color: 'text-amber-400', bg: 'bg-amber-500/15', textDE: 'hat dich auf die Watchlist gesetzt! 🔥', textEN: 'added you to their watchlist! 🔥' },
-    rating: { icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/15', textDE: 'hat dich bewertet.', textEN: 'rated your profile.' },
-    likes_milestone: { icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15', textDE: 'Likes erreicht!', textEN: 'likes reached!' },
-    comment: { icon: Mail, color: 'text-purple-400', bg: 'bg-purple-500/15', textDE: 'hat kommentiert.', textEN: 'left a comment.' },
-    endorse: { icon: ShieldCheck, color: 'text-emerald-400', bg: 'bg-emerald-500/15', textDE: 'hat einen deiner Skills verifiziert.', textEN: 'verified one of your skills.' },
-    team_join: { icon: Shirt, color: 'text-indigo-400', bg: 'bg-indigo-500/15', textDE: 'ist deinem Verein beigetreten.', textEN: 'joined your club.' },
-    new_registration: { icon: UserPlus, color: 'text-cyan-400', bg: 'bg-cyan-500/15', textDE: 'hat sich neu registriert.', textEN: 'just joined.' },
+    like: { icon: Heart, color: 'text-red-400', bg: 'bg-red-500/15' },
+    follow: { icon: UserPlus, color: 'text-blue-400', bg: 'bg-blue-500/15' },
+    watchlist_add: { icon: Bookmark, color: 'text-amber-400', bg: 'bg-amber-500/15' },
+    rating: { icon: Star, color: 'text-amber-400', bg: 'bg-amber-500/15' },
+    likes_milestone: { icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
+    comment: { icon: MessageSquare, color: 'text-purple-400', bg: 'bg-purple-500/15' },
+    endorse: { icon: ShieldCheck, color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
+    team_join: { icon: Shirt, color: 'text-indigo-400', bg: 'bg-indigo-500/15' },
+    new_registration: { icon: UserPlus, color: 'text-cyan-400', bg: 'bg-cyan-500/15' },
+};
+
+const getNotifText = (n) => {
+    const name = n.actor?.full_name || n.actor?.username || 'Ein Nutzer';
+    
+    switch (n.type) {
+        case 'like':            return <><span className="font-bold">{name}</span> hat dein Video geliked.</>;
+        case 'follow':          return <><span className="font-bold">{name}</span> folgt dir jetzt.</>;
+        case 'watchlist_add':   return <><span className="font-bold">{name}</span> hat dich auf die Watchlist gesetzt! 🔥</>;
+        case 'endorsement':     return <><span className="font-bold">{name}</span> hat deine Skills bestätigt.</>;
+        case 'likes_milestone': return 'Dein Video hat einen Meilenstein erreicht! 🎉';
+        case 'comment':         return <><span className="font-bold">{name}</span> hat dein Video kommentiert.</>;
+        default:                return n.message || 'Neue Aktivität in deinem Profil';
+    }
 };
 
 const FILTER_TABS = [
     { id: 'all', label: 'Alle' },
     { id: 'follow', label: 'Follower' },
     { id: 'like', label: 'Likes' },
-    { id: 'watchlist_add', label: 'Scouts' },
+    { id: 'scouts', label: 'Scouts' },
 ];
 
 // Time ago helper
@@ -69,12 +83,13 @@ const timeAgo = (dateStr) => {
 };
 
 export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, onMenuOpen, setUnreadMessageUsersCount }) => {
+    const { currentUserProfile, liveNotifications, setLiveNotifications, unreadCount, resetUnreadCount } = useUser();
     const { addToast } = useToast();
     const [subTab, setSubTab] = useState('messages');
     const [notis, setNotis] = useState([]);
     const [chats, setChats] = useState([]);
     const [notifFilter, setNotifFilter] = useState('all');
-    const [hasUnread, setHasUnread] = useState(false);
+    const [loadingNotis, setLoadingNotis] = useState(false);
     const [msgTab, setMsgTab] = useState('inbox'); // 'inbox' | 'requests'
     const [greetedUsers, setGreetedUsers] = useState(new Set());
     const [followedUsers, setFollowedUsers] = useState(new Set());
@@ -83,10 +98,28 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
 
     const loadNotifications = useCallback(async () => {
-        const data = await api.fetchNotifications(session.user.id);
-        setNotis(data);
-        setHasUnread(data.some(n => !n.read));
-    }, [session]);
+        if (!currentUserProfile?.id) return;
+        setLoadingNotis(true);
+        try {
+            const data = await api.fetchNotifications(currentUserProfile.id);
+            setNotis(data);
+        } catch (e) {
+            console.error("Failed to load notifications:", e);
+        } finally {
+            setLoadingNotis(false);
+        }
+    }, [currentUserProfile?.id]);
+
+    // Sync local notifications with global live stream
+    useEffect(() => {
+        if (liveNotifications.length === 0) return;
+        setNotis(prev => {
+            const existingIds = new Set(prev.map(n => n.id));
+            const newItems = liveNotifications.filter(n => !existingIds.has(n.id));
+            if (newItems.length === 0) return prev;
+            return [...newItems, ...prev];
+        });
+    }, [liveNotifications]);
 
     const fetchChats = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -171,15 +204,25 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
     }, [session?.user?.id, subTab, fetchChats]);
 
     const handleMarkAllRead = async () => {
-        await api.markNotificationsRead(session.user.id);
-        setNotis(prev => prev.map(n => ({ ...n, read: true })));
-        setHasUnread(false);
+        if (!currentUserProfile?.id) return;
+        try {
+            await api.markNotificationsRead(currentUserProfile.id);
+            setNotis(prev => prev.map(n => ({ ...n, is_read: true })));
+            resetUnreadCount();
+            setLiveNotifications([]);
+        } catch (e) {
+            addToast('Fehler beim Markieren.', 'error');
+        }
     };
 
-    const filteredNotis = notifFilter === 'all' ? notis : notis.filter(n => {
+    const filteredNotis = notis.filter(n => {
+        if (notifFilter === 'all') return true;
         if (notifFilter === 'like') return n.type === 'like' || n.type === 'likes_milestone';
+        if (notifFilter === 'scouts') return n.type === 'scout_request' || n.type === 'watchlist_add';
         return n.type === notifFilter;
     });
+
+    const hasUnreadNotis = unreadCount > 0 || notis.some(n => !n.is_read);
 
     // Gatekeeper: split chats by sender verification status
     const inboxChats = chats.filter(c => c.is_verified);
@@ -311,85 +354,58 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
     const renderNotification = (n) => {
         const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.like;
         const Icon = config.icon;
-
-        let message = n.message || config.textDE;
-        if (n.type === 'likes_milestone' && n.metadata?.count) {
-            message = `Dein Video hat ${n.metadata.count} Likes erreicht! 🎉`;
-        }
+        const isUnread = !n.is_read;
 
         return (
-            <motion.div key={n.id} variants={listItemVariants} className={`flex flex-col gap-3 p-4 ${cardStyle} ${!n.read ? 'border-l-2 border-l-cyan-400' : ''}`}>
-                <div className="flex items-start gap-3.5">
-                    {/* Icon */}
-                    <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center shrink-0 mt-0.5`}>
-                        <Icon size={18} className={config.color} />
+            <motion.div 
+                key={n.id} 
+                variants={listItemVariants} 
+                onClick={() => {
+                    if (isUnread) {
+                        setNotis(prev => prev.map(item => item.id === n.id ? { ...item, is_read: true } : item));
+                        api.markNotificationRead(n.id).catch(() => {});
+                    }
+                    if (n.actor) onUserClick(n.actor);
+                }}
+                className={`flex items-start gap-4 p-4 cursor-pointer transition-all border-b border-white/5 ${cardStyle} ${isUnread ? 'bg-cyan-500/5' : ''}`}
+            >
+                {/* Avatar Left */}
+                <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center overflow-hidden border border-border shadow-sm">
+                        {n.actor?.avatar_url ? (
+                            <img src={n.actor.avatar_url} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className={`w-full h-full flex items-center justify-center ${config.bg}`}>
+                                <Icon size={20} className={config.color} />
+                            </div>
+                        )}
                     </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground leading-snug">
-                            {n.type !== 'likes_milestone' && (
-                                <span className="font-bold">{n.actor?.full_name || n.actor?.username || 'Ein Nutzer'} </span>
-                            )}
-                            <span className="text-muted-foreground">{message}</span>
-                        </p>
-                        <span className="text-[10px] text-muted-foreground/60 mt-1 block">{timeAgo(n.created_at)}</span>
-                    </div>
-
-                    {/* Avatar */}
-                    <div className="w-9 h-9 rounded-full bg-card overflow-hidden border border-border shrink-0">
-                        {n.actor?.avatar_url ? <img src={n.actor.avatar_url} className="w-full h-full object-cover" /> : <User size={14} className="text-muted-foreground m-2" />}
-                    </div>
+                    {isUnread && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full border-2 border-background shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+                    )}
                 </div>
 
-                {/* Interactive Action: team_join */}
-                {n.type === 'team_join' && n.actor && (
-                    <div className="mt-1 pl-[54px]">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleGreetTeamMember(n.actor); }}
-                            disabled={greetedUsers.has(n.actor.user_id)}
-                            className={`text-xs font-bold py-1.5 px-3 rounded-lg transition-all ${
-                                greetedUsers.has(n.actor.user_id)
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-none cursor-default'
-                                    : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20'
-                            }`}
-                        >
-                            {greetedUsers.has(n.actor.user_id) ? 'Begrüßt ✅' : 'Willkommen heißen 👋'}
-                        </button>
+                {/* Content Right */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex flex-col gap-1">
+                        <div className="text-[15px] text-foreground leading-tight">
+                            {getNotifText(n)}
+                        </div>
+                        <span className="text-xs text-muted-foreground/60">{timeAgo(n.created_at)}</span>
                     </div>
-                )}
 
-                {/* Interactive Action: new_registration */}
-                {n.type === 'new_registration' && n.actor && (
-                    <div className="mt-1 pl-[54px] flex items-center gap-2">
-                        {!followedUsers.has(n.actor.user_id) ? (
+                    {/* Interactive Actions (GREETER) */}
+                    {(n.type === 'team_join' || n.type === 'new_registration') && n.actor && !greetedUsers.has(n.actor.user_id) && (
+                        <div className="mt-3 flex gap-2">
                             <button
-                                onClick={(e) => { e.stopPropagation(); handleQuickFollow(n.actor); }}
-                                className="text-xs font-bold py-1.5 px-4 rounded-lg transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20"
+                                onClick={(e) => { e.stopPropagation(); n.type === 'team_join' ? handleGreetTeamMember(n.actor) : handleSayHey(n.actor); }}
+                                className="text-[11px] font-bold py-1.5 px-4 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
                             >
-                                Folgen
+                                {n.type === 'team_join' ? 'Begrüßen 👋' : 'Sag Hey 👋'}
                             </button>
-                        ) : (
-                            <span className="text-xs font-bold py-1.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 cursor-default">
-                                <CheckCheck size={14} /> Folge ich
-                            </span>
-                        )}
-                        
-                        {followedUsers.has(n.actor.user_id) && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleSayHey(n.actor); }}
-                                disabled={greetedUsers.has(n.actor.user_id)}
-                                className={`text-xs font-bold py-1.5 px-3 rounded-lg transition-all ${
-                                    greetedUsers.has(n.actor.user_id)
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-none cursor-default'
-                                        : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20'
-                                }`}
-                            >
-                                {greetedUsers.has(n.actor.user_id) ? 'Gesendet ✅' : 'Sag Hey 👋'}
-                            </button>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
+                </div>
             </motion.div>
         );
     };
@@ -470,20 +486,20 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     </button>
                     <button onClick={() => setSubTab('notifications')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all z-10 ${subTab === 'notifications' ? 'bg-muted text-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground/80'}`}>
                         Aktivitäten
-                        {hasUnread && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
+                        {hasUnreadNotis && subTab !== 'notifications' && <span className="ml-1 w-2 h-2 bg-cyan-400 rounded-full inline-block animate-pulse" />}
                     </button>
                 </div>
 
                 {/* Notification filter tabs + mark read */}
                 {subTab === 'notifications' && (
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex gap-1.5 overflow-x-auto">
+                        <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                             {FILTER_TABS.map(tab => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setNotifFilter(tab.id)}
-                                    className={`text-[11px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${notifFilter === tab.id
-                                        ? 'bg-indigo-500/15 text-cyan-400 border border-indigo-500/20'
+                                    className={`text-[11px] font-bold px-3.5 py-2 rounded-lg whitespace-nowrap transition-all ${notifFilter === tab.id
+                                        ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_12px_rgba(34,211,238,0.1)]'
                                         : 'bg-white/5 text-muted-foreground border border-transparent hover:bg-white/10'
                                         }`}
                                 >
@@ -491,7 +507,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                                 </button>
                             ))}
                         </div>
-                        {hasUnread && (
+                        {hasUnreadNotis && (
                             <button
                                 onClick={handleMarkAllRead}
                                 className="flex items-center gap-1 text-[10px] font-bold text-cyan-400 hover:text-cyan-300 transition shrink-0 ml-2"

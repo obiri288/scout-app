@@ -261,32 +261,53 @@ export const getFollowingCount = async (playerId) => {
 
 export const follow = async (followerPlayerId, followingPlayerId) => {
     const payload = { follower_id: followerPlayerId, following_id: followingPlayerId };
-    console.log('[follow] Payload:', payload);
-    if (!followerPlayerId || !followingPlayerId) {
-        throw new Error(`[follow] Ungültige IDs — follower_id: ${followerPlayerId}, following_id: ${followingPlayerId}`);
-    }
-    const { error } = await supabase.from('follows')
-        .upsert(payload, { onConflict: 'follower_id,following_id' });
-    if (error) {
-        console.error('[follow] Supabase RLS/DB Fehler:', error.message, '| Details:', error.details, '| Hint:', error.hint, '| Payload:', payload);
-        throw new Error(`Follow fehlgeschlagen: ${error.message}`);
-    }
+    if (!followerPlayerId || !followingPlayerId) throw new Error("Missing IDs for follow");
+    
+    const { error } = await supabase.from('follows').upsert(payload, { onConflict: 'follower_id,following_id' });
+    if (error) throw error;
+
+    try {
+        await createNotification({ userId: followingPlayerId, actorId: followerPlayerId, type: 'follow' });
+    } catch (e) { console.warn("Notification failed", e); }
 };
 
 export const unfollow = async (followerPlayerId, followingPlayerId) => {
-    const criteria = { follower_id: followerPlayerId, following_id: followingPlayerId };
-    console.log('[unfollow] Criteria:', criteria);
-    if (!followerPlayerId || !followingPlayerId) {
-        throw new Error(`[unfollow] Ungültige IDs — follower_id: ${followerPlayerId}, following_id: ${followingPlayerId}`);
-    }
-    const { error } = await supabase.from('follows')
-        .delete()
-        .match(criteria);
-    if (error) {
-        console.error('[unfollow] Supabase RLS/DB Fehler:', error.message, '| Details:', error.details, '| Hint:', error.hint, '| Criteria:', criteria);
-        throw new Error(`Unfollow fehlgeschlagen: ${error.message}`);
-    }
+    const { error } = await supabase.from('follows').delete().match({ follower_id: followerPlayerId, following_id: followingPlayerId });
+    if (error) throw error;
 };
+
+// ============================================================
+// LIKES
+// ============================================================
+
+export const checkIsLiked = async (userId, videoId) => {
+    if (!userId || !videoId) return false;
+    const { data } = await supabase.from('media_likes').select('id').eq('user_id', userId).eq('video_id', videoId);
+    return data && data.length > 0;
+};
+
+export const likeVideo = async (userId, videoId) => {
+    const payload = cleanPayload({ user_id: userId, video_id: videoId });
+    try {
+        const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,video_id' });
+        if (error) throw error;
+
+        const { data: video } = await supabase.from('media_highlights').select('player_id').eq('id', videoId).single();
+        if (video?.player_id) {
+            const myPlayerId = await getPlayerIdFromUserId(userId);
+            if (myPlayerId && myPlayerId !== video.player_id) {
+                await createNotification({ userId: video.player_id, actorId: myPlayerId, type: 'like' });
+            }
+        }
+    } catch (error) { throw error; }
+};
+
+export const unlikeVideo = async (userId, videoId) => {
+    const { error } = await supabase.from('media_likes').delete().match({ user_id: userId, video_id: videoId });
+    if (error) throw error;
+};
+
+// Reorganized above. Removing old unfollow.
 
 export const fetchFollowers = async (playerId) => {
     const { data } = await supabase.from('follows')
@@ -395,47 +416,6 @@ export const fetchWatchlist = async (scoutId) => {
         .select('player_id, players_master(*, clubs(*, leagues(name)))')
         .eq('scout_id', scoutId);
     return data || [];
-};
-
-// ============================================================
-// LIKES
-// ============================================================
-
-export const checkIsLiked = async (userId, videoId) => {
-    if (!userId || !videoId) return false;
-    const { data } = await supabase.from('media_likes')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('video_id', videoId);
-    return data && data.length > 0;
-};
-
-export const likeVideo = async (userId, videoId) => {
-    const payload = cleanPayload({ 
-        user_id: userId, 
-        video_id: videoId // strict: video_id, not media_id
-    });
-    
-    try {
-        const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,video_id' });
-        if (error) throw error;
-    } catch (error) {
-        console.error("DB Error in likeVideo. Payload:", payload, "Error:", error);
-        throw error;
-    }
-};
-
-export const unlikeVideo = async (userId, videoId) => {
-    const matchCriteria = { user_id: userId, video_id: videoId };
-    try {
-        const { error } = await supabase.from('media_likes')
-            .delete()
-            .match(matchCriteria);
-        if (error) throw error;
-    } catch (error) {
-        console.error("DB Error in unlikeVideo. Criteria:", matchCriteria, "Error:", error);
-        throw error;
-    }
 };
 
 // ============================================================
