@@ -469,7 +469,7 @@ const App = () => {
 
             {/* Notification Bell — fixed top-right */}
             {session && currentUserProfile && (
-                <div className="fixed top-12 right-4 z-[8500]">
+                <div className="fixed top-12 right-4 z-[20000]">
                     <NotificationBell />
                 </div>
             )}
