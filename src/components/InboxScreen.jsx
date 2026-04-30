@@ -374,10 +374,10 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative overflow-hidden group"
+                className="relative overflow-hidden group mb-2"
             >
                 {/* Delete Background (Visible during swipe) */}
-                <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 rounded-2xl">
+                <div className="absolute inset-0 bg-rose-600/90 flex items-center justify-end px-6 rounded-2xl">
                     <div className="flex flex-col items-center gap-1 text-white">
                         <Trash2 size={20} />
                         <span className="text-[10px] font-bold uppercase tracking-tight">Löschen</span>
@@ -388,7 +388,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                 <motion.div
                     drag="x"
                     dragConstraints={{ left: -100, right: 0 }}
-                    dragElastic={0.1}
+                    dragElastic={0.05}
                     onDragEnd={(_, info) => {
                         if (info.offset.x < -80) {
                             handleDeleteNotification(n.id);
@@ -401,7 +401,11 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                         }
                         if (n.actor) onUserClick(n.actor);
                     }}
-                    className={`relative z-10 flex items-start gap-4 p-4 cursor-pointer transition-all border-b border-white/5 ${cardStyle} ${isUnread ? 'bg-cyan-500/5' : ''}`}
+                    className={`relative z-10 flex items-start gap-4 p-4 cursor-pointer transition-all border border-border shadow-sm rounded-2xl ${
+                        isUnread 
+                            ? 'bg-slate-50 dark:bg-slate-900/90 border-l-4 border-l-cyan-400' 
+                            : 'bg-white dark:bg-slate-950'
+                    }`}
                 >
                     {/* Avatar Left */}
                     <div className="relative flex-shrink-0">
@@ -422,7 +426,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     {/* Content Right */}
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col gap-1">
-                            <div className="text-[15px] text-foreground leading-tight">
+                            <div className="text-[15px] font-medium text-foreground leading-tight">
                                 {getNotifText(n)}
                             </div>
                             <span className="text-xs text-muted-foreground/60">{timeAgo(n.created_at)}</span>
