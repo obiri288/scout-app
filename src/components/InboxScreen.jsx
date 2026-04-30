@@ -94,6 +94,8 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
     const [greetedUsers, setGreetedUsers] = useState(new Set());
     const [followedUsers, setFollowedUsers] = useState(new Set());
     const [activeMenuChat, setActiveMenuChat] = useState(null);
+    const [notifToDelete, setNotifToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
 
@@ -281,14 +283,19 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         }
     };
 
-    const handleDeleteNotification = async (id) => {
+    const handleDeleteNotification = async () => {
+        if (!notifToDelete) return;
+        setIsDeleting(true);
         try {
+            const id = notifToDelete.id;
             setNotis(prev => prev.filter(n => n.id !== id));
             await api.deleteNotification(id);
+            setNotifToDelete(null);
         } catch (e) {
             console.error("Delete failed:", e);
             addToast("Löschen fehlgeschlagen", 'error');
-            // Optional: refetch or restore
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -377,7 +384,13 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                 className="relative overflow-hidden group mb-2"
             >
                 {/* Delete Background (Visible during swipe) */}
-                <div className="absolute inset-0 bg-rose-600/90 flex items-center justify-end px-6 rounded-2xl">
+                <div 
+                    className="absolute inset-0 bg-rose-600/90 flex items-center justify-end px-6 rounded-2xl cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setNotifToDelete(n);
+                    }}
+                >
                     <div className="flex flex-col items-center gap-1 text-white">
                         <Trash2 size={20} />
                         <span className="text-[10px] font-bold uppercase tracking-tight">Löschen</span>
@@ -390,9 +403,9 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     dragConstraints={{ left: -100, right: 0 }}
                     dragElastic={0.05}
                     onDragEnd={(_, info) => {
-                        if (info.offset.x < -80) {
-                            handleDeleteNotification(n.id);
-                        }
+                        // REMOVED AUTO DELETE: Only reveal the button, don't delete automatically
+                        // If swiped far enough, keep it open (requires layout management)
+                        // For now, let's just use the click on the background
                     }}
                     onClick={() => {
                         if (isUnread) {
@@ -674,6 +687,51 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     </div>
                 </div>
             )}
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {notifToDelete && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setNotifToDelete(null)}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="relative w-full max-w-xs bg-card border border-border rounded-3xl p-6 shadow-2xl overflow-hidden"
+                        >
+                            <div className="flex flex-col items-center text-center gap-4">
+                                <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                                    <Trash2 size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-foreground">Aktivität löschen?</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                                </div>
+                                <div className="flex flex-col w-full gap-2 mt-2">
+                                    <button
+                                        disabled={isDeleting}
+                                        onClick={handleDeleteNotification}
+                                        className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl transition-all disabled:opacity-50"
+                                    >
+                                        {isDeleting ? 'Wird gelöscht...' : 'Ja, löschen'}
+                                    </button>
+                                    <button
+                                        onClick={() => setNotifToDelete(null)}
+                                        className="w-full py-3 bg-white/5 hover:bg-white/10 text-foreground font-bold rounded-2xl transition-all"
+                                    >
+                                        Abbrechen
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
