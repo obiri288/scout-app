@@ -364,6 +364,13 @@ export const markNotificationRead = async (notificationId) => {
         .eq('id', notificationId);
 };
 
+export const deleteNotification = async (notificationId) => {
+    const { error } = await supabase.from('notifications')
+        .delete()
+        .eq('id', notificationId);
+    if (error) throw error;
+};
+
 const LIKE_MILESTONES = [10, 25, 50, 100, 250, 500];
 
 export const checkAndCreateLikeMilestone = async (videoId, videoOwnerProfileId, likerProfileId) => {

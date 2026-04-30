@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusEffect } from '../hooks/useFocusEffect';
 import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, Shirt, Menu, MoreVertical, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -281,6 +281,17 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         }
     };
 
+    const handleDeleteNotification = async (id) => {
+        try {
+            setNotis(prev => prev.filter(n => n.id !== id));
+            await api.deleteNotification(id);
+        } catch (e) {
+            console.error("Delete failed:", e);
+            addToast("Löschen fehlgeschlagen", 'error');
+            // Optional: refetch or restore
+        }
+    };
+
     const handleOpenChat = (c) => {
         if (c.unreadCount > 0) {
             // 1. Optimistic list update
@@ -359,53 +370,77 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         return (
             <motion.div 
                 key={n.id} 
-                variants={listItemVariants} 
-                onClick={() => {
-                    if (isUnread) {
-                        setNotis(prev => prev.map(item => item.id === n.id ? { ...item, is_read: true } : item));
-                        api.markNotificationRead(n.id).catch(() => {});
-                    }
-                    if (n.actor) onUserClick(n.actor);
-                }}
-                className={`flex items-start gap-4 p-4 cursor-pointer transition-all border-b border-white/5 ${cardStyle} ${isUnread ? 'bg-cyan-500/5' : ''}`}
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative overflow-hidden group"
             >
-                {/* Avatar Left */}
-                <div className="relative flex-shrink-0">
-                    <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center overflow-hidden border border-border shadow-sm">
-                        {n.actor?.avatar_url ? (
-                            <img src={n.actor.avatar_url} className="w-full h-full object-cover" />
-                        ) : (
-                            <div className={`w-full h-full flex items-center justify-center ${config.bg}`}>
-                                <Icon size={20} className={config.color} />
+                {/* Delete Background (Visible during swipe) */}
+                <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 rounded-2xl">
+                    <div className="flex flex-col items-center gap-1 text-white">
+                        <Trash2 size={20} />
+                        <span className="text-[10px] font-bold uppercase tracking-tight">Löschen</span>
+                    </div>
+                </div>
+
+                {/* Swipeable Content */}
+                <motion.div
+                    drag="x"
+                    dragConstraints={{ left: -100, right: 0 }}
+                    dragElastic={0.1}
+                    onDragEnd={(_, info) => {
+                        if (info.offset.x < -80) {
+                            handleDeleteNotification(n.id);
+                        }
+                    }}
+                    onClick={() => {
+                        if (isUnread) {
+                            setNotis(prev => prev.map(item => item.id === n.id ? { ...item, is_read: true } : item));
+                            api.markNotificationRead(n.id).catch(() => {});
+                        }
+                        if (n.actor) onUserClick(n.actor);
+                    }}
+                    className={`relative z-10 flex items-start gap-4 p-4 cursor-pointer transition-all border-b border-white/5 ${cardStyle} ${isUnread ? 'bg-cyan-500/5' : ''}`}
+                >
+                    {/* Avatar Left */}
+                    <div className="relative flex-shrink-0">
+                        <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center overflow-hidden border border-border shadow-sm">
+                            {n.actor?.avatar_url ? (
+                                <img src={n.actor.avatar_url} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className={`w-full h-full flex items-center justify-center ${config.bg}`}>
+                                    <Icon size={20} className={config.color} />
+                                </div>
+                            )}
+                        </div>
+                        {isUnread && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full border-2 border-background shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+                        )}
+                    </div>
+
+                    {/* Content Right */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-col gap-1">
+                            <div className="text-[15px] text-foreground leading-tight">
+                                {getNotifText(n)}
+                            </div>
+                            <span className="text-xs text-muted-foreground/60">{timeAgo(n.created_at)}</span>
+                        </div>
+
+                        {/* Interactive Actions (GREETER) */}
+                        {(n.type === 'team_join' || n.type === 'new_registration') && n.actor && !greetedUsers.has(n.actor.user_id) && (
+                            <div className="mt-3 flex gap-2">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); n.type === 'team_join' ? handleGreetTeamMember(n.actor) : handleSayHey(n.actor); }}
+                                    className="text-[11px] font-bold py-1.5 px-4 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
+                                >
+                                    {n.type === 'team_join' ? 'Begrüßen 👋' : 'Sag Hey 👋'}
+                                </button>
                             </div>
                         )}
                     </div>
-                    {isUnread && (
-                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full border-2 border-background shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
-                    )}
-                </div>
-
-                {/* Content Right */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex flex-col gap-1">
-                        <div className="text-[15px] text-foreground leading-tight">
-                            {getNotifText(n)}
-                        </div>
-                        <span className="text-xs text-muted-foreground/60">{timeAgo(n.created_at)}</span>
-                    </div>
-
-                    {/* Interactive Actions (GREETER) */}
-                    {(n.type === 'team_join' || n.type === 'new_registration') && n.actor && !greetedUsers.has(n.actor.user_id) && (
-                        <div className="mt-3 flex gap-2">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); n.type === 'team_join' ? handleGreetTeamMember(n.actor) : handleSayHey(n.actor); }}
-                                className="text-[11px] font-bold py-1.5 px-4 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
-                            >
-                                {n.type === 'team_join' ? 'Begrüßen 👋' : 'Sag Hey 👋'}
-                            </button>
-                        </div>
-                    )}
-                </div>
+                </motion.div>
             </motion.div>
         );
     };
@@ -552,6 +587,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     </div>
                 )}
 
+
                 <motion.div
                     variants={listContainerVariants}
                     initial="hidden"
@@ -559,13 +595,19 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     key={`${subTab}-${notifFilter}-${msgTab}`}
                     className="space-y-2"
                 >
-                    {subTab === 'notifications' && (filteredNotis.length > 0 ? filteredNotis.map(renderNotification) : (
-                        <EmptyState
-                            icon={Bell}
-                            title="Alles ruhig hier"
-                            description="Poste dein erstes Highlight — die Benachrichtigungen kommen von ganz allein! 🚀"
-                        />
-                    ))}
+                    {subTab === 'notifications' && (
+                        <AnimatePresence mode="popLayout">
+                            {filteredNotis.length > 0 ? (
+                                filteredNotis.map(renderNotification)
+                            ) : (
+                                <EmptyState
+                                    icon={Bell}
+                                    title="Alles ruhig hier"
+                                    description="Poste dein erstes Highlight — die Benachrichtigungen kommen von ganz allein! 🚀"
+                                />
+                            )}
+                        </AnimatePresence>
+                    )}
 
                     {/* Gatekeeper: Inbox (verified senders) */}
                     {subTab === 'messages' && msgTab === 'inbox' && (
