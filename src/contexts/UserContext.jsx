@@ -145,17 +145,34 @@ export const UserProvider = ({ children }) => {
                 schema: 'public',
                 table: 'notifications',
                 filter: `user_id=eq.${currentUserProfile.id}`
-            }, (payload) => {
+            }, async (payload) => {
                 const newNote = payload.new;
-                setUnreadCount(prev => prev + 1);
-                // Push to live list so NotificationBell updates without refetch
+                
+                // Fetch actor details for the new notification to show names/avatars immediately
+                if (newNote.actor_id) {
+                    const { data: actorData } = await supabase
+                        .from('players_master')
+                        .select('full_name, username, avatar_url')
+                        .eq('id', newNote.actor_id)
+                        .single();
+                    if (actorData) {
+                        newNote.actor = actorData;
+                    }
+                }
+
+                setUnreadCount(prev => (prev || 0) + 1);
                 setLiveNotifications(prev => [newNote, ...prev]);
-                // Show a subtle in-app toast
-                addToast(
-                    newNote.title || newNote.message || 'Neue Benachrichtigung',
-                    'info',
-                    4000
-                );
+                
+                // Construct toast message
+                const name = newNote.actor?.full_name || newNote.actor?.username || 'Jemand';
+                let toastMsg = newNote.message;
+                if (!toastMsg) {
+                    if (newNote.type === 'follow') toastMsg = `${name} folgt dir jetzt`;
+                    else if (newNote.type === 'like') toastMsg = `${name} gefällt dein Video`;
+                    else toastMsg = 'Neue Benachrichtigung';
+                }
+
+                addToast(toastMsg, 'info', 4000);
             })
             .subscribe();
 
@@ -192,7 +209,7 @@ export const UserProvider = ({ children }) => {
             supabase.removeChannel(msgChannel);
             window.removeEventListener('chat-read-sync', handleSync);
         };
-    }, [session?.user?.id, checkUnreadMessages]);
+    }, [session?.user?.id, currentUserProfile?.id, checkUnreadMessages]);
 
     const resetUnreadCount = useCallback(() => {
         setUnreadCount(0);

@@ -29,8 +29,10 @@ const TYPE_CONFIG = {
 const cfg = (type) => TYPE_CONFIG[type] || { icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/15', border: 'border-l-cyan-400' };
 
 const getText = (n) => {
-    if (n.message) return n.message;
     const name = n.actor?.full_name || n.actor?.username || 'Ein Nutzer';
+    
+    // For standard types, we prefer a constructed message with the actor's name
+    // especially if the stored message is generic or missing.
     switch (n.type) {
         case 'like':            return `${name} hat dein Video geliked`;
         case 'follow':          return `${name} folgt dir jetzt`;
@@ -38,8 +40,11 @@ const getText = (n) => {
         case 'endorsement':     return `${name} hat deine Skills bestätigt`;
         case 'likes_milestone': return 'Dein Video hat einen Meilenstein erreicht! 🎉';
         case 'comment':         return `${name} hat dein Video kommentiert`;
-        default:                return 'Neue Benachrichtigung';
     }
+
+    // Fallback to the stored message if available, otherwise generic
+    if (n.message) return n.message;
+    return 'Neue Aktivität in deinem Profil';
 };
 
 // ═════════════════════════════════════════════════════════════
