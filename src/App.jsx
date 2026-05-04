@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2, ChevronLeft } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
 import { useToast } from './contexts/ToastContext';
 import * as api from './lib/api';
@@ -525,32 +525,48 @@ const App = () => {
             <CookieBanner />
 
             {/* Video Fullscreen — Now using the Immersive Engagement Player */}
-            {activeVideo && (
-                <div className="fixed inset-0 z-[60] bg-black animate-in fade-in duration-500 overflow-hidden">
-                    {/* Explicit Close Button for accessibility */}
-                    <button 
-                        onClick={() => setActiveVideo(null)} 
-                        className="absolute top-6 left-6 z-[70] p-3 bg-black/20 border border-white/10 rounded-full hover:bg-black/40 backdrop-blur-md transition-all duration-300 active:scale-95 text-white/70 hover:text-white"
-                    >
-                        <X size={24} />
-                    </button>
-                    
-                    <ImmersiveVideoPlayer
-                        video={activeVideo}
-                        isActive={true}
-                        isLiked={false} // Would need interaction hook to sync perfectly, but fine for now
-                        likeCount={activeVideo.likes_count || 0}
-                        commentCount={activeVideo.comments_count || 0}
-                        onUserClick={(p) => { setActiveVideo(null); loadProfile(p); }}
-                        onCommentClick={(v) => { setActiveCommentsVideo(v); }}
-                        onLike={() => {
-                            // Basic feedback: in a real app, we'd trigger a global like action here
-                            addToast('Geliked!', 'success');
+            <AnimatePresence>
+                {activeVideo && (
+                    <motion.div 
+                        initial={{ x: "100%" }}
+                        animate={{ x: 0 }}
+                        exit={{ x: "100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        drag="x" 
+                        dragConstraints={{ left: 0, right: 0 }} 
+                        dragElastic={{ left: 0, right: 1 }}
+                        onDragEnd={(e, info) => {
+                            if (info.offset.x > 100) {
+                                setActiveVideo(null);
+                            }
                         }}
-                        onBookmark={() => addToast('Gespeichert!', 'info')}
-                    />
-                </div>
-            )}
+                        className="fixed inset-0 z-[9999] bg-black overflow-hidden"
+                    >
+                        {/* Premium Frosted Glass Back Button */}
+                        <button 
+                            onClick={() => setActiveVideo(null)} 
+                            className="absolute top-12 left-4 z-50 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-transform active:scale-90"
+                        >
+                            <ChevronLeft size={24} className="text-white" />
+                        </button>
+                        
+                        <ImmersiveVideoPlayer
+                            video={activeVideo}
+                            isActive={true}
+                            isLiked={false} // Would need interaction hook to sync perfectly, but fine for now
+                            likeCount={activeVideo.likes_count || 0}
+                            commentCount={activeVideo.comments_count || 0}
+                            onUserClick={(p) => { setActiveVideo(null); loadProfile(p); }}
+                            onCommentClick={(v) => { setActiveCommentsVideo(v); }}
+                            onLike={() => {
+                                // Basic feedback: in a real app, we'd trigger a global like action here
+                                addToast('Geliked!', 'success');
+                            }}
+                            onBookmark={() => addToast('Gespeichert!', 'info')}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Lazy-loaded Modals */}
             <Suspense fallback={<LazyFallback />}>
