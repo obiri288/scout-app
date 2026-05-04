@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useFocusEffect } from '../hooks/useFocusEffect';
 import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, Shirt, Menu, MoreVertical, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -82,6 +82,131 @@ const timeAgo = (dateStr) => {
     return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 };
 
+const NotificationItem = ({ n, onUserClick, onMarkRead, onDelete, openNotifId, setOpenNotifId, greetedUsers, handleGreetTeamMember, handleSayHey }) => {
+    const controls = useAnimation();
+    const isUnread = !n.is_read;
+    const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.like;
+    const Icon = config.icon;
+
+    // Auto-close logic: Close if another item is opened
+    useEffect(() => {
+        if (openNotifId !== n.id) {
+            controls.start({ x: 0 });
+        }
+    }, [openNotifId, n.id, controls]);
+
+    const handleDragEnd = (event, info) => {
+        // Snap logic: if swiped more than 40px to the left, snap open
+        if (info.offset.x < -40) {
+            controls.start({ x: -100 });
+            setOpenNotifId(n.id);
+        } else {
+            controls.start({ x: 0 });
+            if (openNotifId === n.id) setOpenNotifId(null);
+        }
+    };
+
+    const handleDelete = () => {
+        // Optimistic local update
+        onDelete(n.id);
+        // Background API call
+        api.deleteNotification(n.id).catch(e => {
+            console.error("Background delete failed:", e);
+        });
+    };
+
+    return (
+        <motion.div 
+            layout
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } }}
+            className="relative overflow-hidden group mb-2"
+        >
+            {/* Background Container: Transparent to prevent bleeding */}
+            <div className="absolute inset-0 flex items-center justify-end px-1 rounded-2xl overflow-hidden pointer-events-none">
+                {/* Real Delete Button: Only on the right */}
+                <div 
+                    className="h-full bg-rose-600 flex items-center justify-center px-6 rounded-2xl cursor-pointer pointer-events-auto shadow-lg"
+                    style={{ width: '100px' }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete();
+                    }}
+                >
+                    <div className="flex flex-col items-center gap-1 text-white">
+                        <Trash2 size={20} />
+                        <span className="text-[10px] font-bold uppercase tracking-tight">Löschen</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Swipeable Content with physics and snap */}
+            <motion.div
+                drag="x"
+                dragDirectionLock
+                dragConstraints={{ right: 0, left: -100 }}
+                dragElastic={{ right: 0, left: 0.2 }}
+                dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+                animate={controls}
+                onDragEnd={handleDragEnd}
+                onClick={() => {
+                    if (openNotifId === n.id) {
+                        setOpenNotifId(null);
+                        return;
+                    }
+                    if (isUnread) onMarkRead(n.id);
+                    if (n.actor) onUserClick(n.actor);
+                }}
+                className={`relative z-10 flex items-start gap-4 p-4 cursor-pointer transition-all border border-border shadow-sm rounded-2xl ${
+                    isUnread 
+                        ? 'bg-slate-50 dark:bg-slate-900/90 border-l-4 border-l-cyan-400' 
+                        : 'bg-white dark:bg-slate-950'
+                }`}
+            >
+                <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center overflow-hidden border border-border shadow-sm">
+                        {n.actor?.avatar_url ? (
+                            <img src={n.actor.avatar_url} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className={`w-full h-full flex items-center justify-center ${config.bg}`}>
+                                <Icon size={20} className={config.color} />
+                            </div>
+                        )}
+                    </div>
+                    {isUnread && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full border-2 border-background shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+                    )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                    <div className="flex flex-col gap-1">
+                        <div className="text-[15px] font-medium text-foreground leading-tight">
+                            {getNotifText(n)}
+                        </div>
+                        <span className="text-xs text-muted-foreground/60">{timeAgo(n.created_at)}</span>
+                    </div>
+
+                    {(n.type === 'team_join' || n.type === 'new_registration') && n.actor && !greetedUsers.has(n.actor.user_id) && (
+                        <div className="mt-3 flex gap-2">
+                            <button
+                                onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    if (n.type === 'team_join') handleGreetTeamMember(n.actor);
+                                    else handleSayHey(n.actor);
+                                }}
+                                className="text-[11px] font-bold py-1.5 px-4 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
+                            >
+                                {n.type === 'team_join' ? 'Begrüßen 👋' : 'Sag Hey 👋'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
 export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, onMenuOpen, setUnreadMessageUsersCount }) => {
     const { currentUserProfile, liveNotifications, setLiveNotifications, unreadCount, resetUnreadCount } = useUser();
     const { addToast } = useToast();
@@ -96,6 +221,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
     const [activeMenuChat, setActiveMenuChat] = useState(null);
     const [notifToDelete, setNotifToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [openNotifId, setOpenNotifId] = useState(null);
 
     if (!session) return <div className="pt-20"><GuestFallback icon={Mail} title="Posteingang" text="Melde dich an, um mit Scouts und anderen Spielern zu chatten." onLogin={onLoginReq} /></div>;
 
@@ -283,19 +409,11 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         }
     };
 
-    const handleDeleteNotification = async () => {
-        if (!notifToDelete) return;
-        setIsDeleting(true);
-        try {
-            const id = notifToDelete.id;
-            setNotis(prev => prev.filter(n => n.id !== id));
-            await api.deleteNotification(id);
-            setNotifToDelete(null);
-        } catch (e) {
-            console.error("Delete failed:", e);
-            addToast("Löschen fehlgeschlagen", 'error');
-        } finally {
-            setIsDeleting(false);
+    const handleDeleteNotification = (id) => {
+        setNotis(prev => prev.filter(n => n.id !== id));
+        if (unreadCount > 0) {
+            // We could optionally decrement the global unread count if the deleted notif was unread
+            // but usually it's better to let the server sync or keep it simple.
         }
     };
 
@@ -369,98 +487,23 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         }
     };
 
-    const renderNotification = (n) => {
-        const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.like;
-        const Icon = config.icon;
-        const isUnread = !n.is_read;
-
-        return (
-            <motion.div 
-                key={n.id} 
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="relative overflow-hidden group mb-2"
-            >
-                {/* Delete Background (Visible during swipe) */}
-                <div 
-                    className="absolute inset-0 bg-rose-600/90 flex items-center justify-end px-6 rounded-2xl cursor-pointer"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setNotifToDelete(n);
-                    }}
-                >
-                    <div className="flex flex-col items-center gap-1 text-white">
-                        <Trash2 size={20} />
-                        <span className="text-[10px] font-bold uppercase tracking-tight">Löschen</span>
-                    </div>
-                </div>
-
-                {/* Swipeable Content */}
-                <motion.div
-                    drag="x"
-                    dragConstraints={{ left: -100, right: 0 }}
-                    dragElastic={0.05}
-                    onDragEnd={(_, info) => {
-                        // REMOVED AUTO DELETE: Only reveal the button, don't delete automatically
-                        // If swiped far enough, keep it open (requires layout management)
-                        // For now, let's just use the click on the background
-                    }}
-                    onClick={() => {
-                        if (isUnread) {
-                            setNotis(prev => prev.map(item => item.id === n.id ? { ...item, is_read: true } : item));
-                            api.markNotificationRead(n.id).catch(() => {});
-                        }
-                        if (n.actor) onUserClick(n.actor);
-                    }}
-                    className={`relative z-10 flex items-start gap-4 p-4 cursor-pointer transition-all border border-border shadow-sm rounded-2xl ${
-                        isUnread 
-                            ? 'bg-slate-50 dark:bg-slate-900/90 border-l-4 border-l-cyan-400' 
-                            : 'bg-white dark:bg-slate-950'
-                    }`}
-                >
-                    {/* Avatar Left */}
-                    <div className="relative flex-shrink-0">
-                        <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center overflow-hidden border border-border shadow-sm">
-                            {n.actor?.avatar_url ? (
-                                <img src={n.actor.avatar_url} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className={`w-full h-full flex items-center justify-center ${config.bg}`}>
-                                    <Icon size={20} className={config.color} />
-                                </div>
-                            )}
-                        </div>
-                        {isUnread && (
-                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full border-2 border-background shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
-                        )}
-                    </div>
-
-                    {/* Content Right */}
-                    <div className="flex-1 min-w-0">
-                        <div className="flex flex-col gap-1">
-                            <div className="text-[15px] font-medium text-foreground leading-tight">
-                                {getNotifText(n)}
-                            </div>
-                            <span className="text-xs text-muted-foreground/60">{timeAgo(n.created_at)}</span>
-                        </div>
-
-                        {/* Interactive Actions (GREETER) */}
-                        {(n.type === 'team_join' || n.type === 'new_registration') && n.actor && !greetedUsers.has(n.actor.user_id) && (
-                            <div className="mt-3 flex gap-2">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); n.type === 'team_join' ? handleGreetTeamMember(n.actor) : handleSayHey(n.actor); }}
-                                    className="text-[11px] font-bold py-1.5 px-4 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all"
-                                >
-                                    {n.type === 'team_join' ? 'Begrüßen 👋' : 'Sag Hey 👋'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-            </motion.div>
-        );
-    };
+    const renderNotification = (n) => (
+        <NotificationItem 
+            key={n.id}
+            n={n}
+            onUserClick={onUserClick}
+            openNotifId={openNotifId}
+            setOpenNotifId={setOpenNotifId}
+            greetedUsers={greetedUsers}
+            handleGreetTeamMember={handleGreetTeamMember}
+            handleSayHey={handleSayHey}
+            onDelete={handleDeleteNotification}
+            onMarkRead={(id) => {
+                setNotis(prev => prev.map(item => item.id === id ? { ...item, is_read: true } : item));
+                api.markNotificationRead(id).catch(() => {});
+            }}
+        />
+    );
 
     const renderChatItem = (c) => (
         <motion.div

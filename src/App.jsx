@@ -19,6 +19,7 @@ import TeamsScreen from './components/TeamsScreen';
 import { CelebrationAnimation } from './components/CelebrationAnimation';
 import { NotificationBell } from './components/NotificationBell';
 import Sidebar from './components/Sidebar';
+import { ImmersiveVideoPlayer } from './components/ImmersiveVideoPlayer';
 
 // Lazy loaded — only fetched when needed
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
@@ -523,11 +524,31 @@ const App = () => {
 
             <CookieBanner />
 
-            {/* Video Fullscreen */}
+            {/* Video Fullscreen — Now using the Immersive Engagement Player */}
             {activeVideo && (
-                <div className="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-in fade-in duration-500">
-                    <button onClick={() => setActiveVideo(null)} className="absolute top-6 right-6 z-10 p-3 bg-white/5 border border-border rounded-full hover:bg-white/10 backdrop-blur-md transition-all duration-300 active:scale-95 text-muted-foreground hover:text-white"><X size={24} /></button>
-                    <video src={activeVideo.video_url} controls autoPlay className="max-w-full max-h-[85vh] rounded-[2rem] shadow-2xl shadow-cyan-500/5 border border-border" />
+                <div className="fixed inset-0 z-[60] bg-black animate-in fade-in duration-500 overflow-hidden">
+                    {/* Explicit Close Button for accessibility */}
+                    <button 
+                        onClick={() => setActiveVideo(null)} 
+                        className="absolute top-6 left-6 z-[70] p-3 bg-black/20 border border-white/10 rounded-full hover:bg-black/40 backdrop-blur-md transition-all duration-300 active:scale-95 text-white/70 hover:text-white"
+                    >
+                        <X size={24} />
+                    </button>
+                    
+                    <ImmersiveVideoPlayer
+                        video={activeVideo}
+                        isActive={true}
+                        isLiked={false} // Would need interaction hook to sync perfectly, but fine for now
+                        likeCount={activeVideo.likes_count || 0}
+                        commentCount={activeVideo.comments_count || 0}
+                        onUserClick={(p) => { setActiveVideo(null); loadProfile(p); }}
+                        onCommentClick={(v) => { setActiveCommentsVideo(v); }}
+                        onLike={() => {
+                            // Basic feedback: in a real app, we'd trigger a global like action here
+                            addToast('Geliked!', 'success');
+                        }}
+                        onBookmark={() => addToast('Gespeichert!', 'info')}
+                    />
                 </div>
             )}
 

@@ -99,6 +99,12 @@ export const NotificationBell = () => {
         try { await api.markNotificationRead(id); } catch (_) {}
     };
 
+    /* ── Delete single notification (Optimistic) ─────────── */
+    const deleteOne = (id) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        api.deleteNotification(id).catch(e => console.error("Notification delete failed:", e));
+    };
+
     if (!session) return null;
 
     return (
@@ -189,43 +195,60 @@ export const NotificationBell = () => {
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-border/40">
-                                        {notifications.map((n, i) => {
-                                            const c = cfg(n.type);
-                                            const Icon = c.icon;
-                                            const unread = !n.is_read;
-                                            return (
-                                                <motion.div
-                                                    key={n.id}
-                                                    initial={{ opacity: 0, y: 8 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: i * 0.03 }}
-                                                    onClick={() => unread && markOne(n.id)}
-                                                    className={`flex items-start gap-3 px-4 py-3.5 transition-colors cursor-pointer hover:bg-white/5 border-l-2 ${unread ? 'bg-cyan-500/5 ' + c.border : 'border-l-transparent'}`}
-                                                >
-                                                    {/* Icon / Avatar */}
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden ${n.actor?.avatar_url ? '' : c.bg}`}>
-                                                        {n.actor?.avatar_url ? (
-                                                            <img src={n.actor.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                                                        ) : (
-                                                            <Icon size={18} className={c.color} />
+                                        <AnimatePresence mode="popLayout">
+                                            {notifications.map((n, i) => {
+                                                const c = cfg(n.type);
+                                                const Icon = c.icon;
+                                                const unread = !n.is_read;
+                                                return (
+                                                    <motion.div
+                                                        key={n.id}
+                                                        layout
+                                                        initial={{ opacity: 0, y: 8 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        onClick={() => unread && markOne(n.id)}
+                                                        className={`relative flex items-start gap-3 px-4 py-3.5 transition-colors cursor-pointer hover:bg-white/5 border-l-2 ${unread ? 'bg-cyan-500/5 ' + c.border : 'border-l-transparent'}`}
+                                                    >
+                                                        {/* Icon / Avatar */}
+                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden ${n.actor?.avatar_url ? '' : c.bg}`}>
+                                                            {n.actor?.avatar_url ? (
+                                                                <img src={n.actor.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                                            ) : (
+                                                                <Icon size={18} className={c.color} />
+                                                            )}
+                                                        </div>
+
+                                                        {/* Text */}
+                                                        <div className="flex-1 min-w-0 pr-6">
+                                                            <p className={`text-sm leading-snug ${unread ? 'text-foreground font-medium' : 'text-foreground/70'}`}>
+                                                                {getText(n)}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground/70 mt-1">{timeAgo(n.created_at)}</p>
+                                                        </div>
+
+                                                        {/* Delete Button (X) */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                deleteOne(n.id);
+                                                            }}
+                                                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                            className="absolute top-3 right-3 p-1.5 text-muted-foreground/40 hover:text-rose-500 transition-colors z-20"
+                                                            title="Löschen"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+
+                                                        {/* Unread dot */}
+                                                        {unread && (
+                                                            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 flex-shrink-0 mt-1.5 shadow-[0_0_8px_rgba(0,200,255,0.5)]" />
                                                         )}
-                                                    </div>
-
-                                                    {/* Text */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className={`text-sm leading-snug ${unread ? 'text-foreground font-medium' : 'text-foreground/70'}`}>
-                                                            {getText(n)}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground/70 mt-1">{timeAgo(n.created_at)}</p>
-                                                    </div>
-
-                                                    {/* Unread dot */}
-                                                    {unread && (
-                                                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 flex-shrink-0 mt-1.5 shadow-[0_0_8px_rgba(0,200,255,0.5)]" />
-                                                    )}
-                                                </motion.div>
-                                            );
-                                        })}
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </AnimatePresence>
                                     </div>
                                 )}
                             </div>
