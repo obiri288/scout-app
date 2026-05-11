@@ -256,7 +256,7 @@ const App = () => {
     const {
         authLoading, profileLoading,
         session, currentUserProfile, updateProfile, refreshProfile,
-        unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
+        unreadCount, resetUnreadCount, adminUnreadCount, logout, unreadMessageUsersCount,
         checkUnreadMessages,
         activeTab, switchTab, navigateToHash,
         viewedProfile, setViewedProfile, profileHighlights, profileArchivedHighlights,
@@ -511,8 +511,8 @@ const App = () => {
                 </Suspense>
             )}
 
-            {/* Notification Bell — fixed top-right */}
-            {session && currentUserProfile && (
+            {/* Notification Bell — fixed top-right (Hidden during video) */}
+            {session && currentUserProfile && !activeVideo && (
                 <div className="fixed top-[calc(3rem+env(safe-area-inset-top))] right-4 z-[20000]">
                     <NotificationBell />
                 </div>
@@ -560,7 +560,12 @@ const App = () => {
 
                 {/* Profile */}
                 <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
-                    <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
+                    <div className="relative">
+                        <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
+                        {adminUnreadCount > 0 && currentUserProfile?.role === 'admin' && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full border border-card shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse" />
+                        )}
+                    </div>
                     <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Profil</span>
                 </button>
             </div>

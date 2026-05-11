@@ -524,8 +524,13 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                 .filter(r => r.target_type === 'profile' || r.target_type === 'user')
                 .map(r => r.target_id).filter(Boolean))];
 
+            const videoIds = [...new Set(reportsData.filter(r => r.target_type === 'video').map(r => r.target_id))];
+            const commentIds = [...new Set(reportsData.filter(r => r.target_type === 'comment').map(r => r.target_id))];
+
             let reporterMap = {};
-            let targetMap = {};
+            let targetProfileMap = {};
+            let videoMap = {};
+            let commentMap = {};
 
             const fetches = [];
             if (reporterIds.length > 0) {
@@ -541,20 +546,49 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
             if (targetIds.length > 0) {
                 fetches.push(
                     supabase.from('players_master')
-                        .select('id, full_name, username, avatar_url, is_banned')
+                        .select('id, full_name, username, avatar_url, is_banned, report_count')
                         .in('id', targetIds)
                         .then(({ data: targets }) => {
-                            if (targets) targets.forEach(t => { targetMap[t.id] = t; });
+                            if (targets) targets.forEach(t => { targetProfileMap[t.id] = t; });
+                        })
+                );
+            }
+            if (videoIds.length > 0) {
+                fetches.push(
+                    supabase.from('media_highlights')
+                        .select('id, report_count')
+                        .in('id', videoIds)
+                        .then(({ data: videos }) => {
+                            if (videos) videos.forEach(v => { videoMap[v.id] = v; });
+                        })
+                );
+            }
+            if (commentIds.length > 0) {
+                fetches.push(
+                    supabase.from('media_comments')
+                        .select('id, report_count')
+                        .in('id', commentIds)
+                        .then(({ data: comments }) => {
+                            if (comments) comments.forEach(c => { commentMap[c.id] = c; });
                         })
                 );
             }
             await Promise.all(fetches);
 
-            const enriched = reportsData.map(r => ({
-                ...r,
-                reporter: reporterMap[r.reporter_id] || null,
-                targetProfile: targetMap[r.target_id] || null,
-            }));
+            const enriched = reportsData.map(r => {
+                let targetData = null;
+                if (r.target_type === 'profile' || r.target_type === 'user') targetData = targetProfileMap[r.target_id];
+                else if (r.target_type === 'video') targetData = videoMap[r.target_id];
+                else if (r.target_type === 'comment') targetData = commentMap[r.target_id];
+
+                return {
+                    ...r,
+                    reporter: reporterMap[r.reporter_id] || null,
+                    targetProfile: targetProfileMap[r.target_id] || null,
+                    targetReportCount: targetData?.report_count || 0,
+                    isTargetBanned: targetProfileMap[r.target_id]?.is_banned || false
+                };
+            });
 
             setReports(enriched);
         } catch (error) {
@@ -566,16 +600,33 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
     };
 
     const handleReportAction = async (report, action) => {
-        const title = action === 'delete' ? 'Inhalt löschen?' : 'Meldung verwerfen?';
-        const message = action === 'delete' 
-            ? `Möchtest du diesen gemeldeten Inhalt (${TARGET_TYPE_LABELS[report.target_type] || report.target_type}) wirklich löschen und den Nutzer verwarnen?`
-            : `Möchtest du diese Meldung wirklich verwerfen? Es werden keine weiteren Schritte eingeleitet.`;
+        let title = '';
+        let message = '';
+        let confirmText = '';
+        let confirmClass = '';
+
+        if (action === 'dismiss') {
+            title = 'Meldung verwerfen?';
+            message = 'Die Meldung wird als erledigt markiert, ohne dass der Inhalt gelöscht wird.';
+            confirmText = 'Verwerfen';
+            confirmClass = 'bg-zinc-600';
+        } else if (action === 'delete') {
+            title = 'Inhalt löschen?';
+            message = `Möchtest du diesen gemeldeten Inhalt (${TARGET_TYPE_LABELS[report.target_type] || report.target_type}) wirklich dauerhaft löschen?`;
+            confirmText = 'Endgültig löschen';
+            confirmClass = 'bg-red-600';
+        } else if (action === 'ban') {
+            title = 'Nutzer sperren?';
+            message = 'Der Ersteller des Inhalts wird dauerhaft gesperrt. Alle seine Inhalte werden für andere Nutzer unsichtbar.';
+            confirmText = 'Nutzer sperren';
+            confirmClass = 'bg-red-700 shadow-[0_0_15px_rgba(185,28,28,0.4)]';
+        }
 
         setConfirmAction({
             title,
             message,
-            confirmText: action === 'delete' ? 'Inhalt löschen' : 'Verwerfen',
-            confirmClass: action === 'delete' ? 'bg-red-600' : 'bg-zinc-600',
+            confirmText,
+            confirmClass,
             onConfirm: async () => {
                 try {
                     if (action === 'delete') {
@@ -591,32 +642,42 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                 .delete()
                                 .eq('id', report.target_id);
                             if (deleteError) throw deleteError;
-                        } else if (report.target_type === 'profile' || report.target_type === 'user') {
-                            // For profiles, we ban the user
+                        }
+                    } else if (action === 'ban') {
+                        // Ban the creator of the target content
+                        let creatorId = null;
+                        if (report.target_type === 'profile' || report.target_type === 'user') {
+                            creatorId = report.target_id;
+                        } else {
+                            // Fetch creator from target table
+                            let table = report.target_type === 'video' ? 'media_highlights' : 'media_comments';
+                            const { data } = await supabase.from(table).select('player_id, user_id').eq('id', report.target_id).single();
+                            creatorId = data?.player_id || data?.user_id;
+                        }
+
+                        if (creatorId) {
                             const { error: banError } = await supabase
                                 .from('players_master')
                                 .update({ is_banned: true })
-                                .eq('id', report.target_id);
+                                .eq('id', creatorId);
                             if (banError) throw banError;
                         }
-
-                        addToast("Inhalt wurde gelöscht und User verwarnt", "success");
                     }
 
-                    // 2. Resolve the report
-                    const { error } = await supabase
+                    // 2. Mark ALL reports for this target as resolved
+                    const { error: updateError } = await supabase
                         .from('reports')
                         .update({ status: 'resolved' })
-                        .eq('id', report.id);
-                    if (error) throw error;
-
-                    setReports(prev => prev.map(r => r.id === report.id ? { ...r, status: 'resolved' } : r));
-                    if (action === 'dismiss') addToast("Meldung wurde verworfen", "success");
+                        .eq('target_id', report.target_id)
+                        .eq('target_type', report.target_type);
                     
-                    // Refresh metrics
+                    if (updateError) throw updateError;
+
+                    addToast(action === 'dismiss' ? 'Meldung verworfen' : 'Moderation erfolgreich', 'success');
+                    loadReports();
                     loadMetrics();
                 } catch (error) {
-                    console.error('Error handling report action:', error);
+                    console.error("Report Action Error:", error);
                     addToast(`Fehler: ${error.message}`, 'error');
                 } finally {
                     setConfirmAction(null);
@@ -1179,18 +1240,27 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                         const StatusIcon = statusConf.icon;
                                         const typeLabel = TARGET_TYPE_LABELS[report.target_type] || report.target_type || 'Unbekannt';
                                         const isLinkable = report.target_type === 'profile' || report.target_type === 'user';
+                                        const isCritical = report.targetReportCount >= 5;
 
                                         return (
                                             <div
                                                 key={report.id}
-                                                className={`bg-black/20 border rounded-2xl p-4 transition-all hover:border-cyan-500/30 ${
-                                                    report.status === 'pending'
-                                                        ? 'border-amber-500/30'
-                                                        : report.status === 'in_review'
-                                                            ? 'border-blue-500/30'
-                                                            : 'border-border'
+                                                className={`bg-black/20 border rounded-2xl p-4 transition-all relative overflow-hidden ${
+                                                    isCritical 
+                                                        ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.1)]' 
+                                                        : report.status === 'pending'
+                                                            ? 'border-amber-500/30'
+                                                            : report.status === 'in_review'
+                                                                ? 'border-blue-500/30'
+                                                                : 'border-border'
                                                 }`}
                                             >
+                                                {isCritical && report.status === 'pending' && (
+                                                    <div className="absolute top-0 right-0 px-3 py-1 bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter rounded-bl-xl flex items-center gap-1 z-10 animate-pulse">
+                                                        <AlertTriangle size={12} /> Kritisch ({report.targetReportCount})
+                                                    </div>
+                                                )}
+
                                                 {/* Top Row: Reporter + Status Badge */}
                                                 <div className="flex items-start justify-between gap-3 mb-3">
                                                     <div className="flex items-center gap-2.5 min-w-0">
@@ -1252,7 +1322,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                                     className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 transition-all font-bold text-xs"
                                                                 >
                                                                     <Eye size={14} />
-                                                                    In Bearbeitung
+                                                                    Review
                                                                 </button>
                                                             )}
                                                             <button
@@ -1260,16 +1330,25 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                                 className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-zinc-500/10 text-muted-foreground border border-zinc-500/30 rounded-xl hover:bg-zinc-500/20 transition-all font-bold text-xs"
                                                             >
                                                                 <XCircle size={14} />
-                                                                Meldung verwerfen
+                                                                Ignorieren
                                                             </button>
                                                         </div>
-                                                        <button
-                                                            onClick={() => handleReportAction(report, 'delete')}
-                                                            className="w-full flex justify-center items-center gap-1.5 px-3 py-2.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-xs"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                            Inhalt löschen & User verwarnen
-                                                        </button>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleReportAction(report, 'delete')}
+                                                                className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-xs"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                                Löschen
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleReportAction(report, 'ban')}
+                                                                className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-zinc-900 dark:bg-black text-white border border-white/10 rounded-xl hover:bg-zinc-800 transition-all font-bold text-xs"
+                                                            >
+                                                                <ShieldAlert size={14} />
+                                                                Sperren
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
