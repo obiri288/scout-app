@@ -20,7 +20,7 @@ export const UserProvider = ({ children }) => {
     const [unreadMessageUsersCount, setUnreadMessageUsersCount] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [liveNotifications, setLiveNotifications] = useState([]);
-    const [adminUnreadCount, setAdminUnreadCount] = useState(0);
+    const [adminUnreadCountGlobal, setAdminUnreadCountGlobal] = useState(0);
     const { addToast } = useToast();
 
     // Detect if we're in an auth callback flow (email confirmation redirect)
@@ -108,7 +108,7 @@ export const UserProvider = ({ children }) => {
             if (!s) {
                 setCurrentUserProfile(null);
                 setUnreadCount(0);
-                setAdminUnreadCount(0);
+                setAdminUnreadCountGlobal(0);
                 prevEmailRef.current = null;
             }
 
@@ -165,14 +165,23 @@ export const UserProvider = ({ children }) => {
         }
     }, [session?.user?.id]);
 
-    const fetchAdminUnreadCount = useCallback(async () => {
-        if (currentUserProfile?.role !== 'admin') return;
-        const { count } = await supabase
-            .from('reports')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'pending');
-        setAdminUnreadCount(count || 0);
-    }, [currentUserProfile?.role]);
+    const fetchAdminUnreadCountGlobal = useCallback(async () => {
+        if (!session?.user?.id || currentUserProfile?.role !== 'admin') {
+            setAdminUnreadCountGlobal(0);
+            return;
+        }
+        try {
+            const { count, error } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+            if (error) {
+                console.error("Admin Fetch Error (Global):", error);
+                return;
+            }
+            console.log("Admin Fetch Success (Global). Count:", count);
+            setAdminUnreadCountGlobal(count || 0);
+        } catch (e) {
+            console.error("Admin Fetch Exception (Global):", e);
+        }
+    }, [session?.user?.id, currentUserProfile?.role]);
 
     // Realtime notifications & messages listener
     useEffect(() => {
@@ -226,11 +235,11 @@ export const UserProvider = ({ children }) => {
                     schema: 'public',
                     table: 'reports'
                 }, () => {
-                    fetchAdminUnreadCount();
+                    fetchAdminUnreadCountGlobal();
                 })
                 .subscribe();
             
-            fetchAdminUnreadCount();
+            fetchAdminUnreadCountGlobal();
         }
 
         // Fetch initial unread count
@@ -267,7 +276,7 @@ export const UserProvider = ({ children }) => {
             supabase.removeChannel(msgChannel);
             window.removeEventListener('chat-read-sync', handleSync);
         };
-    }, [session?.user?.id, currentUserProfile?.id, currentUserProfile?.role, checkUnreadMessages, fetchAdminUnreadCount]);
+    }, [session?.user?.id, currentUserProfile?.id, currentUserProfile?.role, checkUnreadMessages, fetchAdminUnreadCountGlobal]);
 
     const resetUnreadCount = useCallback(() => {
         setUnreadCount(0);
@@ -322,7 +331,7 @@ export const UserProvider = ({ children }) => {
         refreshProfile: fetchOrCreateProfile,
         unreadCount,
         resetUnreadCount,
-        adminUnreadCount,
+        adminUnreadCountGlobal,
         unreadMessageUsersCount,
         setUnreadMessageUsersCount,
         checkUnreadMessages,

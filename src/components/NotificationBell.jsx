@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Heart, UserPlus, Eye, Star, Trophy, Zap, MessageSquare, CheckCheck } from 'lucide-react';
+import { Bell, X, Heart, UserPlus, Eye, Star, Trophy, Zap, MessageSquare, CheckCheck, AlertTriangle } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import * as api from '../lib/api';
+import { AppealModal } from './AppealModal';
+import { useToast } from '../contexts/ToastContext';
 
 // ── German relative time ────────────────────────────────────
 const timeAgo = (dateStr) => {
@@ -24,7 +26,8 @@ const TYPE_CONFIG = {
     watchlist_add:   { icon: Eye,           color: 'text-amber-400',  bg: 'bg-amber-500/15',  border: 'border-l-amber-400' },
     endorsement:     { icon: Star,          color: 'text-purple-400', bg: 'bg-purple-500/15', border: 'border-l-purple-400' },
     likes_milestone: { icon: Trophy,        color: 'text-yellow-400', bg: 'bg-yellow-500/15', border: 'border-l-yellow-400' },
-    comment:         { icon: MessageSquare,  color: 'text-green-400',  bg: 'bg-green-500/15',  border: 'border-l-green-400' },
+    comment:         { icon: MessageSquare, color: 'text-green-400',  bg: 'bg-green-500/15',  border: 'border-l-green-400' },
+    video_removed:   { icon: AlertTriangle, color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-l-orange-400' },
 };
 const cfg = (type) => TYPE_CONFIG[type] || { icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/15', border: 'border-l-cyan-400' };
 
@@ -40,6 +43,7 @@ const getText = (n) => {
         case 'endorsement':     return `${name} hat deine Skills bestätigt`;
         case 'likes_milestone': return 'Dein Video hat einen Meilenstein erreicht! 🎉';
         case 'comment':         return `${name} hat dein Video kommentiert`;
+        case 'video_removed':   return 'Dein Video wurde aufgrund von Nutzer-Meldungen entfernt.';
     }
 
     // Fallback to the stored message if available, otherwise generic
@@ -52,9 +56,11 @@ const getText = (n) => {
 // ═════════════════════════════════════════════════════════════
 export const NotificationBell = () => {
     const { session, currentUserProfile, unreadCount, resetUnreadCount, liveNotifications, setLiveNotifications } = useUser();
+    const { addToast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [appealVideoId, setAppealVideoId] = useState(null);
 
     // Merge live real-time items into the panel list when they arrive
     // This makes the bell panel update without needing to close and reopen
@@ -142,7 +148,7 @@ export const NotificationBell = () => {
             {/* ── Full-screen Panel ───────────────────────── */}
             <AnimatePresence>
                 {isOpen && (
-                    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center">
+                    <div className="fixed inset-0 z-[30000] flex items-end sm:items-center justify-center">
                         {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -226,6 +232,19 @@ export const NotificationBell = () => {
                                                                 {getText(n)}
                                                             </p>
                                                             <p className="text-xs text-muted-foreground/70 mt-1">{timeAgo(n.created_at)}</p>
+                                                            
+                                                            {n.type === 'video_removed' && n.video_id && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setIsOpen(false);
+                                                                        setAppealVideoId(n.video_id);
+                                                                    }}
+                                                                    className="mt-2 text-xs font-bold bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 px-3 py-1.5 rounded-lg border border-orange-500/20 transition-colors"
+                                                                >
+                                                                    Widerspruch einlegen
+                                                                </button>
+                                                            )}
                                                         </div>
 
                                                         {/* Delete Button (X) */}
@@ -269,6 +288,20 @@ export const NotificationBell = () => {
                             )}
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Appeal Modal ───────────────────────── */}
+            <AnimatePresence>
+                {appealVideoId && (
+                    <AppealModal
+                        videoId={appealVideoId}
+                        session={session}
+                        onClose={() => setAppealVideoId(null)}
+                        onAppealSubmitted={() => {
+                            addToast("Dein Widerspruch wurde erfolgreich eingereicht.", "success");
+                        }}
+                    />
                 )}
             </AnimatePresence>
         </>

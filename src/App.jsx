@@ -256,7 +256,7 @@ const App = () => {
     const {
         authLoading, profileLoading,
         session, currentUserProfile, updateProfile, refreshProfile,
-        unreadCount, resetUnreadCount, adminUnreadCount, logout, unreadMessageUsersCount,
+        unreadCount, resetUnreadCount, adminUnreadCountGlobal = 0, logout, unreadMessageUsersCount,
         checkUnreadMessages,
         activeTab, switchTab, navigateToHash,
         viewedProfile, setViewedProfile, profileHighlights, profileArchivedHighlights,
@@ -283,6 +283,7 @@ const App = () => {
         pendingReactivationProfile, confirmReactivation,
         showDeactivate, setShowDeactivate, setUnreadMessageUsersCount
     } = useAppState();
+
     const { addToast } = useToast();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeSettingsModal, setActiveSettingsModal] = useState(null);
@@ -511,8 +512,8 @@ const App = () => {
                 </Suspense>
             )}
 
-            {/* Notification Bell — fixed top-right (Hidden during video) */}
-            {session && currentUserProfile && !activeVideo && (
+            {/* Notification Bell — fixed top-right (Hidden during video or admin dashboard) */}
+            {session && currentUserProfile && !activeVideo && !activeTab.startsWith('admin') && (
                 <div className="fixed top-[calc(3rem+env(safe-area-inset-top))] right-4 z-[20000]">
                     <NotificationBell />
                 </div>
@@ -562,7 +563,7 @@ const App = () => {
                 <button onClick={handleProfileTabClick} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'profile' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <div className="relative">
                         <User size={22} className={`transition-transform duration-500 ${activeTab === 'profile' ? 'scale-110' : ''}`} />
-                        {adminUnreadCount > 0 && currentUserProfile?.role === 'admin' && (
+                        {adminUnreadCountGlobal > 0 && currentUserProfile?.role === 'admin' && (
                             <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full border border-card shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse" />
                         )}
                     </div>

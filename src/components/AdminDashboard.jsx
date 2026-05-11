@@ -1,23 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShieldAlert, X, Check, XCircle, Search, Shield, Building, User, Flag, Eye, Clock, CheckCircle, AlertTriangle, ExternalLink, Loader2, UserCheck, Trophy, Trash2, Edit, ShieldCheck, Menu, Undo, Bell, Zap } from 'lucide-react';
+import { ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
-import { sendTestNotification } from '../lib/api';
-
-const TABS = [
-    { id: 'overview', label: 'Übersicht', icon: Shield },
-    { id: 'accounts', label: 'Status-Freigaben', icon: UserCheck },
-    { id: 'career', label: 'Karriere-Stationen', icon: Trophy },
-    { id: 'claims', label: 'Vereins-Rechte', icon: Building },
-    { id: 'reports', label: 'Meldungen', icon: Flag },
-];
-
-const STATUS_CONFIG = {
-    pending: { label: 'Ausstehend', color: 'amber', icon: Clock },
-    in_review: { label: 'In Bearbeitung', color: 'blue', icon: Eye },
-    resolved: { label: 'Erledigt', color: 'emerald', icon: CheckCircle },
-};
+import { NotificationBell } from './NotificationBell';
+import { motion, AnimatePresence } from 'framer-motion';
+import * as api from '../lib/api';
 
 const TARGET_TYPE_LABELS = {
     profile: 'Profil',
@@ -27,1369 +15,603 @@ const TARGET_TYPE_LABELS = {
     user: 'Benutzer',
 };
 
-const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, onMenuOpen, onLogout }) => {
-    const { currentUserProfile, session } = useUser();
+// Premium Skeleton Loader Component
+const SkeletonBlock = ({ className }) => (
+    <div className={`animate-pulse bg-white/5 rounded-xl ${className}`} />
+);
+
+// Premium Empty State Component
+const PremiumEmptyState = ({ icon: Icon, title, message }) => (
+    <div className="flex flex-col items-center justify-center py-20 px-4 text-center border border-dashed border-white/5 rounded-3xl bg-white/[0.01]">
+        <div className="w-20 h-20 bg-zinc-900 text-zinc-800 rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <Icon size={40} />
+        </div>
+        <h3 className="text-lg font-black text-white mb-2">{title}</h3>
+        <p className="text-sm text-zinc-500 font-medium max-w-xs">{message}</p>
+    </div>
+);
+
+const AdminDashboard = ({ onClose, onMenuOpen }) => {
+    const { currentUserProfile, adminUnreadCountGlobal } = useUser();
     const { addToast } = useToast();
-    const [activeTab, setActiveTab] = useState(() => {
-        if (externalActiveTab) {
-            const TAB_MAP = {
-                'admin_overview': 'overview',
-                'admin_accounts': 'accounts',
-                'admin_career': 'career',
-                'admin_claims': 'claims',
-                'admin_reports': 'reports',
-            };
-            return TAB_MAP[externalActiveTab] || externalActiveTab.replace('admin_', '');
-        }
-        return 'overview';
-    });
-    const [subTab, setSubTab] = useState('pending'); // 'pending' | 'recent'
-    const [isSendingTest, setIsSendingTest] = useState(false);
 
-    // --- KPI Metrics ---
-    const [metrics, setMetrics] = useState({
-        pendingApprovals: 0,
-        pendingReports: 0,
+    // --- CRITICAL DATA-FIRST RULE ---
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [activeView, setActiveView] = useState('dashboard');
+    
+    const [stats, setStats] = useState({
+        openReports: 0,
+        newUsers24h: 0,
+        newVideos24h: 0,
+        pendingAccounts: 0,
         pendingClaims: 0,
-        newUsers24h: 0
+        pendingCareers: 0
     });
-    const [metricsLoading, setMetricsLoading] = useState(true);
-
-    // Update internal tab when external tab changes
-    useEffect(() => {
-        if (externalActiveTab) {
-            // Map special IDs to internal tab names
-            const TAB_MAP = {
-                'admin_overview': 'overview',
-                'admin_accounts': 'accounts',
-                'admin_career': 'career',
-                'admin_claims': 'claims',
-                'admin_reports': 'reports',
-            };
-            const mapped = TAB_MAP[externalActiveTab] || externalActiveTab.replace('admin_', '');
-            setActiveTab(mapped);
-        }
-    }, [externalActiveTab]);
-
-
-    // --- Pending Accounts State ---
-    const [pendingAccounts, setPendingAccounts] = useState([]);
-    const [recentAccounts, setRecentAccounts] = useState([]);
-    const [accountsLoading, setAccountsLoading] = useState(true);
-    const [recentAccountsLoading, setRecentAccountsLoading] = useState(false);
-
-    // --- Claims State ---
-    const [claims, setClaims] = useState([]);
-    const [recentClaims, setRecentClaims] = useState([]);
-    const [claimsLoading, setClaimsLoading] = useState(true);
-    const [recentClaimsLoading, setRecentClaimsLoading] = useState(false);
-
-    // --- Career Requests State ---
-    const [careerRequests, setCareerRequests] = useState([]);
-    const [recentCareerRequests, setRecentCareerRequests] = useState([]);
-    const [careerLoading, setCareerLoading] = useState(true);
-    const [recentCareerLoading, setRecentCareerLoading] = useState(false);
-
-    // --- Reports State ---
+    
     const [reports, setReports] = useState([]);
-    const [reportsLoading, setReportsLoading] = useState(true);
-    const [reportFilter, setReportFilter] = useState('all'); // 'all' | 'pending' | 'in_review' | 'resolved'
+    const [pendingAccountsList, setPendingAccountsList] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedReportGroup, setSelectedReportGroup] = useState(null);
+    const [confirmAction, setConfirmAction] = useState(null);
 
-    // --- Confirmation Modal State ---
-    const [confirmAction, setConfirmAction] = useState(null); // { title: string, message: string, onConfirm: function }
+    const loadData = useCallback(async () => {
+        if (currentUserProfile?.role !== 'admin') {
+            setIsLoading(false);
+            return;
+        }
 
-    const loadMetrics = useCallback(async () => {
-        setMetricsLoading(true);
+        setIsLoading(true);
         try {
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             
-            const [approvals, rpts, clms, newUsers] = await Promise.all([
-                supabase.from('players_master').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
-                supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-                supabase.from('club_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-                supabase.from('players_master').select('*', { count: 'exact', head: true }).gte('created_at', yesterday)
+            // 1. Fetch Metrics & Pending Data
+            const [usersRes, videosRes, reportsRes, accountsRes, claimsRes] = await Promise.all([
+                supabase.from('players_master').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
+                supabase.from('media_highlights').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
+                supabase.from('reports').select('*').order('created_at', { ascending: false }),
+                supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at').eq('verification_status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('club_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending')
             ]);
 
-            setMetrics({
-                pendingApprovals: approvals.count || 0,
-                pendingReports: rpts.count || 0,
-                pendingClaims: clms.count || 0,
-                newUsers24h: newUsers.count || 0
+            const allReports = reportsRes.data || [];
+            
+            // Group reports by target
+            const groups = {};
+            allReports.forEach(r => {
+                if (!groups[r.target_id]) {
+                    groups[r.target_id] = {
+                        target_id: r.target_id,
+                        target_type: r.target_type,
+                        reports: [],
+                        status: r.status,
+                        targetData: null,
+                        report_count: 0
+                    };
+                }
+                groups[r.target_id].reports.push(r);
+                if (r.status === 'pending') groups[r.target_id].status = 'pending';
             });
-        } catch (error) {
-            console.error("Error loading metrics:", error);
-        } finally {
-            setMetricsLoading(false);
-        }
-    }, []);
 
-    const loadAllData = useCallback(() => {
-        if (currentUserProfile?.role === 'admin') {
-            loadMetrics();
-            loadPendingAccounts();
-            loadClaims();
-            loadReports();
-            loadCareerRequests();
-        } else {
-            setMetricsLoading(false);
-            setAccountsLoading(false);
-            setClaimsLoading(false);
-            setReportsLoading(false);
-            setCareerLoading(false);
-        }
-    }, [currentUserProfile, loadMetrics]);
+            const groupedList = Object.values(groups);
+            const pendingGroups = groupedList.filter(g => g.status === 'pending');
 
-    useEffect(() => {
-        loadAllData();
-    }, [loadAllData]);
+            const fetchedAccounts = accountsRes.data || [];
+            setPendingAccountsList(fetchedAccounts);
 
-    // Lazy load recent items based on tab + subTab
-    useEffect(() => {
-        if (subTab === 'recent') {
-            if (activeTab === 'accounts' && recentAccounts.length === 0) loadRecentAccounts();
-            if (activeTab === 'career' && recentCareerRequests.length === 0) loadRecentCareerRequests();
-            if (activeTab === 'claims' && recentClaims.length === 0) loadRecentClaims();
-        }
-    }, [activeTab, subTab]);
+            // Update Stats including Notification Badges
+            setStats({
+                openReports: pendingGroups.length,
+                newUsers24h: usersRes.count || 0,
+                newVideos24h: videosRes.count || 0,
+                pendingAccounts: fetchedAccounts.length,
+                pendingClaims: claimsRes.count || 0,
+                pendingCareers: 0 // Will implement career logic when career table exists
+            });
 
-    // ==================== PENDING ACCOUNTS (Scout/Coach) ====================
-    const loadPendingAccounts = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('players_master')
-                .select('id, full_name, username, email, role, avatar_url, created_at')
-                .in('role', ['scout', 'coach'])
-                .eq('verification_status', 'pending')
-                .order('created_at', { ascending: false });
+            // Fetch target details for pending groups
+            const videoIds = pendingGroups.filter(g => g.target_type === 'video').map(g => g.target_id);
+            const commentIds = pendingGroups.filter(g => g.target_type === 'comment').map(g => g.target_id);
+            const profileIds = pendingGroups.filter(g => g.target_type === 'profile' || g.target_type === 'user').map(g => g.target_id);
 
-            if (error) throw error;
-            setPendingAccounts(data || []);
-        } catch (error) {
-            console.error("Supabase Admin Fetch Error (Accounts):", error);
-            addToast(`Konten-Fehler: ${error?.message || 'Unbekannter Fehler'}`, 'error');
-        } finally {
-            setAccountsLoading(false);
-        }
-    };
+            const [videos, comments, profiles] = await Promise.all([
+                videoIds.length > 0 ? supabase.from('media_highlights').select('id, description, video_url, thumbnail_url, player_id, report_count').in('id', videoIds) : Promise.resolve({ data: [] }),
+                commentIds.length > 0 ? supabase.from('media_comments').select('id, content, video_id, user_id, report_count').in('id', commentIds) : Promise.resolve({ data: [] }),
+                profileIds.length > 0 ? supabase.from('players_master').select('id, full_name, username, avatar_url, report_count').in('id', profileIds) : Promise.resolve({ data: [] })
+            ]);
 
-    const handleAccountAction = async (account, action) => {
-        const title = action === 'approved' ? 'Account verifizieren?' : 'Anfrage ablehnen?';
-        const message = action === 'approved' 
-            ? `Bist du sicher, dass du ${account.full_name} als ${account.role === 'scout' ? 'Scout' : 'Trainer'} verifizieren möchtest?`
-            : `Bist du sicher, dass du die Anfrage von ${account.full_name} ablehnen möchtest?`;
+            const videoMap = (videos.data || []).reduce((acc, v) => ({ ...acc, [v.id]: v }), {});
+            const commentMap = (comments.data || []).reduce((acc, c) => ({ ...acc, [c.id]: c }), {});
+            const profileMap = (profiles.data || []).reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
 
-        setConfirmAction({
-            title,
-            message,
-            confirmText: action === 'approved' ? 'Ja, verifizieren' : 'Ja, ablehnen',
-            confirmClass: action === 'approved' ? 'bg-emerald-600' : 'bg-red-600',
-            onConfirm: async () => {
-                const newStatus = action === 'approved' ? 'approved' : 'rejected';
-                try {
-                    const { error } = await supabase
-                        .from('players_master')
-                        .update({ 
-                            verification_status: newStatus,
-                            is_verified: action === 'approved'
-                        })
-                        .eq('id', account.id);
-                    if (error) throw error;
-
-                    // 1. Instant UI Refresh (Local Update)
-                    setPendingAccounts(prev => prev.filter(a => String(a.id) !== String(account.id)));
-                    
-                    addToast(
-                        action === 'approved'
-                            ? `${account.full_name} wurde verifiziert ✅`
-                            : `${account.full_name} wurde abgelehnt ❌`,
-                        'success'
-                    );
-                } catch (error) {
-                    console.error('Error processing account action:', error);
-                    addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
-                }
-            }
-        });
-    };
-
-    const loadRecentAccounts = async () => {
-        setRecentAccountsLoading(true);
-        try {
-            const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-            const { data, error } = await supabase
-                .from('players_master')
-                .select('id, full_name, username, email, role, avatar_url, created_at, updated_at, verification_status')
-                .in('role', ['scout', 'coach'])
-                .in('verification_status', ['approved', 'rejected'])
-                .gte('updated_at', timeLimit)
-                .order('updated_at', { ascending: false });
-
-            if (error) throw error;
-            setRecentAccounts(data || []);
-        } catch (error) {
-            console.error("Supabase Admin Fetch Error (Recent Accounts):", error);
-        } finally {
-            setRecentAccountsLoading(false);
-        }
-    };
-
-    const handleUndoAccount = async (account) => {
-        setConfirmAction({
-            title: 'Entscheidung rückgängig machen?',
-            message: `Möchtest du die Entscheidung für ${account.full_name} rückgängig machen? Der Account wird wieder als ausstehend markiert.`,
-            confirmText: 'Ja, rückgängig',
-            confirmClass: 'bg-amber-600',
-            onConfirm: async () => {
-                try {
-                    const { error } = await supabase
-                        .from('players_master')
-                        .update({ 
-                            verification_status: 'pending',
-                            is_verified: false
-                        })
-                        .eq('id', account.id);
-                    if (error) throw error;
-
-                    // Remove from recent, add back to pending locally
-                    setRecentAccounts(prev => prev.filter(a => String(a.id) !== String(account.id)));
-                    setPendingAccounts(prev => [{...account, verification_status: 'pending', is_verified: false}, ...prev]);
-                    
-                    addToast(`Entscheidung für ${account.full_name} wurde rückgängig gemacht`, 'success');
-                } catch (error) {
-                    console.error('Error undoing account action:', error);
-                    addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
-                }
-            }
-        });
-    };
-
-    const loadClaims = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('club_claims')
-                .select('*, club:clubs(name), user:players_master(full_name, username, avatar_url)')
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false });
-            
-            if (error) throw error;
-            setClaims(data || []);
-        } catch (error) {
-            console.error("Supabase Admin Fetch Error (Claims):", error);
-            addToast(`Anfragen-Fehler: ${error?.message || 'Unbekannter Fehler'}`, 'error');
-        } finally {
-            setClaimsLoading(false);
-        }
-    };
-
-    const handleClaimAction = async (claim, action) => {
-        setConfirmAction({
-            title: action === 'approved' ? 'Vereins-Claim zulassen?' : 'Anfrage ablehnen?',
-            message: action === 'approved'
-                ? `Möchtest du ${claim.user?.full_name} als Administrator für ${claim.club?.name} zulassen?`
-                : `Möchtest du den Claim von ${claim.user?.full_name} für ${claim.club?.name} ablehnen?`,
-            confirmText: action === 'approved' ? 'Ja, zulassen' : 'Ja, ablehnen',
-            confirmClass: action === 'approved' ? 'bg-emerald-600' : 'bg-red-600',
-            onConfirm: async () => {
-                try {
-                    if (action === 'approved') {
-                        const { error: claimError } = await supabase
-                            .from('club_claims')
-                            .update({ status: 'approved' })
-                            .eq('id', claim.id);
-                        if (claimError) throw claimError;
-
-                        const { error: clubError } = await supabase
-                            .from('clubs')
-                            .update({ is_verified: true, created_by: claim.user_id })
-                            .eq('id', claim.club_id);
-                        if (clubError) throw clubError;
-
-                        addToast('Anfrage zugelassen & Verein verifiziert ✅', 'success');
-                    } else if (action === 'rejected') {
-                        const { error } = await supabase
-                            .from('club_claims')
-                            .update({ status: 'rejected' })
-                            .eq('id', claim.id);
-                        if (error) throw error;
-
-                        addToast('Anfrage abgelehnt ❌', 'success');
-                    }
-                    
-                    // Instant UI Refresh (Local Update)
-                    setClaims(prev => prev.filter(c => String(c.id) !== String(claim.id)));
-                } catch (error) {
-                    console.error('Error processing claim action:', error);
-                    addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
-                }
-            }
-        });
-    };
-
-    const loadRecentClaims = async () => {
-        setRecentClaimsLoading(true);
-        try {
-            const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-            const { data, error } = await supabase
-                .from('club_claims')
-                .select('*, club:clubs(name), user:players_master(full_name, username, avatar_url)')
-                .in('status', ['approved', 'rejected'])
-                .gte('updated_at', timeLimit)
-                .order('updated_at', { ascending: false });
-            
-            if (error) throw error;
-            setRecentClaims(data || []);
-        } catch (error) {
-            console.error("Supabase Admin Fetch Error (Recent Claims):", error);
-        } finally {
-            setRecentClaimsLoading(false);
-        }
-    };
-
-    const handleUndoClaim = async (claim) => {
-        setConfirmAction({
-            title: 'Claim-Entscheidung rückgängig machen?',
-            message: `Möchtest du die Entscheidung für ${claim.club?.name} rückgängig machen? Die Anfrage wird wieder als ausstehend markiert.`,
-            confirmText: 'Ja, rückgängig',
-            confirmClass: 'bg-amber-600',
-            onConfirm: async () => {
-                try {
-                    const { error: claimError } = await supabase
-                        .from('club_claims')
-                        .update({ status: 'pending' })
-                        .eq('id', claim.id);
-                    if (claimError) throw claimError;
-
-                    if (claim.status === 'approved') {
-                        // Revert club status
-                        const { error: clubError } = await supabase
-                            .from('clubs')
-                            .update({ is_verified: false, created_by: null })
-                            .eq('id', claim.club_id);
-                        if (clubError) throw clubError;
-                    }
-
-                    // Remove from recent, add back to pending locally
-                    setRecentClaims(prev => prev.filter(c => String(c.id) !== String(claim.id)));
-                    setClaims(prev => [{...claim, status: 'pending'}, ...prev]);
-
-                    addToast('Entscheidung wurde rückgängig gemacht', 'success');
-                } catch (error) {
-                    console.error('Error undoing claim action:', error);
-                    addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
-                }
-            }
-        });
-    };
-
-    // ==================== CAREER REQUESTS ====================
-    const loadCareerRequests = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('career_history')
-                .select('*, players_master(full_name, username, avatar_url)')
-                .eq('is_premium', true)
-                .eq('verification_status', 'pending')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setCareerRequests(data || []);
-        } catch (error) {
-            console.error("Supabase Admin Fetch Error (Career):", error);
-            addToast(`Karriere-Fehler: ${error?.message || 'Unbekannter Fehler'}`, 'error');
-        } finally {
-            setCareerLoading(false);
-        }
-    };
-
-    const handleCareerAction = async (req, action) => {
-        setConfirmAction({
-            title: action === 'approved' ? 'Karriere bestätigen?' : 'Eintrag ablehnen?',
-            message: action === 'approved'
-                ? `Möchtest du die Station bei ${req.club_name} für ${req.players_master?.full_name || 'Unbekannter Spieler'} als verifiziert markieren?`
-                : `Möchtest du den Karriere-Eintrag bei ${req.club_name} ablehnen? Er wird aus dem Profil entfernt.`,
-            confirmText: action === 'approved' ? 'Ja, bestätigen' : 'Ja, ablehnen',
-            confirmClass: action === 'approved' ? 'bg-emerald-600' : 'bg-red-600',
-            onConfirm: async () => {
-                try {
-                    if (action === 'approved') {
-                        const { error } = await supabase
-                            .from('career_history')
-                            .update({ 
-                                is_verified: true,
-                                verification_status: 'approved'
-                            })
-                            .eq('id', req.id);
-                        if (error) throw error;
-                        addToast('Station bestätigt! ✅', 'success');
-                    } else {
-                        const { error } = await supabase
-                            .from('career_history')
-                            .update({ 
-                                is_verified: false,
-                                verification_status: 'rejected'
-                            })
-                            .eq('id', req.id);
-                        if (error) throw error;
-                        addToast('Eintrag abgelehnt ❌', 'success');
-                    }
-
-                    // Instant UI Refresh (Local Update)
-                    setCareerRequests(prev => prev.filter(r => String(r.id) !== String(req.id)));
-                } catch (error) {
-                    console.error('Career Action Error:', error);
-                    addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
-                }
-            }
-        });
-    };
-
-    const loadRecentCareerRequests = async () => {
-        setRecentCareerLoading(true);
-        try {
-            const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-            const { data, error } = await supabase
-                .from('career_history')
-                .select('*, players_master(full_name, username, avatar_url)')
-                .eq('is_premium', true)
-                .in('verification_status', ['approved', 'rejected'])
-                .gte('updated_at', timeLimit)
-                .order('updated_at', { ascending: false });
-
-            if (error) throw error;
-            setRecentCareerRequests(data || []);
-        } catch (error) {
-            console.error("Supabase Admin Fetch Error (Recent Career):", error);
-        } finally {
-            setRecentCareerLoading(false);
-        }
-    };
-
-    const handleUndoCareer = async (req) => {
-        setConfirmAction({
-            title: 'Karriere-Entscheidung rückgängig machen?',
-            message: `Möchtest du die Entscheidung für ${req.club_name} rückgängig machen? Der Eintrag wird wieder als ausstehend markiert.`,
-            confirmText: 'Ja, rückgängig',
-            confirmClass: 'bg-amber-600',
-            onConfirm: async () => {
-                try {
-                    const { error } = await supabase
-                        .from('career_history')
-                        .update({ 
-                            verification_status: 'pending',
-                            is_verified: false
-                        })
-                        .eq('id', req.id);
-                    if (error) throw error;
-
-                    // Remove from recent, add back to pending locally
-                    setRecentCareerRequests(prev => prev.filter(r => String(r.id) !== String(req.id)));
-                    setCareerRequests(prev => [{...req, verification_status: 'pending', is_verified: false}, ...prev]);
-
-                    addToast('Entscheidung wurde rückgängig gemacht', 'success');
-                } catch (error) {
-                    console.error('Error undoing career action:', error);
-                    addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
-                }
-            }
-        });
-    };
-
-    // ==================== REPORTS ====================
-    const loadReports = async () => {
-        setReportsLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('reports')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            const reportsData = data || [];
-
-            // Batch-resolve both reporter AND target profiles
-            const reporterIds = [...new Set(reportsData.map(r => r.reporter_id).filter(Boolean))];
-            const targetIds = [...new Set(reportsData
-                .filter(r => r.target_type === 'profile' || r.target_type === 'user')
-                .map(r => r.target_id).filter(Boolean))];
-
-            const videoIds = [...new Set(reportsData.filter(r => r.target_type === 'video').map(r => r.target_id))];
-            const commentIds = [...new Set(reportsData.filter(r => r.target_type === 'comment').map(r => r.target_id))];
-
-            let reporterMap = {};
-            let targetProfileMap = {};
-            let videoMap = {};
-            let commentMap = {};
-
-            const fetches = [];
-            if (reporterIds.length > 0) {
-                fetches.push(
-                    supabase.from('players_master')
-                        .select('user_id, id, full_name, username, avatar_url')
-                        .in('user_id', reporterIds)
-                        .then(({ data: profiles }) => {
-                            if (profiles) profiles.forEach(p => { reporterMap[p.user_id] = p; });
-                        })
-                );
-            }
-            if (targetIds.length > 0) {
-                fetches.push(
-                    supabase.from('players_master')
-                        .select('id, full_name, username, avatar_url, is_banned, report_count')
-                        .in('id', targetIds)
-                        .then(({ data: targets }) => {
-                            if (targets) targets.forEach(t => { targetProfileMap[t.id] = t; });
-                        })
-                );
-            }
-            if (videoIds.length > 0) {
-                fetches.push(
-                    supabase.from('media_highlights')
-                        .select('id, report_count')
-                        .in('id', videoIds)
-                        .then(({ data: videos }) => {
-                            if (videos) videos.forEach(v => { videoMap[v.id] = v; });
-                        })
-                );
-            }
-            if (commentIds.length > 0) {
-                fetches.push(
-                    supabase.from('media_comments')
-                        .select('id, report_count')
-                        .in('id', commentIds)
-                        .then(({ data: comments }) => {
-                            if (comments) comments.forEach(c => { commentMap[c.id] = c; });
-                        })
-                );
-            }
-            await Promise.all(fetches);
-
-            const enriched = reportsData.map(r => {
+            const enrichedGroups = pendingGroups.map(group => {
                 let targetData = null;
-                if (r.target_type === 'profile' || r.target_type === 'user') targetData = targetProfileMap[r.target_id];
-                else if (r.target_type === 'video') targetData = videoMap[r.target_id];
-                else if (r.target_type === 'comment') targetData = commentMap[r.target_id];
+                if (group.target_type === 'video') targetData = videoMap[group.target_id];
+                else if (group.target_type === 'comment') targetData = commentMap[group.target_id];
+                else if (group.target_type === 'profile' || group.target_type === 'user') targetData = profileMap[group.target_id];
 
                 return {
-                    ...r,
-                    reporter: reporterMap[r.reporter_id] || null,
-                    targetProfile: targetProfileMap[r.target_id] || null,
-                    targetReportCount: targetData?.report_count || 0,
-                    isTargetBanned: targetProfileMap[r.target_id]?.is_banned || false
+                    ...group,
+                    targetData,
+                    report_count: targetData?.report_count || group.reports.length
                 };
             });
 
-            setReports(enriched);
+            setReports(enrichedGroups);
         } catch (error) {
-            console.error("Supabase Admin Fetch Error (Reports):", error);
-            addToast(`Meldungen-Fehler: ${error?.message || 'Unbekannter Fehler'}`, 'error');
+            console.error("Admin Command Center Fetch Error:", error);
+            addToast(`Fehler beim Laden: ${error.message}`, 'error');
         } finally {
-            setReportsLoading(false);
+            setIsLoading(false);
         }
-    };
+    }, [currentUserProfile, addToast]);
 
-    const handleReportAction = async (report, action) => {
-        let title = '';
-        let message = '';
-        let confirmText = '';
-        let confirmClass = '';
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    const handleReportAction = async (e, reportGroup, action) => {
+        e.stopPropagation();
+
+        let title = '', message = '', confirmText = '', confirmClass = '';
 
         if (action === 'dismiss') {
-            title = 'Meldung verwerfen?';
-            message = 'Die Meldung wird als erledigt markiert, ohne dass der Inhalt gelöscht wird.';
+            title = 'Meldungen verwerfen?';
+            message = 'Alle Meldungen für diesen Inhalt werden als erledigt markiert.';
             confirmText = 'Verwerfen';
-            confirmClass = 'bg-zinc-600';
+            confirmClass = 'bg-blue-600';
         } else if (action === 'delete') {
-            title = 'Inhalt löschen?';
-            message = `Möchtest du diesen gemeldeten Inhalt (${TARGET_TYPE_LABELS[report.target_type] || report.target_type}) wirklich dauerhaft löschen?`;
-            confirmText = 'Endgültig löschen';
+            title = 'Inhalt endgültig löschen?';
+            message = 'Möchtest du diesen Inhalt unwiderruflich löschen?';
+            confirmText = 'Löschen';
             confirmClass = 'bg-red-600';
-        } else if (action === 'ban') {
-            title = 'Nutzer sperren?';
-            message = 'Der Ersteller des Inhalts wird dauerhaft gesperrt. Alle seine Inhalte werden für andere Nutzer unsichtbar.';
-            confirmText = 'Nutzer sperren';
-            confirmClass = 'bg-red-700 shadow-[0_0_15px_rgba(185,28,28,0.4)]';
         }
 
         setConfirmAction({
-            title,
-            message,
-            confirmText,
-            confirmClass,
+            title, message, confirmText, confirmClass,
             onConfirm: async () => {
+                // Optimistic UI Update
+                setReports(prev => prev.filter(g => g.target_id !== reportGroup.target_id));
+                setStats(prev => ({ ...prev, openReports: Math.max(0, prev.openReports - 1) }));
+                setConfirmAction(null);
+
                 try {
+                    const targetTable = reportGroup.target_type === 'video' ? 'media_highlights' : 
+                                      reportGroup.target_type === 'comment' ? 'media_comments' : 'players_master';
+
                     if (action === 'delete') {
-                        // 1. Delete target content
-                        let deleteTable = '';
-                        if (report.target_type === 'video') deleteTable = 'media_highlights';
-                        else if (report.target_type === 'comment') deleteTable = 'media_comments';
-                        else if (report.target_type === 'message') deleteTable = 'direct_messages';
-
-                        if (deleteTable) {
-                            const { error: deleteError } = await supabase
-                                .from(deleteTable)
-                                .delete()
-                                .eq('id', report.target_id);
-                            if (deleteError) throw deleteError;
+                        await supabase.from(targetTable).delete().eq('id', reportGroup.target_id);
+                        
+                        // Send notification to the user whose video was removed
+                        if (targetTable === 'media_highlights' && reportGroup.targetData?.player_id) {
+                            try {
+                                await api.createNotification({
+                                    userId: reportGroup.targetData.player_id,
+                                    actorId: currentUserProfile?.id,
+                                    type: 'video_removed',
+                                    message: 'Dein Video wurde aufgrund von Community-Meldungen entfernt.',
+                                    videoId: reportGroup.target_id
+                                });
+                            } catch (e) {
+                                console.warn('Could not send removal notification', e);
+                            }
                         }
-                    } else if (action === 'ban') {
-                        // Ban the creator of the target content
-                        let creatorId = null;
-                        if (report.target_type === 'profile' || report.target_type === 'user') {
-                            creatorId = report.target_id;
-                        } else {
-                            // Fetch creator from target table
-                            let table = report.target_type === 'video' ? 'media_highlights' : 'media_comments';
-                            const { data } = await supabase.from(table).select('player_id, user_id').eq('id', report.target_id).single();
-                            creatorId = data?.player_id || data?.user_id;
-                        }
-
-                        if (creatorId) {
-                            const { error: banError } = await supabase
-                                .from('players_master')
-                                .update({ is_banned: true })
-                                .eq('id', creatorId);
-                            if (banError) throw banError;
-                        }
+                    } else if (action === 'dismiss') {
+                        await supabase.from(targetTable).update({ is_under_review: false, report_count: 0 }).eq('id', reportGroup.target_id);
                     }
 
-                    // 2. Mark ALL reports for this target as resolved
-                    const { error: updateError } = await supabase
-                        .from('reports')
-                        .update({ status: 'resolved' })
-                        .eq('target_id', report.target_id)
-                        .eq('target_type', report.target_type);
-                    
-                    if (updateError) throw updateError;
-
-                    addToast(action === 'dismiss' ? 'Meldung verworfen' : 'Moderation erfolgreich', 'success');
-                    loadReports();
-                    loadMetrics();
+                    await supabase.from('reports').update({ status: 'resolved' }).eq('target_id', reportGroup.target_id);
+                    addToast(action === 'dismiss' ? 'Meldungen verworfen' : 'Inhalt gelöscht', 'success');
                 } catch (error) {
-                    console.error("Report Action Error:", error);
                     addToast(`Fehler: ${error.message}`, 'error');
-                } finally {
-                    setConfirmAction(null);
+                    loadData(); // Revert optimistic update on failure
                 }
             }
         });
     };
 
-    const handleReportStatusUpdate = async (reportId, newStatus) => {
+    const handleAccountAction = async (account, action) => {
+        // Optimistic UI Update
+        setPendingAccountsList(prev => prev.filter(a => a.id !== account.id));
+        setStats(prev => ({ ...prev, pendingAccounts: Math.max(0, prev.pendingAccounts - 1) }));
+
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+        
         try {
             const { error } = await supabase
-                .from('reports')
-                .update({ status: newStatus })
-                .eq('id', reportId);
+                .from('players_master')
+                .update({ 
+                    verification_status: newStatus,
+                    is_verified: action === 'approve'
+                })
+                .eq('id', account.id);
+            
             if (error) throw error;
-
-            setReports(prev => prev.map(r => 
-                r.id === reportId ? { ...r, status: newStatus } : r
-            ));
-
-            const label = STATUS_CONFIG[newStatus]?.label || newStatus;
-            addToast(`Status geändert → ${label}`, 'success');
-            loadMetrics();
+            addToast(`Anfrage erfolgreich ${action === 'approve' ? 'freigegeben' : 'abgelehnt'}`, 'success');
         } catch (error) {
-            console.error('Error updating report status:', error);
             addToast(`Fehler: ${error.message}`, 'error');
+            loadData(); // Revert optimistic update on failure
         }
     };
 
-    const handleDeepLink = useCallback((targetId, targetType) => {
-        if (!targetId) return;
-
-        if (targetType === 'profile' || targetType === 'user') {
-            // Navigate to the reported user's profile
-            if (onUserClick) {
-                onUserClick({ user_id: targetId, id: targetId });
-            } else {
-                window.location.hash = `profile/${targetId}`;
-            }
-            onClose?.();
-        }
-        // For video/comment/message, we can't deep link directly yet
-    }, [onUserClick, onClose]);
-
-    const filteredReports = reportFilter === 'all'
-        ? reports
-        : reports.filter(r => r.status === reportFilter);
-
-    const pendingReportsCount = reports.filter(r => r.status === 'pending').length;
-
-    // ==================== GUARDS ====================
     if (currentUserProfile?.role !== 'admin') {
         return (
-            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md">
-                <div className="bg-card border border-red-500/30 p-8 rounded-3xl flex flex-col items-center">
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[#050505]/90 backdrop-blur-md">
+                <div className="bg-zinc-900 border border-red-500/30 p-8 rounded-3xl flex flex-col items-center">
                     <ShieldAlert size={48} className="text-red-500 mb-4" />
-                    <h2 className="text-2xl font-bold text-foreground">Zugriff verweigert</h2>
-                    <p className="text-muted-foreground mt-2 mb-6">Dieser Bereich ist nur für Administratoren.</p>
-                    <button onClick={onClose} className="px-6 py-2 bg-muted text-foreground rounded-full hover:bg-muted/80 transition">Schließen</button>
+                    <h2 className="text-2xl font-bold text-white">Zugriff verweigert</h2>
+                    <button onClick={onClose} className="px-6 py-2 bg-white/10 text-white rounded-full mt-6">Schließen</button>
                 </div>
             </div>
         );
     }
 
-    const renderSubNavigation = () => (
-        <div className="flex bg-black/30 p-1 rounded-xl mb-6 border border-white/5">
-            <button
-                onClick={() => setSubTab('pending')}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
-                    subTab === 'pending'
-                        ? 'bg-cyan-500/20 text-cyan-400 shadow-sm border border-cyan-500/30'
-                        : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-                }`}
-            >
-                Offene Anfragen
-            </button>
-            <button
-                onClick={() => setSubTab('recent')}
-                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
-                    subTab === 'recent'
-                        ? 'bg-cyan-500/20 text-cyan-400 shadow-sm border border-cyan-500/30'
-                        : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-                }`}
-            >
-                Kürzlich bearbeitet
-            </button>
+    const MENU_ITEMS = [
+        { id: 'dashboard', label: 'Übersicht', icon: Shield, badge: 0 },
+        { id: 'status-freigaben', label: 'Status-Freigaben', icon: UserCheck, badge: stats.pendingAccounts },
+        { id: 'karriere-stationen', label: 'Karriere-Stationen', icon: Trophy, badge: stats.pendingCareers },
+        { id: 'vereins-rechte', label: 'Vereins-Rechte', icon: Building, badge: stats.pendingClaims },
+    ];
+
+    const renderSkeletonList = () => (
+        <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4 bg-[#111] border border-white/5 rounded-2xl">
+                    <SkeletonBlock className="w-12 h-12" />
+                    <div className="flex-1 space-y-2">
+                        <SkeletonBlock className="w-24 h-3" />
+                        <SkeletonBlock className="w-48 h-4" />
+                        <SkeletonBlock className="w-32 h-3" />
+                    </div>
+                </div>
+            ))}
         </div>
     );
 
-    // ==================== RENDER ====================
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in">
-            <div className="w-full max-w-2xl h-[85vh] bg-card border border-border shadow-2xl flex flex-col sm:rounded-3xl animate-in slide-in-from-bottom-8">
-                
-                {/* Header */}
-                <div className="flex justify-between items-center px-5 py-4 bg-black/20 shrink-0 border-b border-border">
-                    <div className="flex items-center gap-3">
-                        {currentUserProfile?.role === 'admin' && (
-                            <button 
-                                onClick={onMenuOpen}
-                                className="p-2 -ml-2 bg-black/20 hover:bg-black/40 rounded-xl transition text-foreground hover:text-cyan-400"
-                            >
-                                <Menu size={22} />
-                            </button>
-                        )}
-                        <Shield className="text-cyan-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" size={24} />
-                        <h2 className="text-lg font-bold text-foreground truncate">
-                            {TABS.find(t => t.id === activeTab)?.label || 'Admin Center'}
-                        </h2>
+    // --- Sub-Views ---
+    const renderDashboardView = () => (
+        <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                <div className="col-span-2 md:col-span-1 bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-4">
+                        <AlertOctagon size={20} />
                     </div>
-                    <button onClick={onClose} className="p-2 bg-black/20 hover:bg-black/40 rounded-full transition text-muted-foreground hover:text-foreground shrink-0">
-                        <X size={20} />
-                    </button>
+                    <p className="text-4xl font-black text-white mb-1">
+                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : stats.openReports}
+                    </p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Offene Meldungen</p>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="col-span-1 bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
+                        <Users size={20} />
+                    </div>
+                    <p className="text-4xl font-black text-white mb-1">
+                        {isLoading ? <SkeletonBlock className="w-16 h-8" /> : `+${stats.newUsers24h}`}
+                    </p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Neuanmeldungen 24h</p>
+                </div>
 
-                    {/* ==================== OVERVIEW TAB ==================== */}
-                    {activeTab === 'overview' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <button 
-                                    onClick={() => setActiveTab('accounts')}
-                                    className="p-5 bg-black/20 border border-border rounded-2xl text-left hover:border-cyan-500/50 transition-all group"
+                <div className="col-span-1 bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+                        <TrendingUp size={20} />
+                    </div>
+                    <p className="text-4xl font-black text-white mb-1">
+                        {isLoading ? <SkeletonBlock className="w-16 h-8" /> : `+${stats.newVideos24h}`}
+                    </p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Video-Uploads 24h</p>
+                </div>
+            </div>
+
+            <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Flag size={16} className="text-red-500" />
+                    Dringende Fälle
+                </h3>
+
+                {isLoading ? (
+                    renderSkeletonList()
+                ) : reports.length === 0 ? (
+                    <PremiumEmptyState 
+                        icon={ShieldCheck} 
+                        title="Plattform ist sauber" 
+                        message="Es gibt aktuell keine offenen Meldungen. Alle Inhalte wurden geprüft." 
+                    />
+                ) : (
+                    <div className="space-y-3">
+                        {reports.map(group => {
+                            const isQuarantine = group.report_count >= 5;
+                            return (
+                                <div 
+                                    key={group.target_id} 
+                                    onClick={() => setSelectedReportGroup(group)}
+                                    className="group relative flex items-center gap-4 p-4 bg-[#111] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/[0.04] transition-colors"
                                 >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500 group-hover:scale-110 transition-transform">
-                                            <UserCheck size={24} />
-                                        </div>
-                                        <span className="text-2xl font-black text-foreground">{metrics.pendingApprovals}</span>
+                                    <div className="w-12 h-12 rounded-xl bg-zinc-900 shrink-0 overflow-hidden flex items-center justify-center border border-white/5">
+                                        {group.target_type === 'video' && group.targetData?.thumbnail_url ? (
+                                            <img src={group.targetData.thumbnail_url} className="w-full h-full object-cover" />
+                                        ) : group.target_type === 'video' ? (
+                                            <Video size={18} className="text-zinc-600" />
+                                        ) : group.target_type === 'comment' ? (
+                                            <MessageSquare size={18} className="text-zinc-600" />
+                                        ) : (
+                                            <User size={18} className="text-zinc-600" />
+                                        )}
                                     </div>
-                                    <h3 className="font-bold text-foreground">Offene Freigaben</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">Scouts & Trainer warten auf Verifizierung</p>
-                                </button>
 
-                                <button 
-                                    onClick={() => setActiveTab('reports')}
-                                    className="p-5 bg-black/20 border border-border rounded-2xl text-left hover:border-red-500/50 transition-all group"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-red-500/10 rounded-xl text-red-500 group-hover:scale-110 transition-transform">
-                                            <Flag size={24} />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">
+                                                {TARGET_TYPE_LABELS[group.target_type]}
+                                            </span>
+                                            {isQuarantine && (
+                                                <span className="px-1.5 py-0.5 bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest rounded border border-red-500/20">
+                                                    Quarantäne
+                                                </span>
+                                            )}
                                         </div>
-                                        <span className="text-2xl font-black text-foreground">{metrics.pendingReports}</span>
+                                        <h4 className="font-bold text-sm text-white truncate">
+                                            {group.target_type === 'comment' ? group.targetData?.content : (group.targetData?.description || group.targetData?.full_name || 'Unbekannter Inhalt')}
+                                        </h4>
+                                        <p className="text-xs text-zinc-400 truncate">
+                                            {group.reports.length} Meldung{group.reports.length > 1 ? 'en' : ''}: "{group.reports[0]?.reason}"
+                                        </p>
                                     </div>
-                                    <h3 className="font-bold text-foreground">Meldungen</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">Gemeldete Inhalte prüfen</p>
-                                </button>
 
-                                <div className="p-5 bg-black/20 border border-border rounded-2xl">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-cyan-500/10 rounded-xl text-cyan-500">
-                                            <User size={24} />
-                                        </div>
-                                        <span className="text-2xl font-black text-foreground">{metrics.newUsers24h}</span>
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={(e) => handleReportAction(e, group, 'dismiss')}
+                                            className="p-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 rounded-lg transition-colors border border-blue-600/20"
+                                            title="Verwerfen"
+                                        >
+                                            <Check size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => handleReportAction(e, group, 'delete')}
+                                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors border border-red-500/20"
+                                            title="Löschen"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
-                                    <h3 className="font-bold text-foreground">Neue User (24h)</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">Anmeldungen in den letzten 24 Stunden</p>
                                 </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </>
+    );
 
-                                <button 
-                                    onClick={() => setActiveTab('claims')}
-                                    className="p-5 bg-black/20 border border-border rounded-2xl text-left hover:border-emerald-500/50 transition-all group"
-                                >
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-500 group-hover:scale-110 transition-transform">
-                                            <Building size={24} />
-                                        </div>
-                                        <span className="text-2xl font-black text-foreground">{metrics.pendingClaims}</span>
-                                    </div>
-                                    <h3 className="font-bold text-foreground">Vereins-Claims</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">Anfragen für Club-Management</p>
-                                </button>
+    const renderAccountsView = () => (
+        <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <UserCheck size={16} className="text-blue-500" />
+                Ausstehende Verifizierungen
+            </h3>
+
+            {isLoading ? (
+                renderSkeletonList()
+            ) : pendingAccountsList.length === 0 ? (
+                <PremiumEmptyState 
+                    icon={ShieldCheck} 
+                    title="Keine offenen Freigaben" 
+                    message="Alle Scouts und Trainer wurden verifiziert. Aktuell gibt es keine neuen Anfragen." 
+                />
+            ) : (
+                <div className="space-y-3">
+                    {pendingAccountsList.map(account => (
+                        <div key={account.id} className="group relative flex items-center gap-4 p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-colors">
+                            <div className="w-12 h-12 rounded-full bg-zinc-900 shrink-0 overflow-hidden flex items-center justify-center border border-white/5">
+                                {account.avatar_url ? (
+                                    <img src={account.avatar_url} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-sm font-black text-zinc-500">
+                                        {account.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Test-Notification Button */}
-                            <div className="p-5 bg-black/20 border border-dashed border-cyan-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2.5 bg-cyan-500/10 rounded-xl">
-                                        <Zap size={20} className="text-cyan-400" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-foreground text-sm">Echtzeit-Test</h3>
-                                        <p className="text-xs text-muted-foreground mt-0.5">Feuert eine Benachrichtigung via Supabase Realtime — die Glocke muss sofort reagieren.</p>
-                                    </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+                                        {account.role === 'scout' ? 'Scout-Anfrage' : 'Trainer-Anfrage'}
+                                    </span>
                                 </div>
-                                <button
-                                    onClick={async () => {
-                                        if (!currentUserProfile?.id) return;
-                                        setIsSendingTest(true);
-                                        try {
-                                            await sendTestNotification(currentUserProfile.id);
-                                            addToast('Test-Benachrichtigung gesendet! Sieh die Glocke oben rechts.', 'success');
-                                        } catch (e) {
-                                            addToast(`Fehler: ${e?.message || 'Unbekannt'}`, 'error');
-                                        } finally {
-                                            setIsSendingTest(false);
-                                        }
-                                    }}
-                                    disabled={isSendingTest}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-bold text-sm rounded-xl transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-wait"
-                                >
-                                    {isSendingTest ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
-                                    {isSendingTest ? 'Sende...' : 'Test-Benachrichtigung feuern'}
-                                </button>
+                                <h4 className="font-bold text-sm text-white truncate">{account.full_name}</h4>
+                                <p className="text-xs text-zinc-400 truncate">@{account.username}</p>
                             </div>
 
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={() => handleAccountAction(account, 'approve')}
+                                    className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors border border-emerald-500/20 flex items-center gap-1.5 px-3"
+                                    title="Freigeben"
+                                >
+                                    <Check size={16} />
+                                    <span className="text-xs font-bold">Freigeben</span>
+                                </button>
+                                <button 
+                                    onClick={() => handleAccountAction(account, 'reject')}
+                                    className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors border border-red-500/20 flex items-center gap-1.5 px-3"
+                                    title="Ablehnen"
+                                >
+                                    <X size={16} />
+                                    <span className="text-xs font-bold">Ablehnen</span>
+                                </button>
+                            </div>
                         </div>
-                    )}
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 
-                    {/* ==================== ACCOUNTS TAB ==================== */}
-                    {activeTab === 'accounts' && (
+    const renderPlaceholderView = (title) => (
+        <PremiumEmptyState 
+            icon={ShieldCheck} 
+            title={title} 
+            message="Aktuell keine Daten vorhanden. Alles ist auf dem neuesten Stand." 
+        />
+    );
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[#050505]/95 backdrop-blur-xl">
+            <div className="w-full max-w-3xl h-[90vh] bg-[#0A0A0A] border border-white/10 shadow-2xl flex flex-col sm:rounded-3xl relative overflow-hidden font-inter">
+                
+                {/* 1. Header (Hamburger Menu integration) */}
+                <div className="relative flex justify-between items-center px-4 py-4 sm:px-6 sm:py-5 bg-[#050505] shrink-0 border-b border-white/5 z-20">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-2 -ml-2 bg-white/5 hover:bg-white/10 rounded-xl transition text-zinc-400 hover:text-white"
+                        >
+                            <Menu size={22} />
+                        </button>
+                        <div>
+                            <h2 className="text-lg font-black text-white leading-tight">
+                                {MENU_ITEMS.find(i => i.id === activeView)?.label || 'Übersicht'}
+                            </h2>
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Command Center 2.0</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="relative">
+                            <NotificationBell />
+                            {adminUnreadCountGlobal > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                            )}
+                        </div>
+                        <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition text-zinc-400 hover:text-white">
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* 2. Content Area with Routing */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar relative z-10">
+                    {activeView === 'dashboard' && renderDashboardView()}
+                    {activeView === 'status-freigaben' && renderAccountsView()}
+                    {activeView === 'karriere-stationen' && renderPlaceholderView('Karriere-Stationen')}
+                    {activeView === 'vereins-rechte' && renderPlaceholderView('Vereins-Rechte')}
+                </div>
+
+                {/* 3. Off-Canvas Sidebar */}
+                <AnimatePresence>
+                    {isSidebarOpen && (
                         <>
-                            {renderSubNavigation()}
-                            <h3 className="text-sm uppercase tracking-wider font-bold text-muted-foreground mb-4">
-                                {subTab === 'pending' ? `Ausstehende Konten-Verifizierungen (${pendingAccounts.length})` : `Kürzlich bearbeitet (${recentAccounts.length})`}
-                            </h3>
+                            {/* Backdrop */}
+                            <motion.div 
+                                initial={{ opacity: 0 }} 
+                                animate={{ opacity: 1 }} 
+                                exit={{ opacity: 0 }} 
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="absolute inset-0 bg-black/80 backdrop-blur-sm z-[40000]" 
+                            />
                             
-                            {(subTab === 'pending' ? accountsLoading : recentAccountsLoading) ? (
-                                <div className="flex items-center justify-center h-40">
-                                    <Loader2 size={24} className="text-cyan-500 animate-spin" />
-                                </div>
-                            ) : (subTab === 'pending' ? pendingAccounts : recentAccounts).length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-2xl bg-black/10">
-                                    <Check size={32} className="text-emerald-500 mb-3" />
-                                    <p className="text-muted-foreground font-medium">
-                                        {subTab === 'pending' ? 'Keine ausstehenden Konten!' : 'Keine kürzlich bearbeiteten Konten.'}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {(subTab === 'pending' ? pendingAccounts : recentAccounts).map((account) => (
-                                        <div key={account.id} className={`bg-black/20 border rounded-2xl p-4 transition-all ${subTab === 'pending' ? 'border-amber-500/20 hover:border-amber-500/40' : 'border-border hover:border-cyan-500/30'}`}>
-                                            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                                <div className="flex-1 space-y-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 overflow-hidden flex items-center justify-center shrink-0">
-                                                            {account.avatar_url
-                                                                ? <img src={account.avatar_url} className="w-full h-full object-cover" alt="" />
-                                                                : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
-                                                            }
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-bold text-foreground">{account.full_name || 'Unbekannt'}</div>
-                                                            <div className="text-xs text-muted-foreground">@{account.username || '–'}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className={`px-2 py-0.5 rounded-md font-bold uppercase tracking-wide border ${
-                                                            account.role === 'scout'
-                                                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                                        }`}>
-                                                            {account.role === 'scout' ? '🔍 Scout' : '🎯 Trainer'}
-                                                        </span>
-                                                        <span className="text-muted-foreground">{account.email || 'Keine E-Mail'}</span>
-                                                    </div>
-                                                    <div className="text-[11px] text-muted-foreground">
-                                                        {subTab === 'pending' 
-                                                            ? `Registriert: ${new Date(account.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-                                                            : `Bearbeitet: ${new Date(account.updated_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-                                                        }
-                                                    </div>
-                                                    
-                                                    {subTab === 'recent' && (
-                                                        <div className="mt-2">
-                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border ${
-                                                                account.verification_status === 'approved' 
-                                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                                                                    : 'bg-red-500/10 text-red-400 border-red-500/30'
-                                                            }`}>
-                                                                {account.verification_status === 'approved' ? <CheckCircle size={14}/> : <XCircle size={14}/>}
-                                                                {account.verification_status === 'approved' ? 'Zugestimmt' : 'Abgelehnt'}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex flex-row sm:flex-col gap-2">
-                                                    {subTab === 'pending' ? (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleAccountAction(account, 'approved')}
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/20 transition-all font-bold text-sm"
-                                                            >
-                                                                Zulassen ✅
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleAccountAction(account, 'rejected')}
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-sm"
-                                                            >
-                                                                Ablehnen ❌
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleUndoAccount(account)}
-                                                            className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-all font-bold text-sm"
-                                                        >
-                                                            <Undo size={16} /> Rückgängig
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {/* ==================== CAREER TAB ==================== */}
-                    {activeTab === 'career' && (
-                        <>
-                            {renderSubNavigation()}
-                            <h3 className="text-sm uppercase tracking-wider font-bold text-muted-foreground mb-4">
-                                {subTab === 'pending' ? `Offene Karriere-Prüfungen (${careerRequests.length})` : `Kürzlich bearbeitet (${recentCareerRequests.length})`}
-                            </h3>
-
-                            {(subTab === 'pending' ? careerLoading : recentCareerLoading) ? (
-                                <div className="flex items-center justify-center h-40">
-                                    <Loader2 size={24} className="text-cyan-500 animate-spin" />
-                                </div>
-                            ) : (subTab === 'pending' ? careerRequests : recentCareerRequests).length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-2xl bg-black/10">
-                                    <Trophy size={32} className="text-emerald-500 mb-3" />
-                                    <p className="text-muted-foreground font-medium">
-                                        {subTab === 'pending' ? 'Alle Karriere-Daten sind verifiziert!' : 'Keine kürzlich bearbeiteten Karriere-Stationen.'}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {(subTab === 'pending' ? careerRequests : recentCareerRequests).map((req) => (
-                                        <div key={req.id} className={`bg-black/20 border rounded-2xl p-4 transition-all ${subTab === 'pending' ? 'border-border hover:border-cyan-500/50' : 'border-border hover:border-cyan-500/30'}`}>
-                                            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                                <div className="flex-1 space-y-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 overflow-hidden">
-                                                            {req.players_master?.avatar_url 
-                                                                ? <img src={req.players_master.avatar_url} className="w-full h-full object-cover" />
-                                                                : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
-                                                            }
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-bold text-foreground">{req.players_master?.full_name || 'Unbekannter Spieler'}</div>
-                                                            <div className="text-xs text-muted-foreground">@{req.players_master?.username || '–'}</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="bg-white/5 border border-white/5 p-3 rounded-xl space-y-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <Shield size={14} className="text-amber-400" />
-                                                            <span className="font-bold text-sm text-foreground">{req.club_name}</span>
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground ml-6">
-                                                            {req.league && `${req.league} • `}
-                                                            {req.start_date ? new Date(req.start_date).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : '?'}
-                                                            {' – '}
-                                                            {req.end_date ? new Date(req.end_date).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' }) : 'Heute'}
-                                                        </div>
-                                                    </div>
-
-                                                    {req.proof_url && (
-                                                        <a 
-                                                            href={req.proof_url} 
-                                                            target="_blank" 
-                                                            rel="noreferrer" 
-                                                            className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition font-bold"
-                                                        >
-                                                            <ExternalLink size={14} />
-                                                            Beweis-Link öffnen
-                                                        </a>
-                                                    )}
-
-                                                    {subTab === 'recent' && (
-                                                        <div className="mt-2">
-                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border ${
-                                                                req.verification_status === 'approved' 
-                                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                                                                    : 'bg-red-500/10 text-red-400 border-red-500/30'
-                                                            }`}>
-                                                                {req.verification_status === 'approved' ? <CheckCircle size={14}/> : <XCircle size={14}/>}
-                                                                {req.verification_status === 'approved' ? 'Zugestimmt' : 'Abgelehnt'}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex flex-row sm:flex-col gap-2 shrink-0">
-                                                    {subTab === 'pending' ? (
-                                                        <>
-                                                            <button 
-                                                                onClick={() => handleCareerAction(req, 'approved')} 
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/20 transition-all font-bold text-sm"
-                                                            >
-                                                                Bestätigen ✅
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleCareerAction(req, 'rejected')} 
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-sm"
-                                                            >
-                                                                Entfernen ❌
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleUndoCareer(req)}
-                                                            className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-all font-bold text-sm"
-                                                        >
-                                                            <Undo size={16} /> Rückgängig
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {/* ==================== CLAIMS TAB ==================== */}
-                    {activeTab === 'claims' && (
-                        <>
-                            {renderSubNavigation()}
-                            <h3 className="text-sm uppercase tracking-wider font-bold text-muted-foreground mb-4">
-                                {subTab === 'pending' ? `Offene Vereins-Claims (${claims.length})` : `Kürzlich bearbeitet (${recentClaims.length})`}
-                            </h3>
-
-                            {(subTab === 'pending' ? claimsLoading : recentClaimsLoading) ? (
-                                <div className="flex items-center justify-center h-40">
-                                    <Loader2 size={24} className="text-cyan-500 animate-spin" />
-                                </div>
-                            ) : (subTab === 'pending' ? claims : recentClaims).length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-2xl bg-black/10">
-                                    <Check size={32} className="text-emerald-500 mb-3" />
-                                    <p className="text-muted-foreground font-medium">
-                                        {subTab === 'pending' ? 'Alle Anfragen wurden abgearbeitet!' : 'Keine kürzlich bearbeiteten Vereins-Claims.'}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {(subTab === 'pending' ? claims : recentClaims).map((claim) => (
-                                        <div key={claim.id} className={`bg-black/20 border rounded-2xl p-4 transition-all ${subTab === 'pending' ? 'border-border hover:border-cyan-500/50' : 'border-border hover:border-cyan-500/30'}`}>
-                                            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                                                <div className="flex-1 space-y-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30">
-                                                            <Building size={20} className="text-cyan-400" />
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-bold text-foreground">{claim.club?.name || 'Unbekannter Verein'}</div>
-                                                            <div className="text-xs text-muted-foreground">Club ID: {claim.club_id}</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-2 px-3 py-2 bg-black/20 rounded-lg">
-                                                        <User size={14} className="text-slate-400" />
-                                                        <span className="text-sm font-medium text-slate-300">
-                                                            {claim.user?.full_name || 'Unbekannter Spieler'} <span className="text-muted-foreground text-xs">(@{claim.user?.username || '–'})</span>
-                                                        </span>
-                                                    </div>
-
-                                                    {claim.proof_text && (
-                                                        <div className="text-sm text-muted-foreground bg-white/5 p-3 rounded-lg border border-white/5 italic">
-                                                            "{claim.proof_text}"
-                                                        </div>
-                                                    )}
-
-                                                    {subTab === 'recent' && (
-                                                        <div className="mt-2">
-                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border ${
-                                                                claim.status === 'approved' 
-                                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                                                                    : 'bg-red-500/10 text-red-400 border-red-500/30'
-                                                            }`}>
-                                                                {claim.status === 'approved' ? <CheckCircle size={14}/> : <XCircle size={14}/>}
-                                                                {claim.status === 'approved' ? 'Zugestimmt' : 'Abgelehnt'}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex flex-row sm:flex-col gap-2">
-                                                    {subTab === 'pending' ? (
-                                                        <>
-                                                            <button 
-                                                                onClick={() => handleClaimAction(claim, 'approved')} 
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 rounded-xl hover:bg-emerald-500/20 transition-all font-bold text-sm"
-                                                            >
-                                                                Zulassen ✅
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleClaimAction(claim, 'rejected')} 
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-sm"
-                                                            >
-                                                                Ablehnen ❌
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleUndoClaim(claim)}
-                                                            className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-all font-bold text-sm"
-                                                        >
-                                                            <Undo size={16} /> Rückgängig
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    )}
-
-                    {/* ==================== REPORTS TAB ==================== */}
-                    {activeTab === 'reports' && (
-                        <>
-                            {/* Filter Pills */}
-                            <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
-                                {[
-                                    { id: 'all', label: 'Alle', count: reports.length },
-                                    { id: 'pending', label: 'Ausstehend', count: reports.filter(r => r.status === 'pending').length },
-                                    { id: 'in_review', label: 'In Bearbeitung', count: reports.filter(r => r.status === 'in_review').length },
-                                    { id: 'resolved', label: 'Erledigt', count: reports.filter(r => r.status === 'resolved').length },
-                                ].map(f => (
-                                    <button
-                                        key={f.id}
-                                        onClick={() => setReportFilter(f.id)}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
-                                            reportFilter === f.id
-                                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                                                : 'bg-black/20 text-muted-foreground border border-border hover:bg-black/30'
-                                        }`}
-                                    >
-                                        {f.label}
-                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                                            reportFilter === f.id ? 'bg-cyan-500/30' : 'bg-white/5'
-                                        }`}>{f.count}</span>
+                            {/* Sidebar Menu */}
+                            <motion.div 
+                                initial={{ x: '-100%' }} 
+                                animate={{ x: 0 }} 
+                                exit={{ x: '-100%' }} 
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="absolute top-0 left-0 bottom-0 w-64 bg-[#0A0A0A] border-r border-white/10 shadow-2xl z-[50000] flex flex-col"
+                            >
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Shield className="text-blue-600" size={24} />
+                                        <h3 className="font-black text-white text-lg">Admin Menü</h3>
+                                    </div>
+                                    <button onClick={() => setIsSidebarOpen(false)}>
+                                        <X size={20} className="text-zinc-500 hover:text-white transition-colors" />
                                     </button>
-                                ))}
-                            </div>
-
-                            {reportsLoading ? (
-                                <div className="flex items-center justify-center h-40">
-                                    <Loader2 size={24} className="text-cyan-500 animate-spin" />
                                 </div>
-                            ) : filteredReports.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-2xl bg-black/10">
-                                    <CheckCircle size={32} className="text-emerald-500 mb-3" />
-                                    <p className="text-muted-foreground font-medium">
-                                        {reportFilter === 'all' ? 'Keine Meldungen vorhanden.' : 'Keine Meldungen mit diesem Status.'}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {filteredReports.map((report) => {
-                                        const statusConf = STATUS_CONFIG[report.status] || STATUS_CONFIG.pending;
-                                        const StatusIcon = statusConf.icon;
-                                        const typeLabel = TARGET_TYPE_LABELS[report.target_type] || report.target_type || 'Unbekannt';
-                                        const isLinkable = report.target_type === 'profile' || report.target_type === 'user';
-                                        const isCritical = report.targetReportCount >= 5;
-
+                                <div className="p-4 flex-1 overflow-y-auto space-y-1">
+                                    {MENU_ITEMS.map((item) => {
+                                        const Icon = item.icon;
+                                        const isActive = activeView === item.id;
                                         return (
-                                            <div
-                                                key={report.id}
-                                                className={`bg-black/20 border rounded-2xl p-4 transition-all relative overflow-hidden ${
-                                                    isCritical 
-                                                        ? 'border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.1)]' 
-                                                        : report.status === 'pending'
-                                                            ? 'border-amber-500/30'
-                                                            : report.status === 'in_review'
-                                                                ? 'border-blue-500/30'
-                                                                : 'border-border'
+                                            <button
+                                                key={item.id}
+                                                onClick={() => {
+                                                    setActiveView(item.id);
+                                                    setIsSidebarOpen(false);
+                                                }}
+                                                className={`w-full flex items-center justify-between p-3 rounded-xl font-bold transition-all ${
+                                                    isActive 
+                                                    ? 'bg-blue-600/10 text-blue-500 border border-blue-600/20' 
+                                                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                                                 }`}
                                             >
-                                                {isCritical && report.status === 'pending' && (
-                                                    <div className="absolute top-0 right-0 px-3 py-1 bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter rounded-bl-xl flex items-center gap-1 z-10 animate-pulse">
-                                                        <AlertTriangle size={12} /> Kritisch ({report.targetReportCount})
-                                                    </div>
-                                                )}
-
-                                                {/* Top Row: Reporter + Status Badge */}
-                                                <div className="flex items-start justify-between gap-3 mb-3">
-                                                    <div className="flex items-center gap-2.5 min-w-0">
-                                                        <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 shrink-0">
-                                                            <Flag size={16} className="text-red-400" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <div className="font-bold text-foreground text-sm truncate">
-                                                                {report.reporter?.full_name || 'Unbekannt'}
-                                                            </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {report.reporter?.username ? `@${report.reporter.username}` : 'Gelöschter Account'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 border
-                                                        ${statusConf.color === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : ''}
-                                                        ${statusConf.color === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : ''}
-                                                        ${statusConf.color === 'emerald' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : ''}
-                                                    `}>
-                                                        <StatusIcon size={12} />
-                                                        {statusConf.label}
+                                                <div className="flex items-center gap-3">
+                                                    <Icon size={18} />
+                                                    <span className="text-sm">{item.label}</span>
+                                                </div>
+                                                {item.badge > 0 && (
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                                        isActive ? 'bg-blue-600 text-white' : 'bg-red-500 text-white'
+                                                    }`}>
+                                                        {item.badge}
                                                     </span>
-                                                </div>
-
-                                                {/* Details */}
-                                                <div className="space-y-2 mb-3">
-                                                    <div className="flex items-center gap-3 text-xs">
-                                                        <span className="text-muted-foreground">Typ:</span>
-                                                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-md font-bold text-foreground/80">{typeLabel}</span>
-                                                        {isLinkable && (
-                                                            <button
-                                                                onClick={() => handleDeepLink(report.target_id, report.target_type)}
-                                                                className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition font-bold"
-                                                            >
-                                                                <ExternalLink size={12} />
-                                                                {report.targetProfile?.full_name ? `@${report.targetProfile.username || report.targetProfile.full_name}` : 'Profil ansehen'}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-sm text-foreground/80 bg-white/5 p-3 rounded-lg border border-white/5 italic leading-relaxed">
-                                                        &ldquo;{report.reason}&rdquo;
-                                                    </div>
-                                                    <div className="text-[11px] text-muted-foreground">
-                                                        {new Date(report.created_at).toLocaleDateString('de-DE', {
-                                                            day: '2-digit', month: '2-digit', year: 'numeric',
-                                                            hour: '2-digit', minute: '2-digit'
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                {/* Action Buttons */}
-                                                {report.status !== 'resolved' && (
-                                                    <div className="flex flex-col gap-2 pt-3 border-t border-border">
-                                                        <div className="flex gap-2">
-                                                            {report.status !== 'in_review' && (
-                                                                <button
-                                                                    onClick={() => handleReportStatusUpdate(report.id, 'in_review')}
-                                                                    className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 transition-all font-bold text-xs"
-                                                                >
-                                                                    <Eye size={14} />
-                                                                    Review
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={() => handleReportAction(report, 'dismiss')}
-                                                                className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-zinc-500/10 text-muted-foreground border border-zinc-500/30 rounded-xl hover:bg-zinc-500/20 transition-all font-bold text-xs"
-                                                            >
-                                                                <XCircle size={14} />
-                                                                Ignorieren
-                                                            </button>
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => handleReportAction(report, 'delete')}
-                                                                className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500/20 transition-all font-bold text-xs"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                                Löschen
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReportAction(report, 'ban')}
-                                                                className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2 bg-zinc-900 dark:bg-black text-white border border-white/10 rounded-xl hover:bg-zinc-800 transition-all font-bold text-xs"
-                                                            >
-                                                                <ShieldAlert size={14} />
-                                                                Sperren
-                                                            </button>
-                                                        </div>
-                                                    </div>
                                                 )}
-                                            </div>
+                                            </button>
                                         );
                                     })}
                                 </div>
-                            )}
+                            </motion.div>
                         </>
                     )}
-                </div>
-            </div>
-            {/* Confirmation Modal */}
-            {confirmAction && (
-                <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 border border-border w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl">
-                        <div className="p-6 text-center space-y-4">
-                            <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                                <AlertTriangle className="text-amber-500" size={32} />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-foreground tracking-tight">{confirmAction.title}</h3>
-                                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{confirmAction.message}</p>
-                            </div>
-                            <div className="flex gap-3 pt-2">
-                                <button 
-                                    onClick={() => setConfirmAction(null)}
-                                    className="flex-1 py-3 px-4 rounded-xl border border-border font-bold text-sm hover:bg-black/5 dark:hover:bg-white/5 transition"
-                                >
-                                    Abbrechen
-                                </button>
-                                <button 
-                                    onClick={confirmAction.onConfirm}
-                                    className={`flex-1 py-3 px-4 rounded-xl text-white font-bold text-sm shadow-lg transition active:scale-95 ${confirmAction.confirmClass}`}
-                                >
-                                    {confirmAction.confirmText}
-                                </button>
-                            </div>
+                </AnimatePresence>
+
+                {/* Detail Modal */}
+                <AnimatePresence>
+                    {selectedReportGroup && (
+                        <div className="fixed inset-0 z-[60000] flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedReportGroup(null)} className="absolute inset-0 bg-[#050505]/90 backdrop-blur-sm" />
+                            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative w-full max-w-lg bg-[#111] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+                                <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#050505]">
+                                    <h3 className="font-black text-white">Details prüfen</h3>
+                                    <button onClick={() => setSelectedReportGroup(null)}><X size={20} className="text-zinc-500 hover:text-white" /></button>
+                                </div>
+                                <div className="p-5 overflow-y-auto space-y-4 custom-scrollbar">
+                                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                                        <h4 className="text-[10px] font-black uppercase text-zinc-500 mb-2 tracking-widest">Inhalts-Vorschau</h4>
+                                        {selectedReportGroup.target_type === 'video' ? (
+                                            <video src={selectedReportGroup.targetData?.video_url} controls className="w-full aspect-video rounded-xl bg-black border border-white/10" />
+                                        ) : <p className="text-zinc-300 text-sm p-3 bg-black/50 rounded-xl border border-white/5">"{selectedReportGroup.targetData?.content || selectedReportGroup.targetData?.full_name}"</p>}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h4 className="text-[10px] font-black uppercase text-zinc-500 mb-1 tracking-widest">Meldungen ({selectedReportGroup.reports.length})</h4>
+                                        {selectedReportGroup.reports.map((r, i) => (
+                                            <div key={i} className="p-3 bg-white/[0.02] rounded-xl border border-white/5">
+                                                <p className="text-sm text-zinc-300 font-medium">{r.reason}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
                         </div>
+                    )}
+                </AnimatePresence>
+
+                {/* Confirmation Modal */}
+                {confirmAction && (
+                    <div className="fixed inset-0 z-[70000] flex items-center justify-center p-4 bg-[#050505]/80 backdrop-blur-md">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm bg-[#111] border border-white/10 p-6 rounded-3xl shadow-2xl text-center">
+                            <AlertTriangle className="mx-auto text-blue-500 mb-4" size={40} />
+                            <h3 className="text-xl font-black text-white mb-2">{confirmAction.title}</h3>
+                            <p className="text-zinc-400 text-sm mb-6">{confirmAction.message}</p>
+                            <div className="flex gap-3">
+                                <button onClick={() => setConfirmAction(null)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors">Abbrechen</button>
+                                <button onClick={confirmAction.onConfirm} className={`flex-1 py-3 text-white font-black rounded-xl transition-all ${confirmAction.confirmClass}`}>{confirmAction.confirmText}</button>
+                            </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };

@@ -29,10 +29,11 @@ export const ReportModal = ({ targetId, targetType, onClose, session }) => {
         if (!reason) return;
         setIsSubmitting(true);
         try {
-            await api.submitReport(session.user.id, targetId, targetType, reason);
+            const result = await api.submitReport(session.user.id, targetId, targetType, reason);
+            console.log("Report Insert Result:", result);
             setStep(STEPS.HIDE);
         } catch (error) {
-            console.error("Report failed:", error);
+            console.error("Report Insert Error:", error);
             addToast("Meldung konnte nicht gesendet werden.", "error");
             setIsSubmitting(false);
         }
