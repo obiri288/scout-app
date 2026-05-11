@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Bookmark, Share2, User, VolumeX, Volume2, X, Send, MoreVertical, Archive, Trash2, Edit, Flag, AlertTriangle, Eye, EyeOff, Scan, Play, Pause, Maximize2 } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, Share2, User, VolumeX, Volume2, X, Send, MoreVertical, Archive, Trash2, Edit, Flag, AlertTriangle, Eye, EyeOff, Scan, Play, Pause, Maximize2, ChevronLeft } from 'lucide-react';
 import { inputStyle } from '../lib/styles';
 import { getClubStyle } from '../lib/helpers';
 import * as api from '../lib/api';
