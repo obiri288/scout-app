@@ -7,6 +7,9 @@ import { EmptyState } from './EmptyState';
 import * as api from '../lib/api';
 
 import { CommentItem } from './CommentItem';
+import { CommentActionMenu } from './CommentActionMenu';
+import { ReportModal } from './ReportModal';
+import { useUser } from '../contexts/UserContext';
 
 export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
@@ -16,12 +19,21 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const { addToast } = useToast();
     const videoCreatorId = video.players_master?.user_id || video.user_id;
     const isCreator = session?.user?.id === videoCreatorId;
+    const { currentUserProfile } = useUser();
+
+    const [actionComment, setActionComment] = useState(null);
+    const [reportTarget, setReportTarget] = useState(null);
 
     const loadComments = async () => {
         try {
             const data = await api.fetchComments(video.id);
+            
+            // Client-side filtering for hidden comments
+            const hiddenComments = currentUserProfile?.hidden_comments || [];
+            const filteredData = (data || []).filter(c => !hiddenComments.includes(c.id));
+
             // Smart Sorting: Pin first, then likes, then date
-            const sorted = (data || []).sort((a, b) => {
+            const sorted = filteredData.sort((a, b) => {
                 if (a.is_pinned !== b.is_pinned) return b.is_pinned ? 1 : -1;
                 const aLikes = a.comment_likes?.length || 0;
                 const bLikes = b.comment_likes?.length || 0;
@@ -42,7 +54,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         const handleLikeUpdate = () => loadComments();
         window.addEventListener('commentLikeUpdate', handleLikeUpdate);
         return () => window.removeEventListener('commentLikeUpdate', handleLikeUpdate);
-    }, [video.id]);
+    }, [video.id, currentUserProfile]);
 
     const sendComment = async (e) => {
         e.preventDefault();
@@ -161,10 +173,35 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                                 isCreator={isCreator}
                                 onDelete={handleDelete} 
                                 onPin={handlePin}
+                                onActionReq={setActionComment}
                             />
                         ))
                     )}
                 </div>
+
+                {/* Comment Actions Menu (Long-press result) */}
+                <CommentActionMenu 
+                    comment={actionComment}
+                    session={session}
+                    videoCreatorId={videoCreatorId}
+                    isOpen={!!actionComment}
+                    onClose={() => setActionComment(null)}
+                    onDelete={handleDelete}
+                    onReport={(c) => setReportTarget({ id: c.id, type: 'comment' })}
+                />
+
+                {/* Shared Report Flow */}
+                {reportTarget && (
+                    <ReportModal 
+                        targetId={reportTarget.id}
+                        targetType={reportTarget.type}
+                        session={session}
+                        onClose={() => {
+                            setReportTarget(null);
+                            loadComments(); // Refresh to catch hidden/quarantined
+                        }}
+                    />
+                )}
 
                 <div className="p-4 border-t border-border bg-white dark:bg-zinc-900/80 backdrop-blur-md flex flex-col gap-3">
                     <form onSubmit={sendComment} className="flex gap-2">

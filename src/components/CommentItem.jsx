@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Heart, Pin, Trash2 } from 'lucide-react';
 import * as api from '../lib/api';
 
@@ -15,7 +15,31 @@ export const CommentText = ({ content }) => {
     );
 };
 
-export const CommentItem = ({ comment, session, videoCreatorId, currentVideoId, isCreator, onDelete, onPin }) => {
+export const CommentItem = ({ comment, session, videoCreatorId, currentVideoId, isCreator, onDelete, onPin, onActionReq }) => {
+    const timerRef = useRef(null);
+    const [isPressing, setIsPressing] = useState(false);
+
+    const handlePressStart = (e) => {
+        // Only trigger if not already processing a long press
+        if (timerRef.current) return;
+        
+        setIsPressing(true);
+        timerRef.current = setTimeout(() => {
+            if (navigator.vibrate) navigator.vibrate(50);
+            if (onActionReq) onActionReq(comment);
+            setIsPressing(false);
+            timerRef.current = null;
+        }, 800);
+    };
+
+    const handlePressEnd = () => {
+        setIsPressing(false);
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+    };
+
     const likesCount = comment.comment_likes?.length || 0;
     const isLiked = comment.comment_likes?.some(l => l.user_id === session?.user?.id);
     const creatorLiked = comment.comment_likes?.some(l => l.user_id === videoCreatorId);
@@ -33,7 +57,14 @@ export const CommentItem = ({ comment, session, videoCreatorId, currentVideoId, 
     };
 
     return (
-        <div className={`p-4 rounded-2xl border transition-all duration-300 relative ${comment.is_pinned ? 'bg-blue-50/50 dark:bg-blue-500/5 border-blue-200 dark:border-blue-500/20' : 'bg-slate-50 dark:bg-zinc-800/50 border-border'}`}>
+        <div 
+            onTouchStart={handlePressStart}
+            onTouchEnd={handlePressEnd}
+            onMouseDown={handlePressStart}
+            onMouseUp={handlePressEnd}
+            onMouseLeave={handlePressEnd}
+            className={`p-4 rounded-2xl border transition-all duration-300 relative select-none ${isPressing ? 'scale-[0.98] brightness-95' : ''} ${comment.is_pinned ? 'bg-blue-50/50 dark:bg-blue-500/5 border-blue-200 dark:border-blue-500/20' : 'bg-slate-50 dark:bg-zinc-800/50 border-border'}`}
+        >
             {comment.is_pinned && (
                 <div className="flex items-center gap-1 text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-2">
                     <Pin size={10} className="fill-blue-500" /> Angepinnt

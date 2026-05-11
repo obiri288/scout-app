@@ -626,6 +626,7 @@ export const fetchComments = async (videoId) => {
     const { data: comments, error } = await supabase.from('media_comments')
         .select('*, comment_likes(user_id)')
         .eq('video_id', videoId)
+        .eq('is_under_review', false)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false });
         
@@ -917,7 +918,7 @@ export const createClub = async (name) => {
 export const submitReport = async (reporterId, targetId, targetType, reason) => {
     const { error } = await supabase.rpc('submit_report_v2', {
         p_reporter_id: reporterId,
-        p_target_id: targetId,
+        p_target_id_text: targetId.toString(),
         p_target_type: targetType,
         p_reason: reason
     });
@@ -925,7 +926,13 @@ export const submitReport = async (reporterId, targetId, targetType, reason) => 
 };
 
 export const hideContent = async (userId, targetId, targetType) => {
-    const column = targetType === 'video' ? 'hidden_videos' : 'hidden_profiles';
+    const columnMap = {
+        'video': 'hidden_videos',
+        'profile': 'hidden_profiles',
+        'comment': 'hidden_comments'
+    };
+    const column = columnMap[targetType];
+    if (!column) return;
     
     // Fetch current list
     const { data: profile } = await supabase.from('players_master')
