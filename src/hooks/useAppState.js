@@ -13,7 +13,7 @@ export const useAppState = () => {
     const {
         authLoading, profileLoading,
         session, setSession, currentUserProfile, updateProfile,
-        refreshProfile, unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
+        refreshProfile, unreadCount, resetUnreadCount, logout, adminUnreadCount, unreadMessageUsersCount,
         setUnreadMessageUsersCount, checkUnreadMessages,
         isRecoveryMode, setIsRecoveryMode, isAuthCallback,
         pendingReactivationProfile, confirmReactivation
