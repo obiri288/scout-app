@@ -6,7 +6,7 @@ import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { getClubBorderColor } from '../lib/helpers';
 import { useToast } from '../contexts/ToastContext';
 import { ImageCropModal } from './ImageCropModal';
-import { geocodeCity } from '../lib/api';
+import * as api from '../lib/api';
 import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
 import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
 import { CountryCombobox } from './CountryCombobox';
@@ -33,6 +33,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
 
     const isCoach = profile?.role === 'coach';
     const isScout = profile?.role === 'scout';
+    const isPlayer = !isCoach && !isScout && profile?.role !== 'admin' && profile?.role !== 'manager';
 
     const [formData, setFormData] = useState({
         username: profile?.username || '',
@@ -312,6 +313,18 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const handleSave = async (e) => {
         e.preventDefault();
         
+        // Phishing Protection: Validate reserved words
+        const reservedWords = ['cavio', 'support', 'admin', 'system', 'official', 'verified', 'moderator'];
+        const nameFields = [formData.first_name, formData.last_name, formData.username];
+        const containsReserved = nameFields.some(field => 
+            field && reservedWords.some(word => field.toLowerCase().includes(word))
+        );
+
+        if (containsReserved && profile.role !== 'system') {
+            addToast('Reservierter Name: Begriffe wie "CAVIO" oder "Support" sind offiziellen Accounts vorbehalten.', 'error');
+            return;
+        }
+
         const ageInfo = calculateAgeInfo(formData.birth_date);
         if (ageInfo.isUnder16) {
             addToast(`Du musst mindestens ${MIN_AGE} Jahre alt sein.`, 'error');
@@ -364,7 +377,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
             let latitude = profile.latitude || null;
             let longitude = profile.longitude || null;
             if (formData.city && formData.city !== profile.city) {
-                const coords = await geocodeCity(formData.city);
+                const coords = await api.geocodeCity(formData.city);
                 if (coords) {
                     latitude = coords.lat;
                     longitude = coords.lng;
@@ -373,8 +386,16 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
 
             const full_name = `${formData.first_name} ${formData.last_name}`.trim();
             
+            // Ensure the user has a vanity slug
+            let finalSlug = profile.slug;
+            if (!finalSlug) {
+                const baseSlug = api.generateSlug(full_name || formData.username || 'user');
+                finalSlug = await api.ensureUniqueSlug(baseSlug, profile.id);
+            }
+            
             // Build base updates (shared fields)
             const updates = {
+                slug: finalSlug,
                 first_name: formData.first_name,
                 last_name: formData.last_name,
                 full_name,
@@ -470,7 +491,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                 <div className="flex gap-2 py-3 px-4 border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto scrollbar-hide">
                     <TabButton id="general" label="Allgemein" icon={User} />
                     <TabButton id="sport" label={isScout ? 'Scouting' : 'Sportlich'} icon={isScout ? Briefcase : Activity} />
-                    <TabButton id="badges" label="Badges" icon={Award} />
+                    {isPlayer && <TabButton id="badges" label="Badges" icon={Award} />}
                     <TabButton id="historie" label="Historie" icon={History} />
                     <TabButton id="social" label="Socials" icon={Share2} />
                 </div>
@@ -483,7 +504,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                 <div className="flex justify-center">
                                     <div className="relative group cursor-pointer">
                                         <div className="w-28 h-28 rounded-full bg-slate-200 dark:bg-zinc-800 border-4 border-white dark:border-zinc-900 overflow-hidden shadow-xl">
-                                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-muted-foreground m-8" />}
+                                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-8 opacity-60" />}
                                         </div>
                                         <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
                                             <Camera size={28} className="text-white" />
@@ -969,8 +990,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                             </div>
                         )}
 
-                        {/* TAB: BADGES */}
-                        {activeTab === 'badges' && (
+                        {/* TAB: BADGES — player only */}
+                        {isPlayer && activeTab === 'badges' && (
                             <div className="space-y-5 animate-in slide-in-from-right-4 fade-in duration-300">
                                 <div className="bg-gradient-to-r from-amber-500/10 via-violet-500/10 to-cyan-500/10 p-4 rounded-xl border border-amber-500/20">
                                     <h3 className="font-bold text-foreground text-sm flex items-center gap-2 mb-1">⚡ Signature Badges</h3>
@@ -1306,7 +1327,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                     try {
                                         setLoading(true);
                                         const { error: hlErr } = await supabase.from('media_highlights').insert({
-                                            player_id: player.id,
+                                            player_id: profile.id,
                                             post_type: 'transfer',
                                             transfer_data: transferData,
                                         });

@@ -3,8 +3,8 @@ import { Building, ArrowLeft, Menu } from 'lucide-react';
 
 const TeamsScreen = ({ currentUserProfile, onBack, onMenuOpen }) => {
     return (
-        <div className="flex flex-col h-full bg-background min-h-screen pt-16 sm:pt-20 pb-24">
-            <div className="px-4 py-4 sticky top-0 bg-background/90 backdrop-blur-md z-10 flex items-center justify-between">
+        <div className="flex flex-col h-full bg-background min-h-screen pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-20 pb-24">
+            <div className="px-4 py-4 sticky top-0 bg-background/90 backdrop-blur-md z-10 flex items-center justify-between pt-[env(safe-area-inset-top)] border-b border-white/5">
                 <div className="flex items-center gap-3">
                     {currentUserProfile?.role === 'admin' && (
                         <button onClick={onMenuOpen} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition text-foreground">

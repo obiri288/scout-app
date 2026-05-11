@@ -1,19 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Flag, Play, User, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Heart, MessageCircle, Share2, MoreVertical, Flag, Play, User, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand, VolumeX, Volume2, Bookmark, Archive, Trash2, EyeOff, AlertTriangle, Edit } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
+import { ShareModal } from './ShareModal';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
+import { generateShareText } from '../lib/shareEngine';
 import { getClubStyle } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
 import { useInteractionStatus } from '../hooks/useInteractionStatus';
+import { useUser } from '../contexts/UserContext';
 
 const ACTION_TAG_ICONS = { Traumpass: Zap, Dribbling: Wind, Abschluss: Crosshair, Flanke: ArrowUpRight, Zweikampf: Swords, Balleroberung: ShieldCheck, Speed: Gauge, Ballkontrolle: CircleDot, Einsatz: Flame, Parade: Hand };
 
 export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
-    const { status: liked, count: likes, toggle: toggleLike } = useInteractionStatus({
+    const { status: liked, count: likes, toggle: toggleLike, forceState: forceLikeState } = useInteractionStatus({
         type: 'video_like',
         targetId: video.id,
         session,
@@ -21,8 +24,62 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         initialStatus: false
     });
     
-    const [commentCount, setCommentCount] = useState(0);
+    const { status: saved, toggle: toggleSave, forceState: forceSaveState } = useInteractionStatus({
+        type: 'video_save',
+        targetId: video.id,
+        session,
+        initialStatus: false
+    });
+    
+    const { addToast } = useToast();
+    
+    const handleLike = async (e) => {
+        e.stopPropagation();
+        try {
+            await toggleLike();
+        } catch {
+            addToast('Like fehlgeschlagen', 'error');
+        }
+    };
+    
+    const handleSave = async (e) => {
+        e.stopPropagation();
+        try {
+            await toggleSave();
+        } catch {
+            addToast('Speichern fehlgeschlagen', 'error');
+        }
+    };
+    
+    const [commentCount, setCommentCount] = useState(video.comments_count || 0);
+    const [shareData, setShareData] = useState({ text: '', url: '' });
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
+    const [isShareOpen, setIsShareOpen] = useState(false);
+    
+    const { currentUserProfile } = useUser();
+    const userRole = currentUserProfile?.role || 'scout';
+    const videoCreatorId = video?.players_master?.user_id || video?.user_id;
+    const isCreator = session?.user?.id === videoCreatorId;
+    
+    // Global listener for interaction updates from ImmersiveVideoPlayer
+    useEffect(() => {
+        const handleInteractionUpdate = (e) => {
+            if (e.detail.videoId === video.id) {
+                if (e.detail.newLikeState !== undefined) {
+                    forceLikeState(e.detail.newLikeState, e.detail.newLikeCount);
+                }
+                if (e.detail.newSaveState !== undefined) {
+                    forceSaveState(e.detail.newSaveState);
+                }
+            }
+        };
+        window.addEventListener('videoInteractionUpdate', handleInteractionUpdate);
+        return () => window.removeEventListener('videoInteractionUpdate', handleInteractionUpdate);
+    }, [video.id, forceLikeState, forceSaveState]);
     
     // Global listener for comment updates
     useEffect(() => {
@@ -36,7 +93,6 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     }, [video.id]);
     const videoRef = useRef(null);
     const { ref: observerRef, isIntersecting } = useIntersectionObserver({ threshold: 0.5 });
-    const { addToast } = useToast();
 
     // Force Initial State Fetching for Comment Count (Status/Likes now handled by hook)
     useEffect(() => {
@@ -66,11 +122,22 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         if (!videoEl) return;
 
         if (isIntersecting) {
+            // Reset to start_time if needed
+            if (video.start_time > 0 && videoEl.currentTime < video.start_time) {
+                videoEl.currentTime = video.start_time;
+            }
             videoEl.play().catch(() => { }); // Autoplay may be blocked
         } else {
             videoEl.pause();
         }
-    }, [isIntersecting]);
+    }, [isIntersecting, video.start_time]);
+
+    const handleTimeUpdate = (e) => {
+        const videoEl = e.currentTarget;
+        if (video.end_time && videoEl.currentTime >= video.end_time) {
+            videoEl.currentTime = video.start_time || 0;
+        }
+    };
 
     const like = async (e) => {
         e.stopPropagation();
@@ -106,9 +173,115 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     }
                 }
             }
+            if (wasLiked) {
+                addToast("Like entfernt", 'info');
+            }
         } catch (error) {
             addToast(error?.message || "Like fehlgeschlagen.", 'error');
         }
+    };
+
+    const save = async (e) => {
+        e.stopPropagation();
+        if (!session) return;
+        try {
+            const wasSaved = saved;
+            await toggleSave();
+            if (!wasSaved) {
+                addToast("In Watchlist gespeichert", 'success');
+            } else {
+                addToast("Aus Watchlist entfernt", 'info');
+            }
+        } catch (error) {
+            addToast("Speichern fehlgeschlagen.", 'error');
+        }
+    };
+
+    const toggleMute = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsMuted(prev => !prev);
+    };
+
+    const handleArchive = async (e) => {
+        e.stopPropagation();
+        if (isArchiving) return;
+        setIsArchiving(true);
+        try {
+            await api.archiveHighlight(video.id);
+            addToast('Video archiviert. Es ist nun nur noch in deinem Profil-Archiv sichtbar.', 'success');
+            setShowMenu(false);
+            // Dispatch event to refresh feeds
+            window.dispatchEvent(new CustomEvent('videoArchived', { detail: { videoId: video.id } }));
+        } catch (error) {
+            addToast('Archivieren fehlgeschlagen.', 'error');
+        } finally {
+            setIsArchiving(false);
+        }
+    };
+
+    const handleDelete = async (e) => {
+        e.stopPropagation();
+        if (isDeleting) return;
+        setIsDeleting(true);
+        try {
+            await api.deleteHighlight(video.id);
+            addToast('Video gelöscht.', 'success');
+            setShowDeleteConfirm(false);
+            setShowMenu(false);
+            // Dispatch event to refresh feeds
+            window.dispatchEvent(new CustomEvent('videoDeleted', { detail: { videoId: video.id } }));
+        } catch (error) {
+            addToast('Löschen fehlgeschlagen.', 'error');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleEdit = (e) => {
+        e.stopPropagation();
+        addToast('Bearbeitungs-Modus wird bald verfügbar sein.', 'info');
+        setShowMenu(false);
+    };
+
+    const handleReport = (e) => {
+        e.stopPropagation();
+        setShowMenu(false);
+        onReportReq(video.id, 'video');
+    };
+
+    const handleShareNative = async (e) => {
+        e.stopPropagation();
+        const shareUrl = `${window.location.origin}/#profile/${video.players_master?.slug || video.players_master?.user_id || video.id}`;
+        const shareTitle = `CAVIO | Video von ${video.players_master?.full_name || 'einem Spieler'}`;
+        
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: generateShareText({
+                        role: userRole,
+                        isCreator: isCreator,
+                        playerName: video.players_master?.full_name || 'ein Spieler',
+                        tags: video.action_tags || []
+                    }),
+                    url: shareUrl,
+                });
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    addToast('Teilen fehlgeschlagen.', 'error');
+                }
+            }
+        } else {
+            // Fallback to copy link
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                addToast('Link in die Zwischenablage kopiert!', 'success');
+            } catch (err) {
+                addToast('Kopieren fehlgeschlagen.', 'error');
+            }
+        }
+        setShowMenu(false);
     };
 
     return (
@@ -126,27 +299,24 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                 {video.players_master?.avatar_url ? (
                                     <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt={video.players_master?.full_name || 'Profil'} title={video.players_master?.full_name || 'Profil'} />
                                 ) : (
-                                    <User className="m-2 text-muted-foreground" />
+                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
                                 )}
                             </div>
                         </div>
                         <div>
                             <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors">
                                 {video.players_master?.full_name || 'Unbekannter Spieler'} 
-                                {video.players_master?.verification_status && video.players_master?.verification_status !== 'unverified' && (
-                                    <VerificationBadge size={14} status={video.players_master?.verification_status} verificationStatus={video.players_master?.verification_status} />
-                                )}
+                                {(video.players_master?.verification_status && video.players_master?.verification_status !== 'unverified') || video.players_master?.is_official ? (
+                                    <VerificationBadge 
+                                        size={14} 
+                                        status={video.players_master?.verification_status} 
+                                        verificationStatus={video.players_master?.verification_status}
+                                        isOfficial={video.players_master?.is_official}
+                                    />
+                                ) : null}
                             </div>
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
-                    </div>
-                    <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="text-muted-foreground hover:text-foreground p-2 transition-colors duration-300"><MoreHorizontal size={20} /></button>
-                        {showMenu && (
-                            <div className="absolute right-0 top-full bg-card border border-border rounded-xl shadow-2xl backdrop-blur-xl z-20 w-36 overflow-hidden animate-in fade-in zoom-in-95">
-                                <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); onReportReq(video.id, 'video'); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-black/5 dark:hover:bg-white/5 flex items-center gap-2 transition-colors duration-300"><Flag size={14} /> Melden</button>
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -171,7 +341,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                     {video.players_master?.avatar_url ? (
                                         <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt="Spieler Avatar" title={video.players_master?.full_name || 'Spieler'} />
                                     ) : (
-                                        <User className="m-3 text-white/50 w-10 h-10" />
+                                        <img src="/cavio-icon.png" className="w-10 h-10 object-contain opacity-60" />
                                     )}
                                 </div>
                             </div>
@@ -188,16 +358,18 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         </div>
                     </div>
                 ) : (
-                    <div onClick={() => onClick(video)} className="aspect-[4/5] bg-background relative overflow-hidden group cursor-pointer">
+                    <div onClick={() => onClick({ ...video, initialIsLiked: liked, initialIsSaved: saved, initialLikeCount: likes })} className="aspect-[4/5] bg-background relative overflow-hidden group cursor-pointer">
                         <video
                             ref={videoRef}
                             src={video.video_url}
                             className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition duration-500"
-                            muted loop playsInline
+                            muted={isMuted} loop={!video.end_time} playsInline
+                            onTimeUpdate={handleTimeUpdate}
                             preload="none"
                             poster={video.thumbnail_url}
                         />
                         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none" />
+                        
                         <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-xl border border-white/20 px-2.5 py-1.5 rounded-lg text-white text-xs font-medium flex items-center gap-1.5"><Play size={10} fill="white" /> Watch</div>
                         {/* Skill tags overlay */}
                         {video.skill_tags && video.skill_tags.length > 0 && (
@@ -210,14 +382,104 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     </div>
                 )}
 
+                {/* Overlays (Positioned relative to the Card to ensure visibility) */}
+                {video.post_type !== 'transfer' && (
+                    <>
+                        <div className="absolute top-[80px] right-4 z-[100]">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} 
+                                className="bg-black/40 backdrop-blur-md p-2.5 rounded-full text-white hover:bg-black/70 transition-all duration-300 shadow-xl border border-white/20 active:scale-90"
+                            >
+                                <MoreVertical size={20} />
+                            </button>
+                            
+                            <AnimatePresence>
+                                {showMenu && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9, y: -10, x: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: -10, x: 10 }}
+                                        className="absolute right-0 top-14 bg-zinc-900/98 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] z-[110] w-60 overflow-hidden"
+                                    >
+                                        <div className="p-1.5 space-y-1">
+                                            {isCreator ? (
+                                                <>
+                                                    <button 
+                                                        onClick={handleArchive}
+                                                        disabled={isArchiving}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors rounded-xl disabled:opacity-50"
+                                                    >
+                                                        <Archive size={18} className="text-blue-400" /> 
+                                                        {isArchiving ? 'Archiviere...' : 'Im Profil verbergen'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={handleEdit}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Edit size={18} className="text-cyan-400" /> Details bearbeiten
+                                                    </button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); setShowMenu(false); }}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Trash2 size={18} /> Endgültig löschen
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button 
+                                                        onClick={save}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Bookmark size={18} className="text-cyan-400" /> In Watchlist speichern
+                                                    </button>
+                                                    <button 
+                                                        onClick={handleShareNative}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Share2 size={18} className="text-blue-400" /> Video teilen
+                                                    </button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button 
+                                                        onClick={handleReport} 
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Flag size={18} /> Melden
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Mute Button (Positioned over video) */}
+                        <button 
+                            onClick={toggleMute}
+                            className="absolute top-[80px] left-4 z-[100] bg-black/40 backdrop-blur-md p-2 rounded-full text-white hover:bg-black/70 transition-all duration-300 border border-white/10 shadow-lg"
+                        >
+                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+                    </>
+                )}
+
                 {/* Actions */}
                 <div className="px-4 py-4 flex items-center gap-3">
                     <motion.button
-                        whileTap={{ scale: 0.92 }}
+                        whileTap={{ scale: 0.8 }}
                         onClick={like}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                     >
-                        <Heart size={20} className={liked ? 'fill-red-500' : ''} /> <span className="font-medium text-sm">{likes}</span>
+                        <Heart size={20} className={liked ? 'fill-red-500 text-red-500' : ''} /> <span className="font-medium text-sm">{likes}</span>
+                    </motion.button>
+                    <motion.button
+                        whileTap={{ scale: 0.8 }}
+                        onClick={save}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${saved ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                    >
+                        <Bookmark size={20} className={saved ? 'fill-cyan-400 text-cyan-400' : ''} />
                     </motion.button>
                     <motion.button
                         whileTap={{ scale: 0.92 }}
@@ -230,13 +492,19 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     <div className="ml-auto">
                         <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
                             e.stopPropagation();
-                            const shareUrl = `${window.location.origin}/#profile/${video.players_master?.user_id || video.id}`;
-                            if (navigator.share) {
-                                navigator.share({ title: `${video.players_master?.full_name || 'Highlight'} – Cavio`, url: shareUrl }).catch(() => { });
-                            } else {
-                                navigator.clipboard.writeText(shareUrl);
-                                addToast('Link kopiert!', 'success');
-                            }
+                            const shareUrl = `${window.location.origin}/#profile/${video.players_master?.slug || video.players_master?.user_id || video.id}`;
+                            const playerName = video.players_master?.full_name || 'ein Spieler';
+                            const tags = video.action_tags || [];
+                            
+                            const text = generateShareText({
+                                role: userRole,
+                                isCreator: isCreator,
+                                playerName,
+                                tags
+                            });
+                            
+                            setShareData({ text, url: shareUrl });
+                            setIsShareOpen(true);
                         }} />
                     </div>
                 </div>
@@ -256,6 +524,55 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     </div>
                 )}
             </Card>
+
+            <ShareModal 
+                isOpen={isShareOpen}
+                onClose={() => setIsShareOpen(false)}
+                shareText={shareData.text}
+                shareUrl={shareData.url}
+                session={session}
+            />
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteConfirm && (
+                    <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="bg-card border border-border rounded-3xl p-8 max-w-sm w-full shadow-2xl"
+                        >
+                            <div className="flex flex-col items-center text-center space-y-6">
+                                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                                    <AlertTriangle size={32} />
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="text-xl font-black text-white">Video löschen?</h3>
+                                    <p className="text-zinc-500 text-sm leading-relaxed">
+                                        Bist du sicher? Das Video wird unwiderruflich gelöscht und kann nicht wiederhergestellt werden.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col w-full gap-3">
+                                    <button 
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl transition shadow-lg shadow-red-600/20 disabled:opacity-50"
+                                    >
+                                        {isDeleting ? 'Lösche...' : 'Endgültig löschen'}
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-black rounded-2xl transition"
+                                    >
+                                        Abbrechen
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 });

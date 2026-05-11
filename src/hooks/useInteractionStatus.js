@@ -43,6 +43,14 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                     const { data } = await supabase.from('media_highlights').select('likes_count').eq('id', targetId).maybeSingle();
                     if (data) freshCount = data.likes_count || 0;
                 } 
+                else if (type === 'video_save') {
+                    // 1. Status
+                    if (userId) {
+                        freshStatus = await api.checkIsVideoSaved(userId, targetId);
+                    }
+                    // 2. No public count for saves
+                    freshCount = 0;
+                }
                 else if (type === 'user_follow') {
                     // 1. Status
                     if (userId) {
@@ -74,6 +82,12 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
         const wasStatus = status;
         const prevCount = count;
 
+        // Optimistic update
+        setStatus(!wasStatus);
+        if (type === 'video_like' || type === 'user_follow') {
+            setCount(prev => wasStatus ? Math.max(0, prev - 1) : prev + 1);
+        }
+
         setLoading(true);
 
         try {
@@ -92,9 +106,18 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                     if (data) setCount(data.likes_count || 0);
                 }
             } 
+            else if (type === 'video_save') {
+                if (!wasStatus) await api.saveVideo(userId, targetId);
+                else await api.unsaveVideo(userId, targetId);
+                
+                const isSaved = await api.checkIsVideoSaved(userId, targetId);
+
+                if (isMounted.current) {
+                    setStatus(isSaved);
+                }
+            }
             else if (type === 'user_follow') {
                 const myPlayerId = await api.getPlayerIdFromUserId(userId);
-                console.log('[useInteractionStatus] follow toggle — myPlayerId:', myPlayerId, '| targetId:', targetId, '| wasFollowing:', wasStatus);
                 if (!myPlayerId) throw new Error("Eigenes Profil nicht gefunden. Bitte neu einloggen.");
                 
                 if (!wasStatus) await api.follow(myPlayerId, targetId);
@@ -112,8 +135,12 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                 }
             }
         } catch (err) {
-            // No need to rollback status here because we didn't update it optimistically
             console.error(`[useInteractionStatus] Error in toggle (${type}):`, err);
+            // Rollback optimistic state
+            if (isMounted.current) {
+                setStatus(wasStatus);
+                setCount(prevCount);
+            }
             throw err; // Caller handles toast
         } finally {
             if (isMounted.current) {
@@ -122,5 +149,12 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
         }
     }, [userId, targetId, status, count, type, loading]);
 
-    return { status, count, toggle, loading };
+    const forceState = useCallback((newStatus, newCount) => {
+        if (isMounted.current) {
+            if (newStatus !== undefined) setStatus(newStatus);
+            if (newCount !== undefined) setCount(newCount);
+        }
+    }, []);
+
+    return { status, count, toggle, loading, forceState };
 };

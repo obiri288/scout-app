@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShieldAlert, X, Check, XCircle, Search, Shield, Building, User, Flag, Eye, Clock, CheckCircle2, AlertTriangle, ExternalLink, Loader2, UserCheck, Trophy, Trash2, Edit, ShieldCheck, Menu, Undo, Bell, Zap } from 'lucide-react';
+import { ShieldAlert, X, Check, XCircle, Search, Shield, Building, User, Flag, Eye, Clock, CheckCircle, AlertTriangle, ExternalLink, Loader2, UserCheck, Trophy, Trash2, Edit, ShieldCheck, Menu, Undo, Bell, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
@@ -16,7 +16,7 @@ const TABS = [
 const STATUS_CONFIG = {
     pending: { label: 'Ausstehend', color: 'amber', icon: Clock },
     in_review: { label: 'In Bearbeitung', color: 'blue', icon: Eye },
-    resolved: { label: 'Erledigt', color: 'emerald', icon: CheckCircle2 },
+    resolved: { label: 'Erledigt', color: 'emerald', icon: CheckCircle },
 };
 
 const TARGET_TYPE_LABELS = {
@@ -27,7 +27,7 @@ const TARGET_TYPE_LABELS = {
     user: 'Benutzer',
 };
 
-const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, onMenuOpen }) => {
+const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, onMenuOpen, onLogout }) => {
     const { currentUserProfile, session } = useUser();
     const { addToast } = useToast();
     const [activeTab, setActiveTab] = useState(() => {
@@ -857,7 +857,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                         <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 overflow-hidden flex items-center justify-center shrink-0">
                                                             {account.avatar_url
                                                                 ? <img src={account.avatar_url} className="w-full h-full object-cover" alt="" />
-                                                                : <User size={18} className="text-amber-400" />
+                                                                : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
                                                             }
                                                         </div>
                                                         <div>
@@ -889,7 +889,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
                                                                     : 'bg-red-500/10 text-red-400 border-red-500/30'
                                                             }`}>
-                                                                {account.verification_status === 'approved' ? <CheckCircle2 size={14}/> : <XCircle size={14}/>}
+                                                                {account.verification_status === 'approved' ? <CheckCircle size={14}/> : <XCircle size={14}/>}
                                                                 {account.verification_status === 'approved' ? 'Zugestimmt' : 'Abgelehnt'}
                                                             </span>
                                                         </div>
@@ -957,7 +957,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                         <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 overflow-hidden">
                                                             {req.players_master?.avatar_url 
                                                                 ? <img src={req.players_master.avatar_url} className="w-full h-full object-cover" />
-                                                                : <User size={20} className="text-cyan-400" />
+                                                                : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
                                                             }
                                                         </div>
                                                         <div>
@@ -998,7 +998,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
                                                                     : 'bg-red-500/10 text-red-400 border-red-500/30'
                                                             }`}>
-                                                                {req.verification_status === 'approved' ? <CheckCircle2 size={14}/> : <XCircle size={14}/>}
+                                                                {req.verification_status === 'approved' ? <CheckCircle size={14}/> : <XCircle size={14}/>}
                                                                 {req.verification_status === 'approved' ? 'Zugestimmt' : 'Abgelehnt'}
                                                             </span>
                                                         </div>
@@ -1093,7 +1093,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
                                                                     : 'bg-red-500/10 text-red-400 border-red-500/30'
                                                             }`}>
-                                                                {claim.status === 'approved' ? <CheckCircle2 size={14}/> : <XCircle size={14}/>}
+                                                                {claim.status === 'approved' ? <CheckCircle size={14}/> : <XCircle size={14}/>}
                                                                 {claim.status === 'approved' ? 'Zugestimmt' : 'Abgelehnt'}
                                                             </span>
                                                         </div>
@@ -1167,7 +1167,7 @@ const AdminDashboard = ({ onClose, onUserClick, activeTab: externalActiveTab, on
                                 </div>
                             ) : filteredReports.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-48 border border-dashed border-border rounded-2xl bg-black/10">
-                                    <CheckCircle2 size={32} className="text-emerald-500 mb-3" />
+                                    <CheckCircle size={32} className="text-emerald-500 mb-3" />
                                     <p className="text-muted-foreground font-medium">
                                         {reportFilter === 'all' ? 'Keine Meldungen vorhanden.' : 'Keine Meldungen mit diesem Status.'}
                                     </p>

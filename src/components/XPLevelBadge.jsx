@@ -79,7 +79,7 @@ export const XPLevelBadge = ({ playerId, compact = false }) => {
     }
 
     return (
-        <div className="bg-white/5 border border-border rounded-2xl p-4">
+        <div className="bg-muted/30 border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <div
@@ -102,7 +102,7 @@ export const XPLevelBadge = ({ playerId, compact = false }) => {
             </div>
 
             {/* Progress bar */}
-            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+            <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}

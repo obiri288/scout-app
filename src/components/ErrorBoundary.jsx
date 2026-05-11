@@ -17,6 +17,27 @@ export class ErrorBoundary extends React.Component {
 
     componentDidCatch(error, errorInfo) {
         console.error('ErrorBoundary caught:', error, errorInfo);
+        
+        // Auto-recovery for "Failed to fetch dynamically imported module"
+        // This usually happens when the app was redeployed and the browser 
+        // tries to load a stale JS chunk.
+        const isChunkError = error.message && (
+            error.message.includes('Failed to fetch dynamically imported module') ||
+            error.message.includes('loading chunk') ||
+            error.message.includes('Unexpected token') // Sometimes happens if HTML is returned instead of JS
+        );
+
+        if (isChunkError) {
+            const lastReload = localStorage.getItem('last_chunk_reload');
+            const now = Date.now();
+            
+            // Only auto-reload once every 10 seconds to avoid loops
+            if (!lastReload || now - parseInt(lastReload) > 10000) {
+                localStorage.setItem('last_chunk_reload', now.toString());
+                console.warn('Chunk load error detected. Auto-reloading to fetch new assets...');
+                window.location.reload();
+            }
+        }
     }
 
     handleReset = () => {

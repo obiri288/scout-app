@@ -5,7 +5,7 @@ export const SplashScreen = () => (
         <img
             src="/cavio-icon.png"
             alt="Cavio"
-            className="w-20 h-20 rounded-full animate-pulse"
+            className="w-24 h-24 object-contain animate-pulse"
         />
     </div>
 );

@@ -36,7 +36,7 @@ export const FollowingListModal = ({ userId, onClose, onUserClick }) => {
                     {following.map(p => (
                         <div key={p.id} onClick={() => { onClose(); onUserClick(p); }} className="flex gap-3 p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded cursor-pointer transition">
                             <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 border border-border overflow-hidden">
-                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User className="m-2 text-muted-foreground" />}
+                                {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />}
                             </div>
                             <div>
                                 <div className="text-foreground font-bold">{p.full_name || p.username}</div>

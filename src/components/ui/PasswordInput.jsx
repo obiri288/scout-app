@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
 import { Input } from './input';
 
 export const PasswordInput = ({
@@ -64,7 +64,7 @@ export const PasswordInput = ({
                                     transition={{ duration: 0.3 }}
                                 >
                                     {met ? (
-                                        <CheckCircle2 size={14} className="text-cyan-400" />
+                                        <CheckCircle size={14} className="text-cyan-400" />
                                     ) : (
                                         <XCircle size={14} className="text-slate-500" />
                                     )}

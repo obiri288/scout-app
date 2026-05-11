@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Heart, UserPlus, Eye, Star, Trophy, Zap, MessageSquare, CheckCheck } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
@@ -58,7 +58,7 @@ export const NotificationBell = () => {
 
     // Merge live real-time items into the panel list when they arrive
     // This makes the bell panel update without needing to close and reopen
-    React.useEffect(() => {
+    useEffect(() => {
         if (liveNotifications.length === 0) return;
         setNotifications(prev => {
             const existingIds = new Set(prev.map(n => n.id));

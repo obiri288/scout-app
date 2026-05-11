@@ -503,7 +503,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                 <div className="bg-card border border-border rounded-2xl p-5 space-y-3 relative">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                                            {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <User size={20} className="text-cyan-400" />}
+                                            {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}
                                         </div>
                                         <div>
                                             <p className="font-bold text-foreground">{fullName || 'Dein Name'}</p>

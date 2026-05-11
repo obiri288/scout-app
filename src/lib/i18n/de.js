@@ -87,7 +87,7 @@ export const de = {
     settings_theme: 'Design',
     settings_dark: 'Dunkel',
     settings_light: 'Hell',
-    settings_install: 'ProBase App installieren',
+    settings_install: 'CAVIO App installieren',
     settings_push: 'Push-Benachrichtigungen',
     settings_verify: 'Verifizierung beantragen',
     settings_logout: 'Abmelden',

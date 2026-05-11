@@ -3,6 +3,7 @@ import { X, Bookmark, Trash2, User, Loader2, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
+import { formatPosition } from '../lib/utils';
 import { EmptyState } from './EmptyState';
 
 export const WatchlistModal = ({ session, onClose, onUserClick }) => {
@@ -66,13 +67,18 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
                                 <div key={item.id} className="bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-border">
                                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>
                                         <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden shrink-0">
-                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <User className="m-3 text-muted-foreground" />}
+                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-3 opacity-60" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-bold text-foreground truncate">{item.players_master?.full_name}</h4>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                <span className="bg-slate-200 dark:bg-white/10 px-1.5 rounded text-foreground dark:text-zinc-300">{item.players_master?.position_primary}</span>
-                                                <span>{item.players_master?.clubs?.name}</span>
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-1 truncate">
+                                                    <Shield size={10} className="text-cyan-400 shrink-0" />
+                                                    <span className="truncate">{item.players_master?.clubs?.name || "Vereinslos"}</span>
+                                                </div>
+                                                <span className="bg-gray-800 rounded px-1.5 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
+                                                    {formatPosition(item.players_master?.position_primary)}
+                                                </span>
                                             </div>
                                         </div>
                                         <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-muted-foreground hover:text-red-500"><Trash2 size={16} /></button>

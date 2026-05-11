@@ -1,11 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { X, UploadCloud, Loader2, Trash2, AlertTriangle, FileVideo, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+    X, 
+    UploadCloud, 
+    Loader2, 
+    Trash2, 
+    AlertTriangle, 
+    FileVideo, 
+    Zap, 
+    Wind, 
+    Crosshair, 
+    ArrowUpRight, 
+    Swords, 
+    ShieldCheck, 
+    Gauge, 
+    CircleDot, 
+    Flame, 
+    Hand,
+    ChevronRight,
+    ArrowLeft,
+    CheckCircle2,
+    Info
+} from 'lucide-react';
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { generateVideoThumbnail, isValidVideoFile, ALLOWED_VIDEO_EXTENSIONS } from '../lib/helpers';
-
 import { useToast } from '../contexts/ToastContext';
+import { VideoEditor } from './VideoEditor';
 
 // Available skill tags for videos
 const SKILL_TAGS = ['Schnelligkeit', 'Beidfüßig', 'Kopfball', 'Technik', 'Spielverständnis', 'Dribbling', 'Schusskraft', 'Flanken', 'Defensivstärke', 'Spielaufbau'];
@@ -25,6 +46,7 @@ const ACTION_TAGS = [
 ];
 
 export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
+    const [step, setStep] = useState(1);
     const [uploading, setUploading] = useState(false);
     const [category, setCategory] = useState("Training");
     const [description, setDescription] = useState("");
@@ -35,6 +57,8 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [selectedTags, setSelectedTags] = useState([]);
     const [selectedActionTags, setSelectedActionTags] = useState([]);
+    const [editorData, setEditorData] = useState(null);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
     const { addToast } = useToast();
 
     const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
@@ -47,8 +71,8 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
     };
 
     const processFile = (selectedFile) => {
-        if (selectedFile.size > 250 * 1024 * 1024) { // Max 250 MB
-            addToast('Video zu groß (Max. 250MB)', 'error');
+        if (selectedFile.size > MAX_FILE_SIZE) { 
+            addToast(`Video zu groß (Max. ${MAX_FILE_SIZE / (1024 * 1024)}MB)`, 'error');
             return;
         }
         if (!isValidVideoFile(selectedFile)) {
@@ -58,6 +82,7 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
         setErrorMsg("");
         setFile(selectedFile);
         setPreviewUrl(URL.createObjectURL(selectedFile));
+        setIsEditorOpen(true);
     };
 
     const handleFileSelect = (e) => {
@@ -85,7 +110,6 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
             return;
         }
 
-
         setUploading(true);
         setProgress(10);
 
@@ -101,7 +125,7 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
             // 1. Thumbnail generation & upload
             let thumbUrl = null;
             try {
-                const thumbBlob = await generateVideoThumbnail(file);
+                const thumbBlob = await generateVideoThumbnail(file, editorData?.thumbnailTime);
                 if (thumbBlob) {
                     await supabase.storage.from('player-videos').upload(thumbName, thumbBlob);
                     const { data } = supabase.storage.from('player-videos').getPublicUrl(thumbName);
@@ -127,6 +151,14 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                 description: description || null,
                 skill_tags: selectedTags.length > 0 ? selectedTags : null,
                 action_tags: selectedActionTags.length > 0 ? selectedActionTags : [],
+                start_time: editorData?.startTime || 0,
+                end_time: editorData?.endTime || null,
+                thumbnail_time: editorData?.thumbnailTime || 0,
+                is_muted: editorData?.isMuted || false,
+                spotlight_at: editorData?.spotlight?.t || null,
+                spotlight_x: editorData?.spotlight?.x || null,
+                spotlight_y: editorData?.spotlight?.y || null,
+                spotlight_duration: editorData?.spotlight?.duration || 2.0,
                 created_at: new Date().toISOString()
             });
 
@@ -154,90 +186,166 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
         return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }
     }, [previewUrl]);
 
+    const maxMB = MAX_FILE_SIZE / (1024 * 1024);
+
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className={`w-full sm:max-w-md ${cardStyle} p-6 border-t border-border shadow-2xl relative mb-20 sm:mb-0`}>
-                <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-foreground flex items-center gap-2"><UploadCloud className="text-blue-500" /> Clip hochladen</h3><button onClick={onClose}><X className="text-muted-foreground hover:text-foreground" /></button></div>
-
-                {uploading ? (
-                    <div className="text-center py-8 space-y-4">
-                        <div className="w-full bg-slate-200 dark:bg-zinc-800 rounded-full h-2.5 overflow-hidden">
-                            <motion.div
-                                className="bg-blue-600 h-2.5 rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progress}%` }}
-                                transition={{ duration: 0.3 }}
-                            />
-                        </div>
-                        <div className="flex items-center justify-center gap-2 text-muted-foreground font-medium text-sm">
-                            <Loader2 className="animate-spin" size={16} />
-                            <span>Video wird hochgeladen... Bitte warten ({Math.round(progress)}%)</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground/60">Bitte Fenster nicht schließen.</p>
+            <div className={`w-full sm:max-w-xl ${cardStyle} p-0 overflow-hidden border-t border-border shadow-2xl relative mb-20 sm:mb-0`}>
+                
+                {/* Modal Header */}
+                <div className="flex justify-between items-center p-6 border-b border-white/5 bg-zinc-900/50">
+                    <div>
+                        <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                            {uploading ? (
+                                <Loader2 className="text-blue-500 animate-spin" />
+                            ) : (
+                                <UploadCloud className="text-blue-500" />
+                            )}
+                            {uploading ? 'Wird hochgeladen...' : step === 1 ? 'Clip wählen & bearbeiten' : 'Details & Veröffentlichung'}
+                        </h3>
+                        {!uploading && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Schritt {step} von 2
+                            </p>
+                        )}
                     </div>
-                ) : (
-                    <div className="space-y-4">
-                        {!file ? (
-                            <div
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-slate-300 dark:border-zinc-700 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 hover:border-blue-500/50'}`}
-                            >
-                                <div className={`p-4 rounded-full mb-3 transition-transform shadow-lg ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-slate-100 dark:bg-zinc-800 text-blue-400 group-hover:scale-110'}`}>
-                                    <FileVideo className="w-8 h-8" />
+                    {!uploading && (
+                        <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition">
+                            <X className="text-muted-foreground hover:text-foreground" />
+                        </button>
+                    )}
+                </div>
+
+                <div className="p-6">
+                    {uploading ? (
+                        <div className="text-center py-12 space-y-6">
+                            <div className="relative w-32 h-32 mx-auto">
+                                <svg className="w-full h-full rotate-[-90deg]">
+                                    <circle
+                                        cx="64" cy="64" r="60"
+                                        className="stroke-zinc-800 fill-none"
+                                        strokeWidth="8"
+                                    />
+                                    <motion.circle
+                                        cx="64" cy="64" r="60"
+                                        className="stroke-blue-600 fill-none"
+                                        strokeWidth="8"
+                                        strokeDasharray="377"
+                                        initial={{ strokeDashoffset: 377 }}
+                                        animate={{ strokeDashoffset: 377 - (377 * progress / 100) }}
+                                        transition={{ duration: 0.5 }}
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center text-xl font-black text-white">
+                                    {Math.round(progress)}%
                                 </div>
-                                <p className="text-sm text-foreground/80 font-medium">Video auswählen oder hierher ziehen</p>
-                                <p className="text-xs text-muted-foreground mt-1">Max. 50 MB • {ALLOWED_VIDEO_EXTENSIONS.join(', ').toUpperCase()}</p>
-                                <input type="file" accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
                             </div>
-                        ) : (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                                <div className="relative rounded-xl overflow-hidden aspect-video bg-black shadow-lg border border-border">
-                                    <video src={previewUrl} className="w-full h-full object-cover opacity-80" controls />
-                                    <button onClick={() => { setFile(null); setPreviewUrl(null); setErrorMsg(""); setSelectedTags([]); setSelectedActionTags([]); }} className="absolute top-2 right-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full text-white hover:bg-red-500/80 transition">
-                                        <Trash2 size={16} />
-                                    </button>
+                            <div className="space-y-2">
+                                <h4 className="text-lg font-bold text-white">Dein Highlight ist auf dem Weg...</h4>
+                                <p className="text-sm text-muted-foreground">Bitte lass dieses Fenster geöffnet, bis der Upload abgeschlossen ist.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {step === 1 ? (
+                                <div className="space-y-6">
+                                    {!file ? (
+                                        <div
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={handleDrop}
+                                            className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-3xl cursor-pointer transition-all group relative ${isDragOver ? 'border-blue-500 bg-blue-500/10' : 'border-slate-300 dark:border-zinc-700 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 hover:border-blue-500/50'}`}
+                                        >
+                                            <div className={`p-5 rounded-3xl mb-4 transition-transform shadow-xl ${isDragOver ? 'bg-blue-500 text-white scale-110' : 'bg-slate-100 dark:bg-zinc-800 text-blue-400 group-hover:scale-110'}`}>
+                                                <FileVideo className="w-10 h-10" />
+                                            </div>
+                                            <p className="text-base text-foreground/80 font-bold">Video auswählen oder hierher ziehen</p>
+                                            <p className="text-xs text-muted-foreground mt-2 font-medium">
+                                                Max. {maxMB} MB • {ALLOWED_VIDEO_EXTENSIONS.join(', ').toUpperCase()}
+                                            </p>
+                                            <input type="file" accept="video/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                                            <div className="relative rounded-2xl overflow-hidden aspect-video bg-black shadow-2xl border border-white/5 group">
+                                                <video src={previewUrl} className="w-full h-full object-cover opacity-90" muted playsInline />
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button 
+                                                        onClick={() => setIsEditorOpen(true)}
+                                                        className="px-6 py-3 bg-white text-black rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-200 transition active:scale-95"
+                                                    >
+                                                        <FileVideo size={18} /> Video bearbeiten
+                                                    </button>
+                                                </div>
+                                                <button onClick={() => { setFile(null); setPreviewUrl(null); setErrorMsg(""); setEditorData(null); }} className="absolute top-4 right-4 bg-black/60 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-500 transition shadow-lg">
+                                                    <Trash2 size={18} />
+                                                </button>
+
+                                                {editorData && (
+                                                    <div className="absolute bottom-4 left-4 bg-blue-600/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2 shadow-xl border border-white/20">
+                                                        <CheckCircle2 size={14} /> Bearbeitet ({(editorData.endTime - editorData.startTime).toFixed(1)}s)
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="bg-zinc-900/50 p-4 rounded-2xl border border-white/5 space-y-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                                                        <Info size={20} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <h4 className="text-sm font-bold text-white leading-tight">Virtual Editor aktiv</h4>
+                                                        <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                                            Du hast dein Video erfolgreich ausgewählt. Nutze den Editor, um den besten Ausschnitt (max. 60s) zu wählen und ein Spotlight zu setzen.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <button 
+                                                    onClick={() => setStep(2)}
+                                                    className="w-full py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-zinc-200 transition shadow-xl active:scale-[0.98]"
+                                                >
+                                                    Weiter zur Kategorisierung <ChevronRight size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
+                            ) : (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest ml-1">Kategorie</label>
+                                            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-zinc-900 border border-white/5 text-white p-3.5 rounded-xl text-sm font-bold outline-none focus:border-blue-500/50 transition appearance-none">
+                                                <option>Training</option>
+                                                <option>Match Highlight</option>
+                                                <option>Tor</option>
+                                                <option>Skill</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest ml-1">Beschreibung</label>
+                                            <input
+                                                type="text"
+                                                placeholder="z.B. Starker Abschluss"
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                                className="w-full bg-zinc-900 border border-white/5 text-white p-3.5 rounded-xl text-sm font-bold outline-none focus:border-blue-500/50 transition placeholder:text-zinc-700"
+                                            />
+                                        </div>
+                                    </div>
 
-                                {errorMsg && (
-                                    <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2">
-                                        <AlertTriangle size={14} /> {errorMsg}
-                                    </div>
-                                )}
-
-                                <div className="bg-slate-50 dark:bg-zinc-900/50 p-3 rounded-xl border border-border space-y-3">
-                                    <div>
-                                        <label className="text-xs text-muted-foreground font-bold uppercase ml-1">Kategorie</label>
-                                        <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-100 dark:bg-zinc-800 text-foreground p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition">
-                                            <option>Training</option>
-                                            <option>Match Highlight</option>
-                                            <option>Tor</option>
-                                            <option>Skill</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-muted-foreground font-bold uppercase ml-1">Beschreibung</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Was passiert im Video?"
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            className="w-full bg-slate-100 dark:bg-zinc-800 text-foreground p-2.5 mt-1 rounded-lg text-sm outline-none border border-transparent focus:border-blue-500 transition placeholder:text-muted-foreground"
-                                        />
-                                    </div>
-                                    {/* Skill Tags */}
-                                    <div>
-                                        <label className="text-xs text-muted-foreground font-bold uppercase ml-1">Skill-Tags</label>
-                                        <div className="flex flex-wrap gap-2 mt-2">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest ml-1">Skill-Tags</label>
+                                        <div className="flex flex-wrap gap-2">
                                             {SKILL_TAGS.map(tag => (
                                                 <button
                                                     key={tag}
                                                     type="button"
                                                     onClick={() => toggleTag(tag)}
-                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${selectedTags.includes(tag)
-                                                        ? 'bg-blue-600 text-white'
-                                                        : 'bg-slate-100 dark:bg-zinc-800 text-muted-foreground hover:bg-slate-200 dark:hover:bg-zinc-700 hover:text-foreground'
+                                                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${selectedTags.includes(tag)
+                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                                        : 'bg-zinc-900 text-zinc-500 border border-white/5 hover:border-white/10 hover:text-zinc-300'
                                                         }`}
                                                 >
                                                     {tag}
@@ -245,21 +353,21 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                                             ))}
                                         </div>
                                     </div>
-                                    {/* Action Tags (PlayStyles, max 2) */}
-                                    <div>
-                                        <label className="text-xs text-amber-400 font-bold uppercase ml-1 flex items-center gap-1.5">
-                                            PlayStyle
-                                            <span className="text-[10px] text-zinc-500 font-medium normal-case">(max. 2 wählen)</span>
+
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] text-amber-500 font-black uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                            PlayStyle Spotlight
+                                            <span className="text-[9px] text-zinc-600 font-bold normal-case tracking-normal">(max. 2)</span>
                                         </label>
-                                        <div className="flex flex-wrap gap-2 mt-2">
+                                        <div className="flex flex-wrap gap-2">
                                             {ACTION_TAGS.map(({ label, icon: Icon }) => (
                                                 <button
                                                     key={label}
                                                     type="button"
                                                     onClick={() => toggleActionTag(label)}
-                                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border backdrop-blur-xl flex items-center gap-1.5 ${selectedActionTags.includes(label)
-                                                        ? 'bg-cyan-400/15 text-cyan-400 border-cyan-400/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
-                                                        : 'bg-white/10 text-zinc-400 border-white/20 hover:bg-white/15 hover:text-white'
+                                                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200 border flex items-center gap-2 ${selectedActionTags.includes(label)
+                                                        ? 'bg-cyan-400/10 text-cyan-400 border-cyan-400/30 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
+                                                        : 'bg-zinc-900 text-zinc-500 border-white/5 hover:bg-white/5 hover:text-white'
                                                         }`}
                                                 >
                                                     <Icon size={12} />
@@ -268,21 +376,55 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                                             ))}
                                         </div>
                                     </div>
-                                </div>
-                                <button onClick={handleUpload} className={`${btnPrimary} w-full flex items-center justify-center gap-2`}>
-                                    <UploadCloud size={20} /> Jetzt hochladen
-                                </button>
-                            </div>
-                        )}
 
-                        {errorMsg && !file && (
-                            <div className="bg-red-500/10 text-red-400 text-xs p-3 rounded-xl border border-red-500/20 flex items-center gap-2 animate-in fade-in">
-                                <AlertTriangle size={14} /> {errorMsg}
-                            </div>
-                        )}
-                    </div>
-                )}
+                                    <div className="flex gap-3 pt-4">
+                                        <button 
+                                            onClick={() => setStep(1)}
+                                            className="flex-1 py-4 bg-zinc-900 border border-white/10 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-zinc-800 transition active:scale-95"
+                                        >
+                                            <ArrowLeft size={18} /> Zurück
+                                        </button>
+                                        <button 
+                                            onClick={handleUpload} 
+                                            className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-500 transition shadow-xl shadow-blue-600/20 active:scale-95"
+                                        >
+                                            <CheckCircle2 size={18} /> Veröffentlichen
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {errorMsg && (
+                                <div className="bg-red-500/10 text-red-400 text-[10px] font-bold p-4 rounded-2xl border border-red-500/20 flex items-center gap-3 animate-in fade-in">
+                                    <AlertTriangle size={16} /> {errorMsg}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            <AnimatePresence>
+                {isEditorOpen && file && (
+                    <VideoEditor 
+                        file={file} 
+                        onSave={(data) => {
+                            setEditorData(data);
+                            setIsEditorOpen(false);
+                            // If they just selected the file, move to next step automatically or let them see the preview
+                            if (step === 1) setStep(2);
+                        }}
+                        onCancel={() => {
+                            // If it's the first selection, clear file. If it's a re-edit, just close.
+                            if (!editorData) {
+                                setFile(null);
+                                setPreviewUrl(null);
+                            }
+                            setIsEditorOpen(false);
+                        }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };

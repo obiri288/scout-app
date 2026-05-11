@@ -17,4 +17,5 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
         // Project Settings → Auth → Enable Refresh Token Rotation
     }
 });
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB Limit
+// Max file size for uploads (updated to 250MB)
+export const MAX_FILE_SIZE = 250 * 1024 * 1024;

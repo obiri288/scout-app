@@ -12,6 +12,56 @@ const cleanPayload = (obj) => {
 };
 
 // ============================================================
+// SLUG UTILITIES
+// ============================================================
+
+export const generateSlug = (name) => {
+    if (!name) return '';
+    return name
+        .toString()
+        .toLowerCase()
+        .replace(/ä/g, 'ae')
+        .replace(/ö/g, 'oe')
+        .replace(/ü/g, 'ue')
+        .replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+        .replace(/\s+/g, '-') // Spaces to dashes
+        .replace(/-+/g, '-') // Remove consecutive dashes
+        .trim();
+};
+
+export const ensureUniqueSlug = async (baseSlug, currentId = null) => {
+    let slug = baseSlug;
+    let isUnique = false;
+    let attempt = 0;
+
+    while (!isUnique) {
+        let q = supabase.from('players_master').select('id').eq('slug', slug);
+        if (currentId) {
+            q = q.neq('id', currentId);
+        }
+        
+        const { data, error } = await q.maybeSingle();
+        
+        if (error || !data) {
+            isUnique = true;
+        } else {
+            attempt++;
+            // Append a 4-character random string for uniqueness
+            const randomSuffix = Math.random().toString(36).substring(2, 6);
+            slug = `${baseSlug}-${randomSuffix}`;
+            
+            if (attempt > 5) {
+                // Failsafe
+                slug = `${baseSlug}-${Date.now()}`;
+                isUnique = true;
+            }
+        }
+    }
+    return slug;
+};
+
+// ============================================================
 // PLAYERS
 // ============================================================
 
@@ -19,6 +69,16 @@ export const fetchPlayerByUserId = async (userId) => {
     const { data, error } = await supabase.from('players_master')
         .select('*, following_count, clubs(*, leagues(name))')
         .eq('user_id', userId)
+        .eq('is_deactivated', false)
+        .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+};
+
+export const fetchPlayerBySlug = async (slug) => {
+    const { data, error } = await supabase.from('players_master')
+        .select('*, following_count, clubs(*, leagues(name))')
+        .eq('slug', slug)
         .eq('is_deactivated', false)
         .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
@@ -65,7 +125,10 @@ export const updatePlayer = async (playerId, updates) => {
 };
 
 export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15 }) => {
-    let q = supabase.from('players_master').select('*, clubs(*, leagues(name))').eq('is_deactivated', false);
+    let q = supabase.from('players_master')
+        .select('*, clubs(*, leagues(name))')
+        .eq('is_deactivated', false)
+        .eq('is_under_review', false);
     if (query) q = q.ilike('full_name', `%${query}%`);
     if (pos && pos !== 'Alle') q = q.eq('position_primary', pos);
     if (status && status !== 'Alle') q = q.eq('transfer_status', status);
@@ -136,23 +199,58 @@ export const geocodeCity = async (city) => {
 // HIGHLIGHTS / VIDEOS
 // ============================================================
 
-export const fetchPlayerHighlights = async (playerId) => {
-    const { data } = await supabase.from('media_highlights')
-        .select('*')
+export const fetchPlayerHighlights = async (playerId, includeArchived = false) => {
+    let q = supabase.from('media_highlights')
+        .select('*, media_comments(count), players_master(*, clubs(*, leagues(name)))')
         .eq('player_id', playerId)
-        .order('created_at', { ascending: false });
-    return data || [];
+        .eq('is_under_review', false);
+    
+    if (!includeArchived) {
+        q = q.eq('is_archived', false);
+    }
+
+    const { data } = await q.order('created_at', { ascending: false });
+        
+    return (data || []).map(post => ({
+        ...post,
+        comments_count: post.media_comments?.[0]?.count || 0
+    }));
+};
+
+/**
+ * Fetches a single video by ID, including the creator's profile data.
+ * Used for direct video links (e.g. #video/{id}).
+ */
+export const fetchVideoById = async (videoId) => {
+    const { data, error } = await supabase.from('media_highlights')
+        .select('*, media_comments(count), players_master(*, clubs(*, leagues(name)))')
+        .eq('id', videoId)
+        .eq('is_under_review', false)
+        .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (!data) return null;
+    return {
+        ...data,
+        comments_count: data.media_comments?.[0]?.count || 0
+    };
 };
 
 export const fetchFeed = async (offset = 0, limit = 10) => {
     const { data } = await supabase.from('media_highlights')
-        .select('*, players_master!inner(*, clubs(*, leagues(name)))')
+        .select('*, media_comments(count), players_master!inner(*, clubs(*, leagues(name)))')
         .eq('players_master.is_deactivated', false)
+        .eq('is_archived', false)
+        .eq('is_under_review', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
         
-    // Filter out posts without profiles to prevent crashes
-    return (data || []).filter(post => post.players_master !== null);
+    // Filter out posts without profiles to prevent crashes and map real comment counts
+    return (data || [])
+        .filter(post => post.players_master !== null)
+        .map(post => ({
+            ...post,
+            comments_count: post.media_comments?.[0]?.count || 0
+        }));
 };
 
 export const fetchHighlightCount = async (playerId) => {
@@ -164,6 +262,16 @@ export const fetchHighlightCount = async (playerId) => {
 
 export const deleteHighlight = async (videoId) => {
     const { error } = await supabase.from('media_highlights').delete().eq('id', videoId);
+    if (error) throw error;
+};
+
+export const archiveHighlight = async (videoId) => {
+    const { error } = await supabase.from('media_highlights').update({ is_archived: true }).eq('id', videoId);
+    if (error) throw error;
+};
+
+export const unarchiveHighlight = async (videoId) => {
+    const { error } = await supabase.from('media_highlights').update({ is_archived: false }).eq('id', videoId);
     if (error) throw error;
 };
 
@@ -425,6 +533,43 @@ export const fetchWatchlist = async (scoutId) => {
     return data || [];
 };
 
+export const checkIsVideoSaved = async (userId, videoId) => {
+    if (!userId || !videoId) return false;
+    const { data } = await supabase.from('saved_videos')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .maybeSingle();
+    return !!data;
+};
+
+export const saveVideo = async (userId, videoId) => {
+    const { error } = await supabase.from('saved_videos')
+        .upsert({ user_id: userId, video_id: videoId }, { onConflict: 'user_id,video_id' });
+    if (error) throw error;
+};
+
+export const unsaveVideo = async (userId, videoId) => {
+    const { error } = await supabase.from('saved_videos')
+        .delete()
+        .match({ user_id: userId, video_id: videoId });
+    if (error) throw error;
+};
+
+export const fetchSavedVideos = async (userId) => {
+    const { data, error } = await supabase.from('saved_videos')
+        .select('*, video:media_highlights(*, media_comments(count), players_master(*, clubs(*)))')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+    if (error) throw error;
+    
+    return (data || []).map(item => ({
+        ...(item.video || {}),
+        comments_count: item.video?.media_comments?.[0]?.count || 0
+    }));
+};
+
 // ============================================================
 // MESSAGES
 // ============================================================
@@ -465,6 +610,14 @@ export const fetchConversationList = async (userId) => {
 // ============================================================
 // COMMENTS
 // ============================================================
+
+export const getCommentCount = async (videoId) => {
+    const { count, error } = await supabase.from('media_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('video_id', videoId);
+    if (error) throw error;
+    return count || 0;
+};
 
 export const fetchComments = async (videoId) => {
     // Step 1: Fetch all comments WITHOUT an inner join so no comments are silently
@@ -761,8 +914,35 @@ export const createClub = async (name) => {
 // REPORTS
 // ============================================================
 
-export const submitReport = async (report) => {
-    const { error } = await supabase.from('reports').insert(report);
+export const submitReport = async (reporterId, targetId, targetType, reason) => {
+    const { error } = await supabase.rpc('submit_report_v2', {
+        p_reporter_id: reporterId,
+        p_target_id: targetId,
+        p_target_type: targetType,
+        p_reason: reason
+    });
+    if (error) throw error;
+};
+
+export const hideContent = async (userId, targetId, targetType) => {
+    const column = targetType === 'video' ? 'hidden_videos' : 'hidden_profiles';
+    
+    // Fetch current list
+    const { data: profile } = await supabase.from('players_master')
+        .select(column)
+        .eq('user_id', userId)
+        .single();
+        
+    if (!profile) return;
+    
+    const currentList = profile[column] || [];
+    if (currentList.includes(targetId)) return;
+    
+    // Update with new ID
+    const { error } = await supabase.from('players_master')
+        .update({ [column]: [...currentList, targetId] })
+        .eq('user_id', userId);
+        
     if (error) throw error;
 };
 
@@ -891,4 +1071,36 @@ export const sendTestNotification = async (userId) => {
         .single();
     if (error) throw error;
     return data;
+};
+
+// ============================================================
+// MESSAGING — Share Modal Helpers
+// ============================================================
+
+export const getRecentChatPartners = async (userId) => {
+    const { data } = await supabase.from('direct_messages')
+        .select('*')
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+    const map = new Map();
+    (data || []).forEach(m => {
+        const pid = m.sender_id === userId ? m.receiver_id : m.sender_id;
+        if (!map.has(pid)) map.set(pid, m);
+    });
+
+    if (map.size > 0) {
+        const { data: users } = await supabase.from('players_master')
+            .select('*')
+            .in('user_id', [...map.keys()])
+            .eq('is_deactivated', false);
+            
+        return (users || []).map(u => ({
+            ...u,
+            lastMsg: map.get(u.user_id)?.content,
+            time: map.get(u.user_id)?.created_at,
+        })).sort((a, b) => new Date(b.time) - new Date(a.time));
+    }
+    return [];
 };

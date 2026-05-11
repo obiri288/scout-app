@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Search, User, Shield, ArrowLeft, Menu, 
     ShieldAlert, Flag, ExternalLink, Clock, 
-    ShieldCheck, CheckCircle2, XCircle, Loader2, X, Trash2, AlertTriangle
+    ShieldCheck, CheckCircle, XCircle, Loader2, X, Trash2, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -158,9 +158,9 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
     };
 
     return (
-        <div className="flex flex-col h-full bg-background min-h-screen pt-16 sm:pt-20 pb-24">
+        <div className="flex flex-col h-full bg-background min-h-screen pt-[calc(1rem+env(safe-area-inset-top))] sm:pt-20 pb-24">
             {/* Header Sticky Container */}
-            <div className="px-4 py-4 sticky top-0 bg-background/90 backdrop-blur-md z-10 flex flex-col gap-4 border-b border-white/5">
+            <div className="px-4 py-4 sticky top-0 bg-background/90 backdrop-blur-md z-10 flex flex-col gap-4 border-b border-white/5 pt-[env(safe-area-inset-top)]">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         {currentUserProfile?.role === 'admin' && (
@@ -232,12 +232,12 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                                     {user.avatar_url ? (
                                         <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
                                     ) : (
-                                        <User size={28} className="text-muted-foreground" />
+                                        <img src="/cavio-icon.png" className="w-7 h-7 object-contain opacity-60" />
                                     )}
                                 </div>
                                 {user.is_verified && (
                                     <div className="absolute -top-1.5 -right-1.5 bg-background rounded-full p-0.5">
-                                        <CheckCircle2 size={16} className="text-cyan-400 fill-cyan-400/20" />
+                                        <CheckCircle size={16} className="text-cyan-400 fill-cyan-400/20" />
                                     </div>
                                 )}
                             </div>
@@ -297,7 +297,7 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                                                 <img src={selectedUser.avatar_url} className="w-full h-full object-cover" alt="" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
-                                                    <User size={32} className="text-zinc-500" />
+                                                    <img src="/cavio-icon.png" className="w-8 h-8 object-contain opacity-60" />
                                                 </div>
                                             )}
                                         </div>
@@ -372,7 +372,7 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                                                         onClick={() => handleAdminAction('unban_account')}
                                                         className="w-full flex items-center gap-3 p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-2xl transition-all font-bold text-left disabled:opacity-50"
                                                     >
-                                                        <CheckCircle2 size={20} />
+                                                        <CheckCircle size={20} />
                                                         {isActionInProgress ? 'Verarbeite...' : 'Account freischalten'}
                                                     </button>
                                                 ) : (

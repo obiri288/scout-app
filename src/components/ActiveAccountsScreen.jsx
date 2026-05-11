@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, Menu, X, Shield, MoreVertical, Loader2, UserCheck, CheckCircle2 } from 'lucide-react';
+import { Search, Menu, X, Shield, MoreVertical, Loader2, UserCheck, CheckCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 const ROLES = ['Alle', 'trainer', 'scout', 'manager', 'player'];
@@ -29,7 +29,7 @@ const useDebounce = (callback, delay) => {
     }, [callback, delay]);
 };
 
-const ActiveAccountsScreen = ({ currentUserProfile, onMenuOpen, onClose, onUserClick }) => {
+const ActiveAccountsScreen = ({ currentUserProfile, onMenuOpen, onClose, onUserClick, onLogout }) => {
     const { addToast } = useToast();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -170,7 +170,7 @@ const ActiveAccountsScreen = ({ currentUserProfile, onMenuOpen, onClose, onUserC
                                                 onClick={() => { onUserClick(user); onClose(); }}
                                             >
                                                 {user.full_name}
-                                                <CheckCircle2 size={14} className="inline-block ml-1.5 text-cyan-400 mb-0.5" />
+                                                <CheckCircle size={14} className="inline-block ml-1.5 text-cyan-400 mb-0.5" />
                                             </h3>
                                             <p className="text-xs text-muted-foreground truncate mb-1">@{user.username || 'unbekannt'}</p>
                                             <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${roleStyle}`}>

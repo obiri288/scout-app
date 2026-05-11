@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Power, LogOut, User, CheckCircle2 } from 'lucide-react';
+import { Heart, Power, LogOut, User, CheckCircle } from 'lucide-react';
 
 const ConfettiParticle = ({ index }) => {
     const randomX = Math.random() * 400 - 200;
@@ -150,7 +150,7 @@ export const ReactivateAccountModal = ({ profile, onConfirm, onLogout }) => {
                                     animate={{ y: 0 }}
                                     className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center"
                                 >
-                                    <CheckCircle2 size={32} className="text-white" />
+                                    <CheckCircle size={32} className="text-white" />
                                 </motion.div>
                                 <span className="text-white font-bold">Fertig!</span>
                             </div>

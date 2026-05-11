@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 
 export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, onBlock, currentUserProfile, setHasUnreadMessages }) => {
     const [messages, setMessages] = useState([]);
-    const [txt, setTxt] = useState('');
+    const [txt, setTxt] = useState(partner.prefill || '');
     const [showMenu, setShowMenu] = useState(false);
     const endRef = useRef(null);
     const { addToast } = useToast();
@@ -177,9 +177,19 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                 <button onClick={onClose}><ArrowLeft className="text-muted-foreground hover:text-foreground" /></button>
                 <div onClick={() => { onClose(); onUserClick(partner); }} className="flex items-center gap-3 cursor-pointer group flex-1">
                     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border group-hover:border-blue-500 transition">
-                        {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <User size={20} className="m-2.5 text-muted-foreground" />}
+                        {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2.5 opacity-60" />}
                     </div>
-                    <div className="font-bold text-foreground flex items-center gap-1.5">{partner.full_name} {partner.verification_status && partner.verification_status !== 'unverified' && <VerificationBadge size={16} status={partner.verification_status} verificationStatus={partner.verification_status} />}</div>
+                    <div className="font-bold text-foreground flex items-center gap-1.5">
+                        {partner.full_name} 
+                        {((partner.verification_status && partner.verification_status !== 'unverified') || partner.is_official) && (
+                            <VerificationBadge 
+                                size={16} 
+                                status={partner.verification_status} 
+                                verificationStatus={partner.verification_status} 
+                                isOfficial={partner.is_official}
+                            />
+                        )}
+                    </div>
                 </div>
                 <div className="relative">
                     <button onClick={() => setShowMenu(!showMenu)} className="p-2 text-muted-foreground hover:text-foreground transition rounded-full hover:bg-black/5 dark:hover:bg-white/5">

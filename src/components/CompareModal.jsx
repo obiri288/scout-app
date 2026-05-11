@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
 import { calculateAge } from '../lib/helpers';
 import { getFormattedCountry } from '../lib/countries';
+import { formatPosition } from '../lib/utils';
 
 export const CompareModal = ({ onClose, initialPlayer }) => {
     const [playerA, setPlayerA] = useState(initialPlayer || null);
@@ -123,13 +124,13 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                                 {searchResults.map(p => (
                                     <div key={p.id} onClick={() => selectPlayer(p)} className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl cursor-pointer transition">
                                         <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border shrink-0">
-                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={16} className="text-muted-foreground m-2" />}
+                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold text-foreground truncate">{p.full_name}</div>
                                             <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Shield size={8} /> {p.clubs?.name || 'Vereinslos'}</div>
                                         </div>
-                                        <span className="text-[10px] bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded text-muted-foreground dark:text-zinc-300 font-bold">{p.position_primary}</span>
+                                        <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
                                     </div>
                                 ))}
                                 {searchQuery.length >= 2 && searchResults.length === 0 && (
@@ -146,7 +147,7 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                     <div className="px-4 pb-24 animate-in fade-in slide-in-from-bottom-4">
                         <div className="bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-border p-4 mt-2">
                             <h3 className="text-xs text-muted-foreground font-bold uppercase tracking-wider text-center mb-4">Vergleich</h3>
-                            <CompareRow label="Position" valA={playerA.position_primary} valB={playerB.position_primary} />
+                            <CompareRow label="Position" valA={formatPosition(playerA.position_primary)} valB={formatPosition(playerB.position_primary)} />
                             <CompareRow label="Alter" valA={playerA.birth_date ? `${calculateAge(playerA.birth_date)}` : '-'} valB={playerB.birth_date ? `${calculateAge(playerB.birth_date)}` : '-'} />
                             <CompareRow label="Größe" valA={playerA.height_user ? `${playerA.height_user} cm` : '-'} valB={playerB.height_user ? `${playerB.height_user} cm` : '-'} highlight />
                             <CompareRow label="Gewicht" valA={playerA.weight ? `${playerA.weight} kg` : '-'} valB={playerB.weight ? `${playerB.weight} kg` : '-'} />
@@ -174,7 +175,7 @@ const PlayerSlot = ({ player, label, onSelect, onClear }) => (
         {player ? (
             <div className="flex flex-col items-center text-center group relative">
                 <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border-2 border-border mb-2 shadow-lg">
-                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <User size={32} className="text-muted-foreground m-5" />}
+                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
                 </div>
                 <div className="text-sm font-bold text-foreground truncate max-w-[120px] flex items-center gap-1">
                     {player.full_name}
@@ -183,7 +184,7 @@ const PlayerSlot = ({ player, label, onSelect, onClear }) => (
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                     <Shield size={8} /> {player.clubs?.name || 'Vereinslos'}
                 </div>
-                <span className="text-[10px] bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded text-muted-foreground dark:text-zinc-300 font-bold mt-1">{player.position_primary}</span>
+                <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold mt-1">{formatPosition(player.position_primary)}</span>
                 <button onClick={onClear} className="mt-2 text-[10px] text-muted-foreground/60 hover:text-red-500 transition">Entfernen</button>
             </div>
         ) : (

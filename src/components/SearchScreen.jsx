@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock, Crosshair, Play, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
+import { formatPosition } from '../lib/utils';
 import { SearchSkeleton } from './SkeletonScreens';
 import { MapScreen } from './MapScreen';
+import { useUser } from '../contexts/UserContext';
 
 const PAGE_SIZE = 15;
 
@@ -96,9 +98,11 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         return () => clearTimeout(t);
     }, [clubQuery]);
 
+    const { currentUserProfile: userFromContext } = useUser();
+
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         try {
-            let q = supabase.from('players_master').select('*, clubs(*)').eq('is_deactivated', false);
+            let q = supabase.from('players_master').select('*, clubs(*)').eq('is_deactivated', false).eq('is_under_review', false);
             if (query) q = q.ilike('full_name', `%${query}%`);
             if (pos !== 'Alle') q = q.eq('position_primary', pos);
             if (status !== 'Alle') q = q.eq('transfer_status', status);
@@ -118,10 +122,15 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             const { data } = await q.range(offset, offset + PAGE_SIZE - 1);
 
             const newItems = data || [];
+            
+            // Client-side filtering for hidden profiles
+            const hiddenProfiles = userFromContext?.hidden_profiles || [];
+            const filteredItems = newItems.filter(p => !hiddenProfiles.includes(p.id));
+
             if (reset) {
-                setRes(newItems);
+                setRes(filteredItems);
             } else {
-                setRes(prev => [...prev, ...newItems]);
+                setRes(prev => [...prev, ...filteredItems]);
             }
             setHasMore(newItems.length === PAGE_SIZE);
         } catch (e) {
@@ -130,7 +139,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [query, pos, status, cityQuery, matchingClubIds]);
+    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext]);
 
     // Reset and refetch when filters change
     useEffect(() => {
@@ -153,10 +162,21 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                     .from('media_highlights')
                     .select('*, players_master!inner(*, clubs(name))')
                     .eq('players_master.is_deactivated', false)
+                    .eq('is_under_review', false)
                     .contains('action_tags', [selectedActionTag])
                     .order('created_at', { ascending: false })
                     .limit(20);
-                setActionVideos(data || []);
+
+                // Client-side filtering for hidden videos/profiles
+                const hiddenVideos = userFromContext?.hidden_videos || [];
+                const hiddenProfiles = userFromContext?.hidden_profiles || [];
+                
+                const filteredActionVideos = (data || []).filter(v => 
+                    !hiddenVideos.includes(v.id) && 
+                    !hiddenProfiles.includes(v.players_master?.id)
+                );
+
+                setActionVideos(filteredActionVideos);
             } catch (e) {
                 console.error('Action filter error:', e);
             } finally {
@@ -424,11 +444,14 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                                                         <div>
                                                             <h4 className="font-bold text-foreground text-sm truncate">{v.players_master?.full_name}</h4>
-                                                            <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground font-medium">
-                                                                <Shield size={9} className="text-cyan-400" />
-                                                                <span className="truncate">{v.players_master?.clubs?.name || 'Vereinslos'}</span>
-                                                                <span className="text-white/20">•</span>
-                                                                <span>{v.players_master?.position_primary}</span>
+                                                            <div className="flex flex-row items-center gap-3 mt-1">
+                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
+                                                                    <Shield size={9} className="text-cyan-400 shrink-0" />
+                                                                    <span className="truncate">{v.players_master?.clubs?.name || 'Vereinslos'}</span>
+                                                                </div>
+                                                                <span className="bg-gray-800 rounded-md px-2 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
+                                                                    {formatPosition(v.players_master?.position_primary)}
+                                                                </span>
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-wrap gap-1 mt-1.5">
@@ -461,12 +484,23 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                     >
                                         {res.map(p => (
                                             <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
-                                                <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground m-4" />}</div>
+                                                <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-center"><h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3><span className="text-[10px] whitespace-nowrap font-bold bg-white/10 px-2.5 py-1.5 ml-2 rounded text-muted-foreground tracking-wider shadow-[inner_0_0_10px_rgba(255,255,255,0.05)] border border-border">{p.position_primary}</span></div>
-                                                    <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground font-medium truncate">
-                                                        <span className="flex items-center gap-1"><Shield size={10} className="text-cyan-400" /> {p.clubs?.name || "Vereinslos"}</span>
-                                                        {p.city && <span className="flex items-center gap-1 truncate"><MapPin size={10} className="shrink-0" /> <span className="truncate">{p.city}</span></span>}
+                                                    <h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3>
+                                                    <div className="flex flex-row items-center gap-3 mt-1">
+                                                        <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
+                                                            <Shield size={10} className="text-cyan-400 shrink-0" />
+                                                            <span className="truncate">{p.clubs?.name || "Vereinslos"}</span>
+                                                        </div>
+                                                        <span className="bg-gray-800 rounded-md px-2 py-0.5 text-xs text-white/90 font-medium shrink-0">
+                                                            {formatPosition(p.position_primary)}
+                                                        </span>
+                                                        {p.city && (
+                                                            <span className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                                                                <MapPin size={10} className="shrink-0" />
+                                                                <span className="truncate">{p.city}</span>
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors" />

@@ -1,11 +1,81 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, AtSign } from 'lucide-react';
+import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, AtSign, Lock, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, cardStyle } from '../lib/styles';
 import { Input } from './ui/input';
 import { PasswordInput } from './ui/PasswordInput';
+import { getSavedAccounts, removeAccount, decodePassword } from '../lib/savedAccounts';
+import { useToast } from '../contexts/ToastContext';
+
+/* ─────────────────────────────────────────────
+   Saved Accounts Quick-Login Section
+───────────────────────────────────────────── */
+const SavedAccountsSection = ({ onSelect, onRemove, accounts }) => {
+    if (!accounts || accounts.length === 0) return null;
+
+    return (
+        <div className="mb-6">
+            <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-[0.15em] mb-3 px-1">Gespeicherte Konten</p>
+            <div className="space-y-2">
+                <AnimatePresence mode="popLayout">
+                    {accounts.map((account) => {
+                        const initial = (account.displayName || account.identifier || '?')[0]?.toUpperCase();
+                        return (
+                            <motion.div
+                                key={account.identifier}
+                                layout
+                                initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: 40, scale: 0.9 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                className="group relative"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect(account)}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/8 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-cyan-500/30 transition-all duration-200 text-left"
+                                >
+                                    {account.avatarUrl ? (
+                                        <img src={account.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-white/10 shrink-0" />
+                                    ) : (
+                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs border border-white/10 shrink-0">
+                                            {initial}
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        {account.displayName && (
+                                            <p className="text-sm font-semibold text-foreground truncate leading-tight">{account.displayName}</p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground truncate">{account.identifier}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        {account.hasPassword && (
+                                            <div className="w-5 h-5 rounded-md bg-cyan-500/10 flex items-center justify-center" title="Passwort gespeichert">
+                                                <Lock size={11} className="text-cyan-400" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </button>
+                                {/* Remove button */}
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); onRemove(account.identifier); }}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                    title="Entfernen"
+                                >
+                                    <X size={14} />
+                                </button>
+                            </motion.div>
+                        );
+                    })}
+                </AnimatePresence>
+            </div>
+        </div>
+    );
+};
 
 
 export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
@@ -18,6 +88,39 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+    const [savedAccounts, setSavedAccounts] = useState(() => getSavedAccounts());
+    const { addToast } = useToast();
+
+    // Resend Confirmation Logic
+    const [showResendUI, setShowResendUI] = useState(false);
+    const [resendCountdown, setResendCountdown] = useState(0);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [unconfirmedEmail, setUnconfirmedEmail] = useState('');
+
+    useEffect(() => {
+        let timer;
+        if (resendCountdown > 0) {
+            timer = setInterval(() => {
+                setResendCountdown(prev => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [resendCountdown]);
+
+    const handleSelectSavedAccount = (account) => {
+        setIdentifier(account.identifier);
+        if (account.hasPassword && account.password) {
+            setPassword(decodePassword(account.password));
+        } else {
+            setPassword('');
+        }
+        setMsg('');
+    };
+
+    const handleRemoveSavedAccount = (id) => {
+        removeAccount(id);
+        setSavedAccounts(getSavedAccounts());
+    };
 
 
 
@@ -60,6 +163,8 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     }
                 });
                 if (error) throw error;
+                setUnconfirmedEmail(email);
+                addToast('Account erfolgreich erstellt! Bitte bestätige deine E-Mail.', 'success');
                 setView('registerSuccess');
                 return;
             } else {
@@ -80,6 +185,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                     }
                     loginEmail = resolvedEmail;
                 }
+                setUnconfirmedEmail(loginEmail);
 
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email: loginEmail,
@@ -90,9 +196,56 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
             }
         } catch (error) {
             console.error("Auth Error:", error);
-            setMsg(getSafeErrorMessage(error));
+            const errorMsg = getSafeErrorMessage(error);
+            setMsg(errorMsg);
+
+            // Detect "Email not confirmed" to show resend UI
+            if (error.message?.includes('Email not confirmed')) {
+                setShowResendUI(true);
+                // The email used for login is either already in loginEmail (dual logic) or identifier
+                // We re-calculate it to be safe or store it if we can.
+                // In handleAuth scope, loginEmail was the resolved email.
+                // Let's store it so the resend button knows where to send.
+            }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleResendEmail = async () => {
+        if (resendCountdown > 0 || resendLoading) return;
+        
+        let targetEmail = unconfirmedEmail || identifier.trim();
+        if (!targetEmail) {
+            setMsg("Bitte gib deine E-Mail-Adresse ein.");
+            return;
+        }
+
+        setResendLoading(true);
+        try {
+            // Resolve username to email if needed (duplicated logic for safety)
+            if (!targetEmail.includes('@')) {
+                const { data: resolvedEmail } = await supabase.rpc(
+                    'get_email_by_username',
+                    { p_username: targetEmail.toLowerCase() }
+                );
+                if (resolvedEmail) targetEmail = resolvedEmail;
+            }
+
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: targetEmail
+            });
+
+            if (error) throw error;
+
+            addToast('Neue E-Mail wurde verschickt! Bitte prüfe auch deinen Spam-Ordner.', 'success');
+            setResendCountdown(60);
+        } catch (error) {
+            console.error("Resend Error:", error);
+            setMsg(getSafeErrorMessage(error));
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -190,9 +343,22 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                                     Wir haben dir einen Link geschickt. Bitte bestätige deine E-Mail-Adresse, um den Tresor zu öffnen.
                                 </p>
                             </div>
-                            <button onClick={onClose} className="w-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-border text-foreground font-bold py-3 rounded-xl transition">
-                                Verstanden
-                            </button>
+                            
+                            <div className="space-y-3">
+                                <button
+                                    type="button"
+                                    disabled={resendCountdown > 0 || resendLoading}
+                                    onClick={handleResendEmail}
+                                    className="w-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 disabled:text-zinc-500 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 border border-cyan-500/20"
+                                >
+                                    {resendLoading ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                                    {resendCountdown > 0 ? `Erneut senden in ${resendCountdown}s` : 'Link erneut senden'}
+                                </button>
+
+                                <button onClick={onClose} className="w-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-border text-foreground font-bold py-3 rounded-xl transition">
+                                    Verstanden
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -232,6 +398,14 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                                 </form>
                             ) : (
                                 <>
+                                    {/* Saved Accounts — Quick Login */}
+                                    {view === 'login' && savedAccounts.length > 0 && (
+                                        <SavedAccountsSection
+                                            accounts={savedAccounts}
+                                            onSelect={handleSelectSavedAccount}
+                                            onRemove={handleRemoveSavedAccount}
+                                        />
+                                    )}
                                     <form onSubmit={handleAuth} className="space-y-4">
                                     <div className="space-y-3">
                                         {view === 'login' ? (
@@ -290,6 +464,26 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen }) => {
                                     {msg && (
                                         <div className="bg-rose-600/10 text-rose-600 text-xs p-3 rounded-xl border border-rose-600/20 flex flex-col gap-2 font-medium">
                                             <div className="flex items-center gap-2"><AlertCircle size={14} /> {msg}</div>
+                                            
+                                            {showResendUI && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: -10 }} 
+                                                    animate={{ opacity: 1, y: 0 }} 
+                                                    className="mt-1 pt-1 border-t border-rose-600/10"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        disabled={resendCountdown > 0 || resendLoading}
+                                                        onClick={handleResendEmail}
+                                                        className="w-full text-[11px] font-bold text-cyan-500 hover:text-cyan-400 disabled:text-zinc-500 transition-colors py-2 flex items-center justify-center gap-2 uppercase tracking-wider"
+                                                    >
+                                                        {resendLoading ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
+                                                        {resendCountdown > 0 
+                                                            ? `Erneut senden in ${resendCountdown}s` 
+                                                            : 'Bestätigungs-E-Mail erneut senden'}
+                                                    </button>
+                                                </motion.div>
+                                            )}
                                         </div>
                                     )}
                                     <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>

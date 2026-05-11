@@ -73,7 +73,7 @@ export const LandingPage = ({ onLogin, onRegister }) => (
     </div>
 
     {/* ═══════════════════ NAVBAR ═══════════════════ */}
-    <nav className="fixed top-0 inset-x-0 z-50 bg-slate-950/60 backdrop-blur-2xl border-b border-white/[0.06]">
+    <nav className="fixed top-0 inset-x-0 z-50 bg-slate-950/60 backdrop-blur-2xl border-b border-white/[0.06] pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.href = '/'}>
@@ -82,7 +82,6 @@ export const LandingPage = ({ onLogin, onRegister }) => (
             alt="Cavio Icon"
             className="h-10 w-10 object-contain mix-blend-screen rounded-lg transition-transform duration-300 group-hover:scale-110"
           />
-          <span className="text-xl sm:text-2xl font-black tracking-[0.15em] text-white">CAVIO</span>
         </div>
 
         {/* Nav Actions */}
@@ -105,7 +104,7 @@ export const LandingPage = ({ onLogin, onRegister }) => (
 
     <main className="flex-1">
       {/* ═══════════════════ HERO ═══════════════════ */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 pt-24 pb-16">
+      <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 pt-[calc(6rem+env(safe-area-inset-top))] pb-16">
         {/* Grid overlay */}
         <div className="absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
@@ -118,7 +117,7 @@ export const LandingPage = ({ onLogin, onRegister }) => (
         >
           <div className="absolute inset-0 w-28 h-28 sm:w-32 sm:h-32 bg-amber-400/20 rounded-full blur-[40px] landing-glow-pulse" />
           <img
-            src="/cavio-icon.png"
+            src="/cavio-floating-logo.png"
             alt="Cavio"
             className="relative w-28 h-28 sm:w-32 sm:h-32 object-contain mix-blend-screen landing-float drop-shadow-[0_0_30px_rgba(245,158,11,0.4)]"
           />

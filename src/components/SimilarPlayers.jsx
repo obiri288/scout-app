@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { User, Shield, ChevronRight, Sparkles, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { calculateAge } from '../lib/helpers';
+import { formatPosition } from '../lib/utils';
 
 /**
  * Shows similar players based on:
@@ -104,14 +105,14 @@ export const SimilarPlayers = ({ profile, onUserClick }) => {
                         className="shrink-0 w-28 flex flex-col items-center text-center cursor-pointer group"
                     >
                         <div className="w-16 h-16 rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 mb-2 group-hover:border-blue-500 transition shadow-lg">
-                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <User size={24} className="text-zinc-500 m-5" />}
+                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
                         </div>
-                        <div className="text-xs font-bold text-white truncate w-full group-hover:text-blue-400 transition">{p.full_name}</div>
+                        <div className="text-xs font-bold text-foreground truncate w-full group-hover:text-blue-400 transition">{p.full_name}</div>
                         <div className="text-[10px] text-zinc-500 truncate w-full flex items-center justify-center gap-1 mt-0.5">
                             <Shield size={8} /> {p.clubs?.name || 'Vereinslos'}
                         </div>
                         <div className="flex items-center gap-1 mt-1">
-                            <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-zinc-300 font-bold">{p.position_primary}</span>
+                            <span className="text-[9px] bg-gray-800 px-1.5 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
                             {p.city && <span className="text-[9px] text-zinc-400 flex items-center gap-0.5"><MapPin size={7} />{p.city}</span>}
                         </div>
                     </motion.div>

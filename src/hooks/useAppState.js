@@ -26,6 +26,7 @@ export const useAppState = () => {
     const [viewedProfile, setViewedProfile] = useState(null);
     const [viewedClub, setViewedClub] = useState(null);
     const [profileHighlights, setProfileHighlights] = useState([]);
+    const [profileArchivedHighlights, setProfileArchivedHighlights] = useState([]);
 
     // --- Media State ---
     const [activeVideo, setActiveVideo] = useState(null);
@@ -74,14 +75,35 @@ export const useAppState = () => {
             case 'profile':
                 if (param && loadProfileRef.current) {
                     try {
-                        const player = await api.fetchPlayerByUserId(param);
+                        const player = await api.fetchPlayerBySlug(param);
                         if (player) {
                             await loadProfileRef.current(player);
                         } else {
-                            addToast("Profil nicht gefunden oder deaktiviert.", "info");
+                            // Fallback for old UUID links (backwards compatibility)
+                            const playerById = await api.fetchPlayerByUserId(param);
+                            if (playerById) {
+                                await loadProfileRef.current(playerById);
+                            } else {
+                                addToast("Profil nicht gefunden oder deaktiviert.", "info");
+                            }
                         }
                     } catch (e) {
                         console.error("Deep link profile load failed:", e);
+                    }
+                }
+                break;
+            case 'video':
+                if (param) {
+                    try {
+                        const videoData = await api.fetchVideoById(param);
+                        if (videoData) {
+                            setActiveVideo(videoData);
+                        } else {
+                            addToast("Video nicht gefunden oder gelöscht.", "info");
+                        }
+                    } catch (e) {
+                        console.error("Deep link video load failed:", e);
+                        addToast("Video konnte nicht geladen werden.", "error");
                     }
                 }
                 break;
@@ -101,6 +123,19 @@ export const useAppState = () => {
             case 'inbox':
                 setActiveTab('inbox');
                 break;
+            case 'settings':
+                setActiveTab('settings');
+                // The SettingsScreen will handle the sub-path via its own effect
+                break;
+            case 'privacy':
+                setActiveTab('privacy');
+                break;
+            case 'impressum':
+                setActiveTab('impressum');
+                break;
+            case 'chat':
+                setActiveTab('inbox');
+                break;
             default:
                 break;
         }
@@ -118,6 +153,40 @@ export const useAppState = () => {
         window.addEventListener('beforeinstallprompt', handler);
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);
+
+    // === Listeners for Video Management ===
+    useEffect(() => {
+        const handleVideoDeleted = (e) => {
+            const { videoId } = e.detail;
+            setProfileHighlights(prev => prev.filter(v => v.id !== videoId));
+            setProfileArchivedHighlights(prev => prev.filter(v => v.id !== videoId));
+        };
+        const handleVideoArchived = async (e) => {
+            const { videoId } = e.detail;
+            const archivedVideo = profileHighlights.find(v => v.id === videoId);
+            if (archivedVideo) {
+                setProfileHighlights(prev => prev.filter(v => v.id !== videoId));
+                setProfileArchivedHighlights(prev => [{ ...archivedVideo, is_archived: true }, ...prev]);
+            }
+        };
+        const handleVideoUnarchived = async (e) => {
+            const { videoId } = e.detail;
+            const unarchivedVideo = profileArchivedHighlights.find(v => v.id === videoId);
+            if (unarchivedVideo) {
+                setProfileArchivedHighlights(prev => prev.filter(v => v.id !== videoId));
+                setProfileHighlights(prev => [{ ...unarchivedVideo, is_archived: false }, ...prev]);
+            }
+        };
+
+        window.addEventListener('videoDeleted', handleVideoDeleted);
+        window.addEventListener('videoArchived', handleVideoArchived);
+        window.addEventListener('videoUnarchived', handleVideoUnarchived);
+        return () => {
+            window.removeEventListener('videoDeleted', handleVideoDeleted);
+            window.removeEventListener('videoArchived', handleVideoArchived);
+            window.removeEventListener('videoUnarchived', handleVideoUnarchived);
+        };
+    }, [profileHighlights, profileArchivedHighlights]);
 
     // === Handlers ===
     const handleLoginSuccess = async (sessionData) => {
@@ -195,7 +264,19 @@ export const useAppState = () => {
             p.following_count = await api.getFollowingCount(p.id);
 
             setViewedProfile(p);
-            setProfileHighlights(await api.fetchPlayerHighlights(p.id));
+            
+            // Highlights & Archive
+            const isOwn = session?.user?.id === p.user_id;
+            const highlights = await api.fetchPlayerHighlights(p.id, false); // Normal highlights (archived=false)
+            setProfileHighlights(highlights);
+            
+            if (isOwn) {
+                const archived = await api.fetchPlayerHighlights(p.id, true); // Get ALL including archived
+                setProfileArchivedHighlights(archived.filter(v => v.is_archived));
+            } else {
+                setProfileArchivedHighlights([]);
+            }
+
             setActiveTab('profile');
             navigateToHash(`profile/${p.user_id}`);
         } catch (e) {
@@ -303,10 +384,21 @@ export const useAppState = () => {
             await api.deleteHighlight(video.id);
             await api.deleteVideoFiles(video.video_url, video.thumbnail_url);
             setProfileHighlights(prev => prev.filter(v => v.id !== video.id));
+            setProfileArchivedHighlights(prev => prev.filter(v => v.id !== video.id));
             addToast(t('toast_video_deleted'), 'success');
         } catch (e) {
             console.error('Video delete failed:', e);
             addToast(t('toast_video_delete_error'), 'error');
+        }
+    };
+
+    const handleUnarchiveVideo = async (videoId) => {
+        try {
+            await api.unarchiveHighlight(videoId);
+            addToast('Video wiederhergestellt.', 'success');
+            window.dispatchEvent(new CustomEvent('videoUnarchived', { detail: { videoId } }));
+        } catch (e) {
+            addToast('Fehler beim Wiederherstellen.', 'error');
         }
     };
 
@@ -318,6 +410,9 @@ export const useAppState = () => {
         else if (tab === 'inbox') navigateToHash('inbox');
         else if (tab === 'directory') navigateToHash('directory');
         else if (tab === 'teams') navigateToHash('teams');
+        else if (tab === 'settings') navigateToHash('settings');
+        else if (tab === 'privacy') navigateToHash('privacy');
+        else if (tab === 'impressum') navigateToHash('impressum');
         else if (tab.startsWith('admin_')) navigateToHash(`admin/${tab.replace('admin_', '')}`);
     };
 
@@ -338,6 +433,7 @@ export const useAppState = () => {
 
         // Profile
         viewedProfile, setViewedProfile, profileHighlights, setProfileHighlights,
+        profileArchivedHighlights, setProfileArchivedHighlights,
         loadProfile, handleProfileTabClick, isOnWatchlist,
 
         // Club
@@ -367,7 +463,7 @@ export const useAppState = () => {
 
         // Handlers
         handleLoginSuccess, handleFollow, handleWatchlistToggle,
-        handleDeleteVideo, handleInstallApp, handlePushRequest,
+        handleDeleteVideo, handleUnarchiveVideo, handleInstallApp, handlePushRequest,
 
         // PWA
         deferredPrompt,

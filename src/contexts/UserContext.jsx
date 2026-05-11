@@ -31,7 +31,9 @@ export const UserProvider = ({ children }) => {
         return hash.includes('access_token') || hash.includes('type=signup') || 
                hash.includes('type=recovery') || hash.includes('type=email') ||
                search.includes('code=') || search.includes('token=') ||
-               pathname.includes('/update-password');
+               pathname.includes('/update-password') ||
+               pathname.includes('/auth-callback') ||
+               pathname.includes('/welcome');
     });
 
     // Stable ref so the callback never goes stale
@@ -40,6 +42,7 @@ export const UserProvider = ({ children }) => {
 
     // Guard against concurrent fetches
     const fetchingRef = useRef(false);
+    const prevEmailRef = useRef(null);
 
     // Fetch or auto-create profile
     const fetchOrCreateProfile = useCallback(async (userSession) => {
@@ -92,22 +95,49 @@ export const UserProvider = ({ children }) => {
             if (event === 'PASSWORD_RECOVERY') {
                 setIsRecoveryMode(true);
             }
+            
+            // Detect Email Change for Toast
+            if (s?.user?.email && prevEmailRef.current && s.user.email !== prevEmailRef.current) {
+                addToast('E-Mail-Adresse erfolgreich geändert!', 'success');
+            }
+            if (s?.user?.email) {
+                prevEmailRef.current = s.user.email;
+            }
+
             setSession(s);
             if (!s) {
                 setCurrentUserProfile(null);
                 setUnreadCount(0);
+                prevEmailRef.current = null;
             }
 
             // Auth callback: clean up URL tokens after session is established
+            // Note: If on /auth-callback or /welcome, we let the UI handle the cleanup and state reset
             if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && isAuthCallback) {
-                setIsAuthCallback(false);
-                // Clean URL: remove hash tokens & query params left by Supabase
-                const cleanUrl = window.location.origin + window.location.pathname;
-                window.history.replaceState(null, '', cleanUrl);
+                const isDedicatedCallbackPage = window.location.pathname.includes('/auth-callback') || window.location.pathname.includes('/welcome');
+                
+                if (!isDedicatedCallbackPage) {
+                    setIsAuthCallback(false);
+                    // Clean URL: remove hash tokens & query params left by Supabase
+                    const cleanUrl = window.location.origin + window.location.pathname;
+                    window.history.replaceState(null, '', cleanUrl);
+                }
             }
         });
 
-        return () => subscription.unsubscribe();
+        // Focus listener to refresh session when coming back to tab
+        // This ensures changes on other devices (e.g. phone) are picked up
+        const handleFocus = async () => {
+            if (fetchingRef.current) return;
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
+            if (currentSession) setSession(currentSession);
+        };
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            subscription.unsubscribe();
+            window.removeEventListener('focus', handleFocus);
+        };
     }, []);
 
     // Auto-fetch profile when session user changes (primitive dep only)
@@ -273,6 +303,7 @@ export const UserProvider = ({ children }) => {
         isRecoveryMode,
         setIsRecoveryMode,
         isAuthCallback,
+        setIsAuthCallback,
     };
 
     return (

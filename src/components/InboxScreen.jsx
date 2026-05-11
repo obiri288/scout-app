@@ -301,6 +301,54 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         }
     }, [subTab, loadNotifications]);
 
+    // Deep link support for chats (e.g. #chat/UUID)
+    useEffect(() => {
+        const checkDeepLink = async () => {
+            const hash = window.location.hash;
+            if (hash.startsWith('#chat/')) {
+                const partnerId = hash.replace('#chat/', '');
+                if (!partnerId) return;
+
+                // Try to find if the chat is already in our loaded list
+                let partner = chats.find(c => c.user_id === partnerId);
+                
+                // If not in list, we might need to fetch the profile manually
+                if (!partner) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', partnerId)
+                            .single();
+                        
+                        if (!error && data) {
+                            partner = {
+                                user_id: data.id,
+                                full_name: data.full_name || data.username,
+                                avatar_url: data.avatar_url,
+                                is_official: data.is_official,
+                                verification_status: data.verification_status
+                            };
+                        }
+                    } catch (e) {
+                        console.error("Deep link chat profile load failed:", e);
+                    }
+                }
+
+                if (partner) {
+                    handleOpenChat(partner);
+                }
+            }
+        };
+
+        if (chats.length > 0) {
+            checkDeepLink();
+        } else if (session?.user?.id) {
+            // If chats aren't loaded yet, try to check anyway (will fetch profile)
+            checkDeepLink();
+        }
+    }, [chats, session?.user?.id]);
+
     // Listen for global chat badge clear events
     useEffect(() => {
         const handleClearBadge = (e) => {
@@ -353,8 +401,8 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
     const hasUnreadNotis = unreadCount > 0 || notis.some(n => !n.is_read);
 
     // Gatekeeper: split chats by sender verification status
-    const inboxChats = chats.filter(c => c.is_verified);
-    const requestChats = chats.filter(c => !c.is_verified);
+    const inboxChats = chats.filter(c => c.is_verified || c.is_official);
+    const requestChats = chats.filter(c => !c.is_verified && !c.is_official);
     const hasUnreadInbox = inboxChats.some(c => c.unreadCount > 0);
     const requestCount = requestChats.length;
 
@@ -520,7 +568,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                         {c.avatar_url ? (
                             <img src={c.avatar_url} className="w-full h-full object-cover" />
                         ) : (
-                            <User size={24} className="text-muted-foreground m-3.5" />
+                            <img src="/cavio-icon.png" className="w-full h-full object-contain p-3.5 opacity-60" />
                         )}
                     </div>
                 </div>
@@ -531,9 +579,14 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                 <div className="flex flex-col gap-0.5">
                     <h4 className="text-base font-bold text-foreground truncate flex items-center gap-1.5 leading-tight">
                         <span className="truncate">{c.full_name}</span>
-                        {c.verification_status && c.verification_status !== 'unverified' && (
-                            <VerificationBadge size={14} status={c.verification_status} verificationStatus={c.verification_status} />
-                        )}
+                        {(c.verification_status && c.verification_status !== 'unverified') || c.is_official ? (
+                            <VerificationBadge 
+                                size={14} 
+                                status={c.verification_status} 
+                                verificationStatus={c.verification_status} 
+                                isOfficial={c.is_official}
+                            />
+                        ) : null}
                     </h4>
                     <p className={`text-sm truncate leading-tight ${c.unreadCount > 0 ? 'text-blue-400 font-medium' : 'text-muted-foreground/60'}`}>
                         {c.unreadCount > 0 

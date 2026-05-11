@@ -14,6 +14,8 @@ const ERROR_MAP = {
     'Unable to validate email address: invalid format': 'Bitte gib eine gültige E-Mail-Adresse ein.',
     'Email rate limit exceeded': 'Zu viele Anfragen. Bitte versuche es später erneut.',
     'For security purposes, you can only request this after 60 seconds.': 'Bitte warte einen Moment, bevor du es erneut versuchst.',
+    'New email address is the same as the old one': 'Die neue E-Mail ist identisch mit der aktuellen.',
+    'Identity already linked': 'Dieses Konto ist bereits mit einem anderen Nutzer verknüpft.',
 
     // Storage errors
     'The resource already exists': 'Diese Datei existiert bereits.',
@@ -27,12 +29,15 @@ const ERROR_MAP = {
 /**
  * Returns a safe, user-facing error message.
  * @param {Error|object} error - The error object
- * @param {string} fallback - Fallback message if no mapping found
+ * @param {string} fallback - Fallback message if no mapping found. If null, returns the original message if no mapping exists.
  * @returns {string} A safe German error message
  */
 export const getSafeErrorMessage = (error, fallback = 'Ein Fehler ist aufgetreten. Bitte versuche es erneut.') => {
     const msg = error?.message || '';
 
+    // If the message contains German-specific characters, it's likely already translated
+    const isLikelyGerman = /[äöüßÄÖÜ]/.test(msg) || msg.includes('E-Mail') || msg.includes('Passwort');
+    
     // Check for exact match
     if (ERROR_MAP[msg]) return ERROR_MAP[msg];
 
@@ -46,5 +51,8 @@ export const getSafeErrorMessage = (error, fallback = 'Ein Fehler ist aufgetrete
         return 'Netzwerkfehler — bitte prüfe deine Internetverbindung.';
     }
 
-    return fallback;
+    // If no mapping found but it looks like it's already German, return it
+    if (isLikelyGerman) return msg;
+
+    return fallback || msg;
 };

@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2, ChevronLeft } from 'lucide-react';
+import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2, ChevronLeft, CheckCircle } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
 import { useToast } from './contexts/ToastContext';
 import * as api from './lib/api';
@@ -28,6 +28,7 @@ const LoginModal = lazy(() => import('./components/LoginModal').then(m => ({ def
 const UploadModal = lazy(() => import('./components/UploadModal').then(m => ({ default: m.UploadModal })));
 const EditProfileModal = lazy(() => import('./components/EditProfileModal').then(m => ({ default: m.EditProfileModal })));
 const SettingsScreen = lazy(() => import('./components/SettingsScreen'));
+const LogoutConfirmModal = lazy(() => import('./components/SettingsScreen').then(m => ({ default: m.LogoutConfirmModal })));
 const CommentsModal = lazy(() => import('./components/CommentsModal').then(m => ({ default: m.CommentsModal })));
 const ChatWindow = lazy(() => import('./components/ChatWindow').then(m => ({ default: m.ChatWindow })));
 const FollowerListModal = lazy(() => import('./components/FollowerListModal').then(m => ({ default: m.FollowerListModal })));
@@ -43,7 +44,11 @@ const UpdatePasswordModal = lazy(() => import('./components/UpdatePasswordModal'
 const UpdateEmailModal = lazy(() => import('./components/UpdateEmailModal').then(m => ({ default: m.UpdateEmailModal })));
 const DeactivateAccountModal = lazy(() => import('./components/DeactivateAccountModal').then(m => ({ default: m.DeactivateAccountModal })));
 const ReactivateAccountModal = lazy(() => import('./components/ReactivateAccountModal').then(m => ({ default: m.ReactivateAccountModal })));
+const UpdatePasswordScreen = lazy(() => import('./components/UpdatePasswordScreen'));
+const PrivacyScreen = lazy(() => import('./components/PrivacyScreen'));
+const ImprintScreen = lazy(() => import('./components/ImprintScreen'));
 import { EmailConfirmedPage } from './components/EmailConfirmedPage';
+import { AuthCallbackScreen } from './components/AuthCallbackScreen';
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center">
@@ -141,7 +146,7 @@ const legalContent = {
     'Datenschutz': {
         updated: '01.03.2026',
         sections: [
-            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist ProBase UG (haftungsbeschränkt). Bei Fragen zum Datenschutz wende dich an: datenschutz@probase.app' },
+            { title: '1. Verantwortlicher', text: 'Verantwortlich für die Datenverarbeitung ist CAVIO. Bei Fragen zum Datenschutz wende dich an: kontakt@cavio.me' },
             { title: '2. Welche Daten wir erheben', text: 'Bei der Registrierung erheben wir deine E-Mail-Adresse und dein Passwort (verschlüsselt). Im Profil kannst du freiwillig Name, Position, Geburtsdatum, Vereinszugehörigkeit, Standort und ein Profilbild angeben. Beim Hochladen von Videos speichern wir die Videodateien und zugehörige Metadaten (Skill-Tags, Titel).' },
             { title: '3. Zweck der Verarbeitung', text: 'Deine Daten werden zur Bereitstellung der App-Funktionen verwendet: Profilerstellung, Video-Feed, Suchfunktion, Messaging, Watchlist und Benachrichtigungen. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).' },
             { title: '4. Datenweitergabe', text: 'Wir nutzen Supabase (EU-Region) als Datenbank- und Authentifizierungsanbieter. Videos werden auf Supabase Storage gespeichert. Deine Daten werden nicht an Dritte zu Werbezwecken weitergegeben.' },
@@ -153,8 +158,8 @@ const legalContent = {
     'Impressum': {
         updated: '01.03.2026',
         sections: [
-            { title: 'Angaben gemäß § 5 TMG', text: 'ProBase UG (haftungsbeschränkt)\nMusterstraße 1\n10115 Berlin\nDeutschland' },
-            { title: 'Kontakt', text: 'E-Mail: info@probase.app\nTelefon: +49 (0) 30 12345678' },
+            { title: 'Angaben gemäß § 5 TMG', text: 'CAVIO Digital Sports\nMusterstraße 1\n10115 Berlin\nDeutschland' },
+            { title: 'Kontakt', text: 'E-Mail: kontakt@cavio.me\nTelefon: +49 (0) 30 12345678' },
             { title: 'Vertretungsberechtigter Geschäftsführer', text: '[Name des Geschäftsführers]' },
             { title: 'Registereintrag', text: 'Handelsregister: Amtsgericht Berlin-Charlottenburg\nRegisternummer: HRB [Nummer]' },
             { title: 'Umsatzsteuer-ID', text: 'Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:\nDE [Nummer]' },
@@ -164,12 +169,12 @@ const legalContent = {
     'AGB': {
         updated: '01.03.2026',
         sections: [
-            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der ProBase-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
+            { title: '1. Geltungsbereich', text: 'Diese Nutzungsbedingungen gelten für die Nutzung der CAVIO-App. Mit der Registrierung akzeptierst du diese Bedingungen.' },
             { title: '2. Kostenlose Nutzung', text: 'Die Nutzung der App ist für Spieler dauerhaft und vollständig kostenlos. Es entstehen keine versteckten Kosten oder Abo-Gebühren.' },
             { title: '3. Nutzer-Inhalte', text: 'Du bist für alle von dir hochgeladenen Inhalte (Videos, Texte, Bilder) verantwortlich. Es ist verboten, Inhalte hochzuladen, die gegen geltendes Recht verstoßen, beleidigend, diskriminierend oder pornografisch sind, oder die Rechte Dritter verletzen.' },
             { title: '4. Melden & Blockieren', text: 'Du kannst unangemessene Inhalte und Nutzer melden. Wir prüfen jede Meldung und behalten uns vor, Inhalte zu entfernen und Accounts zu sperren. Die Block-Funktion ermöglicht dir, Nachrichten und Inhalte bestimmter Nutzer auszublenden.' },
             { title: '5. Account-Löschung', text: 'Du kannst deinen Account jederzeit vollständig und unwiderruflich in den App-Einstellungen löschen. Dabei werden alle deine Daten, Videos und Nachrichten dauerhaft entfernt.' },
-            { title: '6. Haftungsausschluss', text: 'ProBase übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
+            { title: '6. Haftungsausschluss', text: 'CAVIO übernimmt keine Garantie für die Richtigkeit von Nutzerangaben. Die Plattform dient der Sichtbarkeit von Spielern und stellt keine Vermittlungsgarantie dar.' },
         ]
     }
 };
@@ -254,7 +259,7 @@ const App = () => {
         unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
         checkUnreadMessages,
         activeTab, switchTab, navigateToHash,
-        viewedProfile, setViewedProfile, profileHighlights,
+        viewedProfile, setViewedProfile, profileHighlights, profileArchivedHighlights,
         loadProfile, handleProfileTabClick, isOnWatchlist,
         viewedClub, setViewedClub,
         activeVideo, setActiveVideo,
@@ -270,7 +275,7 @@ const App = () => {
         reportTarget, setReportTarget,
         comparePlayer, setComparePlayer,
         handleLoginSuccess, handleFollow, handleWatchlistToggle,
-        handleDeleteVideo, handleInstallApp, handlePushRequest,
+        handleDeleteVideo, handleUnarchiveVideo, handleInstallApp, handlePushRequest,
         showCelebration, setShowCelebration,
         deferredPrompt,
         isRecoveryMode, setIsRecoveryMode,
@@ -285,6 +290,10 @@ const App = () => {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showLanding, setShowLanding] = useState(true);
     const [careerRefreshKey, setCareerRefreshKey] = useState(0);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    const handleLogoutRequest = () => setShowLogoutConfirm(true);
+    const handleLogoutConfirm = () => { setShowLogoutConfirm(false); logout(); switchTab('home'); };
 
     // Watch for successful email changes based on localStorage pending state
     useEffect(() => {
@@ -302,22 +311,39 @@ const App = () => {
         return <EmailConfirmedPage />;
     }
 
+    // New dedicated Auth Callback / Welcome flow
+    if (window.location.pathname === '/auth-callback' || window.location.pathname === '/welcome') {
+        return <AuthCallbackScreen />;
+    }
+
     // If we are on the password recovery redirect page
     if (window.location.pathname === '/update-password') {
-        // Render the rest of the app or a blank screen behind the modal
         return (
-            <div className="min-h-screen bg-background">
-                <UpdatePasswordModal 
-                    onClose={() => { window.location.pathname = '/'; }} 
-                    onSuccess={() => { window.location.pathname = '/'; }} 
-                />
-            </div>
+            <Suspense fallback={<SplashScreen />}>
+                <UpdatePasswordScreen />
+            </Suspense>
+        );
+    }
+
+    if (window.location.pathname === '/privacy') {
+        return (
+            <Suspense fallback={<SplashScreen />}>
+                <PrivacyScreen />
+            </Suspense>
+        );
+    }
+
+    if (window.location.pathname === '/imprint') {
+        return (
+            <Suspense fallback={<SplashScreen />}>
+                <ImprintScreen />
+            </Suspense>
         );
     }
 
     // Block ALL rendering until auth state AND initial profile fetch are resolved
     // Also block if a reactivation is pending (force modal decision)
-    if (authLoading || isAuthCallback || pendingReactivationProfile || (session && !currentUserProfile && profileLoading)) {
+    if (authLoading || (isAuthCallback && !window.location.pathname.includes('/auth-callback')) || pendingReactivationProfile || (session && !currentUserProfile && profileLoading)) {
         if (pendingReactivationProfile) {
             return (
                 <Suspense fallback={<SplashScreen />}>
@@ -364,6 +390,7 @@ const App = () => {
                 activeTab={activeTab}
                 onNavigate={switchTab}
                 onLogout={logout}
+                onLogoutRequest={handleLogoutRequest}
                 session={session}
                 currentUserProfile={currentUserProfile}
             />
@@ -403,7 +430,7 @@ const App = () => {
                     onDeleteVideo={handleDeleteVideo}
                     isOwnProfile={session && (!viewedProfile || viewedProfile.user_id === session.user.id)}
                     onBack={() => { switchTab('home'); }}
-                    onLogout={() => { logout(); switchTab('home'); }}
+                    onLogout={handleLogoutRequest}
                     onEditReq={() => setShowEditProfile(true)}
                     onSettingsReq={() => switchTab('settings')}
                     onChatReq={() => { if (!session) setShowLogin(true); else setActiveChatPartner(viewedProfile); }}
@@ -424,6 +451,8 @@ const App = () => {
                     onUpload={() => setShowUpload(true)}
                     onMenuOpen={() => setIsSidebarOpen(true)}
                     careerRefreshKey={careerRefreshKey}
+                    archivedHighlights={profileArchivedHighlights}
+                    onUnarchiveVideo={handleUnarchiveVideo}
                 />
             )}
 
@@ -436,11 +465,12 @@ const App = () => {
                         currentUserProfile={currentUserProfile}
                         session={session}
                         onBack={() => switchTab('home')}
-                        onLogout={() => { logout(); switchTab('home'); }}
+                        onLogout={handleLogoutRequest}
                         onEditReq={() => setShowEditProfile(true)}
                         onOpenEmailModal={() => setActiveSettingsModal('email')}
                         onOpenPasswordModal={() => setActiveSettingsModal('password')}
                         onMenuOpen={() => setIsSidebarOpen(true)}
+                        onSelectChat={setActiveChatPartner}
                     />
                 </Suspense>
             )}
@@ -452,6 +482,7 @@ const App = () => {
                         onClose={() => switchTab('home')} 
                         onUserClick={loadProfile} 
                         onMenuOpen={() => setIsSidebarOpen(true)}
+                        onLogout={handleLogoutRequest}
                     />
                 </Suspense>
             )}
@@ -464,19 +495,31 @@ const App = () => {
                         onClose={() => switchTab('home')} 
                         onUserClick={loadProfile} 
                         onMenuOpen={() => setIsSidebarOpen(true)}
+                        onLogout={handleLogoutRequest}
                     />
+                </Suspense>
+            )}
+
+            {activeTab === 'privacy' && (
+                <Suspense fallback={<LazyFallback />}>
+                    <PrivacyScreen />
+                </Suspense>
+            )}
+            {activeTab === 'impressum' && (
+                <Suspense fallback={<LazyFallback />}>
+                    <ImprintScreen />
                 </Suspense>
             )}
 
             {/* Notification Bell — fixed top-right */}
             {session && currentUserProfile && (
-                <div className="fixed top-12 right-4 z-[20000]">
+                <div className="fixed top-[calc(3rem+env(safe-area-inset-top))] right-4 z-[20000]">
                     <NotificationBell />
                 </div>
             )}
 
             {/* Decoupled Upload FAB */}
-            <div className="fixed bottom-24 right-4 sm:right-6 sm:bottom-28 z-[9000]">
+            <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 sm:right-6 sm:bottom-[calc(7rem+env(safe-area-inset-bottom))] z-[9000]">
                 <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.92 }}
@@ -488,7 +531,7 @@ const App = () => {
             </div>
 
             {/* Smart Minimal Bottom Navigation */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-card/80 backdrop-blur-2xl border border-border py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(16,185,129,0.05)] flex justify-between items-center z-[9999] pointer-events-auto">
+            <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-card/80 backdrop-blur-2xl border border-border py-3 px-6 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_60px_rgba(16,185,129,0.05)] flex justify-between items-center z-[9999] pointer-events-auto">
                 {/* Home */}
                 <button onClick={() => switchTab('home')} className={`relative flex items-center gap-2 p-2 rounded-full transition-all duration-500 ease-out ${activeTab === 'home' ? 'bg-cyan-500/15 text-cyan-400 px-4' : 'text-muted-foreground hover:text-foreground/70 hover:bg-white/5'}`}>
                     <Home size={22} className={`transition-transform duration-500 ${activeTab === 'home' ? 'scale-110' : ''}`} />
@@ -545,7 +588,7 @@ const App = () => {
                         {/* Premium Frosted Glass Back Button */}
                         <button 
                             onClick={() => setActiveVideo(null)} 
-                            className="absolute top-12 left-4 z-50 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-transform active:scale-90"
+                            className="absolute top-[calc(1.5rem+env(safe-area-inset-top))] left-4 z-50 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-transform active:scale-90"
                         >
                             <ChevronLeft size={24} className="text-white" />
                         </button>
@@ -553,16 +596,17 @@ const App = () => {
                         <ImmersiveVideoPlayer
                             video={activeVideo}
                             isActive={true}
-                            isLiked={false} // Would need interaction hook to sync perfectly, but fine for now
-                            likeCount={activeVideo.likes_count || 0}
+                            initialIsLiked={activeVideo.initialIsLiked || false}
+                            initialIsSaved={activeVideo.initialIsSaved || false}
+                            initialLikeCount={activeVideo.initialLikeCount || activeVideo.likes_count || 0}
                             commentCount={activeVideo.comments_count || 0}
+                            session={session}
                             onUserClick={(p) => { setActiveVideo(null); loadProfile(p); }}
                             onCommentClick={(v) => { setActiveCommentsVideo(v); }}
-                            onLike={() => {
-                                // Basic feedback: in a real app, we'd trigger a global like action here
-                                addToast('Geliked!', 'success');
+                            onReportReq={(id, type) => setReportTarget({ id, type })}
+                            onInteractionUpdate={(data) => {
+                                window.dispatchEvent(new CustomEvent('videoInteractionUpdate', { detail: data }));
                             }}
-                            onBookmark={() => addToast('Gespeichert!', 'info')}
                         />
                     </motion.div>
                 )}
@@ -632,8 +676,6 @@ const App = () => {
                 {activeSettingsModal === 'push' && <PushSettingsModal onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'password' && <ChangePasswordModal onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'email' && <UpdateEmailModal onClose={() => setActiveSettingsModal(null)} session={session} />}
-                {activeSettingsModal === 'privacy' && <LegalModal title="Datenschutz" onClose={() => setActiveSettingsModal(null)} />}
-                {activeSettingsModal === 'imprint' && <LegalModal title="Impressum" onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'tos' && <LegalModal title="AGB" onClose={() => setActiveSettingsModal(null)} />}
                 {activeSettingsModal === 'delete-account' && (
                     <DeleteAccountModal
@@ -655,6 +697,15 @@ const App = () => {
                             setActiveSettingsModal(null);
                             switchTab('home');
                         }}
+                    />
+                )}
+
+                {showLogoutConfirm && (
+                    <LogoutConfirmModal
+                        onClose={() => setShowLogoutConfirm(false)}
+                        onConfirm={handleLogoutConfirm}
+                        session={session}
+                        currentUserProfile={currentUserProfile}
                     />
                 )}
             </Suspense>

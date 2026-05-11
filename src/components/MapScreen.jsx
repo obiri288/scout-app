@@ -191,7 +191,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
 
                         <div className="flex items-center gap-5">
                             <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-white/10 shadow-inner overflow-hidden shrink-0">
-                                {selectedPlayer.avatar_url ? <img src={selectedPlayer.avatar_url} className="w-full h-full object-cover" /> : <User size={28} className="text-slate-600 m-4" />}
+                                {selectedPlayer.avatar_url ? <img src={selectedPlayer.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-white text-lg truncate tracking-tight">{selectedPlayer.full_name}</h3>

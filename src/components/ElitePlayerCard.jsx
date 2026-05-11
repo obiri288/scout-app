@@ -21,8 +21,8 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => 
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `${profile.full_name} – ProBase Elite Card`,
-                    text: `Sieh dir das Profil von ${profile.full_name} auf ProBase an. Pro-Readiness: ${score}%.`,
+                    title: `${profile.full_name} – CAVIO Elite Card`,
+                    text: `Sieh dir das Profil von ${profile.full_name} auf CAVIO an. Pro-Readiness: ${score}%.`,
                     url: profileUrl,
                 });
             } catch (err) {
@@ -77,7 +77,7 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => 
                                 {profile.avatar_url ? (
                                     <img src={profile.avatar_url} className="w-full h-full object-cover" />
                                 ) : (
-                                    <User size={40} className="text-zinc-600" />
+                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-8 opacity-60" />
                                 )}
                             </div>
                         </div>

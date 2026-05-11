@@ -17,7 +17,7 @@ export const calculateAge = (birthDate) => {
 };
 
 // Generate a thumbnail from a video file (client-side)
-export const generateVideoThumbnail = (file) => {
+export const generateVideoThumbnail = (file, seekTime = null) => {
     return new Promise((resolve) => {
         const video = document.createElement("video");
         video.preload = "metadata";
@@ -25,10 +25,11 @@ export const generateVideoThumbnail = (file) => {
         video.muted = true;
         video.playsInline = true;
 
-        const timeout = setTimeout(() => resolve(null), 3000);
+        const timeout = setTimeout(() => resolve(null), 5000); // Increased timeout for precision seeking
 
         video.onloadeddata = () => {
-            video.currentTime = Math.min(1, video.duration / 2);
+            // If seekTime is provided, use it. Otherwise, default to middle of video.
+            video.currentTime = seekTime !== null ? seekTime : Math.min(1, video.duration / 2);
         };
 
         video.onseeked = () => {
@@ -42,7 +43,7 @@ export const generateVideoThumbnail = (file) => {
                 canvas.toBlob((blob) => {
                     URL.revokeObjectURL(video.src);
                     resolve(blob);
-                }, "image/jpeg", 0.7);
+                }, "image/jpeg", 0.8);
             } catch (e) {
                 console.error("Thumbnail Error:", e);
                 resolve(null);
