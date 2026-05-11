@@ -638,7 +638,7 @@ export const fetchComments = async (videoId) => {
     
     // Step 2: Fetch profiles for the unique user_ids
     const { data: profiles, error: profileError } = await supabase.from('players_master')
-        .select('user_id, full_name, avatar_url')
+        .select('id, user_id, full_name, avatar_url')
         .eq('is_deactivated', false)
         .in('user_id', userIds);
         
@@ -1017,27 +1017,27 @@ export const signOut = async () => {
 // ============================================================
 
 export const blockUser = async (blockerId, blockedId) => {
-    const { error } = await supabase.from('user_blocks')
+    const { error } = await supabase.from('blocks')
         .insert({ blocker_id: blockerId, blocked_id: blockedId });
     if (error) throw error;
 };
 
 export const unblockUser = async (blockerId, blockedId) => {
-    const { error } = await supabase.from('user_blocks')
+    const { error } = await supabase.from('blocks')
         .delete()
         .match({ blocker_id: blockerId, blocked_id: blockedId });
     if (error) throw error;
 };
 
 export const fetchBlockedUserIds = async (userId) => {
-    const { data } = await supabase.from('user_blocks')
+    const { data } = await supabase.from('blocks')
         .select('blocked_id')
         .eq('blocker_id', userId);
     return (data || []).map(b => b.blocked_id);
 };
 
 export const checkIsBlocked = async (blockerId, blockedId) => {
-    const { data } = await supabase.from('user_blocks')
+    const { data } = await supabase.from('blocks')
         .select('id')
         .eq('blocker_id', blockerId)
         .eq('blocked_id', blockedId);

@@ -212,10 +212,12 @@ export const ProfileScreen = ({
     onUnarchiveVideo
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
-    const [showPlayerCard, setShowPlayerCard] = useState(false);
+    const [showContactModal, setShowContactModal] = useState(false);
     const { addToast } = useToast();
-    const { refreshProfile } = useUser();
+    const { handleBlockUser, handleUnblockUser, blockedUserIds } = useUser();
     
+    const isBlocked = blockedUserIds?.includes(profile?.id);
+
     // Hooks for following/follower counts and status
     const [isFollowing, setIsFollowing] = useState(false);
     const [followers, setFollowers] = useState(0);
@@ -370,6 +372,27 @@ export const ProfileScreen = ({
         }
     };
 
+    const handleBlockAction = async () => {
+        if (!session) { onLoginReq(); return; }
+        try {
+            await handleBlockUser(profile.id);
+            addToast("✅ User blockiert. Inhalte werden ausgeblendet.", "success");
+            if (onBack) onBack();
+        } catch (err) {
+            addToast("Fehler beim Blockieren des Nutzers", "error");
+        }
+    };
+
+    const handleUnblockAction = async () => {
+        if (!session) { onLoginReq(); return; }
+        try {
+            await handleUnblockUser(profile.id);
+            addToast("Nutzer entblockt.", "success");
+        } catch (err) {
+            addToast("Fehler beim Entblocken", "error");
+        }
+    };
+
     if (!profile) return null;
 
     const avgRating = playerStats ? 
@@ -502,6 +525,29 @@ export const ProfileScreen = ({
         );
     }
 
+    if (isBlocked) {
+        return (
+            <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 items-center justify-center p-6 text-center animate-in fade-in">
+                <button onClick={onBack} className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] left-4 z-20 p-2.5 bg-black/10 dark:bg-white/10 rounded-full hover:bg-black/20 transition">
+                    <ArrowLeft size={20} className="text-foreground" />
+                </button>
+                <div className="w-24 h-24 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-6">
+                    <EyeOff size={40} className="text-red-500" />
+                </div>
+                <h1 className="text-2xl font-black mb-2 text-foreground">Nutzer blockiert</h1>
+                <p className="text-muted-foreground mb-8 max-w-sm">
+                    Du hast {profile.full_name || 'diesen Nutzer'} blockiert. Du siehst keine Inhalte oder Kommentare mehr von diesem Account.
+                </p>
+                <button 
+                    onClick={handleUnblockAction}
+                    className="px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black font-bold rounded-xl hover:bg-zinc-800 transition shadow-lg"
+                >
+                    Blockierung aufheben
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-500">
             {/* Header / Cover */}
@@ -525,6 +571,36 @@ export const ProfileScreen = ({
                         >
                             <Settings size={20} />
                         </button>
+                    )}
+                    {!isOwnProfile && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <button 
+                                    className="w-11 h-11 flex items-center justify-center bg-black/30 backdrop-blur-md rounded-full text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all active:scale-95"
+                                    title="Nutzer blockieren"
+                                >
+                                    <EyeOff size={20} />
+                                </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-slate-900 border-slate-800 z-[100]">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-white font-black">Nutzer blockieren?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-slate-400">
+                                        Bist du sicher, dass du <strong>{profile.full_name}</strong> blockieren möchtest?<br/><br/>
+                                        Inhalte und Kommentare dieses Nutzers werden für dich ausgeblendet. Dieser Vorgang kann in den Einstellungen rückgängig gemacht werden.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+                                    <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 rounded-xl">Abbrechen</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={handleBlockAction}
+                                        className="bg-red-600 text-white hover:bg-red-700 border-none rounded-xl font-bold"
+                                    >
+                                        🚫 Blockieren
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     )}
                     <button 
                         onClick={handleShare} 

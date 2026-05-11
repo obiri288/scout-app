@@ -27,7 +27,7 @@ export const ImmersiveVideoPlayer = ({
     onBack
 }) => {
     const { addToast } = useToast();
-    const { currentUserProfile } = useUser();
+    const { currentUserProfile, blockedUserIds } = useUser();
     const userRole = currentUserProfile?.role || 'player';
     const videoRef = useRef(null);
     const [isMuted, setIsMuted] = useState(video?.is_muted ?? true);
@@ -302,7 +302,10 @@ export const ImmersiveVideoPlayer = ({
                 setIsLoadingComments(true);
                 try {
                     const data = await api.fetchComments(resolvedVideo.id);
-                    const sorted = (data || []).sort((a, b) => {
+                    const blocks = blockedUserIds || [];
+                    const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
+                    
+                    const sorted = filteredData.sort((a, b) => {
                         if (a.is_pinned !== b.is_pinned) return b.is_pinned ? 1 : -1;
                         const aLikes = a.comment_likes?.length || 0;
                         const bLikes = b.comment_likes?.length || 0;
@@ -469,7 +472,9 @@ export const ImmersiveVideoPlayer = ({
 
             setCommentText('');
             const data = await api.fetchComments(resolvedVideo.id);
-            setComments(data || []);
+            const blocks = blockedUserIds || [];
+            const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
+            setComments(filteredData);
             setLiveCommentCount(prev => prev + 1);
             window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: resolvedVideo.id, delta: 1 } }));
             addToast("Kommentar erfasst", 'success');
@@ -504,7 +509,9 @@ export const ImmersiveVideoPlayer = ({
         try {
             await api.toggleCommentPin(resolvedVideo.id, commentId, pinState);
             const data = await api.fetchComments(resolvedVideo.id);
-            setComments(data || []);
+            const blocks = blockedUserIds || [];
+            const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
+            setComments(filteredData);
             addToast(pinState ? "Kommentar angepinnt 📌" : "Pin gelöst", 'success');
         } catch (error) {
             addToast("Pin fehlgeschlagen", 'error');

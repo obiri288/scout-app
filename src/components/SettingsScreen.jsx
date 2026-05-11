@@ -4,7 +4,7 @@ import {
     ArrowLeft, Settings, User, Shield, AlertTriangle,
     Mail, Key, UserCog, ChevronRight, Trash2, PowerOff,
     Globe, Sun, Moon, Bell, Share2, FileText, Lock,
-    Loader2, AlertCircle, X, MessageCircle, Briefcase, Users, Search, Crosshair
+    Loader2, AlertCircle, X, MessageCircle, Briefcase, Users, Search, Crosshair, EyeOff
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { saveAccount } from '../lib/savedAccounts';
@@ -632,6 +632,100 @@ const LogoutConfirmModal = ({ onClose, onConfirm, session, currentUserProfile })
 );
 
 /* ─────────────────────────────────────────────
+   Blocked Accounts View
+   ───────────────────────────────────────────── */
+const BlockedAccountsView = ({ onBack }) => {
+    const { blockedUserIds, handleUnblockUser } = useUser();
+    const [blockedProfiles, setBlockedProfiles] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchBlockedProfiles = async () => {
+            if (!blockedUserIds || blockedUserIds.length === 0) {
+                setBlockedProfiles([]);
+                setLoading(false);
+                return;
+            }
+            try {
+                const profiles = await api.fetchPlayersByIds(blockedUserIds);
+                setBlockedProfiles(profiles);
+            } catch (err) {
+                console.error("Error fetching blocked profiles:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchBlockedProfiles();
+    }, [blockedUserIds]);
+
+    const onUnblock = async (id) => {
+        try {
+            await handleUnblockUser(id);
+            setBlockedProfiles(prev => prev.filter(p => p.id !== id));
+        } catch (e) {
+            console.error("Error unblocking:", e);
+        }
+    };
+
+    return (
+        <motion.div
+            key="blocked"
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -20, opacity: 0 }}
+            className="space-y-4"
+        >
+            <div className="flex items-center gap-3 mb-6">
+                <button onClick={onBack} className="p-2 -ml-2 rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground transition">
+                    <ArrowLeft size={18} />
+                </button>
+                <h2 className="text-xl font-black text-foreground">Blockierte Konten</h2>
+            </div>
+
+            {loading ? (
+                <div className="flex justify-center p-8">
+                    <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                </div>
+            ) : blockedProfiles.length === 0 ? (
+                <div className="bg-card border border-border rounded-2xl p-8 text-center flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-4">
+                        <Shield size={32} className="text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground">Keine blockierten Nutzer</h3>
+                    <p className="text-sm text-muted-foreground mt-2">
+                        Du hast derzeit niemanden blockiert.
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {blockedProfiles.map(profile => (
+                        <div key={profile.id} className="flex items-center justify-between bg-card border border-border p-4 rounded-xl">
+                            <div className="flex items-center gap-3">
+                                <img 
+                                    src={profile.avatar_url || '/cavio-icon.png'} 
+                                    alt={profile.full_name} 
+                                    className="w-10 h-10 rounded-full object-cover border border-border"
+                                />
+                                <div>
+                                    <p className="font-bold text-sm text-foreground">{profile.full_name}</p>
+                                    <p className="text-xs text-muted-foreground">@{profile.username || profile.slug}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => onUnblock(profile.id)}
+                                className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-800 text-xs font-bold rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-700 transition"
+                            >
+                                Entblocken
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </motion.div>
+    );
+};
+
+/* ─────────────────────────────────────────────
    Main SettingsScreen
 ───────────────────────────────────────────── */
 const SettingsScreen = ({
@@ -651,7 +745,7 @@ const SettingsScreen = ({
     const { userProfile } = useUser();
     
     // Internal Navigation State
-    const [activeView, setActiveView] = useState('main'); // 'main' | 'account' | 'notifications' | 'support'
+    const [activeView, setActiveView] = useState('main'); // 'main' | 'account' | 'notifications' | 'support' | 'blocked'
     
     // Modals
     const [showDeactivateModal, setShowDeactivateModal] = useState(false);
@@ -669,8 +763,10 @@ const SettingsScreen = ({
     // Deep Linking Support
     useEffect(() => {
         const hash = window.location.hash;
-        if (hash === '#settings/support') setActiveView('support');
         if (hash === '#settings/account') setActiveView('account');
+        else if (hash === '#settings/support') setActiveView('support');
+        else if (hash === '#settings/blocked') setActiveView('blocked');
+        else setActiveView('main');
     }, []);
 
     const handleBack = () => {
@@ -784,6 +880,12 @@ const SettingsScreen = ({
 
     const renderView = () => {
         switch (activeView) {
+            case 'blocked':
+                return <BlockedAccountsView onBack={() => {
+                    setActiveView('account');
+                    window.history.pushState(null, '', '#settings/account');
+                }} />;
+
             case 'account':
                 return (
                     <motion.div
@@ -815,6 +917,21 @@ const SettingsScreen = ({
                                     label="Passwort"
                                     sublabel="Sicherheitseinstellungen"
                                     onClick={() => setShowPasswordRequestModal(true)}
+                                />
+                            </SectionCard>
+                        </div>
+
+                        <div>
+                            <SectionHeader icon={Shield} label="Privatsphäre & Sicherheit" />
+                            <SectionCard>
+                                <SettingsRow
+                                    icon={EyeOff}
+                                    label="Blockierte Konten"
+                                    sublabel="Nutzer verwalten, die du blockiert hast"
+                                    onClick={() => {
+                                        setActiveView('blocked');
+                                        window.history.pushState(null, '', '#settings/blocked');
+                                    }}
                                 />
                             </SectionCard>
                         </div>
@@ -1018,7 +1135,8 @@ const SettingsScreen = ({
                     <div>
                         <h1 className="text-lg font-black tracking-tight text-foreground">
                             {activeView === 'account' ? 'Account & Profil' : 
-                             activeView === 'support' ? 'Hilfe & Support' : 'Einstellungen'}
+                             activeView === 'support' ? 'Hilfe & Support' : 
+                             activeView === 'blocked' ? 'Blockierte Konten' : 'Einstellungen'}
                         </h1>
                     </div>
                 </div>

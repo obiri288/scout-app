@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useToast } from './ToastContext';
+import * as api from '../lib/api';
 
 const UserContext = createContext(null);
 
@@ -21,6 +22,7 @@ export const UserProvider = ({ children }) => {
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [liveNotifications, setLiveNotifications] = useState([]);
     const [adminUnreadCountGlobal, setAdminUnreadCountGlobal] = useState(0);
+    const [blockedUserIds, setBlockedUserIds] = useState([]);
     const { addToast } = useToast();
 
     // Detect if we're in an auth callback flow (email confirmation redirect)
@@ -145,6 +147,9 @@ export const UserProvider = ({ children }) => {
     useEffect(() => {
         if (session?.user?.id) {
             fetchOrCreateProfile(session);
+            api.fetchBlockedUserIds(session.user.id).then(setBlockedUserIds).catch(console.error);
+        } else {
+            setBlockedUserIds([]);
         }
     }, [session?.user?.id]);
 
@@ -319,6 +324,28 @@ export const UserProvider = ({ children }) => {
         }
     }, [pendingReactivationProfile, addToast]);
 
+    const handleBlockUser = useCallback(async (targetId) => {
+        if (!session?.user?.id) return;
+        try {
+            await api.blockUser(session.user.id, targetId);
+            setBlockedUserIds(prev => [...prev, targetId]);
+        } catch (e) {
+            console.error("Error blocking user:", e);
+            throw e;
+        }
+    }, [session?.user?.id]);
+
+    const handleUnblockUser = useCallback(async (targetId) => {
+        if (!session?.user?.id) return;
+        try {
+            await api.unblockUser(session.user.id, targetId);
+            setBlockedUserIds(prev => prev.filter(id => id !== targetId));
+        } catch (e) {
+            console.error("Error unblocking user:", e);
+            throw e;
+        }
+    }, [session?.user?.id]);
+
     const value = {
         authLoading,
         session,
@@ -342,6 +369,9 @@ export const UserProvider = ({ children }) => {
         setIsRecoveryMode,
         isAuthCallback,
         setIsAuthCallback,
+        blockedUserIds,
+        handleBlockUser,
+        handleUnblockUser,
     };
 
     return (
