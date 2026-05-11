@@ -585,14 +585,6 @@ const App = () => {
                         }}
                         className="fixed inset-0 z-[9999] bg-black overflow-hidden"
                     >
-                        {/* Premium Frosted Glass Back Button */}
-                        <button 
-                            onClick={() => setActiveVideo(null)} 
-                            className="absolute top-[calc(1.5rem+env(safe-area-inset-top))] left-4 z-50 w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-transform active:scale-90"
-                        >
-                            <ChevronLeft size={24} className="text-white" />
-                        </button>
-                        
                         <ImmersiveVideoPlayer
                             video={activeVideo}
                             isActive={true}
@@ -607,6 +599,7 @@ const App = () => {
                             onInteractionUpdate={(data) => {
                                 window.dispatchEvent(new CustomEvent('videoInteractionUpdate', { detail: data }));
                             }}
+                            onBack={() => setActiveVideo(null)}
                         />
                     </motion.div>
                 )}

@@ -23,7 +23,8 @@ export const ImmersiveVideoPlayer = ({
     onCommentClick,
     onUserClick,
     onInteractionUpdate,
-    onReportReq
+    onReportReq,
+    onBack
 }) => {
     const { addToast } = useToast();
     const { currentUserProfile } = useUser();
@@ -562,9 +563,20 @@ export const ImmersiveVideoPlayer = ({
                 )}
             </AnimatePresence>
 
-            {/* Mute indicator */}
-            <div className={`absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 z-20 pointer-events-none drop-shadow-md text-white/70 transition-opacity duration-300 ${isUiVisible ? 'opacity-100' : 'opacity-0'}`}>
-                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {/* Top Left Controls: Back Button & Mute Indicator */}
+            <div className={`absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 z-50 flex flex-row items-center gap-4 transition-opacity duration-300 ${isUiVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                {onBack && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onBack(); }} 
+                        className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-transform active:scale-90 shadow-xl"
+                    >
+                        <ChevronLeft size={24} className="text-white" />
+                    </button>
+                )}
+                
+                <div className="drop-shadow-md text-white/70">
+                    {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                </div>
             </div>
 
             {/* Role-Based Management Menu */}
