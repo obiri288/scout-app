@@ -98,7 +98,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         return () => clearTimeout(t);
     }, [clubQuery]);
 
-    const { currentUserProfile: userFromContext } = useUser();
+    const { currentUserProfile: userFromContext, hiddenUserIds } = useUser();
 
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         try {
@@ -125,7 +125,8 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             
             // Client-side filtering for hidden profiles
             const hiddenProfiles = userFromContext?.hidden_profiles || [];
-            const filteredItems = newItems.filter(p => !hiddenProfiles.includes(p.id));
+            const hiddens = hiddenUserIds || [];
+            const filteredItems = newItems.filter(p => !hiddenProfiles.includes(p.id) && !hiddens.includes(p.id));
 
             if (reset) {
                 setRes(filteredItems);
@@ -170,10 +171,12 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                 // Client-side filtering for hidden videos/profiles
                 const hiddenVideos = userFromContext?.hidden_videos || [];
                 const hiddenProfiles = userFromContext?.hidden_profiles || [];
+                const hiddens = hiddenUserIds || [];
                 
                 const filteredActionVideos = (data || []).filter(v => 
                     !hiddenVideos.includes(v.id) && 
-                    !hiddenProfiles.includes(v.players_master?.id)
+                    !hiddenProfiles.includes(v.players_master?.id) &&
+                    !hiddens.includes(v.players_master?.id)
                 );
 
                 setActionVideos(filteredActionVideos);

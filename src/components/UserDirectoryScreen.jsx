@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
+import { useUser } from '../contexts/UserContext';
 
 const FILTERS = [
     { id: 'all', label: 'Alle' },
@@ -27,6 +28,7 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
     const [isActionInProgress, setIsActionInProgress] = useState(false);
     const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, confirmText, confirmClass, onConfirm }
 
+    const { hiddenUserIds } = useUser();
     const isAdmin = currentUserProfile?.role === 'admin';
 
     const fetchUsers = useCallback(async () => {
@@ -50,7 +52,10 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
 
             const { data, error } = await query;
             if (error) throw error;
-            setUsers(data || []);
+            
+            const hiddens = hiddenUserIds || [];
+            const filteredData = (data || []).filter(u => !hiddens.includes(u.id));
+            setUsers(filteredData);
         } catch (error) {
             console.error("Error fetching users for directory:", error);
             addToast("Fehler beim Laden der Nutzer", "error");

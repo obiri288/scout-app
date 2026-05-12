@@ -635,19 +635,19 @@ const LogoutConfirmModal = ({ onClose, onConfirm, session, currentUserProfile })
    Blocked Accounts View
    ───────────────────────────────────────────── */
 const BlockedAccountsView = ({ onBack }) => {
-    const { blockedUserIds, handleUnblockUser } = useUser();
+    const { hiddenUserIds, handleUnblockUser } = useUser();
     const [blockedProfiles, setBlockedProfiles] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchBlockedProfiles = async () => {
-            if (!blockedUserIds || blockedUserIds.length === 0) {
+            if (!hiddenUserIds || hiddenUserIds.length === 0) {
                 setBlockedProfiles([]);
                 setLoading(false);
                 return;
             }
             try {
-                const profiles = await api.fetchPlayersByIds(blockedUserIds);
+                const profiles = await api.fetchPlayersByIds(hiddenUserIds);
                 setBlockedProfiles(profiles);
             } catch (err) {
                 console.error("Error fetching blocked profiles:", err);
@@ -656,7 +656,7 @@ const BlockedAccountsView = ({ onBack }) => {
             }
         };
         fetchBlockedProfiles();
-    }, [blockedUserIds]);
+    }, [hiddenUserIds]);
 
     const onUnblock = async (id) => {
         try {

@@ -44,7 +44,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     const [pullDistance, setPullDistance] = useState(0);
     const sentinelRef = useRef(null);
 
-    const { currentUserProfile: userFromContext, blockedUserIds } = useUser();
+    const { currentUserProfile: userFromContext, hiddenUserIds } = useUser();
 
     const fetchFeed = useCallback(async (offset = 0, reset = false) => {
         try {
@@ -53,12 +53,12 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             // Client-side filtering for hidden content
             const hiddenVideos = userFromContext?.hidden_videos || [];
             const hiddenProfiles = userFromContext?.hidden_profiles || [];
-            const blocks = blockedUserIds || [];
+            const hiddens = hiddenUserIds || [];
             
             const filteredData = data.filter(v => 
                 !hiddenVideos.includes(v.id) && 
                 !hiddenProfiles.includes(v.players_master?.id) &&
-                !blocks.includes(v.players_master?.id)
+                !hiddens.includes(v.players_master?.id)
             );
 
             if (reset) {
@@ -74,7 +74,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             setLoadingMore(false);
             setRefreshing(false);
         }
-    }, [userFromContext, blockedUserIds]);
+    }, [userFromContext, hiddenUserIds]);
 
     // Fetch current user profile for the WelcomeCard
     useEffect(() => {

@@ -19,7 +19,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const { addToast } = useToast();
     const videoCreatorId = video.players_master?.user_id || video.user_id;
     const isCreator = session?.user?.id === videoCreatorId;
-    const { currentUserProfile, blockedUserIds } = useUser();
+    const { currentUserProfile, hiddenUserIds } = useUser();
 
     const [actionComment, setActionComment] = useState(null);
     const [reportTarget, setReportTarget] = useState(null);
@@ -30,8 +30,8 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
             
             // Client-side filtering for hidden comments
             const hiddenComments = currentUserProfile?.hidden_comments || [];
-            const blocks = blockedUserIds || [];
-            const filteredData = (data || []).filter(c => !hiddenComments.includes(c.id) && !blocks.includes(c.players_master?.id));
+            const hiddens = hiddenUserIds || [];
+            const filteredData = (data || []).filter(c => !hiddenComments.includes(c.id) && !hiddens.includes(c.players_master?.id));
 
             // Smart Sorting: Pin first, then likes, then date
             const sorted = filteredData.sort((a, b) => {

@@ -5,7 +5,8 @@ import {
     Bookmark, BookmarkCheck, ArrowLeft, Database, ShieldCheck, Settings,
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
-    Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw, Crown
+    Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw, Crown,
+    MoreHorizontal, Flag, Ban, Copy
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
@@ -214,9 +215,12 @@ export const ProfileScreen = ({
     const [activeTab, setActiveTab] = useState('highlights');
     const [showContactModal, setShowContactModal] = useState(false);
     const { addToast } = useToast();
-    const { handleBlockUser, handleUnblockUser, blockedUserIds } = useUser();
+    const { handleBlockUser, handleUnblockUser, hiddenUserIds } = useUser();
     
-    const isBlocked = blockedUserIds?.includes(profile?.id);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+    
+    const isBlocked = hiddenUserIds?.includes(profile?.id);
 
     // Hooks for following/follower counts and status
     const [isFollowing, setIsFollowing] = useState(false);
@@ -528,23 +532,40 @@ export const ProfileScreen = ({
 
     if (isBlocked) {
         return (
-            <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 items-center justify-center p-6 text-center animate-in fade-in">
-                <button onClick={onBack} className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] left-4 z-20 p-2.5 bg-black/10 dark:bg-white/10 rounded-full hover:bg-black/20 transition">
-                    <ArrowLeft size={20} className="text-foreground" />
-                </button>
-                <div className="w-24 h-24 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-6">
-                    <EyeOff size={40} className="text-red-500" />
+            <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 animate-in fade-in">
+                {/* Minimal Header */}
+                <div className="p-4 flex items-center gap-4">
+                    <button onClick={onBack} className="p-2.5 bg-slate-100 dark:bg-white/5 rounded-full hover:bg-slate-200 transition">
+                        <ArrowLeft size={20} className="text-foreground" />
+                    </button>
+                    <span className="font-bold text-foreground">Profil</span>
                 </div>
-                <h1 className="text-2xl font-black mb-2 text-foreground">Nutzer blockiert</h1>
-                <p className="text-muted-foreground mb-8 max-w-sm">
-                    Du hast {profile.full_name || 'diesen Nutzer'} blockiert. Du siehst keine Inhalte oder Kommentare mehr von diesem Account.
-                </p>
-                <button 
-                    onClick={handleUnblockAction}
-                    className="px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black font-bold rounded-xl hover:bg-zinc-800 transition shadow-lg"
-                >
-                    Blockierung aufheben
-                </button>
+
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                    <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-6">
+                        <EyeOff size={40} className="text-muted-foreground/40" />
+                    </div>
+                    
+                    <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse mb-6" />
+                    
+                    <h1 className="text-xl font-black mb-2 text-foreground">
+                        {profile.username ? `@${profile.username}` : 'Profil nicht verfügbar'}
+                    </h1>
+                    
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 max-w-sm">
+                        <p className="text-sm text-red-600 dark:text-red-400 font-medium leading-relaxed">
+                            Dieses Profil ist nicht verfügbar oder der Nutzer wurde blockiert. Du kannst keine Inhalte oder Details mehr sehen.
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={handleUnblockAction}
+                        className="mt-8 px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black font-bold rounded-xl hover:bg-zinc-800 transition shadow-lg flex items-center gap-2"
+                    >
+                        <Ban size={18} />
+                        Blockierung aufheben
+                    </button>
+                </div>
             </div>
         );
     }
@@ -574,34 +595,95 @@ export const ProfileScreen = ({
                         </button>
                     )}
                     {!isOwnProfile && (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <button 
-                                    className="w-11 h-11 flex items-center justify-center bg-black/30 backdrop-blur-md rounded-full text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all active:scale-95"
-                                    title="Nutzer blockieren"
-                                >
-                                    <EyeOff size={20} />
-                                </button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-slate-900 border-slate-800 z-[100]">
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-white font-black">Nutzer blockieren?</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-slate-400">
-                                        Bist du sicher, dass du <strong>{profile.full_name}</strong> blockieren möchtest?<br/><br/>
-                                        Inhalte und Kommentare dieses Nutzers werden für dich ausgeblendet. Dieser Vorgang kann in den Einstellungen rückgängig gemacht werden.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-                                    <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 rounded-xl">Abbrechen</AlertDialogCancel>
-                                    <AlertDialogAction
-                                        onClick={handleBlockAction}
-                                        className="bg-red-600 text-white hover:bg-red-700 border-none rounded-xl font-bold"
-                                    >
-                                        🚫 Blockieren
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        <div className="relative">
+                            <button 
+                                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                                className="w-11 h-11 flex items-center justify-center bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition-all active:scale-95"
+                            >
+                                <MoreHorizontal size={22} />
+                            </button>
+
+                            <AnimatePresence>
+                                {isProfileMenuOpen && (
+                                    <>
+                                        <motion.div 
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            onClick={() => setIsProfileMenuOpen(false)}
+                                            className="fixed inset-0 z-30"
+                                        />
+                                        <motion.div 
+                                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                            className="absolute right-0 mt-2 w-56 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden py-1"
+                                        >
+                                            <button 
+                                                onClick={() => {
+                                                    const url = `${window.location.origin}/#profile/${profile.slug || profile.user_id || profile.id}`;
+                                                    navigator.clipboard.writeText(url);
+                                                    addToast("Link kopiert", "success");
+                                                    setIsProfileMenuOpen(false);
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 text-slate-200 hover:bg-white/10 transition text-sm font-bold"
+                                            >
+                                                <Copy size={16} /> Profil-URL kopieren
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    handleShare();
+                                                    setIsProfileMenuOpen(false);
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 text-slate-200 hover:bg-white/10 transition text-sm font-bold"
+                                            >
+                                                <Share2 size={16} /> Dieses Profil teilen
+                                            </button>
+                                            <div className="h-px bg-white/5 mx-2" />
+                                            <button 
+                                                onClick={() => {
+                                                    onReport(profile.id, 'profile');
+                                                    setIsProfileMenuOpen(false);
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 text-red-500 hover:bg-red-500/10 transition text-sm font-bold"
+                                            >
+                                                <Flag size={16} /> Melden
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    setIsBlockModalOpen(true);
+                                                    setIsProfileMenuOpen(false);
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 text-red-500 hover:bg-red-500/10 transition text-sm font-bold"
+                                            >
+                                                <Ban size={16} /> Blockieren
+                                            </button>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+
+                            <AlertDialog open={isBlockModalOpen} onOpenChange={setIsBlockModalOpen}>
+                                <AlertDialogContent className="bg-slate-900 border-slate-800 z-[100]">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-white font-black">Nutzer blockieren?</AlertDialogTitle>
+                                        <AlertDialogDescription className="text-slate-400">
+                                            Bist du sicher, dass du <strong>{profile.full_name}</strong> blockieren möchtest?<br/><br/>
+                                            Dieser Nutzer kann dein Profil und deine Videos nicht mehr sehen. Ihr werdet füreinander unsichtbar.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+                                        <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 rounded-xl">Abbrechen</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={handleBlockAction}
+                                            className="bg-red-600 text-white hover:bg-red-700 border-none rounded-xl font-bold"
+                                        >
+                                            🚫 Blockieren
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     )}
                     <button 
                         onClick={handleShare} 

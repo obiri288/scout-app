@@ -15,6 +15,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const [activeTab, setActiveTab] = useState('general');
     const { addToast } = useToast();
     const [errors, setErrors] = useState({});
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showCloseWarning, setShowCloseWarning] = useState(false);
 
     // Loading Guard: prevent crash when profile data is not yet available
     if (!profile) {
@@ -125,6 +127,19 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
             }
         }
         return null;
+    };
+
+    const handleCloseAttempt = () => {
+        if (hasUnsavedChanges) {
+            setShowCloseWarning(true);
+        } else {
+            onClose();
+        }
+    };
+
+    const confirmClose = () => {
+        setShowCloseWarning(false);
+        onClose();
     };
 
     // Fetch career entries
@@ -444,6 +459,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
 
             const { data, error } = await supabase.from('players_master').update(updates).eq('id', profile.id).select('*, clubs(*, leagues(name))').single();
             if (error) throw error;
+            setHasUnsavedChanges(false);
             onUpdate(data);
             addToast("Profil erfolgreich gespeichert! ✅", 'success');
 
@@ -484,7 +500,12 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                 {/* Header */}
                 <div className="flex justify-between items-center p-5 border-b border-border bg-white dark:bg-zinc-900">
                     <h2 className="text-lg font-bold text-foreground">Profil bearbeiten</h2>
-                    <button onClick={onClose}><X className="text-muted-foreground hover:text-foreground" /></button>
+                    <button 
+                        onClick={handleCloseAttempt}
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition text-muted-foreground hover:text-foreground"
+                    >
+                        <X size={22} />
+                    </button>
                 </div>
 
                 {/* Tabs */}
@@ -511,7 +532,10 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                         </div>
                                         <input type="file" accept="image/*" onChange={e => {
                                             const f = e.target.files[0];
-                                            if (f) { setCropImageSrc(URL.createObjectURL(f)); }
+                                            if (f) { 
+                                                setCropImageSrc(URL.createObjectURL(f));
+                                                setHasUnsavedChanges(true);
+                                            }
                                             e.target.value = '';
                                         }} className="absolute inset-0 opacity-0 cursor-pointer" />
                                     </div>
@@ -522,11 +546,11 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Vorname</label>
-                                            <input value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} className={inputStyle} placeholder="Max" />
+                                            <input value={formData.first_name} onChange={e => { setFormData({ ...formData, first_name: e.target.value }); setHasUnsavedChanges(true); }} className={inputStyle} placeholder="Max" />
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nachname</label>
-                                            <input value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} className={inputStyle} placeholder="Mustermann" />
+                                            <input value={formData.last_name} onChange={e => { setFormData({ ...formData, last_name: e.target.value }); setHasUnsavedChanges(true); }} className={inputStyle} placeholder="Mustermann" />
                                         </div>
                                     </div>
 
@@ -536,7 +560,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">@</span>
                                             <input 
                                                 value={formData.username || ''} 
-                                                onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '') })} 
+                                                onChange={e => { setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, '') }); setHasUnsavedChanges(true); }} 
                                                 className={`${inputStyle} pl-7`} 
                                                 placeholder="deinname" 
                                             />
@@ -554,7 +578,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                 <input 
                                                     type="date" 
                                                     value={formData.birth_date} 
-                                                    onChange={e => setFormData({ ...formData, birth_date: e.target.value })} 
+                                                    onChange={e => { setFormData({ ...formData, birth_date: e.target.value }); setHasUnsavedChanges(true); }} 
                                                     max={new Date().toISOString().split('T')[0]}
                                                     className={`${inputStyle} pl-10 py-2.5 min-h-[46px] ${calculateAgeInfo(formData.birth_date).isUnder16 ? '!border-rose-500/50 focus:!border-rose-500' : ''}`} 
                                                 />
@@ -571,7 +595,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Nationalität</label>
                                             <CountryCombobox 
                                                 value={formData.nationality}
-                                                onChange={(code) => setFormData({ ...formData, nationality: code })}
+                                                onChange={(code) => { setFormData({ ...formData, nationality: code }); setHasUnsavedChanges(true); }}
                                             />
                                         </div>
                                     </div>
@@ -583,7 +607,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                             <input 
                                                 placeholder="Berlin" 
                                                 value={formData.city} 
-                                                onChange={e => setFormData({ ...formData, city: e.target.value })} 
+                                                onChange={e => { setFormData({ ...formData, city: e.target.value }); setHasUnsavedChanges(true); }} 
                                                 className={`${inputStyle} pl-10`} 
                                             />
                                         </div>
@@ -591,7 +615,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
 
                                     <div>
                                         <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Über mich / Motto</label>
-                                        <textarea rows={3} placeholder="Erzähl etwas über deinen Spielstil..." value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} className={`${inputStyle} resize-none`} />
+                                        <textarea rows={3} placeholder="Erzähl etwas über deinen Spielstil..." value={formData.bio} onChange={e => { setFormData({ ...formData, bio: e.target.value }); setHasUnsavedChanges(true); }} className={`${inputStyle} resize-none`} />
                                     </div>
                                 </div>
                             </div>
@@ -1442,6 +1466,44 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                     </motion.div>
                 </div>
             )}
+
+            {/* Unsaved Changes Warning Modal */}
+            <AnimatePresence>
+                {showCloseWarning && (
+                    <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white dark:bg-zinc-900 border border-border w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-8 text-center space-y-6">
+                                <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto">
+                                    <AlertCircle className="text-amber-500" size={32} />
+                                </div>
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-black text-foreground">Ungespeicherte Änderungen</h3>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">Du hast Änderungen vorgenommen, die noch nicht gespeichert wurden. Möchtest du das Fenster wirklich schließen?</p>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <button 
+                                        onClick={confirmClose}
+                                        className="w-full py-4 rounded-2xl bg-rose-500 text-white font-black text-sm hover:bg-rose-600 transition shadow-lg shadow-rose-500/20 active:scale-95"
+                                    >
+                                        Ja, Änderungen verwerfen
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowCloseWarning(false)}
+                                        className="w-full py-4 rounded-2xl bg-white/5 border border-border font-bold text-sm hover:bg-white/10 transition"
+                                    >
+                                        Weiter bearbeiten
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

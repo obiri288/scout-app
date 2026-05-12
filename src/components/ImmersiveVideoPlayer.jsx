@@ -27,7 +27,7 @@ export const ImmersiveVideoPlayer = ({
     onBack
 }) => {
     const { addToast } = useToast();
-    const { currentUserProfile, blockedUserIds } = useUser();
+    const { currentUserProfile, hiddenUserIds } = useUser();
     const userRole = currentUserProfile?.role || 'player';
     const videoRef = useRef(null);
     const [isMuted, setIsMuted] = useState(video?.is_muted ?? true);
@@ -302,7 +302,7 @@ export const ImmersiveVideoPlayer = ({
                 setIsLoadingComments(true);
                 try {
                     const data = await api.fetchComments(resolvedVideo.id);
-                    const blocks = blockedUserIds || [];
+                    const blocks = hiddenUserIds || [];
                     const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
                     
                     const sorted = filteredData.sort((a, b) => {
@@ -472,7 +472,7 @@ export const ImmersiveVideoPlayer = ({
 
             setCommentText('');
             const data = await api.fetchComments(resolvedVideo.id);
-            const blocks = blockedUserIds || [];
+            const blocks = hiddenUserIds || [];
             const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
             setComments(filteredData);
             setLiveCommentCount(prev => prev + 1);
@@ -509,7 +509,7 @@ export const ImmersiveVideoPlayer = ({
         try {
             await api.toggleCommentPin(resolvedVideo.id, commentId, pinState);
             const data = await api.fetchComments(resolvedVideo.id);
-            const blocks = blockedUserIds || [];
+            const blocks = hiddenUserIds || [];
             const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
             setComments(filteredData);
             addToast(pinState ? "Kommentar angepinnt 📌" : "Pin gelöst", 'success');

@@ -1029,11 +1029,17 @@ export const unblockUser = async (blockerId, blockedId) => {
     if (error) throw error;
 };
 
-export const fetchBlockedUserIds = async (userId) => {
+export const fetchHiddenUserIds = async (userId) => {
     const { data } = await supabase.from('blocks')
-        .select('blocked_id')
-        .eq('blocker_id', userId);
-    return (data || []).map(b => b.blocked_id);
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+    
+    const ids = new Set();
+    (data || []).forEach(b => {
+        if (b.blocker_id === userId) ids.add(b.blocked_id);
+        else ids.add(b.blocker_id);
+    });
+    return Array.from(ids);
 };
 
 export const checkIsBlocked = async (blockerId, blockedId) => {
