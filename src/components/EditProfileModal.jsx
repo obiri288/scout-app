@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award, Briefcase, Target, Radar, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award, Briefcase, Target, Radar, CheckCircle, AlertCircle, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
@@ -498,14 +498,22 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
             <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-border rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
                 {/* Header */}
-                <div className="flex justify-between items-center w-full px-4 py-4 border-b border-gray-800 bg-background z-[100] sticky top-0">
-                    <h2 className="text-xl font-bold text-white">Profil bearbeiten</h2>
-                    <button 
-                        onClick={handleCloseAttempt}
-                        className="w-10 h-10 bg-gray-800 rounded-full text-white hover:bg-gray-700 flex items-center justify-center transition-colors active:scale-95 z-[105]"
-                    >
-                        <X size={20} />
-                    </button>
+                <div className="flex items-center justify-between w-full px-4 py-4 border-b border-gray-800 bg-background z-[100] sticky top-0">
+                    <div className="flex items-center gap-3">
+                        {/* Der neue Zurück-Button */}
+                        <button 
+                            onClick={handleCloseAttempt} 
+                            className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700 flex items-center justify-center transition-colors"
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
+                        
+                        {/* Der Titel */}
+                        <h2 className="text-xl font-bold text-white">Profil bearbeiten</h2>
+                    </div>
+                    
+                    {/* Rechte Seite bleibt leer (Keine Glocke!) */}
+                    <div></div>
                 </div>
 
                 {/* Tabs */}
