@@ -5,7 +5,7 @@ import {
     Bookmark, BookmarkCheck, ArrowLeft, Database, ShieldCheck, Settings,
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
-    Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw
+    Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw, Crown
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
@@ -229,6 +229,7 @@ export const ProfileScreen = ({
     const [latestCareerEntry, setLatestCareerEntry] = useState(null);
     const [watchlistVideos, setWatchlistVideos] = useState([]);
     const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
+    const [showPlayerCard, setShowPlayerCard] = useState(false);
 
     useEffect(() => {
         if (profile?.id) {
@@ -710,6 +711,15 @@ export const ProfileScreen = ({
                                 <button onClick={handleShare} className="flex-none bg-slate-100 dark:bg-slate-800 text-foreground p-2.5 rounded-xl border border-border hover:bg-slate-200 transition">
                                     <Share2 size={18} />
                                 </button>
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }} 
+                                    whileTap={{ scale: 0.95 }} 
+                                    onClick={() => setShowPlayerCard(true)} 
+                                    className="flex-none bg-amber-500/10 text-amber-500 p-2.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-lg shadow-amber-500/5"
+                                    title="Digitale Player Card"
+                                >
+                                    <Crown size={18} />
+                                </motion.button>
                                 {profile.role === 'admin' && <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30"><Database size={18} /></button>}
                             </>
                         ) : (
@@ -727,6 +737,15 @@ export const ProfileScreen = ({
                                 <button onClick={onChatReq} className="flex-none bg-slate-100 dark:bg-slate-800 text-foreground px-4 py-2.5 rounded-xl border border-border hover:bg-opacity-80 transition">
                                     <MessageCircle size={18} />
                                 </button>
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }} 
+                                    whileTap={{ scale: 0.95 }} 
+                                    onClick={() => setShowPlayerCard(true)} 
+                                    className="flex-none bg-amber-500/10 text-amber-500 p-2.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 transition-all"
+                                    title="Digitale Player Card"
+                                >
+                                    <Crown size={18} />
+                                </motion.button>
                                 {session && onWatchlistToggle && (
                                     <button onClick={onWatchlistToggle} className={`flex-none p-2.5 rounded-xl border transition ${isOnWatchlist ? 'bg-cyan-600/20 text-cyan-400 border-cyan-500/30' : 'bg-slate-100 dark:bg-slate-800 border-border'}`}>
                                         {isOnWatchlist ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
