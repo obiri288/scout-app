@@ -498,13 +498,13 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
             <div className={`w-full sm:max-w-md ${cardStyle} h-[90vh] flex flex-col border-t border-border rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
                 {/* Header */}
-                <div className="flex justify-between items-center p-5 border-b border-border bg-white dark:bg-zinc-900">
-                    <h2 className="text-lg font-bold text-foreground">Profil bearbeiten</h2>
+                <div className="flex justify-between items-center w-full px-4 py-4 border-b border-gray-800 bg-background z-[100] sticky top-0">
+                    <h2 className="text-xl font-bold text-white">Profil bearbeiten</h2>
                     <button 
                         onClick={handleCloseAttempt}
-                        className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition text-muted-foreground hover:text-foreground"
+                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700 z-[105] flex items-center justify-center transition-all active:scale-95"
                     >
-                        <X size={22} />
+                        <X size={24} />
                     </button>
                 </div>
 
