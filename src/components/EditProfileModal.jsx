@@ -502,9 +502,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                     <h2 className="text-xl font-bold text-white">Profil bearbeiten</h2>
                     <button 
                         onClick={handleCloseAttempt}
-                        className="p-2 bg-gray-800 rounded-full text-white hover:bg-gray-700 z-[105] flex items-center justify-center transition-all active:scale-95"
+                        className="w-10 h-10 bg-gray-800 rounded-full text-white hover:bg-gray-700 flex items-center justify-center transition-colors active:scale-95 z-[105]"
                     >
-                        <X size={24} />
+                        <X size={20} />
                     </button>
                 </div>
 
