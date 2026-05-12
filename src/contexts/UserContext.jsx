@@ -21,7 +21,7 @@ export const UserProvider = ({ children }) => {
     const [unreadMessageUsersCount, setUnreadMessageUsersCount] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [liveNotifications, setLiveNotifications] = useState([]);
-    const [adminUnreadCountGlobal, setAdminUnreadCountGlobal] = useState(0);
+
     const [hiddenUserIds, setHiddenUserIds] = useState([]);
     const { addToast } = useToast();
 
@@ -110,7 +110,7 @@ export const UserProvider = ({ children }) => {
             if (!s) {
                 setCurrentUserProfile(null);
                 setUnreadCount(0);
-                setAdminUnreadCountGlobal(0);
+
                 prevEmailRef.current = null;
             }
 
@@ -169,23 +169,7 @@ export const UserProvider = ({ children }) => {
         }
     }, [session?.user?.id]);
 
-    const fetchAdminUnreadCountGlobal = useCallback(async () => {
-        if (!session?.user?.id || currentUserProfile?.role !== 'admin') {
-            setAdminUnreadCountGlobal(0);
-            return;
-        }
-        try {
-            const { count, error } = await supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-            if (error) {
-                console.error("Admin Fetch Error (Global):", error);
-                return;
-            }
-            console.log("Admin Fetch Success (Global). Count:", count);
-            setAdminUnreadCountGlobal(count || 0);
-        } catch (e) {
-            console.error("Admin Fetch Exception (Global):", e);
-        }
-    }, [session?.user?.id, currentUserProfile?.role]);
+
 
     // Realtime notifications & messages listener
     useEffect(() => {
@@ -232,18 +216,7 @@ export const UserProvider = ({ children }) => {
         // Admin Reports Realtime
         let adminChannel = null;
         if (currentUserProfile?.role === 'admin') {
-            adminChannel = supabase
-                .channel('admin-reports-global')
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'reports'
-                }, () => {
-                    fetchAdminUnreadCountGlobal();
-                })
-                .subscribe();
-            
-            fetchAdminUnreadCountGlobal();
+            // Admin global sync disabled
         }
 
         // Fetch initial unread count
@@ -280,7 +253,7 @@ export const UserProvider = ({ children }) => {
             supabase.removeChannel(msgChannel);
             window.removeEventListener('chat-read-sync', handleSync);
         };
-    }, [session?.user?.id, currentUserProfile?.id, currentUserProfile?.role, checkUnreadMessages, fetchAdminUnreadCountGlobal]);
+    }, [session?.user?.id, currentUserProfile?.id, currentUserProfile?.role, checkUnreadMessages]);
 
     const resetUnreadCount = useCallback(() => {
         setUnreadCount(0);
@@ -357,7 +330,7 @@ export const UserProvider = ({ children }) => {
         refreshProfile: fetchOrCreateProfile,
         unreadCount,
         resetUnreadCount,
-        adminUnreadCountGlobal,
+
         unreadMessageUsersCount,
         setUnreadMessageUsersCount,
         checkUnreadMessages,

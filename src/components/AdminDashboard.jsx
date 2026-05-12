@@ -1,11 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle } from 'lucide-react';
+import { ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle, BarChart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { NotificationBell } from './NotificationBell';
 import { motion, AnimatePresence } from 'framer-motion';
+import AdminRequestDetailView from './AdminRequestDetailView';
+import { ChevronRight, Calendar, ChevronLeft } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 import * as api from '../lib/api';
+import { createNotification } from '../lib/api';
 
 const TARGET_TYPE_LABELS = {
     profile: 'Profil',
@@ -32,7 +37,7 @@ const PremiumEmptyState = ({ icon: Icon, title, message }) => (
 );
 
 const AdminDashboard = ({ onClose, onMenuOpen }) => {
-    const { currentUserProfile, adminUnreadCountGlobal } = useUser();
+    const { currentUserProfile } = useUser();
     const { addToast } = useToast();
 
     // --- CRITICAL DATA-FIRST RULE ---
@@ -50,8 +55,12 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
     
     const [reports, setReports] = useState([]);
     const [pendingAccountsList, setPendingAccountsList] = useState([]);
+    const [pendingCareersList, setPendingCareersList] = useState([]);
+    const [pendingClaimsList, setPendingClaimsList] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedReportGroup, setSelectedReportGroup] = useState(null);
+    const [selectedRequest, setSelectedRequest] = useState(null);
+    const [selectedRequestType, setSelectedRequestType] = useState(null);
     const [confirmAction, setConfirmAction] = useState(null);
 
     const loadData = useCallback(async () => {
@@ -65,14 +74,22 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             
             // 1. Fetch Metrics & Pending Data
-            const [usersRes, videosRes, reportsRes, accountsRes, claimsRes] = await Promise.all([
+            const [usersRes, videosRes, reportsRes, accountsRes, claimsRes, careersRes, clubPendingRes] = await Promise.all([
                 supabase.from('players_master').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
                 supabase.from('media_highlights').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
                 supabase.from('reports').select('*').order('created_at', { ascending: false }),
-                supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at').eq('verification_status', 'pending').order('created_at', { ascending: false }),
-                supabase.from('club_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+                supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, verification_status').eq('verification_status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('club_claims').select('*, clubs(name)').eq('status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('career_history').select('*').eq('verification_status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, club_verification_status, pending_club_id, clubs(name)').eq('club_verification_status', 'pending').order('created_at', { ascending: false })
             ]);
 
+            const rolePending = (accountsRes.data || []).map(u => ({ ...u, type: 'role' }));
+            const clubPending = (clubPendingRes.data || []).map(u => ({ ...u, type: 'club' }));
+            const allPendingAccounts = [...rolePending, ...clubPending];
+            
+            setPendingAccountsList(allPendingAccounts);
+            
             const allReports = reportsRes.data || [];
             
             // Group reports by target
@@ -95,20 +112,23 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
             const groupedList = Object.values(groups);
             const pendingGroups = groupedList.filter(g => g.status === 'pending');
 
-            const fetchedAccounts = accountsRes.data || [];
-            setPendingAccountsList(fetchedAccounts);
+            const fetchedCareers = careersRes.data || [];
+            const fetchedClaims = claimsRes.data || [];
+            
+            setPendingCareersList(fetchedCareers);
+            setPendingClaimsList(fetchedClaims);
 
             // Update Stats including Notification Badges
             setStats({
                 openReports: pendingGroups.length,
                 newUsers24h: usersRes.count || 0,
                 newVideos24h: videosRes.count || 0,
-                pendingAccounts: fetchedAccounts.length,
-                pendingClaims: claimsRes.count || 0,
-                pendingCareers: 0 // Will implement career logic when career table exists
+                pendingAccounts: allPendingAccounts.length,
+                pendingClaims: fetchedClaims.length,
+                pendingCareers: fetchedCareers.length
             });
 
-            // Fetch target details for pending groups
+            // 1. Fetch Target Data (Videos, Comments, Profiles)
             const videoIds = pendingGroups.filter(g => g.target_type === 'video').map(g => g.target_id);
             const commentIds = pendingGroups.filter(g => g.target_type === 'comment').map(g => g.target_id);
             const profileIds = pendingGroups.filter(g => g.target_type === 'profile' || g.target_type === 'user').map(g => g.target_id);
@@ -116,12 +136,36 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
             const [videos, comments, profiles] = await Promise.all([
                 videoIds.length > 0 ? supabase.from('media_highlights').select('id, description, video_url, thumbnail_url, player_id, report_count').in('id', videoIds) : Promise.resolve({ data: [] }),
                 commentIds.length > 0 ? supabase.from('media_comments').select('id, content, video_id, user_id, report_count').in('id', commentIds) : Promise.resolve({ data: [] }),
-                profileIds.length > 0 ? supabase.from('players_master').select('id, full_name, username, avatar_url, report_count').in('id', profileIds) : Promise.resolve({ data: [] })
+                profileIds.length > 0 ? supabase.from('players_master').select('id, full_name, username, avatar_url, role, created_at, report_count').in('id', profileIds) : Promise.resolve({ data: [] })
             ]);
+
+            // 2. Fetch Creator Profiles for Dossier (Area A)
+            const careerUserIds = [...new Set(fetchedCareers.map(c => c.user_id))];
+            const claimUserIds = [...new Set(fetchedClaims.map(c => c.user_id))];
+            const videoCreatorIds = (videos.data || []).map(v => v.player_id);
+            const commentCreatorIds = (comments.data || []).map(c => c.user_id);
+            const allUserIds = [...new Set([...careerUserIds, ...claimUserIds, ...videoCreatorIds, ...commentCreatorIds])];
+
+            const { data: userProfilesRes } = await (allUserIds.length > 0 
+                ? supabase.from('players_master').select('user_id, id, full_name, username, avatar_url, role, created_at').in('user_id', allUserIds) 
+                : Promise.resolve({ data: [] }));
 
             const videoMap = (videos.data || []).reduce((acc, v) => ({ ...acc, [v.id]: v }), {});
             const commentMap = (comments.data || []).reduce((acc, c) => ({ ...acc, [c.id]: c }), {});
             const profileMap = (profiles.data || []).reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+            const userProfileMap = (userProfilesRes || []).reduce((acc, p) => ({ ...acc, [p.user_id]: p }), {});
+
+            const enrichedCareers = fetchedCareers.map(c => ({
+                ...c,
+                profile: userProfileMap[c.user_id] || null
+            }));
+            setPendingCareersList(enrichedCareers);
+
+            const enrichedClaims = fetchedClaims.map(c => ({
+                ...c,
+                profile: userProfileMap[c.user_id] || null
+            }));
+            setPendingClaimsList(enrichedClaims);
 
             const enrichedGroups = pendingGroups.map(group => {
                 let targetData = null;
@@ -129,9 +173,16 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 else if (group.target_type === 'comment') targetData = commentMap[group.target_id];
                 else if (group.target_type === 'profile' || group.target_type === 'user') targetData = profileMap[group.target_id];
 
+                // Determine profile for Area A in detail view
+                let profile = null;
+                if (group.target_type === 'profile' || group.target_type === 'user') profile = targetData;
+                else if (group.target_type === 'video') profile = userProfileMap[targetData?.player_id];
+                else if (group.target_type === 'comment') profile = userProfileMap[targetData?.user_id];
+
                 return {
                     ...group,
                     targetData,
+                    profile,
                     report_count: targetData?.report_count || group.reports.length
                 };
             });
@@ -214,22 +265,144 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
         setPendingAccountsList(prev => prev.filter(a => a.id !== account.id));
         setStats(prev => ({ ...prev, pendingAccounts: Math.max(0, prev.pendingAccounts - 1) }));
 
-        const newStatus = action === 'approve' ? 'approved' : 'rejected';
-        
         try {
-            const { error } = await supabase
-                .from('players_master')
-                .update({ 
-                    verification_status: newStatus,
-                    is_verified: action === 'approve'
-                })
-                .eq('id', account.id);
-            
-            if (error) throw error;
-            addToast(`Anfrage erfolgreich ${action === 'approve' ? 'freigegeben' : 'abgelehnt'}`, 'success');
+            if (account.type === 'club') {
+                if (action === 'approve') {
+                    const { error } = await supabase.from('players_master')
+                        .update({ 
+                            club_verification_status: 'approved'
+                        })
+                        .eq('id', account.id);
+                    if (error) throw error;
+                    addToast(`Verein für ${account.full_name} freigegeben`, 'success');
+                } else {
+                    const { error } = await supabase.from('players_master')
+                        .update({ 
+                            club_verification_status: 'rejected'
+                        })
+                        .eq('id', account.id);
+                    if (error) throw error;
+                    addToast(`Vereins-Update für ${account.full_name} abgelehnt`, 'info');
+                }
+            } else {
+                const newStatus = action === 'approve' ? 'approved' : 'rejected';
+                const { error } = await supabase
+                    .from('players_master')
+                    .update({ 
+                        verification_status: newStatus,
+                        is_verified: action === 'approve'
+                    })
+                    .eq('id', account.id);
+                
+                if (error) throw error;
+                addToast(`Anfrage erfolgreich ${action === 'approve' ? 'freigegeben' : 'abgelehnt'}`, 'success');
+            }
+            loadData();
         } catch (error) {
             addToast(`Fehler: ${error.message}`, 'error');
             loadData(); // Revert optimistic update on failure
+        }
+    };
+
+    const handleCareerAction = async (career, action) => {
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+
+        try {
+            // 1. Perform the update in Supabase FIRST
+            // Note: Using career_history table as found in the database
+            const { error: updateError } = await supabase
+                .from('career_history')
+                .update({ 
+                    verification_status: newStatus, 
+                    is_verified: action === 'approve' 
+                })
+                .eq('id', career.id);
+
+            if (updateError) throw updateError;
+
+            // Auto-Sync: If approved and it's a current station, update the profile's club_id
+            if (action === 'approve' && !career.end_date && career.club_id) {
+                try {
+                    await supabase
+                        .from('players_master')
+                        .update({ club_id: career.club_id })
+                        .eq('user_id', career.user_id);
+                    console.log('Profile club_id synced from verified career station');
+                } catch (syncErr) {
+                    console.warn('Could not sync profile club_id:', syncErr);
+                }
+            }
+
+            // 2. Send verification notification to the user
+            if (action === 'approve') {
+                try {
+                    // Resolve the user's players_master.id for the notification
+                    const { data: profileData } = await supabase
+                        .from('players_master')
+                        .select('id')
+                        .eq('user_id', career.user_id)
+                        .maybeSingle();
+
+                    const recipientId = profileData?.id || career.profile?.id;
+
+                    if (recipientId) {
+                        await createNotification({
+                            userId: recipientId,
+                            actorId: currentUserProfile?.id,
+                            type: 'verification_success',
+                            message: `Deine Karriere-Station bei "${career.club_name}" wurde erfolgreich verifiziert! 🎉`,
+                            entityId: career.id // career_station_id stored in entity_id
+                        });
+                    }
+                } catch (notifErr) {
+                    console.warn('Could not send verification notification:', notifErr);
+                }
+            }
+
+            // 3. Update local state ONLY after successful database update
+            setPendingCareersList(prev => prev.filter(c => c.id !== career.id));
+            setStats(prev => ({ ...prev, pendingCareers: Math.max(0, prev.pendingCareers - 1) }));
+
+            addToast(`Karriere-Station ${action === 'approve' ? 'freigegeben' : 'abgelehnt'}`, 'success');
+        } catch (error) {
+            console.error("Career Action Error:", error);
+            addToast(`Fehler: ${error.message}`, 'error');
+            // Re-sync data if something went wrong
+            loadData();
+        }
+    };
+
+    const handleClaimAction = async (claim, action) => {
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
+
+        try {
+            const { error: updateError } = await supabase
+                .from('club_claims')
+                .update({ status: newStatus })
+                .eq('id', claim.id);
+
+            if (updateError) throw updateError;
+
+            if (action === 'approve') {
+                // Also update the profile to set is_official and club_id
+                const { error: profileError } = await supabase
+                    .from('players_master')
+                    .update({ 
+                        is_official: true,
+                        club_id: claim.club_id
+                    })
+                    .eq('user_id', claim.user_id);
+                
+                if (profileError) throw profileError;
+            }
+
+            setPendingClaimsList(prev => prev.filter(c => c.id !== claim.id));
+            setStats(prev => ({ ...prev, pendingClaims: Math.max(0, prev.pendingClaims - 1) }));
+
+            addToast(`Vereins-Claim ${action === 'approve' ? 'freigegeben' : 'abgelehnt'}`, 'success');
+            loadData();
+        } catch (error) {
+            addToast(`Fehler: ${error.message}`, 'error');
         }
     };
 
@@ -250,6 +423,8 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
         { id: 'status-freigaben', label: 'Status-Freigaben', icon: UserCheck, badge: stats.pendingAccounts },
         { id: 'karriere-stationen', label: 'Karriere-Stationen', icon: Trophy, badge: stats.pendingCareers },
         { id: 'vereins-rechte', label: 'Vereins-Rechte', icon: Building, badge: stats.pendingClaims },
+        { id: 'meldungen', label: 'Meldungen', icon: Flag, badge: stats.openReports },
+        { id: 'analytics', label: 'Analytics', icon: BarChart, badge: 0 },
     ];
 
     const renderSkeletonList = () => (
@@ -269,66 +444,108 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
 
     // --- Sub-Views ---
     const renderDashboardView = () => (
-        <>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                <div className="col-span-2 md:col-span-1 bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+        <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Shield size={16} className="text-blue-500" />
+                Action Center
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+                {/* Tile 1: Status-Freigaben */}
+                <button
+                    onClick={() => setActiveView('status-freigaben')}
+                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
                     <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-4">
-                        <AlertOctagon size={20} />
+                        <UserCheck size={20} />
                     </div>
-                    <p className="text-4xl font-black text-white mb-1">
-                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : stats.openReports}
+                    <p className={`text-3xl font-black mb-1 ${stats.pendingAccounts > 0 ? 'text-blue-500' : 'text-white'}`}>
+                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.pendingAccounts > 0 ? `+${stats.pendingAccounts} neu` : '0')}
                     </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Offene Meldungen</p>
-                </div>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Status-Freigaben</p>
+                </button>
 
-                <div className="col-span-1 bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
-                        <Users size={20} />
+                {/* Tile 2: Karriere-Stationen */}
+                <button
+                    onClick={() => setActiveView('karriere-stationen')}
+                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/20 text-yellow-500 flex items-center justify-center mb-4">
+                        <Trophy size={20} />
                     </div>
-                    <p className="text-4xl font-black text-white mb-1">
-                        {isLoading ? <SkeletonBlock className="w-16 h-8" /> : `+${stats.newUsers24h}`}
+                    <p className={`text-3xl font-black mb-1 ${stats.pendingCareers > 0 ? 'text-yellow-500' : 'text-white'}`}>
+                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.pendingCareers > 0 ? `+${stats.pendingCareers} neu` : '0')}
                     </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Neuanmeldungen 24h</p>
-                </div>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Karriere-Stationen</p>
+                </button>
 
-                <div className="col-span-1 bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
-                        <TrendingUp size={20} />
+                {/* Tile 3: Vereins-Rechte */}
+                <button
+                    onClick={() => setActiveView('vereins-rechte')}
+                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-4">
+                        <Building size={20} />
                     </div>
-                    <p className="text-4xl font-black text-white mb-1">
-                        {isLoading ? <SkeletonBlock className="w-16 h-8" /> : `+${stats.newVideos24h}`}
+                    <p className={`text-3xl font-black mb-1 ${stats.pendingClaims > 0 ? 'text-indigo-400' : 'text-white'}`}>
+                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.pendingClaims > 0 ? `+${stats.pendingClaims} neu` : '0')}
                     </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Video-Uploads 24h</p>
-                </div>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Vereins-Rechte</p>
+                </button>
+
+                {/* Tile 4: Meldungen */}
+                <button
+                    onClick={() => setActiveView('meldungen')}
+                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-red-500/20 text-red-500 flex items-center justify-center mb-4">
+                        <Flag size={20} />
+                    </div>
+                    <p className={`text-3xl font-black mb-1 ${stats.openReports > 0 ? 'text-red-500' : 'text-white'}`}>
+                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.openReports > 0 ? `+${stats.openReports} neu` : '0')}
+                    </p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Meldungen</p>
+                </button>
             </div>
+        </div>
+    );
 
-            <div>
-                <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Flag size={16} className="text-red-500" />
-                    Dringende Fälle
-                </h3>
+    const renderMeldungenView = () => (
+        <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <button onClick={() => setActiveView('dashboard')} className="p-1.5 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
+                    <ChevronLeft size={16} />
+                </button>
+                <Flag size={16} className="text-red-500" />
+                Dringende Fälle
+            </h3>
 
-                {isLoading ? (
-                    renderSkeletonList()
-                ) : reports.length === 0 ? (
-                    <PremiumEmptyState 
-                        icon={ShieldCheck} 
-                        title="Plattform ist sauber" 
-                        message="Es gibt aktuell keine offenen Meldungen. Alle Inhalte wurden geprüft." 
-                    />
-                ) : (
-                    <div className="space-y-3">
-                        {reports.map(group => {
-                            const isQuarantine = group.report_count >= 5;
-                            return (
-                                <div 
-                                    key={group.target_id} 
-                                    onClick={() => setSelectedReportGroup(group)}
-                                    className="group relative flex items-center gap-4 p-4 bg-[#111] border border-white/5 rounded-2xl cursor-pointer hover:bg-white/[0.04] transition-colors"
-                                >
+            {isLoading ? (
+                renderSkeletonList()
+            ) : reports.length === 0 ? (
+                <PremiumEmptyState 
+                    icon={ShieldCheck} 
+                    title="Plattform ist sauber" 
+                    message="Es gibt aktuell keine offenen Meldungen. Alle Inhalte wurden geprüft." 
+                />
+            ) : (
+                <div className="space-y-3">
+                    {reports.map(group => {
+                        const isQuarantine = group.report_count >= 5;
+                        const firstReport = group.reports[0];
+                        return (
+                            <div 
+                                key={group.target_id} 
+                                onClick={() => {
+                                    setSelectedRequest(group);
+                                    setSelectedRequestType('report');
+                                }}
+                                className="flex items-center justify-between p-4 mb-3 bg-gray-900 border border-gray-800 rounded-xl cursor-pointer hover:bg-gray-800 transition w-full group"
+                            >
+                                <div className="flex items-center gap-4 min-w-0 flex-1">
                                     <div className="w-12 h-12 rounded-xl bg-zinc-900 shrink-0 overflow-hidden flex items-center justify-center border border-white/5">
                                         {group.target_type === 'video' && group.targetData?.thumbnail_url ? (
                                             <img src={group.targetData.thumbnail_url} className="w-full h-full object-cover" />
@@ -341,53 +558,78 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                                         )}
                                     </div>
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">
+                                    <div className="flex flex-col min-w-0 w-full">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/10">
                                                 {TARGET_TYPE_LABELS[group.target_type]}
                                             </span>
                                             {isQuarantine && (
                                                 <span className="px-1.5 py-0.5 bg-red-500/10 text-red-500 text-[9px] font-black uppercase tracking-widest rounded border border-red-500/20">
-                                                    Quarantäne
+                                                    QUARANTÄNE
                                                 </span>
                                             )}
                                         </div>
-                                        <h4 className="font-bold text-sm text-white truncate">
+                                        <h4 className="font-bold text-white text-base truncate">
                                             {group.target_type === 'comment' ? group.targetData?.content : (group.targetData?.description || group.targetData?.full_name || 'Unbekannter Inhalt')}
                                         </h4>
-                                        <p className="text-xs text-zinc-400 truncate">
-                                            {group.reports.length} Meldung{group.reports.length > 1 ? 'en' : ''}: "{group.reports[0]?.reason}"
+                                        <p className="text-sm text-gray-400 truncate mt-0.5">
+                                            {group.reports.length} Meldung{group.reports.length > 1 ? 'en' : ''}: "{firstReport?.reason}"
                                         </p>
                                     </div>
-
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={(e) => handleReportAction(e, group, 'dismiss')}
-                                            className="p-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 rounded-lg transition-colors border border-blue-600/20"
-                                            title="Verwerfen"
-                                        >
-                                            <Check size={16} />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => handleReportAction(e, group, 'delete')}
-                                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors border border-red-500/20"
-                                            title="Löschen"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
                                 </div>
-                            );
-                        })}
+
+                                <div className="flex-shrink-0 pl-2">
+                                    <ChevronRight size={20} className="text-gray-500 group-hover:text-white transition-colors" />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+
+    const renderAnalyticsView = () => (
+        <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <button onClick={() => setActiveView('dashboard')} className="p-1.5 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
+                    <ChevronLeft size={16} />
+                </button>
+                <BarChart size={16} className="text-purple-500" />
+                Analytics
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
+                        <Users size={20} />
                     </div>
-                )}
+                    <p className="text-4xl font-black text-white mb-1">
+                        {isLoading ? <SkeletonBlock className="w-16 h-8" /> : `+${stats.newUsers24h}`}
+                    </p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Neuanmeldungen 24h</p>
+                </div>
+
+                <div className="bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-[100px] -z-10 transition-transform group-hover:scale-110" />
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+                        <TrendingUp size={20} />
+                    </div>
+                    <p className="text-4xl font-black text-white mb-1">
+                        {isLoading ? <SkeletonBlock className="w-16 h-8" /> : `+${stats.newVideos24h}`}
+                    </p>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Video-Uploads 24h</p>
+                </div>
             </div>
-        </>
+        </div>
     );
 
     const renderAccountsView = () => (
         <div>
             <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <button onClick={() => setActiveView('dashboard')} className="p-1.5 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
+                    <ChevronLeft size={16} />
+                </button>
                 <UserCheck size={16} className="text-blue-500" />
                 Ausstehende Verifizierungen
             </h3>
@@ -403,44 +645,166 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
             ) : (
                 <div className="space-y-3">
                     {pendingAccountsList.map(account => (
-                        <div key={account.id} className="group relative flex items-center gap-4 p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-colors">
-                            <div className="w-12 h-12 rounded-full bg-zinc-900 shrink-0 overflow-hidden flex items-center justify-center border border-white/5">
-                                {account.avatar_url ? (
-                                    <img src={account.avatar_url} className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-sm font-black text-zinc-500">
-                                        {account.full_name?.charAt(0)?.toUpperCase() || '?'}
-                                    </span>
-                                )}
+                        <div 
+                            key={account.id} 
+                            onClick={() => {
+                                setSelectedRequest(account);
+                                setSelectedRequestType('account');
+                            }}
+                            className="flex items-center justify-between p-4 mb-3 bg-gray-900 border border-gray-800 rounded-xl cursor-pointer hover:bg-gray-800 transition w-full group"
+                        >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-zinc-900 border border-white/5 overflow-hidden flex items-center justify-center">
+                                    {account.avatar_url ? (
+                                        <img src={account.avatar_url} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-sm font-black text-zinc-500">
+                                            {account.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col min-w-0 w-full">
+                                    <div className="flex items-center mb-1">
+                                        <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded border ${
+                                            account.type === 'club' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                        }`}>
+                                            {account.type === 'club' ? 'VEREINS-UPDATE' : (account.role === 'scout' ? 'SCOUT' : 'TRAINER') + '-ANFRAGE'}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-white text-base truncate">{account.full_name}</h4>
+                                    <p className="text-sm text-gray-400 truncate mt-0.5">
+                                        {account.type === 'club' ? `Anfrage für "${account.clubs?.name}"` : `@${account.username}`}
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                    <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                                        {account.role === 'scout' ? 'Scout-Anfrage' : 'Trainer-Anfrage'}
+                            <div className="flex-shrink-0 pl-2">
+                                <ChevronRight size={20} className="text-gray-500 group-hover:text-white transition-colors" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    const renderCareersView = () => (
+        <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <button onClick={() => setActiveView('dashboard')} className="p-1.5 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
+                    <ChevronLeft size={16} />
+                </button>
+                <Trophy size={16} className="text-yellow-500" />
+                Ausstehende Karriere-Stationen
+            </h3>
+
+            {isLoading ? (
+                renderSkeletonList()
+            ) : pendingCareersList.length === 0 ? (
+                <PremiumEmptyState 
+                    icon={ShieldCheck} 
+                    title="Alle Stationen geprüft" 
+                    message="Es gibt keine offenen Karriere-Stationen zur Verifizierung." 
+                />
+            ) : (
+                <div className="space-y-3">
+                    {pendingCareersList.map(career => (
+                        <div 
+                            key={career.id} 
+                            onClick={() => {
+                                setSelectedRequest(career);
+                                setSelectedRequestType('career');
+                            }}
+                            className="flex items-center justify-between p-4 mb-3 bg-gray-900 border border-gray-800 rounded-xl cursor-pointer hover:bg-gray-800 transition w-full group"
+                        >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-zinc-900 border border-white/5 overflow-hidden flex items-center justify-center">
+                                    {career.profile?.avatar_url ? (
+                                        <img src={career.profile.avatar_url} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-sm font-black text-zinc-500">
+                                            {career.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                <div className="flex flex-col min-w-0 w-full">
+                                    <div className="flex items-center mb-1">
+                                        <span className="text-xs font-bold text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded uppercase tracking-widest">
+                                            {career.profile?.role === 'player' ? 'SPIELER-STATION' : 'STAFF-STATION'}
+                                        </span>
+                                    </div>
+                                    <span className="font-bold text-white text-base truncate">{career.profile?.full_name || 'Unbekannt'}</span>
+                                    <span className="text-sm text-gray-400 truncate mt-0.5">
+                                        {career.club_name} {career.position ? `- ${career.position}` : ''}
                                     </span>
                                 </div>
-                                <h4 className="font-bold text-sm text-white truncate">{account.full_name}</h4>
-                                <p className="text-xs text-zinc-400 truncate">@{account.username}</p>
+                            </div>
+                            
+                            <div className="flex-shrink-0 pl-2">
+                                <ChevronRight size={20} className="text-gray-500 group-hover:text-white transition-colors" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    const renderClaimsView = () => (
+        <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                <button onClick={() => setActiveView('dashboard')} className="p-1.5 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors">
+                    <ChevronLeft size={16} />
+                </button>
+                <Building size={16} className="text-indigo-500" />
+                Vereins-Rechte
+            </h3>
+
+            {isLoading ? (
+                renderSkeletonList()
+            ) : pendingClaimsList.length === 0 ? (
+                <PremiumEmptyState 
+                    icon={ShieldCheck} 
+                    title="Keine offenen Claims" 
+                    message="Aktuell gibt es keine Anfragen für Vereins-Inhaberschaften." 
+                />
+            ) : (
+                <div className="space-y-3">
+                    {pendingClaimsList.map(claim => (
+                        <div 
+                            key={claim.id} 
+                            onClick={() => {
+                                setSelectedRequest(claim);
+                                setSelectedRequestType('claim');
+                            }}
+                            className="flex items-center justify-between p-4 mb-3 bg-gray-900 border border-gray-800 rounded-xl cursor-pointer hover:bg-gray-800 transition w-full group"
+                        >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-zinc-900 border border-white/5 overflow-hidden flex items-center justify-center">
+                                    {claim.profile?.avatar_url ? (
+                                        <img src={claim.profile.avatar_url} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-sm font-black text-zinc-500">
+                                            {claim.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col min-w-0 w-full">
+                                    <div className="flex items-center mb-1">
+                                        <span className="text-[10px] font-black uppercase text-indigo-400 tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                                            VEREINS-CLAIM
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-white text-base truncate">{claim.clubs?.name}</h4>
+                                    <p className="text-sm text-gray-400 truncate mt-0.5">Eingereicht von: {claim.profile?.full_name}</p>
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                    onClick={() => handleAccountAction(account, 'approve')}
-                                    className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors border border-emerald-500/20 flex items-center gap-1.5 px-3"
-                                    title="Freigeben"
-                                >
-                                    <Check size={16} />
-                                    <span className="text-xs font-bold">Freigeben</span>
-                                </button>
-                                <button 
-                                    onClick={() => handleAccountAction(account, 'reject')}
-                                    className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors border border-red-500/20 flex items-center gap-1.5 px-3"
-                                    title="Ablehnen"
-                                >
-                                    <X size={16} />
-                                    <span className="text-xs font-bold">Ablehnen</span>
-                                </button>
+                            <div className="flex-shrink-0 pl-2">
+                                <ChevronRight size={20} className="text-gray-500 group-hover:text-white transition-colors" />
                             </div>
                         </div>
                     ))}
@@ -481,7 +845,7 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <NotificationBell />
-                            {adminUnreadCountGlobal > 0 && (
+                            {false && (
                                 <span className="absolute -top-1 -right-1 bg-red-500 w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
                             )}
                         </div>
@@ -495,9 +859,39 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar relative z-10">
                     {activeView === 'dashboard' && renderDashboardView()}
                     {activeView === 'status-freigaben' && renderAccountsView()}
-                    {activeView === 'karriere-stationen' && renderPlaceholderView('Karriere-Stationen')}
-                    {activeView === 'vereins-rechte' && renderPlaceholderView('Vereins-Rechte')}
+                    {activeView === 'karriere-stationen' && renderCareersView()}
+                    {activeView === 'vereins-rechte' && renderClaimsView()}
+                    {activeView === 'meldungen' && renderMeldungenView()}
+                    {activeView === 'analytics' && renderAnalyticsView()}
                 </div>
+
+                {/* 2.5 Admin Request Detail Modal */}
+                <AnimatePresence>
+                    {selectedRequest && (
+                        <AdminRequestDetailView 
+                            request={selectedRequest}
+                            type={selectedRequestType}
+                            onClose={() => {
+                                setSelectedRequest(null);
+                                setSelectedRequestType(null);
+                            }}
+                            onApprove={async () => {
+                                if (selectedRequestType === 'account') await handleAccountAction(selectedRequest, 'approve');
+                                else if (selectedRequestType === 'career') await handleCareerAction(selectedRequest, 'approve');
+                                else if (selectedRequestType === 'report') await handleReportAction({ stopPropagation: () => {} }, selectedRequest, 'dismiss');
+                                else if (selectedRequestType === 'claim') await handleClaimAction(selectedRequest, 'approve');
+                                setSelectedRequest(null);
+                            }}
+                            onReject={async () => {
+                                if (selectedRequestType === 'account') await handleAccountAction(selectedRequest, 'reject');
+                                else if (selectedRequestType === 'career') await handleCareerAction(selectedRequest, 'reject');
+                                else if (selectedRequestType === 'report') await handleReportAction({ stopPropagation: () => {} }, selectedRequest, 'delete');
+                                else if (selectedRequestType === 'claim') await handleClaimAction(selectedRequest, 'reject');
+                                setSelectedRequest(null);
+                            }}
+                        />
+                    )}
+                </AnimatePresence>
 
                 {/* 3. Off-Canvas Sidebar */}
                 <AnimatePresence>

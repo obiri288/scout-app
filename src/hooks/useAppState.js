@@ -13,7 +13,7 @@ export const useAppState = () => {
     const {
         authLoading, profileLoading,
         session, setSession, currentUserProfile, updateProfile,
-        refreshProfile, unreadCount, resetUnreadCount, logout, adminUnreadCountGlobal, unreadMessageUsersCount,
+        refreshProfile, unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
         setUnreadMessageUsersCount, checkUnreadMessages,
         isRecoveryMode, setIsRecoveryMode, isAuthCallback,
         pendingReactivationProfile, confirmReactivation
@@ -422,7 +422,7 @@ export const useAppState = () => {
 
         // User context
         session, currentUserProfile, updateProfile, refreshProfile,
-        unreadCount, resetUnreadCount, logout, adminUnreadCountGlobal, unreadMessageUsersCount,
+        unreadCount, resetUnreadCount, logout, unreadMessageUsersCount,
         setUnreadMessageUsersCount, checkUnreadMessages,
         isRecoveryMode, setIsRecoveryMode,
         isAuthCallback,

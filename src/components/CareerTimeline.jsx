@@ -4,7 +4,7 @@ import { BadgeCheck, Clock, ExternalLink, Shield, Loader2, Briefcase } from 'luc
 import { supabase } from '../lib/supabase';
 import { EmptyState } from './EmptyState';
 
-export const CareerTimeline = ({ userId, refreshKey }) => {
+export const CareerTimeline = ({ userId, refreshKey, isOwnProfile }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -13,11 +13,17 @@ export const CareerTimeline = ({ userId, refreshKey }) => {
         const load = async () => {
             setLoading(true);
             try {
-                const { data, error } = await supabase
+                let query = supabase
                     .from('career_history')
                     .select('*, clubs(is_verified)')
                     .eq('user_id', userId)
                     .order('start_date', { ascending: false });
+
+                if (!isOwnProfile) {
+                    query = query.eq('verification_status', 'approved');
+                }
+
+                const { data, error } = await query;
                 if (error) throw error;
                 setEntries(data || []);
             } catch (e) {

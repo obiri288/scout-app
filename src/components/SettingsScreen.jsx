@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, Settings, User, Shield, AlertTriangle,
     Mail, Key, UserCog, ChevronRight, Trash2, PowerOff,
-    Globe, Sun, Moon, Bell, Share2, FileText, Lock,
+    Globe, Sun, Moon, Bell, Share2, FileText, Lock, LogOut,
     Loader2, AlertCircle, X, MessageCircle, Briefcase, Users, Search, Crosshair, EyeOff
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';

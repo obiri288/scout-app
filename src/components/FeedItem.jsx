@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, MoreVertical, Flag, Play, User, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand, VolumeX, Volume2, Bookmark, Archive, Trash2, EyeOff, AlertTriangle, Edit } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { ShareModal } from './ShareModal';
+import TransferPostCard from './TransferPostCard';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
@@ -318,45 +319,64 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
                         </div>
                     </div>
+
+                    {/* Kebab Menu for Transfer/Post cards (header-level) */}
+                    {video.post_type === 'transfer' && (
+                        <div className="relative">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} 
+                                className="p-2 rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground transition-all"
+                            >
+                                <MoreVertical size={20} />
+                            </button>
+                            
+                            <AnimatePresence>
+                                {showMenu && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.9, y: -10, x: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: -10, x: 10 }}
+                                        className="absolute right-0 top-12 bg-zinc-900/98 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.7)] z-[110] w-60 overflow-hidden"
+                                    >
+                                        <div className="p-1.5 space-y-1">
+                                            {isCreator ? (
+                                                <>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); setShowMenu(false); }}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Trash2 size={18} /> 🗑️ Beitrag löschen
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button 
+                                                        onClick={handleShareNative}
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Share2 size={18} className="text-blue-400" /> Beitrag teilen
+                                                    </button>
+                                                    <div className="h-px bg-white/5 my-1" />
+                                                    <button 
+                                                        onClick={handleReport} 
+                                                        className="w-full text-left px-4 py-3.5 text-xs font-bold text-red-500 hover:bg-red-500/10 flex items-center gap-3 transition-colors rounded-xl"
+                                                    >
+                                                        <Flag size={18} /> Melden
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
 
                 {/* Content: Video or Transfer Card */}
                 {video.post_type === 'transfer' ? (
-                    <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 aspect-[4/5] relative flex flex-col items-center justify-center p-6 cursor-default">
-                        <div className="absolute inset-0 bg-transparent opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, white 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                        <div className="z-10 text-center mb-8 w-full px-4">
-                            <h3 className="text-white font-black text-2xl drop-shadow-lg tracking-tight">
-                                {video.players_master?.full_name || 'Ein Spieler'} hat gewechselt! 🚀
-                            </h3>
-                        </div>
-                        <div className="flex items-center justify-center w-full max-w-sm gap-2 z-10 px-2">
-                            <div className="flex-1 flex flex-col items-center">
-                                <span className="text-white/60 text-[10px] uppercase font-bold tracking-widest mb-2">Von</span>
-                                <div className="bg-black/20 backdrop-blur-md border border-white/10 rounded-xl p-3 w-full text-center min-h-[80px] flex items-center justify-center shadow-inner">
-                                    <span className="text-white/80 font-bold text-sm leading-tight line-clamp-2">{video.transfer_data?.old_club_name || 'Vereinslos'}</span>
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-center justify-center px-1">
-                                <div className="w-16 h-16 rounded-full border-2 border-white/50 bg-slate-800 overflow-hidden shadow-2xl z-10 cursor-pointer" onClick={(e) => { e.stopPropagation(); video.players_master && onUserClick(video.players_master); }}>
-                                    {video.players_master?.avatar_url ? (
-                                        <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt="Spieler Avatar" title={video.players_master?.full_name || 'Spieler'} />
-                                    ) : (
-                                        <img src="/cavio-icon.png" className="w-10 h-10 object-contain opacity-60" />
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex-1 flex flex-col items-center">
-                                <span className="text-white/90 text-[10px] uppercase font-bold tracking-widest mb-2 shadow-sm">Zu</span>
-                                <div className="bg-white/20 backdrop-blur-md border border-white/40 rounded-xl p-3 w-full text-center min-h-[80px] flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                    <span className="text-white font-black text-sm leading-tight drop-shadow-md line-clamp-2">{video.transfer_data?.new_club_name || '-'}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="absolute bottom-6 bg-black/30 backdrop-blur-md border border-white/10 px-4 py-2 rounded-full z-10 flex items-center gap-2">
-                            <Wind size={16} className="text-cyan-400" />
-                            <span className="text-white font-medium text-xs tracking-wide">Neues Kapitel</span>
-                        </div>
-                    </div>
+                    <TransferPostCard post={video} onUserClick={onUserClick} />
                 ) : (
                     <div onClick={() => onClick({ ...video, initialIsLiked: liked, initialIsSaved: saved, initialLikeCount: likes })} className="aspect-[4/5] bg-background relative overflow-hidden group cursor-pointer">
                         <video
@@ -548,9 +568,9 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                     <AlertTriangle size={32} />
                                 </div>
                                 <div className="space-y-2">
-                                    <h3 className="text-xl font-black text-white">Video löschen?</h3>
+                                    <h3 className="text-xl font-black text-white">Beitrag löschen?</h3>
                                     <p className="text-zinc-500 text-sm leading-relaxed">
-                                        Bist du sicher? Das Video wird unwiderruflich gelöscht und kann nicht wiederhergestellt werden.
+                                        Möchtest du diesen Beitrag wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
                                     </p>
                                 </div>
                                 <div className="flex flex-col w-full gap-3">

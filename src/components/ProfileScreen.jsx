@@ -6,12 +6,13 @@ import {
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
     Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw, Crown,
-    MoreHorizontal, Flag, Ban, Copy
+    MoreHorizontal, Flag, Ban, Copy, Shield
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
 import { ProReadinessCard } from './ProReadinessCard';
 import { CareerTimeline } from './CareerTimeline';
+import { StaffCareerTab } from './StaffCareerTab';
 import { SimilarPlayers } from './SimilarPlayers';
 import { ElitePlayerCard } from './ElitePlayerCard';
 import * as api from '../lib/api';
@@ -39,6 +40,57 @@ import {
 const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete, onUnarchive, badgeId }) => {
     const { ref, isIntersecting } = useIntersectionObserver({ threshold: 0.1, rootMargin: '200px' });
     const [loaded, setLoaded] = useState(false);
+
+    if (video.post_type === 'transfer') {
+        return (
+            <div ref={ref} onClick={() => onClick(video)} className="aspect-[3/4] bg-gradient-to-br from-indigo-950 via-slate-900 to-black relative cursor-pointer group overflow-hidden rounded shadow-sm border border-white/5 flex flex-col items-center justify-center p-3 text-center">
+                <div className="z-10 flex flex-col items-center pointer-events-none">
+                    <Shield size={20} className="text-cyan-400 mb-2 opacity-80" />
+                    <span className="text-white text-[8px] font-black uppercase tracking-[0.2em] mb-1.5 opacity-60">Transfer</span>
+                    <span className="text-white text-[10px] font-black leading-tight line-clamp-2 uppercase tracking-tight">{video.transfer_data?.new_club_name || 'Done Deal'}</span>
+                </div>
+                
+                {/* Background Decor */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ 
+                    backgroundImage: 'radial-gradient(circle at center, white 1px, transparent 1px)', 
+                    backgroundSize: '12px 12px' 
+                }} />
+                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full" />
+                
+                {isOwnProfile && (
+                    <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-all">
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <button 
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-zinc-300 hover:bg-white/20 hover:text-white transition-colors"
+                                >
+                                    <MoreHorizontal size={14} />
+                                </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-slate-900 border-slate-800" onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-white font-black">Beitrag endgültig löschen?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-slate-400">
+                                        Möchtest du diesen Beitrag wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+                                    <AlertDialogCancel className="bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 rounded-xl">Abbrechen</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={(e) => { e.stopPropagation(); onDelete(video); }}
+                                        className="bg-red-600 text-white hover:bg-red-700 border-none rounded-xl font-bold"
+                                    >
+                                        🗑️ Endgültig löschen
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div ref={ref} onClick={() => onClick(video)} className="aspect-[3/4] bg-slate-200 dark:bg-slate-800 relative cursor-pointer group overflow-hidden rounded shadow-sm">
@@ -726,12 +778,18 @@ export const ProfileScreen = ({
                             {profile.full_name || 'Neuer Nutzer'}
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
-                            {profile.clubs?.name && (
+                            {(latestCareerEntry?.clubs || profile.clubs) && (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
                                     <Trophy size={14} className="text-amber-500" />
-                                    <span className="font-bold">{profile.clubs.name}</span>
-                                    {profile.clubs.is_verified ? (
-                                        <CheckCircle size={12} className="text-blue-500 fill-blue-500/10" title="Verifizierter Verein" />
+                                    <span className="font-bold">{latestCareerEntry?.clubs?.name || profile.clubs?.name}</span>
+                                    {latestCareerEntry ? (
+                                        <CheckCircle size={12} className="text-green-500 fill-green-500/10" title="Verifizierter Verein aus Karriere-Historie" />
+                                    ) : profile.club_verification_status === 'pending' ? (
+                                        <Clock size={12} className="text-amber-500 animate-pulse" title="Verein wird noch geprüft" />
+                                    ) : profile.club_verification_status === 'approved' ? (
+                                        <CheckCircle size={12} className="text-green-500 fill-green-500/10" title="Verifizierter Verein" />
+                                    ) : profile.clubs?.is_verified ? (
+                                        <CheckCircle size={12} className="text-blue-500 fill-blue-500/10" title="Offizieller Partner-Verein" />
                                     ) : (
                                         <Clock size={12} className="text-muted-foreground" title="Verein wird noch geprüft" />
                                     )}
@@ -802,7 +860,14 @@ export const ProfileScreen = ({
                                 >
                                     <Crown size={18} />
                                 </motion.button>
-                                {profile.role === 'admin' && <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30"><Database size={18} /></button>}
+                                {profile.role === 'admin' && (
+                                    <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30 relative group">
+                                        <Database size={18} />
+                                        {false && (
+                                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-slate-50 dark:border-slate-900 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)] z-10" />
+                                        )}
+                                    </button>
+                                )}
                             </>
                         ) : (
                             <>
@@ -1218,7 +1283,11 @@ const ProfileTabs = ({
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                 >
-                    <CareerTimeline userId={profile.user_id} refreshKey={careerRefreshKey} />
+                    {profile.role === 'coach' || profile.role === 'scout' ? (
+                        <StaffCareerTab profile={profile} isOwnProfile={isOwnProfile} />
+                    ) : (
+                        <CareerTimeline userId={profile.user_id} refreshKey={careerRefreshKey} isOwnProfile={isOwnProfile} />
+                    )}
                 </motion.div>
             )}
 

@@ -28,6 +28,7 @@ const TYPE_CONFIG = {
     likes_milestone: { icon: Trophy,        color: 'text-yellow-400', bg: 'bg-yellow-500/15', border: 'border-l-yellow-400' },
     comment:         { icon: MessageSquare, color: 'text-green-400',  bg: 'bg-green-500/15',  border: 'border-l-green-400' },
     video_removed:   { icon: AlertTriangle, color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-l-orange-400' },
+    verification_success: { icon: CheckCheck, color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-l-green-400' },
 };
 const cfg = (type) => TYPE_CONFIG[type] || { icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/15', border: 'border-l-cyan-400' };
 
@@ -44,6 +45,7 @@ const getText = (n) => {
         case 'likes_milestone': return 'Dein Video hat einen Meilenstein erreicht! 🎉';
         case 'comment':         return `${name} hat dein Video kommentiert`;
         case 'video_removed':   return 'Dein Video wurde aufgrund von Nutzer-Meldungen entfernt.';
+        case 'verification_success': return n.message || 'Deine Karriere-Station wurde erfolgreich verifiziert! 🎉';
     }
 
     // Fallback to the stored message if available, otherwise generic
@@ -61,6 +63,12 @@ export const NotificationBell = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
     const [appealVideoId, setAppealVideoId] = useState(null);
+    const [showDoneDealModal, setShowDoneDealModal] = useState(false);
+    const [selectedCareer, setSelectedCareer] = useState(null);
+    const [posting, setPosting] = useState(false);
+
+    const { supabase } = api; // Assuming api exports supabase or it's available globally via imports if I add it
+
 
     // Merge live real-time items into the panel list when they arrive
     // This makes the bell panel update without needing to close and reopen
@@ -109,6 +117,75 @@ export const NotificationBell = () => {
     const deleteOne = (id) => {
         setNotifications(prev => prev.filter(n => n.id !== id));
         api.deleteNotification(id).catch(e => console.error("Notification delete failed:", e));
+    };
+
+    const handleNotificationClick = async (n) => {
+        if (!n.is_read) markOne(n.id);
+        
+        if (n.type === 'verification_success' && n.entity_id) {
+            try {
+                setLoading(true);
+                const { data: career, error } = await api.supabase
+                    .from('career_history')
+                    .select('*, profile:players_master(id, full_name, avatar_url, role)')
+                    .eq('id', n.entity_id)
+                    .single();
+                
+                if (error) throw error;
+                setSelectedCareer(career);
+                setShowDoneDealModal(true);
+                setIsOpen(false); // Close the notification panel
+            } catch (err) {
+                console.error("Error fetching career for modal:", err);
+                addToast("Fehler beim Laden der Station", "error");
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleDoneDealConfirm = async () => {
+        if (!selectedCareer) return;
+        setPosting(true);
+        try {
+            // Fetch previous approved station for "from" club
+            const { data: previousStations } = await api.supabase
+                .from('career_history')
+                .select('club_name')
+                .eq('user_id', selectedCareer.user_id)
+                .eq('verification_status', 'approved')
+                .neq('id', selectedCareer.id)
+                .order('start_date', { ascending: false })
+                .limit(1);
+
+            const oldClubName = previousStations?.[0]?.club_name || 'Vereinslos';
+
+            const { error } = await api.supabase.from('posts').insert({
+                user_id: selectedCareer.profile?.id,
+                type: 'transfer',
+                career_station_id: selectedCareer.id,
+                metadata: {
+                    old_club_name: oldClubName,
+                    new_club_name: selectedCareer.club_name,
+                    league: selectedCareer.league,
+                    role: selectedCareer.profile?.role === 'player' ? 'Spieler' : 'Staff',
+                    start_date: selectedCareer.start_date,
+                    end_date: selectedCareer.end_date,
+                    is_current: selectedCareer.is_current,
+                    player_name: selectedCareer.profile?.full_name || 'Ein Spieler',
+                    player_avatar: selectedCareer.profile?.avatar_url
+                }
+            });
+
+            if (error) throw error;
+            addToast("Done Deal erfolgreich geteilt! 🚀", "success");
+            setShowDoneDealModal(false);
+        } catch (err) {
+            console.error("Done Deal Error:", err);
+            addToast("Fehler beim Teilen: " + err.message, "error");
+        } finally {
+            setPosting(false);
+        }
     };
 
     if (!session) return null;
@@ -214,7 +291,7 @@ export const NotificationBell = () => {
                                                         animate={{ opacity: 1, y: 0 }}
                                                         exit={{ opacity: 0, scale: 0.95 }}
                                                         transition={{ duration: 0.2 }}
-                                                        onClick={() => unread && markOne(n.id)}
+                                                        onClick={() => handleNotificationClick(n)}
                                                         className={`relative flex items-start gap-3 px-4 py-3.5 transition-colors cursor-pointer hover:bg-white/5 border-l-2 ${unread ? 'bg-cyan-500/5 ' + c.border : 'border-l-transparent'}`}
                                                     >
                                                         {/* Icon / Avatar */}
@@ -302,6 +379,48 @@ export const NotificationBell = () => {
                             addToast("Dein Widerspruch wurde erfolgreich eingereicht.", "success");
                         }}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* ── Done Deal Modal ───────────────────────── */}
+            <AnimatePresence>
+                {showDoneDealModal && selectedCareer && (
+                    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-card w-full max-w-sm rounded-3xl p-8 shadow-2xl border border-green-500/30 text-center flex flex-col items-center relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
+                            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6">
+                                <Trophy className="text-green-500 w-10 h-10" />
+                            </div>
+                            <h3 className="text-xl font-bold mb-3 text-foreground">Glückwunsch! 🎊</h3>
+                            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                                Deine Station bei <strong>{selectedCareer.club_name}</strong> wurde verifiziert. 
+                                Möchtest du diesen "Done Deal" jetzt mit deinem Netzwerk teilen?
+                            </p>
+                            
+                            <div className="w-full space-y-3">
+                                <button
+                                    onClick={handleDoneDealConfirm}
+                                    disabled={posting}
+                                    className="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-green-900/20 active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    {posting ? <Loader2 size={20} className="animate-spin" /> : <Zap size={20} />}
+                                    Jetzt posten
+                                </button>
+                                <button
+                                    onClick={() => setShowDoneDealModal(false)}
+                                    disabled={posting}
+                                    className="w-full py-4 bg-white/5 hover:bg-white/10 text-muted-foreground font-bold rounded-2xl transition-all"
+                                >
+                                    Vielleicht später
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </>

@@ -87,9 +87,10 @@ export const fetchPlayerBySlug = async (slug) => {
 
 export const fetchLatestCareerEntry = async (userId) => {
     const { data } = await supabase.from('career_history')
-        .select('*')
+        .select('*, clubs(*, leagues(name))')
         .eq('user_id', userId)
         .is('end_date', null)
+        .eq('verification_status', 'approved')
         .order('start_date', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -200,21 +201,38 @@ export const geocodeCity = async (city) => {
 // ============================================================
 
 export const fetchPlayerHighlights = async (playerId, includeArchived = false) => {
-    let q = supabase.from('media_highlights')
+    // 1. Fetch from media_highlights
+    let qHighlights = supabase.from('media_highlights')
         .select('*, media_comments(count), players_master(*, clubs(*, leagues(name)))')
         .eq('player_id', playerId)
         .eq('is_under_review', false);
     
     if (!includeArchived) {
-        q = q.eq('is_archived', false);
+        qHighlights = qHighlights.eq('is_archived', false);
     }
 
-    const { data } = await q.order('created_at', { ascending: false });
+    // 2. Fetch from posts
+    let qPosts = supabase.from('posts')
+        .select('*, players_master(*, clubs(*, leagues(name)))')
+        .eq('user_id', playerId)
+        .eq('is_deleted', false);
+
+    const [highlightsRes, postsRes] = await Promise.all([
+        qHighlights.order('created_at', { ascending: false }),
+        qPosts.order('created_at', { ascending: false })
+    ]);
         
-    return (data || []).map(post => ({
-        ...post,
-        comments_count: post.media_comments?.[0]?.count || 0
-    }));
+    const allItems = [
+        ...(highlightsRes.data || []).map(h => ({ ...h, post_type: h.post_type || 'video' })),
+        ...(postsRes.data || []).map(p => ({ ...p, post_type: p.type, transfer_data: p.metadata }))
+    ];
+
+    return allItems
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .map(post => ({
+            ...post,
+            comments_count: post.media_comments?.[0]?.count || 0
+        }));
 };
 
 /**
@@ -236,17 +254,34 @@ export const fetchVideoById = async (videoId) => {
 };
 
 export const fetchFeed = async (offset = 0, limit = 10) => {
-    const { data } = await supabase.from('media_highlights')
+    // 1. Fetch from media_highlights
+    const highlightsPromise = supabase.from('media_highlights')
         .select('*, media_comments(count), players_master!inner(*, clubs(*, leagues(name)))')
         .eq('players_master.is_deactivated', false)
         .eq('is_archived', false)
         .eq('is_under_review', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
+
+    // 2. Fetch from posts
+    const postsPromise = supabase.from('posts')
+        .select('*, players_master!inner(*, clubs(*, leagues(name)))')
+        .eq('players_master.is_deactivated', false)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+    const [highlightsRes, postsRes] = await Promise.all([highlightsPromise, postsPromise]);
         
-    // Filter out posts without profiles to prevent crashes and map real comment counts
-    return (data || [])
-        .filter(post => post.players_master !== null)
+    const allItems = [
+        ...(highlightsRes.data || []).map(h => ({ ...h, post_type: h.post_type || 'video' })),
+        ...(postsRes.data || []).map(p => ({ ...p, post_type: p.type, transfer_data: p.metadata }))
+    ];
+
+    return allItems
+        .filter(item => item.players_master !== null)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, limit)
         .map(post => ({
             ...post,
             comments_count: post.media_comments?.[0]?.count || 0
@@ -430,14 +465,17 @@ export const fetchFollowers = async (playerId) => {
 // ============================================================
 
 export const createNotification = async ({ userId, actorId, type, message, entityId, videoId }) => {
+    // Helper to verify UUID format (prevents DB mismatch errors if BigInts are passed)
+    const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
     const payload = cleanPayload({
         user_id: userId,
         actor_id: actorId, // Auslöser
         type,
         message,
         is_read: false,
-        entity_id: entityId,
-        video_id: videoId
+        entity_id: isUUID(entityId) ? entityId : null,
+        video_id: isUUID(videoId) ? videoId : null
     });
 
     try {
