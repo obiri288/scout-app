@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { X, BadgeCheck, FileBadge, Loader2 } from 'lucide-react';
+import { 
+    X, BadgeCheck, FileBadge, Loader2 
+} from 'lucide-react';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
 

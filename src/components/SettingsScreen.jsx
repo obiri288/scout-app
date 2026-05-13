@@ -4,7 +4,7 @@ import {
     ArrowLeft, Settings, User, Shield, AlertTriangle,
     Mail, Key, UserCog, ChevronRight, Trash2, PowerOff,
     Globe, Sun, Moon, Bell, Share2, FileText, Lock, LogOut,
-    Loader2, AlertCircle, X, MessageCircle, Briefcase, Users, Search, Crosshair, EyeOff
+    Loader2, AlertCircle, X, MessageCircle, Briefcase, Users, Search, Crosshair, EyeOff, CheckCircle
 } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { saveAccount } from '../lib/savedAccounts';

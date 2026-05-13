@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Share2, Link as LinkIcon, User, Loader2, MessageSquare } from 'lucide-react';
+import { 
+    Share2, Link as LinkIcon, User, Loader2, MessageSquare 
+} from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { useToast } from '../contexts/ToastContext';
 import * as api from '../lib/api';

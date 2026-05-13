@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, Check, Clock, Award, Briefcase, Target, Radar, CheckCircle, AlertCircle, ChevronLeft, Trophy } from 'lucide-react';
+import { 
+    X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, 
+    Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, 
+    Check, Clock, Award, Briefcase, Target, Radar, CheckCircle, AlertCircle, 
+    ChevronLeft, Trophy 
+} from 'lucide-react';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
@@ -632,7 +638,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-zinc-900/50">
-                    <form id="edit-form" onSubmit={handleSave} className="space-y-6">
+                    <SafeErrorBoundary>
+                        <form id="edit-form" onSubmit={handleSave} className="space-y-6">
                         {/* TAB 1: ALLGEMEIN */}
                         {activeTab === 'general' && (
                             <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
@@ -1421,7 +1428,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                 </div>
                             </div>
                         )}
-                    </form>
+                        </form>
+                    </SafeErrorBoundary>
                 </div>
 
                 <div className="px-6 pb-8 pt-2">

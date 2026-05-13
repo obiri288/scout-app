@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, X, Map, List, Trash2, Clock, Crosshair, Play, Menu } from 'lucide-react';
+import { 
+    Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, 
+    X, Map, List, Trash2, Clock, Crosshair, Play, Menu 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
 import { formatPosition } from '../lib/utils';

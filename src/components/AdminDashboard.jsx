@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle, BarChart } from 'lucide-react';
+import { 
+    ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, 
+    Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, 
+    UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle, BarChart 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';

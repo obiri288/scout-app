@@ -1,6 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Heart, UserPlus, Eye, Star, Trophy, Zap, MessageSquare, CheckCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { 
+    Bell, X, Heart, UserPlus, Eye, Star, Trophy, Zap, 
+    MessageSquare, CheckCheck, AlertTriangle, Loader2 
+} from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import * as api from '../lib/api';
 import { AppealModal } from './AppealModal';

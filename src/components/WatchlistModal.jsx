@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Bookmark, Trash2, User, Loader2, Pencil } from 'lucide-react';
+import { 
+    X, Bookmark, Trash2, User, Loader2, Pencil, Shield 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';

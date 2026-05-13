@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ShieldOff, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { 
+    ShieldOff, X, AlertTriangle, Loader2 
+} from 'lucide-react';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
 import * as api from '../lib/api';

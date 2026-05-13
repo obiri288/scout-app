@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Zap, Star, Crown, Shield, Sword } from 'lucide-react';
+import { 
+    Trophy, Zap, Star, Crown, Shield, Sword 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const LEVELS = [

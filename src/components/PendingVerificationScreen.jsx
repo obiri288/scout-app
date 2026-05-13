@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, LogOut, ShieldAlert, RefreshCw, UserCircle, Loader2 } from 'lucide-react';
+import { 
+    Clock, LogOut, ShieldAlert, RefreshCw, UserCircle, Loader2 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { btnPrimary } from '../lib/styles';

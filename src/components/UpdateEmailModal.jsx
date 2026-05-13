@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { X, Mail, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { 
+    X, Mail, AlertCircle, Loader2, CheckCircle 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getSafeErrorMessage } from '../lib/errorMessages';
 import { btnPrimary, cardStyle } from '../lib/styles';

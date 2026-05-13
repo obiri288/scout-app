@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, ChevronRight, Award, Zap, CheckCircle, MapPin, Trophy, Clock } from 'lucide-react';
+import { 
+    Shield, ChevronRight, Award, Zap, CheckCircle, MapPin, Trophy, Clock 
+} from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 
 const TransferPostCard = ({ post, onUserClick }) => {

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { 
+    CheckCircle, ArrowRight, Loader2 
+} from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 
 /**

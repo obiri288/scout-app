@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Lock, Loader2, AlertCircle, RefreshCw, ChevronDown } from 'lucide-react';
+import { 
+    X, Lock, Loader2, AlertCircle, RefreshCw, ChevronDown 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';

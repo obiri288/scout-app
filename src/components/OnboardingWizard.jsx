@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, Target, Upload, X, AtSign, ShieldAlert, Search, Crosshair, Trophy, ClipboardList, Binoculars } from 'lucide-react';
+import { 
+    User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, 
+    Target, Upload, X, AtSign, ShieldAlert, Search, Crosshair, Trophy, 
+    ClipboardList, Binoculars 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { useToast } from '../contexts/ToastContext';

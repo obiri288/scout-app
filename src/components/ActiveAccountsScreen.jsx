@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Search, Menu, X, Shield, MoreVertical, Loader2, UserCheck, CheckCircle } from 'lucide-react';
+import { 
+    Search, Menu, X, Shield, MoreVertical, Loader2, 
+    UserCheck, CheckCircle 
+} from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 const ROLES = ['Alle', 'trainer', 'scout', 'manager', 'player'];

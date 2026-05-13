@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useFocusEffect } from '../hooks/useFocusEffect';
-import { Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, Shirt, Menu, MoreVertical, Trash2 } from 'lucide-react';
+import { 
+    Mail, Bell, User, ChevronRight, Heart, UserPlus, Bookmark, 
+    Star, Trophy, CheckCheck, Filter, ShieldCheck, MessageSquare, 
+    Shirt, Menu, MoreVertical, Trash2 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { cardStyle, glassHeader } from '../lib/styles';

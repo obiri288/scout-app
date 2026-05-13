@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { BadgeCheck, Clock, ExternalLink, Shield, Loader2, Briefcase } from 'lucide-react';
+import { 
+    BadgeCheck, Clock, ExternalLink, Shield, Loader2, Briefcase 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { EmptyState } from './EmptyState';
 

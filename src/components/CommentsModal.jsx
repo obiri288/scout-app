@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Send, MessageCircle, Trash2, Heart, Pin, User } from 'lucide-react';
+import { 
+    X, Loader2, Send, MessageCircle, Trash2, Heart, Pin, User 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';

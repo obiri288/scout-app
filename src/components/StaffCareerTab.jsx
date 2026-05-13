@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { List, GitCommit, Sparkles, Plus, Check, Award, Briefcase, Activity, Calendar, MapPin, X, Trash2, Loader2, Save, Globe, Search, Shield, Clock } from 'lucide-react';
+import { 
+    List, GitCommit, Sparkles, Plus, Check, Award, Briefcase, 
+    Activity, Calendar, MapPin, X, Trash2, Loader2, Save, 
+    Globe, Search, Shield, Clock 
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { btnPrimary, inputStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
