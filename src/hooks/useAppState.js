@@ -263,6 +263,28 @@ export const useAppState = () => {
             p.followers_count = await api.getFollowersCount(p.id);
             p.following_count = await api.getFollowingCount(p.id);
 
+            // SSOT Cleanup: Verify club_id is backed by an approved career station
+            if (p.club_id) {
+                try {
+                    const { data: approvedStation } = await supabase
+                        .from('career_history')
+                        .select('id')
+                        .eq('user_id', p.user_id)
+                        .is('end_date', null)
+                        .eq('verification_status', 'approved')
+                        .maybeSingle();
+                    
+                    if (!approvedStation) {
+                        console.log(`[SSOT Cleanup] Ghost club detected for ${p.full_name} - Wiping club_id`);
+                        await supabase.from('players_master').update({ club_id: null }).eq('id', p.id);
+                        p.club_id = null;
+                        p.clubs = null;
+                    }
+                } catch (err) {
+                    console.error("[SSOT Cleanup] Error for viewed profile:", err);
+                }
+            }
+
             setViewedProfile(p);
             
             // Highlights & Archive
