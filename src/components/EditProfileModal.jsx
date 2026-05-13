@@ -1245,8 +1245,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                 placeholder="z.B. Bundesliga, Kreisliga A"
                                             />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
+                                        <div className="flex items-center gap-4 w-full">
+                                            <div className="flex-1 min-w-0">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Von *</label>
                                                 <div className="relative">
                                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={14} />
@@ -1258,7 +1258,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                                                     />
                                                 </div>
                                             </div>
-                                            <div>
+                                            <div className="flex-1 min-w-0">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Bis</label>
                                                 <div className="relative">
                                                     <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none ${careerForm.is_current ? 'opacity-30' : ''}`} size={14} />

@@ -71,6 +71,7 @@ export const UserProvider = ({ children }) => {
             }
 
             setCurrentUserProfile(data);
+            if (data) enforceSSOTCleanup(data);
             return data;
         } catch (e) {
             console.error("Profile fetch error:", e.message);
@@ -78,6 +79,41 @@ export const UserProvider = ({ children }) => {
         } finally {
             setProfileLoading(false);
             fetchingRef.current = false;
+        }
+    }, []);
+    
+    // Enforce Single Source of Truth: Cleanup ghost club data
+    // If user has a club_id but no approved current career station, reset it
+    const enforceSSOTCleanup = useCallback(async (profile) => {
+        if (!profile || !profile.club_id) return;
+        
+        try {
+            // Check if there is an approved station without an end_date (current station)
+            const { data, error } = await supabase
+                .from('career_history')
+                .select('id')
+                .eq('user_id', profile.user_id)
+                .is('end_date', null)
+                .eq('verification_status', 'approved')
+                .maybeSingle();
+                
+            if (error) throw error;
+            
+            // If no approved current station exists -> Ghost Data detected
+            if (!data) {
+                console.log("[SSOT Cleanup] Ghost club detected for user", profile.id, "- Wiping club_id");
+                const { error: updateError } = await supabase
+                    .from('players_master')
+                    .update({ club_id: null })
+                    .eq('id', profile.id);
+                
+                if (updateError) throw updateError;
+                
+                // Update local state to reflect the cleanup
+                setCurrentUserProfile(prev => prev ? { ...prev, club_id: null, clubs: null } : null);
+            }
+        } catch (err) {
+            console.error("[SSOT Cleanup] Failed:", err.message);
         }
     }, []);
 
