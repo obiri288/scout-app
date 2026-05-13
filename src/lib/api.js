@@ -429,6 +429,12 @@ export const checkIsLiked = async (userId, videoId) => {
     return data && data.length > 0;
 };
 
+export const checkIsPostLiked = async (userId, postId) => {
+    if (!userId || !postId) return false;
+    const { data } = await supabase.from('media_likes').select('id').eq('user_id', userId).eq('post_id', postId);
+    return data && data.length > 0;
+};
+
 export const likeVideo = async (userId, videoId) => {
     const payload = cleanPayload({ user_id: userId, video_id: videoId });
     try {
@@ -439,7 +445,7 @@ export const likeVideo = async (userId, videoId) => {
         if (video?.player_id) {
             const myPlayerId = await getPlayerIdFromUserId(userId);
             if (myPlayerId && myPlayerId !== video.player_id) {
-                await createNotification({ userId: video.player_id, actorId: myPlayerId, type: 'like' });
+                await createNotification({ userId: video.player_id, actorId: myPlayerId, type: 'like', videoId });
             }
         }
     } catch (error) { throw error; }
@@ -447,6 +453,27 @@ export const likeVideo = async (userId, videoId) => {
 
 export const unlikeVideo = async (userId, videoId) => {
     const { error } = await supabase.from('media_likes').delete().match({ user_id: userId, video_id: videoId });
+    if (error) throw error;
+};
+
+export const likePost = async (userId, postId) => {
+    const payload = cleanPayload({ user_id: userId, post_id: postId });
+    try {
+        const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,post_id' });
+        if (error) throw error;
+
+        const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
+        if (post?.user_id) {
+            const myPlayerId = await getPlayerIdFromUserId(userId);
+            if (myPlayerId && myPlayerId !== post.user_id) {
+                await createNotification({ userId: post.user_id, actorId: myPlayerId, type: 'like', entityId: postId });
+            }
+        }
+    } catch (error) { throw error; }
+};
+
+export const unlikePost = async (userId, postId) => {
+    const { error } = await supabase.from('media_likes').delete().match({ user_id: userId, post_id: postId });
     if (error) throw error;
 };
 
@@ -609,6 +636,78 @@ export const fetchSavedVideos = async (userId) => {
 };
 
 // ============================================================
+// POST INTERACTIONS
+// ============================================================
+
+export const checkIsVideoSaved = async (userId, videoId) => {
+    if (!userId || !videoId) return false;
+    const { data } = await supabase.from('saved_videos').select('id').eq('user_id', userId).eq('video_id', videoId);
+    return data && data.length > 0;
+};
+
+export const saveVideo = async (userId, videoId) => {
+    const payload = cleanPayload({ user_id: userId, video_id: videoId });
+    const { error } = await supabase.from('saved_videos').upsert(payload, { onConflict: 'user_id,video_id' });
+    if (error) throw error;
+};
+
+export const unsaveVideo = async (userId, videoId) => {
+    const { error } = await supabase.from('saved_videos').delete().match({ user_id: userId, video_id: videoId });
+    if (error) throw error;
+};
+
+export const checkIsPostSaved = async (userId, postId) => {
+    if (!userId || !postId) return false;
+    const { data } = await supabase.from('saved_videos').select('id').eq('user_id', userId).eq('post_id', postId);
+    return data && data.length > 0;
+};
+
+export const savePost = async (userId, postId) => {
+    const payload = cleanPayload({ user_id: userId, post_id: postId });
+    const { error } = await supabase.from('saved_videos').upsert(payload, { onConflict: 'user_id,post_id' });
+    if (error) throw error;
+};
+
+export const unsavePost = async (userId, postId) => {
+    const { error } = await supabase.from('saved_videos').delete().match({ user_id: userId, post_id: postId });
+    if (error) throw error;
+};
+
+export const fetchPostComments = async (postId) => {
+    const { data: comments, error } = await supabase.from('media_comments')
+        .select('*, comment_likes(user_id)')
+        .eq('post_id', postId)
+        .eq('is_under_review', false)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+        
+    if (error) throw error;
+    if (!comments || comments.length === 0) return [];
+
+    const userIds = [...new Set(comments.map(c => c.user_id))];
+    const { data: profiles } = await supabase.from('players_master')
+        .select('id, user_id, full_name, avatar_url')
+        .in('user_id', userIds);
+        
+    const profileMap = {};
+    if (profiles) profiles.forEach(p => profileMap[p.user_id] = p);
+
+    return comments.map(comment => ({
+        ...comment,
+        players_master: profileMap[comment.user_id] || null
+    }));
+};
+
+export const addPostComment = async (postId, userId, content) => {
+    const { data, error } = await supabase.from('media_comments')
+        .insert({ post_id: postId, user_id: userId, content })
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+};
+
+// ============================================================
 // MESSAGES
 // ============================================================
 
@@ -718,12 +817,13 @@ export const deleteComment = async (commentId) => {
     if (error) throw error;
 };
 
-export const toggleCommentPin = async (videoId, commentId, pinState) => {
+export const toggleCommentPin = async (targetId, commentId, pinState, type = 'video') => {
+    const idField = type === 'video' ? 'video_id' : 'post_id';
     if (pinState) {
-        // Unpin all other comments for this video first
+        // Unpin all other comments for this target first
         await supabase.from('media_comments')
             .update({ is_pinned: false })
-            .eq('video_id', videoId);
+            .eq(idField, targetId);
     }
 
     const { error } = await supabase.from('media_comments')

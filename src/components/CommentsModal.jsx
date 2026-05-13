@@ -19,7 +19,8 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { addToast } = useToast();
-    const videoCreatorId = video.players_master?.user_id || video.user_id;
+    const isTransfer = video.post_type === 'transfer';
+    const videoCreatorId = isTransfer ? video.user_id : (video.players_master?.user_id || video.user_id);
     const isCreator = session?.user?.id === videoCreatorId;
     const { currentUserProfile, hiddenUserIds } = useUser();
 
@@ -28,7 +29,9 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
 
     const loadComments = async () => {
         try {
-            const data = await api.fetchComments(video.id);
+            const data = isTransfer 
+                ? await api.fetchPostComments(video.id)
+                : await api.fetchComments(video.id);
             
             // Client-side filtering for hidden comments
             const hiddenComments = currentUserProfile?.hidden_comments || [];
@@ -57,7 +60,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         const handleLikeUpdate = () => loadComments();
         window.addEventListener('commentLikeUpdate', handleLikeUpdate);
         return () => window.removeEventListener('commentLikeUpdate', handleLikeUpdate);
-    }, [video.id, currentUserProfile]);
+    }, [video.id, currentUserProfile, video.post_type]);
 
     const sendComment = async (e) => {
         e.preventDefault();
@@ -67,7 +70,9 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         const currentText = text.trim();
         setIsSubmitting(true);
         try {
-            const newCommentData = await api.addComment(video.id, session.user.id, currentText);
+            const newCommentData = isTransfer
+                ? await api.addPostComment(video.id, session.user.id, currentText)
+                : await api.addComment(video.id, session.user.id, currentText);
             
             // Standard Comment Notification
             const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
@@ -77,8 +82,9 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                         userId: video.players_master?.id,
                         actorId: myProfileId,
                         type: 'comment',
-                        message: 'hat dein Video kommentiert.',
-                        videoId: video.id
+                        message: isTransfer ? 'hat deinen Transfer-Post kommentiert.' : 'hat dein Video kommentiert.',
+                        videoId: isTransfer ? null : video.id,
+                        entityId: isTransfer ? video.id : null
                     });
                 } catch (error) {
                     console.warn("Notification failed, but interaction saved", error);
@@ -135,11 +141,11 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         }
     };
 
-    const handlePin = async (commentId, pinState) => {
+    const handlePin = async (commentId, state) => {
         try {
-            await api.toggleCommentPin(video.id, commentId, pinState);
+            await api.toggleCommentPin(video.id, commentId, state, isTransfer ? 'post' : 'video');
             loadComments();
-            addToast(pinState ? "Kommentar angepinnt 📌" : "Pin gelöst", 'success');
+            addToast(state ? "Kommentar angepinnt 📌" : "Pin gelöst", 'success');
         } catch (error) {
             addToast("Pin fehlgeschlagen", 'error');
         }

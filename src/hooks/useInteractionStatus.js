@@ -43,10 +43,27 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                     const { data } = await supabase.from('media_highlights').select('likes_count').eq('id', targetId).maybeSingle();
                     if (data) freshCount = data.likes_count || 0;
                 } 
+                else if (type === 'post_like') {
+                    // 1. Status
+                    if (userId) {
+                        freshStatus = await api.checkIsPostLiked(userId, targetId);
+                    }
+                    // 2. Count (from posts table)
+                    const { data } = await supabase.from('posts').select('likes_count').eq('id', targetId).maybeSingle();
+                    if (data) freshCount = data.likes_count || 0;
+                }
                 else if (type === 'video_save') {
                     // 1. Status
                     if (userId) {
                         freshStatus = await api.checkIsVideoSaved(userId, targetId);
+                    }
+                    // 2. No public count for saves
+                    freshCount = 0;
+                }
+                else if (type === 'post_save') {
+                    // 1. Status
+                    if (userId) {
+                        freshStatus = await api.checkIsPostSaved(userId, targetId);
                     }
                     // 2. No public count for saves
                     freshCount = 0;
@@ -106,11 +123,36 @@ export const useInteractionStatus = ({ type, targetId, session, initialCount = 0
                     if (data) setCount(data.likes_count || 0);
                 }
             } 
+            else if (type === 'post_like') {
+                if (!wasStatus) await api.likePost(userId, targetId);
+                else await api.unlikePost(userId, targetId);
+                
+                // Fetch fresh status and count from DB directly (Single Source of Truth)
+                const [isLiked, { data }] = await Promise.all([
+                    api.checkIsPostLiked(userId, targetId),
+                    supabase.from('posts').select('likes_count').eq('id', targetId).maybeSingle()
+                ]);
+
+                if (isMounted.current) {
+                    setStatus(isLiked);
+                    if (data) setCount(data.likes_count || 0);
+                }
+            }
             else if (type === 'video_save') {
                 if (!wasStatus) await api.saveVideo(userId, targetId);
                 else await api.unsaveVideo(userId, targetId);
                 
                 const isSaved = await api.checkIsVideoSaved(userId, targetId);
+
+                if (isMounted.current) {
+                    setStatus(isSaved);
+                }
+            }
+            else if (type === 'post_save') {
+                if (!wasStatus) await api.savePost(userId, targetId);
+                else await api.unsavePost(userId, targetId);
+                
+                const isSaved = await api.checkIsPostSaved(userId, targetId);
 
                 if (isMounted.current) {
                     setStatus(isSaved);

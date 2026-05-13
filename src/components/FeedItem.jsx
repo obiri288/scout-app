@@ -17,8 +17,10 @@ import { useUser } from '../contexts/UserContext';
 const ACTION_TAG_ICONS = { Traumpass: Zap, Dribbling: Wind, Abschluss: Crosshair, Flanke: ArrowUpRight, Zweikampf: Swords, Balleroberung: ShieldCheck, Speed: Gauge, Ballkontrolle: CircleDot, Einsatz: Flame, Parade: Hand };
 
 export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onCommentClick, onUserClick, onReportReq }) => {
+    const interactionType = video.post_type === 'transfer' ? 'post' : 'video';
+    
     const { status: liked, count: likes, toggle: toggleLike, forceState: forceLikeState } = useInteractionStatus({
-        type: 'video_like',
+        type: `${interactionType}_like`,
         targetId: video.id,
         session,
         initialCount: video.likes_count || 0,
@@ -26,7 +28,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     });
     
     const { status: saved, toggle: toggleSave, forceState: forceSaveState } = useInteractionStatus({
-        type: 'video_save',
+        type: `${interactionType}_save`,
         targetId: video.id,
         session,
         initialStatus: false
@@ -101,12 +103,12 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         let isMounted = true;
 
         const fetchCommentState = async () => {
-            // Count all comments directly — no inner join on players_master
-            // because media_comments.user_id → auth.users (not players_master),
-            // so !inner silently returned 0.
-            const { count } = await supabase.from('media_comments')
+            const table = video.post_type === 'transfer' ? 'post_comments' : 'media_comments';
+            const idField = video.post_type === 'transfer' ? 'post_id' : 'video_id';
+            
+            const { count } = await supabase.from(table)
                 .select('id', { count: 'exact', head: true })
-                .eq('video_id', video.id);
+                .eq(idField, video.id);
             
             if (isMounted && count !== null) {
                 setCommentCount(count);
@@ -115,7 +117,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
 
         fetchCommentState();
         return () => { isMounted = false; };
-    }, [video.id]);
+    }, [video.id, video.post_type]);
 
     // Intersection Observer driven play/pause
     useEffect(() => {
