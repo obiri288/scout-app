@@ -267,7 +267,7 @@ export const ProfileScreen = ({
     const [activeTab, setActiveTab] = useState('highlights');
     const [showContactModal, setShowContactModal] = useState(false);
     const { addToast } = useToast();
-    const { handleBlockUser, handleUnblockUser, hiddenUserIds } = useUser();
+    const { refreshProfile, handleBlockUser, handleUnblockUser, hiddenUserIds } = useUser();
     
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);

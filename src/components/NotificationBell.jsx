@@ -164,8 +164,9 @@ export const NotificationBell = () => {
             const oldClubName = previousStations?.[0]?.club_name || 'Vereinslos';
 
             const { error } = await api.supabase.from('posts').insert({
-                user_id: selectedCareer.profile?.id,
+                user_id: currentUserProfile.id,
                 type: 'transfer',
+                content: '',
                 career_station_id: selectedCareer.id,
                 metadata: {
                     old_club_name: oldClubName,
