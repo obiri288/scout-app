@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Share2, MoreVertical, Flag, Play, User, Zap, Wind
 import { VerificationBadge } from './VerificationBadge';
 import { ShareModal } from './ShareModal';
 import TransferPostCard from './TransferPostCard';
+import { TransferActionBar } from './TransferActionBar';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
@@ -487,49 +488,63 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     </>
                 )}
 
-                {/* Actions */}
-                <div className="px-4 py-4 flex items-center gap-3">
-                    <motion.button
-                        whileTap={{ scale: 0.8 }}
-                        onClick={like}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-                    >
-                        <Heart size={20} className={liked ? 'fill-red-500 text-red-500' : ''} /> <span className="font-medium text-sm">{likes}</span>
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.8 }}
-                        onClick={save}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${saved ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-                    >
-                        <Bookmark size={20} className={saved ? 'fill-cyan-400 text-cyan-400' : ''} />
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        whileHover={{ scale: 1.05, backgroundColor: "rgba(51,65,85,0.5)" }}
-                        onClick={(e) => { e.stopPropagation(); onCommentClick(video); }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
-                    >
-                        <MessageCircle size={20} /> <span className="font-medium text-sm">{commentCount}</span>
-                    </motion.button>
-                    <div className="ml-auto">
-                        <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
-                            e.stopPropagation();
+                {/* Actions Bar Selection */}
+                {video.post_type === 'transfer' ? (
+                    <TransferActionBar 
+                        post={video} 
+                        session={session} 
+                        onCommentClick={() => onCommentClick(video)}
+                        onShareClick={() => {
                             const shareUrl = `${window.location.origin}/#profile/${video.players_master?.slug || video.players_master?.user_id || video.id}`;
                             const playerName = video.players_master?.full_name || 'ein Spieler';
-                            const tags = video.action_tags || [];
-                            
-                            const text = generateShareText({
-                                role: userRole,
-                                isCreator: isCreator,
-                                playerName,
-                                tags
-                            });
-                            
-                            setShareData({ text, url: shareUrl });
+                            setShareData({ text: generateShareText({ role: userRole, isCreator, playerName, tags: [] }), url: shareUrl });
                             setIsShareOpen(true);
-                        }} />
+                        }}
+                    />
+                ) : (
+                    <div className="px-4 py-4 flex items-center gap-3">
+                        <motion.button
+                            whileTap={{ scale: 0.8 }}
+                            onClick={like}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${liked ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                        >
+                            <Heart size={20} className={liked ? 'fill-red-500 text-red-500' : ''} /> <span className="font-medium text-sm">{likes}</span>
+                        </motion.button>
+                        <motion.button
+                            whileTap={{ scale: 0.8 }}
+                            onClick={save}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${saved ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                        >
+                            <Bookmark size={20} className={saved ? 'fill-cyan-400 text-cyan-400' : ''} />
+                        </motion.button>
+                        <motion.button
+                            whileTap={{ scale: 0.92 }}
+                            whileHover={{ scale: 1.05, backgroundColor: "rgba(51,65,85,0.5)" }}
+                            onClick={(e) => { e.stopPropagation(); onCommentClick(video); }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-300"
+                        >
+                            <MessageCircle size={20} /> <span className="font-medium text-sm">{commentCount}</span>
+                        </motion.button>
+                        <div className="ml-auto">
+                            <Share2 size={24} className="text-muted-foreground hover:text-foreground hover:scale-110 active:scale-95 transition-all duration-300 cursor-pointer" onClick={(e) => {
+                                e.stopPropagation();
+                                const shareUrl = `${window.location.origin}/#profile/${video.players_master?.slug || video.players_master?.user_id || video.id}`;
+                                const playerName = video.players_master?.full_name || 'ein Spieler';
+                                const tags = video.action_tags || [];
+                                
+                                const text = generateShareText({
+                                    role: userRole,
+                                    isCreator: isCreator,
+                                    playerName,
+                                    tags
+                                });
+                                
+                                setShareData({ text, url: shareUrl });
+                                setIsShareOpen(true);
+                            }} />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Action Tags (PlayStyles) */}
                 {video.action_tags && video.action_tags.length > 0 && (
