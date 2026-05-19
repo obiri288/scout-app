@@ -3,6 +3,7 @@ import {
     X, Bookmark, Trash2, User, Loader2, Pencil, Shield 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getClubDisplay } from '../lib/helpers';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
 import { formatPosition } from '../lib/utils';
@@ -76,7 +77,7 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
                                             <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                                 <div className="flex items-center gap-1 truncate">
                                                     <Shield size={10} className="text-cyan-400 shrink-0" />
-                                                    <span className="truncate">{item.players_master?.clubs?.name || "Vereinslos"}</span>
+                                                    <span className="truncate">{getClubDisplay(item.players_master)}</span>
                                                 </div>
                                                 <span className="bg-gray-800 rounded px-1.5 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
                                                     {formatPosition(item.players_master?.position_primary)}

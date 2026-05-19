@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, User, Shield, ChevronRight, ArrowLeftRight, Plus, Crown, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
-import { calculateAge } from '../lib/helpers';
+import { calculateAge, getClubDisplay } from '../lib/helpers';
 import { getFormattedCountry } from '../lib/countries';
 import { formatPosition } from '../lib/utils';
 
@@ -128,7 +128,7 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold text-foreground truncate">{p.full_name}</div>
-                                            <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Shield size={8} /> {p.clubs?.name || 'Vereinslos'}</div>
+                                            <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Shield size={8} /> {getClubDisplay(p)}</div>
                                         </div>
                                         <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
                                     </div>
@@ -153,7 +153,7 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                             <CompareRow label="Gewicht" valA={playerA.weight ? `${playerA.weight} kg` : '-'} valB={playerB.weight ? `${playerB.weight} kg` : '-'} />
                             <CompareRow label="Fuß" valA={playerA.strong_foot} valB={playerB.strong_foot} />
                             <CompareRow label="Nr." valA={playerA.jersey_number ? `#${playerA.jersey_number}` : '-'} valB={playerB.jersey_number ? `#${playerB.jersey_number}` : '-'} />
-                            <CompareRow label="Verein" valA={playerA.clubs?.name || 'Vereinslos'} valB={playerB.clubs?.name || 'Vereinslos'} />
+                            <CompareRow label="Verein" valA={getClubDisplay(playerA)} valB={getClubDisplay(playerB)} />
                             <CompareRow label="Liga" valA={playerA.clubs?.league || '-'} valB={playerB.clubs?.league || '-'} />
                             <CompareRow label="Status" valA={playerA.transfer_status} valB={playerB.transfer_status} />
                             <CompareRow label="Follower" valA={playerA.followers_count || 0} valB={playerB.followers_count || 0} highlight />
@@ -182,7 +182,7 @@ const PlayerSlot = ({ player, label, onSelect, onClear }) => (
                     {player.is_verified && <CheckCircle size={12} className="text-blue-600 dark:text-blue-500 shrink-0" />}
                 </div>
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <Shield size={8} /> {player.clubs?.name || 'Vereinslos'}
+                    <Shield size={8} /> {getClubDisplay(player)}
                 </div>
                 <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold mt-1">{formatPosition(player.position_primary)}</span>
                 <button onClick={onClear} className="mt-2 text-[10px] text-muted-foreground/60 hover:text-red-500 transition">Entfernen</button>

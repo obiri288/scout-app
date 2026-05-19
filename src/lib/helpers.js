@@ -3,6 +3,15 @@
 export const getClubStyle = (isIcon) => isIcon ? "border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)] ring-2 ring-amber-400/20" : "border-white/10";
 export const getClubBorderColor = (club) => club?.color_primary || "#ffffff";
 
+// Resolve club display name with system and official overrides
+export const getClubDisplay = (user) => {
+    if (!user) return 'Vereinslos';
+    if (user.email === 'kontakt@cavio.me' || user.is_official || user.role === 'system') {
+        return 'CAVIO Support';
+    }
+    return user.clubs?.name || 'Vereinslos';
+};
+
 // Calculate age from birth date
 export const calculateAge = (birthDate) => {
     if (!birthDate) return null;

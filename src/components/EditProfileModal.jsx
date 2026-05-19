@@ -3,7 +3,7 @@ import {
     X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, 
     Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, 
     Check, Clock, Award, Briefcase, Target, Radar, CheckCircle, AlertCircle, 
-    ChevronLeft, Trophy 
+    ChevronLeft, Trophy, BadgeCheck
 } from 'lucide-react';
 import { SafeErrorBoundary } from './SafeErrorBoundary';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,8 @@ import * as api from '../lib/api';
 import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
 import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
 import { CountryCombobox } from './CountryCombobox';
-export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
+export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) => {
+    const isAdmin = profile?.role === 'admin';
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
     const { addToast } = useToast();
@@ -43,6 +44,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const isCoach = profile?.role === 'coach';
     const isScout = profile?.role === 'scout';
     const isPlayer = !isCoach && !isScout && profile?.role !== 'admin' && profile?.role !== 'manager';
+    const isSystemAccount = profile?.role === 'system' || profile?.is_official || profile?.email === 'kontakt@cavio.me';
+
 
     const [formData, setFormData] = useState({
         username: profile?.username || '',
@@ -628,14 +631,24 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex gap-2 py-3 px-4 border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto scrollbar-hide">
-                    <TabButton id="general" label="Allgemein" icon={User} />
-                    <TabButton id="sport" label={isScout ? 'Scouting' : isCoach ? 'Trainer' : 'Sportlich'} icon={isScout ? Briefcase : Activity} />
-                    {isPlayer && <TabButton id="badges" label="Badges" icon={Award} />}
-                    <TabButton id="historie" label="Historie" icon={History} />
-                    <TabButton id="social" label="Socials" icon={Share2} />
-                </div>
+                {isSystemAccount ? (
+                    <div className="flex justify-center items-center py-5 px-6 bg-slate-950/20 dark:bg-black/30 border-b border-border">
+                        <div className="flex items-center justify-center w-full p-4 bg-slate-900/60 backdrop-blur-md border border-blue-500/30 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+                            <span className="text-white font-bold text-xl tracking-wide">
+                                CAVIO Support
+                            </span>
+                            <BadgeCheck size={20} className="text-blue-500 ml-2 fill-blue-500/10 flex-shrink-0" />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex gap-2 py-3 px-4 border-b border-border bg-white dark:bg-zinc-900 overflow-x-auto scrollbar-hide">
+                        <TabButton id="general" label="Allgemein" icon={User} />
+                        <TabButton id="sport" label={isScout ? 'Scouting' : isCoach ? 'Trainer' : 'Sportlich'} icon={isScout ? Briefcase : Activity} />
+                        {isPlayer && <TabButton id="badges" label="Badges" icon={Award} />}
+                        <TabButton id="historie" label="Historie" icon={History} />
+                        <TabButton id="social" label="Socials" icon={Share2} />
+                    </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-zinc-900/50">
                     <SafeErrorBoundary>
@@ -1430,6 +1443,22 @@ export const EditProfileModal = ({ profile, onClose, onUpdate }) => {
                         )}
                         </form>
                     </SafeErrorBoundary>
+
+                    {isAdmin && (
+                        <div className="px-4 pb-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onAdminHubReq) onAdminHubReq();
+                                }}
+                                className="w-full flex items-center justify-center gap-2 py-4 bg-slate-900 border border-slate-800 shadow-[0_0_20px_rgba(34,211,238,0.1)] hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] hover:border-cyan-500/50 rounded-2xl transition-all group relative overflow-hidden mt-4"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                                <Shield size={20} className="text-cyan-400" />
+                                <span className="font-black tracking-widest text-white uppercase text-sm">CAVIO Command Center</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="px-6 pb-8 pt-2">

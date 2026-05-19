@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useUser } from '../contexts/UserContext';
+import { VerificationBadge } from './VerificationBadge';
 
 const FILTERS = [
     { id: 'all', label: 'Alle' },
@@ -248,9 +249,17 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                             </div>
 
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                     <h3 className="font-black text-foreground truncate">{user.full_name || 'Unbekannt'}</h3>
-                                    {user.is_banned && <ShieldAlert size={14} className="text-red-500" />}
+                                    {((user.verification_status && user.verification_status !== 'unverified') || user.is_official) && (
+                                        <VerificationBadge 
+                                            size={14} 
+                                            status={user.verification_status} 
+                                            verificationStatus={user.verification_status} 
+                                            isOfficial={user.is_official} 
+                                        />
+                                    )}
+                                    {user.is_banned && <ShieldAlert size={14} className="text-red-500 shrink-0" />}
                                 </div>
                                 <p className="text-xs font-bold text-muted-foreground truncate tracking-tight">@{user.username || '-'}</p>
                             </div>

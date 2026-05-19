@@ -588,7 +588,7 @@ const RoleSwitchModal = ({ onClose, onConfirm, currentRole, loading }) => {
 /* ─────────────────────────────────────────────
    Confirmation Modal — Logout
    ───────────────────────────────────────────── */
-const LogoutConfirmModal = ({ onClose, onConfirm, session, currentUserProfile }) => (
+export const LogoutConfirmModal = ({ onClose, onConfirm, session, currentUserProfile }) => (
     <div className="fixed inset-0 z-[10100] flex items-end sm:items-center justify-center p-4">
         <motion.div
             initial={{ opacity: 0 }}

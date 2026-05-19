@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Shield, ChevronRight, Sparkles, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { calculateAge } from '../lib/helpers';
+import { calculateAge, getClubDisplay } from '../lib/helpers';
 import { formatPosition } from '../lib/utils';
 
 /**
@@ -109,7 +109,7 @@ export const SimilarPlayers = ({ profile, onUserClick }) => {
                         </div>
                         <div className="text-xs font-bold text-foreground truncate w-full group-hover:text-blue-400 transition">{p.full_name}</div>
                         <div className="text-[10px] text-zinc-500 truncate w-full flex items-center justify-center gap-1 mt-0.5">
-                            <Shield size={8} /> {p.clubs?.name || 'Vereinslos'}
+                            <Shield size={8} /> {getClubDisplay(p)}
                         </div>
                         <div className="flex items-center gap-1 mt-1">
                             <span className="text-[9px] bg-gray-800 px-1.5 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>

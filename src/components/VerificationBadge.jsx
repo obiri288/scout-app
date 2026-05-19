@@ -1,5 +1,6 @@
 import React from 'react';
 import { BadgeCheck, ShieldCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 /**
  * Cavio Trust Protocol — 3-Tier Verification Badge
@@ -17,13 +18,28 @@ import { BadgeCheck, ShieldCheck } from 'lucide-react';
 export const VerificationBadge = ({ size = 16, className = '', status, role, verificationStatus, isOfficial }) => {
     // isOfficial prop takes precedence for official platform accounts
     if (isOfficial) {
+        const badgeSize = size + 4;
         return (
-            <BadgeCheck
-                size={size}
-                className={`text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.6)] shrink-0 ${className}`}
-                aria-label="Offizieller Account"
-                title="Offizieller Account"
-            />
+            <motion.div
+                whileHover={{ scale: 1.25, rotate: 8 }}
+                whileTap={{ scale: 0.85 }}
+                transition={{ type: "spring", stiffness: 450, damping: 12 }}
+                className="inline-flex shrink-0 cursor-pointer relative"
+            >
+                {/* Glowing dual-tone cyan & gold brand ring */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-cyan-400 to-amber-400 opacity-70 blur-[3px] animate-pulse" />
+                <div 
+                    className="relative rounded-full bg-slate-950 border border-amber-400 flex items-center justify-center shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+                    style={{ width: badgeSize, height: badgeSize, padding: '2px' }}
+                >
+                    <img 
+                        src="/cavio-icon.png" 
+                        className="w-full h-full object-contain brightness-125" 
+                        alt="CAVIO Official"
+                        title="Offizieller CAVIO Account"
+                    />
+                </div>
+            </motion.div>
         );
     }
 

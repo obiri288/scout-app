@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Download, Share2 } from 'lucide-react';
 import { cardStyle } from '../lib/styles';
-import { calculateAge } from '../lib/helpers';
+import { calculateAge, getClubDisplay } from '../lib/helpers';
 import { getFormattedCountry } from '../lib/countries';
 
 /**
@@ -97,7 +97,7 @@ export const PlayerCard = ({ player, avgRating, onClose }) => {
             // Club name
             ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.fillText(player.clubs?.name || 'Vereinslos', W / 2, 348);
+            ctx.fillText(getClubDisplay(player), W / 2, 348);
 
             // Divider line
             ctx.strokeStyle = 'rgba(255,255,255,0.15)';

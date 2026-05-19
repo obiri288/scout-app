@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, Share2, Crown, Shield, Navigation } from 'lucide-react';
-import { calculateProReadinessScore } from '../lib/helpers';
+import { calculateProReadinessScore, calculateAge, getClubDisplay } from '../lib/helpers';
 import { RadarChart } from './RadarChart'; // We will build the recharts version
-import { calculateAge } from '../lib/helpers';
 import { getFormattedCountry } from '../lib/countries';
 
 /**
@@ -90,7 +89,7 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => 
                         </h2>
                         <div className="flex items-center justify-center gap-1.5 mt-1 text-sm text-zinc-400 font-medium">
                             {profile.clubs?.is_icon_league && <Crown size={12} className="text-amber-400" />}
-                            <span>{profile.clubs?.name || 'Vereinslos'}</span>
+                            <span>{getClubDisplay(profile)}</span>
                         </div>
                     </div>
 

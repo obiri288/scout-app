@@ -298,6 +298,16 @@ export const ProfileScreen = ({
         }
     }, [profile?.id, isOwnProfile]);
 
+    useEffect(() => {
+        if (profile) {
+            const isCavioSupport = profile.email === 'kontakt@cavio.me' || profile.role === 'system' || profile.is_official;
+            document.title = isCavioSupport ? 'CAVIO Support' : `${profile.full_name || 'Profil'} | CAVIO`;
+        }
+        return () => {
+            document.title = 'CAVIO - Digital Player Profile';
+        };
+    }, [profile]);
+
     const loadFollowStats = async () => {
         try {
             // Fetch A: Zähle alle Einträge, wo following_id === visitedProfileId
@@ -778,7 +788,11 @@ export const ProfileScreen = ({
                             {profile.full_name || 'Neuer Nutzer'}
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
-                            {(latestCareerEntry?.clubs || profile.clubs) && (
+                            {profile.email === 'kontakt@cavio.me' || profile.is_official || profile.role === 'system' ? (
+                                <span className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-cyan-500/10 border border-amber-500/20 px-3 py-1 rounded-lg shadow-sm">
+                                    <span className="text-xs font-black text-amber-500 uppercase tracking-widest">CAVIO Support</span>
+                                </span>
+                            ) : (latestCareerEntry?.clubs || profile.clubs) && (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
                                     <Trophy size={14} className="text-amber-500" />
                                     <span className="font-bold">{latestCareerEntry?.clubs?.name || profile.clubs?.name}</span>

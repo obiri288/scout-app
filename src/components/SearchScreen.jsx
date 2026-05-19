@@ -10,6 +10,8 @@ import { formatPosition } from '../lib/utils';
 import { SearchSkeleton } from './SkeletonScreens';
 import { MapScreen } from './MapScreen';
 import { useUser } from '../contexts/UserContext';
+import { VerificationBadge } from './VerificationBadge';
+import { getClubDisplay } from '../lib/helpers';
 
 const PAGE_SIZE = 15;
 
@@ -449,11 +451,21 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                     </div>
                                                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                                                         <div>
-                                                            <h4 className="font-bold text-foreground text-sm truncate">{v.players_master?.full_name}</h4>
+                                                            <h4 className="font-bold text-foreground text-sm truncate flex items-center gap-1.5">
+                                                                <span className="truncate">{v.players_master?.full_name}</span>
+                                                                {((v.players_master?.verification_status && v.players_master?.verification_status !== 'unverified') || v.players_master?.is_official) && (
+                                                                    <VerificationBadge 
+                                                                        size={12} 
+                                                                        status={v.players_master?.verification_status} 
+                                                                        verificationStatus={v.players_master?.verification_status} 
+                                                                        isOfficial={v.players_master?.is_official} 
+                                                                    />
+                                                                )}
+                                                            </h4>
                                                             <div className="flex flex-row items-center gap-3 mt-1">
                                                                 <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
                                                                     <Shield size={9} className="text-cyan-400 shrink-0" />
-                                                                    <span className="truncate">{v.players_master?.clubs?.name || 'Vereinslos'}</span>
+                                                                    <span className="truncate">{getClubDisplay(v.players_master)}</span>
                                                                 </div>
                                                                 <span className="bg-gray-800 rounded-md px-2 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
                                                                     {formatPosition(v.players_master?.position_primary)}
@@ -492,11 +504,21 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                             <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
                                                 <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h3 className="font-bold text-foreground text-base tracking-tight truncate">{p.full_name}</h3>
+                                                    <h3 className="font-bold text-foreground text-base tracking-tight truncate flex items-center gap-1.5">
+                                                        <span className="truncate">{p.full_name}</span>
+                                                        {((p.verification_status && p.verification_status !== 'unverified') || p.is_official) && (
+                                                            <VerificationBadge 
+                                                                size={14} 
+                                                                status={p.verification_status} 
+                                                                verificationStatus={p.verification_status} 
+                                                                isOfficial={p.is_official} 
+                                                            />
+                                                        )}
+                                                    </h3>
                                                     <div className="flex flex-row items-center gap-3 mt-1">
                                                         <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
                                                             <Shield size={10} className="text-cyan-400 shrink-0" />
-                                                            <span className="truncate">{p.clubs?.name || "Vereinslos"}</span>
+                                                            <span className="truncate">{getClubDisplay(p)}</span>
                                                         </div>
                                                         <span className="bg-gray-800 rounded-md px-2 py-0.5 text-xs text-white/90 font-medium shrink-0">
                                                             {formatPosition(p.position_primary)}

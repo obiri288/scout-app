@@ -568,7 +568,9 @@ const App = () => {
                             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-black rounded-full animate-pulse z-50" />
                         )}
                     </div>
-                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'w-10 opacity-100 ml-1' : 'w-0 opacity-0'}`}>Profil</span>
+                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ${activeTab === 'profile' ? 'max-w-[120px] opacity-100 ml-1' : 'max-w-0 opacity-0'}`}>
+                        {currentUserProfile?.email === 'kontakt@cavio.me' || currentUserProfile?.role === 'system' || currentUserProfile?.is_official ? 'CAVIO Support' : 'Profil'}
+                    </span>
                 </button>
             </div>
 
@@ -622,6 +624,10 @@ const App = () => {
                             updateProfile(updated); 
                             setViewedProfile(updated); 
                             setCareerRefreshKey(prev => prev + 1);
+                        }}
+                        onAdminHubReq={() => {
+                            setShowEditProfile(false);
+                            switchTab('admin_hub');
                         }}
                     />
                 )}

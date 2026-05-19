@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { 
     ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, 
     Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, 
-    UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle, BarChart 
+    UserCheck, Trophy, Building, User, Check, ShieldCheck, XCircle, BarChart,
+    Activity
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
@@ -54,7 +55,8 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
         newVideos24h: 0,
         pendingAccounts: 0,
         pendingClaims: 0,
-        pendingCareers: 0
+        pendingCareers: 0,
+        totalUsers: 0
     });
     
     const [reports, setReports] = useState([]);
@@ -78,14 +80,15 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
             const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             
             // 1. Fetch Metrics & Pending Data
-            const [usersRes, videosRes, reportsRes, accountsRes, claimsRes, careersRes, clubPendingRes] = await Promise.all([
+            const [usersRes, videosRes, reportsRes, accountsRes, claimsRes, careersRes, clubPendingRes, totalUsersRes] = await Promise.all([
                 supabase.from('players_master').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
                 supabase.from('media_highlights').select('*', { count: 'exact', head: true }).gte('created_at', yesterday),
                 supabase.from('reports').select('*').order('created_at', { ascending: false }),
                 supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, verification_status').eq('verification_status', 'pending').order('created_at', { ascending: false }),
                 supabase.from('club_claims').select('*, clubs(name)').eq('status', 'pending').order('created_at', { ascending: false }),
                 supabase.from('career_history').select('*').eq('verification_status', 'pending').order('created_at', { ascending: false }),
-                supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, club_verification_status, pending_club_id, clubs(name)').eq('club_verification_status', 'pending').order('created_at', { ascending: false })
+                supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, club_verification_status, pending_club_id, clubs(name)').eq('club_verification_status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('players_master').select('*', { count: 'exact', head: true })
             ]);
 
             const rolePending = (accountsRes.data || []).map(u => ({ ...u, type: 'role' }));
@@ -129,7 +132,8 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 newVideos24h: videosRes.count || 0,
                 pendingAccounts: allPendingAccounts.length,
                 pendingClaims: fetchedClaims.length,
-                pendingCareers: fetchedCareers.length
+                pendingCareers: fetchedCareers.length,
+                totalUsers: totalUsersRes.count || 0
             });
 
             // 1. Fetch Target Data (Videos, Comments, Profiles)
@@ -448,71 +452,110 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
 
     // --- Sub-Views ---
     const renderDashboardView = () => (
-        <div>
-            <h3 className="text-sm font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Shield size={16} className="text-blue-500" />
-                Action Center
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-                {/* Tile 1: Status-Freigaben */}
-                <button
-                    onClick={() => setActiveView('status-freigaben')}
-                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
-                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-4">
-                        <UserCheck size={20} />
+        <div className="space-y-8 animate-in fade-in duration-300">
+            {/* KPI GRID */}
+            <div>
+                <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] mb-4 pl-1 flex items-center gap-2">
+                    <Activity size={14} className="text-cyan-500" /> Live App-Gesundheit
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-[#111] border border-white/5 rounded-2xl p-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                        <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-2">
+                            <Users size={16} />
+                        </div>
+                        <p className="text-2xl font-black text-white">{isLoading ? <SkeletonBlock className="w-10 h-6" /> : stats.totalUsers}</p>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase mt-0.5">Registrierte User</p>
                     </div>
-                    <p className={`text-3xl font-black mb-1 ${stats.pendingAccounts > 0 ? 'text-blue-500' : 'text-white'}`}>
-                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.pendingAccounts > 0 ? `+${stats.pendingAccounts} neu` : '0')}
-                    </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Status-Freigaben</p>
-                </button>
+                    <div className="bg-[#111] border border-white/5 rounded-2xl p-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                        <div className="w-8 h-8 rounded-lg bg-yellow-500/10 text-yellow-500 flex items-center justify-center mb-2">
+                            <Trophy size={16} />
+                        </div>
+                        <p className="text-2xl font-black text-white">{isLoading ? <SkeletonBlock className="w-10 h-6" /> : stats.pendingCareers}</p>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase mt-0.5">Offene Anträge</p>
+                    </div>
+                    <div className="bg-[#111] border border-white/5 rounded-2xl p-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                        <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center mb-2">
+                            <AlertTriangle size={16} />
+                        </div>
+                        <p className="text-2xl font-black text-white">{isLoading ? <SkeletonBlock className="w-10 h-6" /> : stats.openReports}</p>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase mt-0.5">Aktive Meldungen</p>
+                    </div>
+                    <div className="bg-[#111] border border-white/5 rounded-2xl p-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-2">
+                            <Video size={16} />
+                        </div>
+                        <p className="text-2xl font-black text-white">{isLoading ? <SkeletonBlock className="w-10 h-6" /> : stats.newVideos24h}</p>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase mt-0.5">Content (24h)</p>
+                    </div>
+                </div>
+            </div>
 
-                {/* Tile 2: Karriere-Stationen */}
-                <button
-                    onClick={() => setActiveView('karriere-stationen')}
-                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
-                    <div className="w-10 h-10 rounded-xl bg-yellow-500/20 text-yellow-500 flex items-center justify-center mb-4">
-                        <Trophy size={20} />
-                    </div>
-                    <p className={`text-3xl font-black mb-1 ${stats.pendingCareers > 0 ? 'text-yellow-500' : 'text-white'}`}>
-                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.pendingCareers > 0 ? `+${stats.pendingCareers} neu` : '0')}
-                    </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Karriere-Stationen</p>
-                </button>
+            {/* NAVIGATION GRID */}
+            <div>
+                <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] mb-4 pl-1 flex items-center gap-2">
+                    <ShieldCheck size={14} className="text-blue-500" /> Admin Module
+                </h3>
+                <div className="space-y-3">
+                    <button onClick={() => setActiveView('status-freigaben')} className="w-full flex items-center p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group text-left">
+                        <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                            <UserCheck size={20} className="text-blue-500" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-white font-bold text-base">Status-Freigaben</h4>
+                                {stats.pendingAccounts > 0 && <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{stats.pendingAccounts}</span>}
+                            </div>
+                            <p className="text-zinc-500 text-xs mt-0.5">Scouts & Trainer verifizieren</p>
+                        </div>
+                        <ChevronRight size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                    </button>
 
-                {/* Tile 3: Vereins-Rechte */}
-                <button
-                    onClick={() => setActiveView('vereins-rechte')}
-                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-4">
-                        <Building size={20} />
-                    </div>
-                    <p className={`text-3xl font-black mb-1 ${stats.pendingClaims > 0 ? 'text-indigo-400' : 'text-white'}`}>
-                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.pendingClaims > 0 ? `+${stats.pendingClaims} neu` : '0')}
-                    </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Vereins-Rechte</p>
-                </button>
+                    <button onClick={() => setActiveView('karriere-stationen')} className="w-full flex items-center p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group text-left">
+                        <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                            <Trophy size={20} className="text-yellow-500" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-white font-bold text-base">Karriere-Stationen</h4>
+                                {stats.pendingCareers > 0 && <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">{stats.pendingCareers}</span>}
+                            </div>
+                            <p className="text-zinc-500 text-xs mt-0.5">Eingereichte Stationen prüfen</p>
+                        </div>
+                        <ChevronRight size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                    </button>
 
-                {/* Tile 4: Meldungen */}
-                <button
-                    onClick={() => setActiveView('meldungen')}
-                    className="flex flex-col items-start bg-[#111] border border-white/5 rounded-2xl p-5 relative overflow-hidden group hover:bg-white/[0.04] active:scale-95 transition-all text-left"
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-bl-[80px] -z-10 transition-transform group-hover:scale-110" />
-                    <div className="w-10 h-10 rounded-xl bg-red-500/20 text-red-500 flex items-center justify-center mb-4">
-                        <Flag size={20} />
-                    </div>
-                    <p className={`text-3xl font-black mb-1 ${stats.openReports > 0 ? 'text-red-500' : 'text-white'}`}>
-                        {isLoading ? <SkeletonBlock className="w-12 h-8" /> : (stats.openReports > 0 ? `+${stats.openReports} neu` : '0')}
-                    </p>
-                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Meldungen</p>
-                </button>
+                    <button onClick={() => setActiveView('vereins-rechte')} className="w-full flex items-center p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group text-left">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                            <Building size={20} className="text-indigo-400" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-white font-bold text-base">Vereins-Rechte</h4>
+                                {stats.pendingClaims > 0 && <span className="bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{stats.pendingClaims}</span>}
+                            </div>
+                            <p className="text-zinc-500 text-xs mt-0.5">Manager-Anträge verwalten</p>
+                        </div>
+                        <ChevronRight size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                    </button>
+
+                    <button onClick={() => setActiveView('meldungen')} className="w-full flex items-center p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group text-left">
+                        <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
+                            <Flag size={20} className="text-red-500" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-white font-bold text-base">Meldungen</h4>
+                                {stats.openReports > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{stats.openReports}</span>}
+                            </div>
+                            <p className="text-zinc-500 text-xs mt-0.5">Reports & Verstöße prüfen</p>
+                        </div>
+                        <ChevronRight size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
+                    </button>
+                </div>
             </div>
         </div>
     );

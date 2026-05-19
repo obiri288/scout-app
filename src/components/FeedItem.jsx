@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
 import { generateShareText } from '../lib/shareEngine';
-import { getClubStyle } from '../lib/helpers';
+import { getClubStyle, getClubDisplay } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
 import { useInteractionStatus } from '../hooks/useInteractionStatus';
@@ -301,7 +301,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                     />
                                 ) : null}
                             </div>
-                            <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{video.players_master?.clubs?.name || "Vereinslos"}</div>
+                            <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{getClubDisplay(video.players_master)}</div>
                         </div>
                     </div>
 

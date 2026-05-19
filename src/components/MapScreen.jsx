@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, User, Shield, MapPin, Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { cardStyle } from '../lib/styles';
 import { fetchPlayersWithCoords, fetchPlayersWithCity, geocodeCity } from '../lib/api';
+import { getClubDisplay } from '../lib/helpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -196,7 +197,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-white text-lg truncate tracking-tight">{selectedPlayer.full_name}</h3>
                                 <div className="flex items-center gap-2.5 text-xs text-slate-400 mt-1 font-medium">
-                                    <span className="flex items-center gap-1"><Shield size={12} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> {selectedPlayer.clubs?.name || 'Vereinslos'}</span>
+                                    <span className="flex items-center gap-1"><Shield size={12} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> {getClubDisplay(selectedPlayer)}</span>
                                     <span className="w-1 h-1 rounded-full bg-slate-700"></span>
                                     <span className="flex items-center gap-1"><MapPin size={12} /> {selectedPlayer.city}</span>
                                 </div>
