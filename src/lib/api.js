@@ -7,7 +7,7 @@ export { supabase };
 
 const cleanPayload = (obj) => {
     return Object.fromEntries(
-        Object.entries(obj).filter(([_, v]) => v != null)
+        Object.entries(obj).filter(([, v]) => v != null)
     );
 };
 
@@ -431,24 +431,22 @@ export const checkIsLiked = async (userId, videoId) => {
 
 export const checkIsPostLiked = async (userId, postId) => {
     if (!userId || !postId) return false;
-    const { data } = await supabase.from('media_likes').select('id').eq('user_id', userId).eq('post_id', postId);
-    return data && data.length > 0;
+    const { data } = await supabase.from('post_likes').select('id').eq('user_id', userId).eq('post_id', postId).maybeSingle();
+    return !!data;
 };
 
 export const likeVideo = async (userId, videoId) => {
     const payload = cleanPayload({ user_id: userId, video_id: videoId });
-    try {
-        const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,video_id' });
-        if (error) throw error;
+    const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,video_id' });
+    if (error) throw error;
 
-        const { data: video } = await supabase.from('media_highlights').select('player_id').eq('id', videoId).single();
-        if (video?.player_id) {
-            const myPlayerId = await getPlayerIdFromUserId(userId);
-            if (myPlayerId && myPlayerId !== video.player_id) {
-                await createNotification({ userId: video.player_id, actorId: myPlayerId, type: 'like', videoId });
-            }
+    const { data: video } = await supabase.from('media_highlights').select('player_id').eq('id', videoId).single();
+    if (video?.player_id) {
+        const myPlayerId = await getPlayerIdFromUserId(userId);
+        if (myPlayerId && myPlayerId !== video.player_id) {
+            await createNotification({ userId: video.player_id, actorId: myPlayerId, type: 'like', videoId });
         }
-    } catch (error) { throw error; }
+    }
 };
 
 export const unlikeVideo = async (userId, videoId) => {
@@ -458,22 +456,20 @@ export const unlikeVideo = async (userId, videoId) => {
 
 export const likePost = async (userId, postId) => {
     const payload = cleanPayload({ user_id: userId, post_id: postId });
-    try {
-        const { error } = await supabase.from('media_likes').upsert(payload, { onConflict: 'user_id,post_id' });
-        if (error) throw error;
+    const { error } = await supabase.from('post_likes').upsert(payload, { onConflict: 'user_id,post_id' });
+    if (error) throw error;
 
-        const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
-        if (post?.user_id) {
-            const myPlayerId = await getPlayerIdFromUserId(userId);
-            if (myPlayerId && myPlayerId !== post.user_id) {
-                await createNotification({ userId: post.user_id, actorId: myPlayerId, type: 'like', entityId: postId });
-            }
+    const { data: post } = await supabase.from('posts').select('user_id').eq('id', postId).single();
+    if (post?.user_id) {
+        const myPlayerId = await getPlayerIdFromUserId(userId);
+        if (myPlayerId && myPlayerId !== post.user_id) {
+            await createNotification({ userId: post.user_id, actorId: myPlayerId, type: 'like', entityId: postId });
         }
-    } catch (error) { throw error; }
+    }
 };
 
 export const unlikePost = async (userId, postId) => {
-    const { error } = await supabase.from('media_likes').delete().match({ user_id: userId, post_id: postId });
+    const { error } = await supabase.from('post_likes').delete().match({ user_id: userId, post_id: postId });
     if (error) throw error;
 };
 
@@ -639,43 +635,28 @@ export const fetchSavedVideos = async (userId) => {
 // POST INTERACTIONS
 // ============================================================
 
-export const checkIsVideoSaved = async (userId, videoId) => {
-    if (!userId || !videoId) return false;
-    const { data } = await supabase.from('saved_videos').select('id').eq('user_id', userId).eq('video_id', videoId);
-    return data && data.length > 0;
-};
-
-export const saveVideo = async (userId, videoId) => {
-    const payload = cleanPayload({ user_id: userId, video_id: videoId });
-    const { error } = await supabase.from('saved_videos').upsert(payload, { onConflict: 'user_id,video_id' });
-    if (error) throw error;
-};
-
-export const unsaveVideo = async (userId, videoId) => {
-    const { error } = await supabase.from('saved_videos').delete().match({ user_id: userId, video_id: videoId });
-    if (error) throw error;
-};
+// Replaced by functions above
 
 export const checkIsPostSaved = async (userId, postId) => {
     if (!userId || !postId) return false;
-    const { data } = await supabase.from('saved_videos').select('id').eq('user_id', userId).eq('post_id', postId);
-    return data && data.length > 0;
+    const { data } = await supabase.from('post_saves').select('id').eq('user_id', userId).eq('post_id', postId).maybeSingle();
+    return !!data;
 };
 
 export const savePost = async (userId, postId) => {
     const payload = cleanPayload({ user_id: userId, post_id: postId });
-    const { error } = await supabase.from('saved_videos').upsert(payload, { onConflict: 'user_id,post_id' });
+    const { error } = await supabase.from('post_saves').upsert(payload, { onConflict: 'user_id,post_id' });
     if (error) throw error;
 };
 
 export const unsavePost = async (userId, postId) => {
-    const { error } = await supabase.from('saved_videos').delete().match({ user_id: userId, post_id: postId });
+    const { error } = await supabase.from('post_saves').delete().match({ user_id: userId, post_id: postId });
     if (error) throw error;
 };
 
 export const fetchPostComments = async (postId) => {
-    const { data: comments, error } = await supabase.from('media_comments')
-        .select('*, comment_likes(user_id)')
+    const { data: comments, error } = await supabase.from('post_comments')
+        .select('*, post_comment_likes:id') // Simplified for now, or use actual join if exists
         .eq('post_id', postId)
         .eq('is_under_review', false)
         .order('is_pinned', { ascending: false })
@@ -699,7 +680,7 @@ export const fetchPostComments = async (postId) => {
 };
 
 export const addPostComment = async (postId, userId, content) => {
-    const { data, error } = await supabase.from('media_comments')
+    const { data, error } = await supabase.from('post_comments')
         .insert({ post_id: postId, user_id: userId, content })
         .select()
         .single();
@@ -812,21 +793,24 @@ export const addComment = async (videoId, userId, content) => {
     }
 };
 
-export const deleteComment = async (commentId) => {
-    const { error } = await supabase.from('media_comments').delete().eq('id', commentId);
+export const deleteComment = async (commentId, type = 'video') => {
+    const table = type === 'post' ? 'post_comments' : 'media_comments';
+    const { error } = await supabase.from(table).delete().eq('id', commentId);
     if (error) throw error;
 };
 
 export const toggleCommentPin = async (targetId, commentId, pinState, type = 'video') => {
+    const table = type === 'post' ? 'post_comments' : 'media_comments';
     const idField = type === 'video' ? 'video_id' : 'post_id';
+    
     if (pinState) {
         // Unpin all other comments for this target first
-        await supabase.from('media_comments')
+        await supabase.from(table)
             .update({ is_pinned: false })
             .eq(idField, targetId);
     }
 
-    const { error } = await supabase.from('media_comments')
+    const { error } = await supabase.from(table)
         .update({ is_pinned: pinState })
         .eq('id', commentId);
     if (error) throw error;
@@ -900,7 +884,7 @@ export const recordProfileView = async (profileId, viewerId) => {
             .limit(1);
         if (existing && existing.length > 0) return;
         await supabase.from('profile_views').insert({ profile_id: profileId, viewer_id: viewerId });
-    } catch (_) { /* non-critical */ }
+    } catch (error) { /* non-critical */ }
 };
 
 export const getProfileViewCount = async (profileId) => {
@@ -1011,7 +995,7 @@ export const awardXP = async (playerId, amount, reason, refId = null) => {
             reason,
             ref_id: refId,
         });
-    } catch (_) { /* non-critical */ }
+    } catch (error) { /* non-critical */ }
 };
 
 export const getPlayerXP = async (playerId) => {

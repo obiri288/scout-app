@@ -650,7 +650,16 @@ const App = () => {
                     />
                 )}
 
-                {activeCommentsVideo && <CommentsModal video={activeCommentsVideo} onClose={() => setActiveCommentsVideo(null)} session={session} onLoginReq={() => setShowLogin(true)} />}
+                {activeCommentsVideo && (
+                    <CommentsModal 
+                        video={activeCommentsVideo} 
+                        videoId={activeCommentsVideo.post_type === 'transfer' ? null : activeCommentsVideo.id}
+                        postId={activeCommentsVideo.post_type === 'transfer' ? activeCommentsVideo.id : null}
+                        onClose={() => setActiveCommentsVideo(null)} 
+                        session={session} 
+                        onLoginReq={() => setShowLogin(true)} 
+                    />
+                )}
                 {activeChatPartner && <ChatWindow partner={activeChatPartner} session={session} currentUserProfile={currentUserProfile} setHasUnreadMessages={setUnreadMessageUsersCount} onClose={() => { setActiveChatPartner(null); checkUnreadMessages(); }} onUserClick={loadProfile} onReport={(target) => { setActiveChatPartner(null); setReportTarget(target); }} onBlock={(target) => { setActiveChatPartner(null); setBlockTarget(target); }} />}
                 {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={handleLoginSuccess} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 {showUpload && <UploadModal profile={currentUserProfile} onClose={() => setShowUpload(false)} onUploadComplete={() => { if (currentUserProfile) loadProfile(currentUserProfile); }} />}

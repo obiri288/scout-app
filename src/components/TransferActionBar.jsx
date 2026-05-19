@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
@@ -13,7 +12,6 @@ export const TransferActionBar = ({ post, session, onCommentClick, onShareClick 
     const [liked, setLiked] = useState(false);
     const [likesCount, setLikesCount] = useState(post.likes_count || 0);
     const [saved, setSaved] = useState(false);
-    const [loading, setLoading] = useState(false);
     const { addToast } = useToast();
     const userId = session?.user?.id;
 

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     X, Loader2, Send, MessageCircle, Trash2, Heart, Pin, User 
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
 import { EmptyState } from './EmptyState';
@@ -13,25 +12,34 @@ import { CommentActionMenu } from './CommentActionMenu';
 import { ReportModal } from './ReportModal';
 import { useUser } from '../contexts/UserContext';
 
-export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
+export const CommentsModal = ({ videoId, postId, video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { addToast } = useToast();
-    const isTransfer = video.post_type === 'transfer';
-    const videoCreatorId = isTransfer ? video.user_id : (video.players_master?.user_id || video.user_id);
+    
+    // Determine type from props
+    const isTransfer = !!postId;
+    const targetId = postId || videoId || video?.id;
+    const postType = isTransfer || video?.post_type === 'transfer' ? 'transfer' : 'video';
+    const effectiveIsTransfer = postType === 'transfer';
+
+    const videoCreatorId = effectiveIsTransfer 
+        ? (video?.user_id || video?.players_master?.user_id) 
+        : (video?.players_master?.user_id || video?.user_id);
+    
     const isCreator = session?.user?.id === videoCreatorId;
     const { currentUserProfile, hiddenUserIds } = useUser();
 
     const [actionComment, setActionComment] = useState(null);
     const [reportTarget, setReportTarget] = useState(null);
 
-    const loadComments = async () => {
+    const loadComments = useCallback(async () => {
         try {
-            const data = isTransfer 
-                ? await api.fetchPostComments(video.id)
-                : await api.fetchComments(video.id);
+            const data = effectiveIsTransfer 
+                ? await api.fetchPostComments(targetId)
+                : await api.fetchComments(targetId);
             
             // Client-side filtering for hidden comments
             const hiddenComments = currentUserProfile?.hidden_comments || [];
@@ -52,15 +60,16 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [targetId, currentUserProfile, postType, effectiveIsTransfer, hiddenUserIds]);
 
     useEffect(() => {
+        if (!targetId) return;
         loadComments();
         
         const handleLikeUpdate = () => loadComments();
         window.addEventListener('commentLikeUpdate', handleLikeUpdate);
         return () => window.removeEventListener('commentLikeUpdate', handleLikeUpdate);
-    }, [video.id, currentUserProfile, video.post_type]);
+    }, [targetId, loadComments]);
 
     const sendComment = async (e) => {
         e.preventDefault();
@@ -70,9 +79,11 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         const currentText = text.trim();
         setIsSubmitting(true);
         try {
-            const newCommentData = isTransfer
-                ? await api.addPostComment(video.id, session.user.id, currentText)
-                : await api.addComment(video.id, session.user.id, currentText);
+            if (effectiveIsTransfer) {
+                await api.addPostComment(targetId, session.user.id, currentText);
+            } else {
+                await api.addComment(targetId, session.user.id, currentText);
+            }
             
             // Standard Comment Notification
             const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
@@ -82,9 +93,9 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
                         userId: video.players_master?.id,
                         actorId: myProfileId,
                         type: 'comment',
-                        message: isTransfer ? 'hat deinen Transfer-Post kommentiert.' : 'hat dein Video kommentiert.',
-                        videoId: isTransfer ? null : video.id,
-                        entityId: isTransfer ? video.id : null
+                        message: effectiveIsTransfer ? 'hat deinen Transfer-Post kommentiert.' : 'hat dein Video kommentiert.',
+                        videoId: effectiveIsTransfer ? null : targetId,
+                        entityId: effectiveIsTransfer ? targetId : null
                     });
                 } catch (error) {
                     console.warn("Notification failed, but interaction saved", error);
@@ -115,7 +126,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
 
             setText('');
             await loadComments();
-            window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: video.id, delta: 1 } }));
+            window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: targetId, delta: 1 } }));
             addToast("Kommentar erfasst", 'success');
         } catch (error) {
             console.error("Kommentar erstellen fehler:", error);
@@ -131,8 +142,8 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
         setComments(prev => prev.filter(c => c.id !== commentId));
         
         try {
-            await api.deleteComment(commentId);
-            window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: video.id, delta: -1 } }));
+            await api.deleteComment(commentId, effectiveIsTransfer ? 'post' : 'video');
+            window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: targetId, delta: -1 } }));
             addToast("Kommentar gelöscht", 'info');
         } catch (error) {
             // Rollback
@@ -143,7 +154,7 @@ export const CommentsModal = ({ video, onClose, session, onLoginReq }) => {
 
     const handlePin = async (commentId, state) => {
         try {
-            await api.toggleCommentPin(video.id, commentId, state, isTransfer ? 'post' : 'video');
+            await api.toggleCommentPin(targetId, commentId, state, effectiveIsTransfer ? 'post' : 'video');
             loadComments();
             addToast(state ? "Kommentar angepinnt 📌" : "Pin gelöst", 'success');
         } catch (error) {

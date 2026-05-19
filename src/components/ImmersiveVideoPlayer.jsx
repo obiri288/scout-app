@@ -36,7 +36,6 @@ export const ImmersiveVideoPlayer = ({
     const [isCommentsOpen, setIsCommentsOpen] = useState(false);
     const [comments, setComments] = useState([]);
     const [isLoadingComments, setIsLoadingComments] = useState(false);
-    const [hasFetchedComments, setHasFetchedComments] = useState(false);
     const [liveCommentCount, setLiveCommentCount] = useState(commentCount || 0);
     const [commentText, setCommentText] = useState('');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -49,7 +48,6 @@ export const ImmersiveVideoPlayer = ({
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isScrubbing, setIsScrubbing] = useState(false);
-    const [showSeekBar, setShowSeekBar] = useState(true);
     const [isUiVisible, setIsUiVisible] = useState(true);
     const [isPlaying, setIsPlaying] = useState(isActive);
     const [showPlayStatusAnim, setShowPlayStatusAnim] = useState(false);
@@ -301,14 +299,19 @@ export const ImmersiveVideoPlayer = ({
             const loadComments = async () => {
                 setIsLoadingComments(true);
                 try {
-                    const data = await api.fetchComments(resolvedVideo.id);
+                    const isTransfer = resolvedVideo.post_type === 'transfer';
+                    const data = isTransfer 
+                        ? await api.fetchPostComments(resolvedVideo.id)
+                        : await api.fetchComments(resolvedVideo.id);
+                    
                     const blocks = hiddenUserIds || [];
                     const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
                     
                     const sorted = filteredData.sort((a, b) => {
                         if (a.is_pinned !== b.is_pinned) return b.is_pinned ? 1 : -1;
-                        const aLikes = a.comment_likes?.length || 0;
-                        const bLikes = b.comment_likes?.length || 0;
+                        // Support both comment_likes (video) and post_comment_likes (post)
+                        const aLikes = (a.comment_likes || a.post_comment_likes)?.length || 0;
+                        const bLikes = (b.comment_likes || b.post_comment_likes)?.length || 0;
                         if (aLikes !== bLikes) return bLikes - aLikes;
                         return new Date(b.created_at) - new Date(a.created_at);
                     });
@@ -335,9 +338,17 @@ export const ImmersiveVideoPlayer = ({
 
         try {
             if (newStatus) {
-                await api.likeVideo(session.user.id, resolvedVideo.id);
+                if (resolvedVideo.post_type === 'transfer') {
+                    await api.likePost(session.user.id, resolvedVideo.id);
+                } else {
+                    await api.likeVideo(session.user.id, resolvedVideo.id);
+                }
             } else {
-                await api.unlikeVideo(session.user.id, resolvedVideo.id);
+                if (resolvedVideo.post_type === 'transfer') {
+                    await api.unlikePost(session.user.id, resolvedVideo.id);
+                } else {
+                    await api.unlikeVideo(session.user.id, resolvedVideo.id);
+                }
                 addToast("Like entfernt", 'info');
             }
         } catch (e) {
@@ -357,10 +368,18 @@ export const ImmersiveVideoPlayer = ({
 
         try {
             if (newStatus) {
-                await api.saveVideo(session.user.id, resolvedVideo.id);
+                if (resolvedVideo.post_type === 'transfer') {
+                    await api.savePost(session.user.id, resolvedVideo.id);
+                } else {
+                    await api.saveVideo(session.user.id, resolvedVideo.id);
+                }
                 addToast("In Watchlist gespeichert", 'success');
             } else {
-                await api.unsaveVideo(session.user.id, resolvedVideo.id);
+                if (resolvedVideo.post_type === 'transfer') {
+                    await api.unsavePost(session.user.id, resolvedVideo.id);
+                } else {
+                    await api.unsaveVideo(session.user.id, resolvedVideo.id);
+                }
                 addToast("Aus Watchlist entfernt", 'info');
             }
         } catch (e) {
@@ -455,7 +474,12 @@ export const ImmersiveVideoPlayer = ({
         const text = commentText.trim();
         setIsSubmittingComment(true);
         try {
-            await api.addComment(resolvedVideo.id, session.user.id, text);
+            const isTransfer = resolvedVideo.post_type === 'transfer';
+            if (isTransfer) {
+                await api.addPostComment(resolvedVideo.id, session.user.id, text);
+            } else {
+                await api.addComment(resolvedVideo.id, session.user.id, text);
+            }
             
             const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
             if (videoCreatorId && videoCreatorId !== session.user.id) {
@@ -464,14 +488,17 @@ export const ImmersiveVideoPlayer = ({
                         userId: resolvedVideo.players_master?.id || resolvedVideo.user_id,
                         actorId: myProfileId,
                         type: 'comment',
-                        message: 'hat dein Video kommentiert.',
-                        videoId: resolvedVideo.id
+                        message: 'hat deinen Beitrag kommentiert.',
+                        videoId: !isTransfer ? resolvedVideo.id : null,
+                        entityId: isTransfer ? resolvedVideo.id : null
                     });
-                } catch (_) {}
+                } catch (err) { /* silent */ }
             }
 
             setCommentText('');
-            const data = await api.fetchComments(resolvedVideo.id);
+            const data = isTransfer 
+                ? await api.fetchPostComments(resolvedVideo.id)
+                : await api.fetchComments(resolvedVideo.id);
             const blocks = hiddenUserIds || [];
             const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
             setComments(filteredData);
@@ -494,7 +521,8 @@ export const ImmersiveVideoPlayer = ({
         setLiveCommentCount(prev => Math.max(0, prev - 1));
 
         try {
-            await api.deleteComment(commentId);
+            const isTransfer = resolvedVideo.post_type === 'transfer';
+            await api.deleteComment(commentId, isTransfer ? 'post' : 'video');
             window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: resolvedVideo.id, delta: -1 } }));
             addToast("Kommentar gelöscht", 'info');
         } catch (error) {
@@ -507,8 +535,11 @@ export const ImmersiveVideoPlayer = ({
 
     const handleCommentPin = async (commentId, pinState) => {
         try {
-            await api.toggleCommentPin(resolvedVideo.id, commentId, pinState);
-            const data = await api.fetchComments(resolvedVideo.id);
+            const isTransfer = resolvedVideo.post_type === 'transfer';
+            await api.toggleCommentPin(resolvedVideo.id, commentId, pinState, isTransfer ? 'post' : 'video');
+            const data = isTransfer 
+                ? await api.fetchPostComments(resolvedVideo.id)
+                : await api.fetchComments(resolvedVideo.id);
             const blocks = hiddenUserIds || [];
             const filteredData = (data || []).filter(c => !blocks.includes(c.players_master?.id));
             setComments(filteredData);

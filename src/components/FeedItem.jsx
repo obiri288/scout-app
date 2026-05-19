@@ -37,24 +37,6 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     
     const { addToast } = useToast();
     
-    const handleLike = async (e) => {
-        e.stopPropagation();
-        try {
-            await toggleLike();
-        } catch {
-            addToast('Like fehlgeschlagen', 'error');
-        }
-    };
-    
-    const handleSave = async (e) => {
-        e.stopPropagation();
-        try {
-            await toggleSave();
-        } catch {
-            addToast('Speichern fehlgeschlagen', 'error');
-        }
-    };
-    
     const [commentCount, setCommentCount] = useState(video.comments_count || 0);
     const [shareData, setShareData] = useState({ text: '', url: '' });
     const [isDeleting, setIsDeleting] = useState(false);
@@ -172,7 +154,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                             message: 'hat dein Video gelikt.',
                             videoId: video.id
                         });
-                    } catch (error) {
+                    } catch (err) {
                         console.warn("Notification failed, but interaction saved", error);
                     }
                 }
@@ -180,7 +162,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             if (wasLiked) {
                 addToast("Like entfernt", 'info');
             }
-        } catch (error) {
+        } catch (err) {
             addToast(error?.message || "Like fehlgeschlagen.", 'error');
         }
     };
@@ -196,7 +178,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             } else {
                 addToast("Aus Watchlist entfernt", 'info');
             }
-        } catch (error) {
+        } catch (err) {
             addToast("Speichern fehlgeschlagen.", 'error');
         }
     };
@@ -217,7 +199,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             setShowMenu(false);
             // Dispatch event to refresh feeds
             window.dispatchEvent(new CustomEvent('videoArchived', { detail: { videoId: video.id } }));
-        } catch (error) {
+        } catch (err) {
             addToast('Archivieren fehlgeschlagen.', 'error');
         } finally {
             setIsArchiving(false);
@@ -235,7 +217,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             setShowMenu(false);
             // Dispatch event to refresh feeds
             window.dispatchEvent(new CustomEvent('videoDeleted', { detail: { videoId: video.id } }));
-        } catch (error) {
+        } catch (err) {
             addToast('Löschen fehlgeschlagen.', 'error');
         } finally {
             setIsDeleting(false);
@@ -271,7 +253,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                     }),
                     url: shareUrl,
                 });
-            } catch (error) {
+            } catch (err) {
                 if (error.name !== 'AbortError') {
                     addToast('Teilen fehlgeschlagen.', 'error');
                 }
@@ -491,7 +473,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                 {/* Actions Bar Selection */}
                 {video.post_type === 'transfer' ? (
                     <TransferActionBar 
-                        post={video} 
+                        post={{ ...video, comments_count: commentCount }} 
                         session={session} 
                         onCommentClick={() => onCommentClick(video)}
                         onShareClick={() => {
