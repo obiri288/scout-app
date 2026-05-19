@@ -462,15 +462,17 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                                     />
                                                                 )}
                                                             </h4>
-                                                            <div className="flex flex-row items-center gap-3 mt-1">
-                                                                <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
-                                                                    <Shield size={9} className="text-cyan-400 shrink-0" />
-                                                                    <span className="truncate">{getClubDisplay(v.players_master)}</span>
+                                                            {!(v.players_master?.email === 'kontakt@cavio.me' || v.players_master?.is_official || v.players_master?.role === 'system') && (
+                                                                <div className="flex flex-row items-center gap-3 mt-1">
+                                                                    <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
+                                                                        <Shield size={9} className="text-cyan-400 shrink-0" />
+                                                                        <span className="truncate">{getClubDisplay(v.players_master)}</span>
+                                                                    </div>
+                                                                    <span className="bg-gray-800 rounded-md px-2 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
+                                                                        {formatPosition(v.players_master?.position_primary)}
+                                                                    </span>
                                                                 </div>
-                                                                <span className="bg-gray-800 rounded-md px-2 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
-                                                                    {formatPosition(v.players_master?.position_primary)}
-                                                                </span>
-                                                            </div>
+                                                            )}
                                                         </div>
                                                         <div className="flex flex-wrap gap-1 mt-1.5">
                                                             {(v.action_tags || []).slice(0, 3).map(tag => (
@@ -515,21 +517,23 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                             />
                                                         )}
                                                     </h3>
-                                                    <div className="flex flex-row items-center gap-3 mt-1">
-                                                        <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
-                                                            <Shield size={10} className="text-cyan-400 shrink-0" />
-                                                            <span className="truncate">{getClubDisplay(p)}</span>
-                                                        </div>
-                                                        <span className="bg-gray-800 rounded-md px-2 py-0.5 text-xs text-white/90 font-medium shrink-0">
-                                                            {formatPosition(p.position_primary)}
-                                                        </span>
-                                                        {p.city && (
-                                                            <span className="flex items-center gap-1 text-xs text-gray-500 truncate">
-                                                                <MapPin size={10} className="shrink-0" />
-                                                                <span className="truncate">{p.city}</span>
+                                                    {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
+                                                        <div className="flex flex-row items-center gap-3 mt-1">
+                                                            <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
+                                                                <Shield size={10} className="text-cyan-400 shrink-0" />
+                                                                <span className="truncate">{getClubDisplay(p)}</span>
+                                                            </div>
+                                                            <span className="bg-gray-800 rounded-md px-2 py-0.5 text-xs text-white/90 font-medium shrink-0">
+                                                                {formatPosition(p.position_primary)}
                                                             </span>
-                                                        )}
-                                                    </div>
+                                                            {p.city && (
+                                                                <span className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                                                                    <MapPin size={10} className="shrink-0" />
+                                                                    <span className="truncate">{p.city}</span>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors" />
                                             </motion.div>

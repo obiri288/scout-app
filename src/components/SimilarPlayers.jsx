@@ -108,13 +108,17 @@ export const SimilarPlayers = ({ profile, onUserClick }) => {
                             {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
                         </div>
                         <div className="text-xs font-bold text-foreground truncate w-full group-hover:text-blue-400 transition">{p.full_name}</div>
-                        <div className="text-[10px] text-zinc-500 truncate w-full flex items-center justify-center gap-1 mt-0.5">
-                            <Shield size={8} /> {getClubDisplay(p)}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1">
-                            <span className="text-[9px] bg-gray-800 px-1.5 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
-                            {p.city && <span className="text-[9px] text-zinc-400 flex items-center gap-0.5"><MapPin size={7} />{p.city}</span>}
-                        </div>
+                        {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
+                            <>
+                                <div className="text-[10px] text-zinc-500 truncate w-full flex items-center justify-center gap-1 mt-0.5">
+                                    <Shield size={8} /> {getClubDisplay(p)}
+                                </div>
+                                <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-[9px] bg-gray-800 px-1.5 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
+                                    {p.city && <span className="text-[9px] text-zinc-400 flex items-center gap-0.5"><MapPin size={7} />{p.city}</span>}
+                                </div>
+                            </>
+                        )}
                     </motion.div>
                 ))}
             </div>

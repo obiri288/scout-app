@@ -40,7 +40,9 @@ export const FollowingListModal = ({ userId, onClose, onUserClick }) => {
                             </div>
                             <div>
                                 <div className="text-foreground font-bold">{p.full_name || p.username}</div>
-                                <div className="text-muted-foreground text-xs">{p.clubs?.name}</div>
+                                {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
+                                    <div className="text-muted-foreground text-xs">{p.clubs?.name}</div>
+                                )}
                             </div>
                         </div>
                     ))}

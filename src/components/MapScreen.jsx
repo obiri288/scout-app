@@ -196,18 +196,26 @@ export const MapScreen = ({ onClose, onUserClick }) => {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-white text-lg truncate tracking-tight">{selectedPlayer.full_name}</h3>
-                                <div className="flex items-center gap-2.5 text-xs text-slate-400 mt-1 font-medium">
-                                    <span className="flex items-center gap-1"><Shield size={12} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> {getClubDisplay(selectedPlayer)}</span>
-                                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                    <span className="flex items-center gap-1"><MapPin size={12} /> {selectedPlayer.city}</span>
-                                </div>
-                                <div className="flex items-center gap-2.5 mt-2.5">
-                                    <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-1 rounded-md text-slate-300 font-bold uppercase tracking-wider shadow-inner">{selectedPlayer.position_primary}</span>
-                                    <span className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border shadow-inner ${selectedPlayer.transfer_status === 'Suche Verein' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
-                                        selectedPlayer.transfer_status === 'Vertrag läuft aus' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
-                                            'bg-slate-800/50 border-slate-700 text-slate-400'
-                                        }`}>{selectedPlayer.transfer_status}</span>
-                                </div>
+                                {!(selectedPlayer.email === 'kontakt@cavio.me' || selectedPlayer.is_official || selectedPlayer.role === 'system') && (
+                                    <div className="flex items-center gap-2.5 text-xs text-slate-400 mt-1 font-medium">
+                                        <span className="flex items-center gap-1"><Shield size={12} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> {getClubDisplay(selectedPlayer)}</span>
+                                        {selectedPlayer.city && (
+                                            <>
+                                                <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                                                <span className="flex items-center gap-1"><MapPin size={12} /> {selectedPlayer.city}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                                {!(selectedPlayer.email === 'kontakt@cavio.me' || selectedPlayer.is_official || selectedPlayer.role === 'system') && (
+                                    <div className="flex items-center gap-2.5 mt-2.5">
+                                        <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-1 rounded-md text-slate-300 font-bold uppercase tracking-wider shadow-inner">{selectedPlayer.position_primary}</span>
+                                        <span className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border shadow-inner ${selectedPlayer.transfer_status === 'Suche Verein' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+                                            selectedPlayer.transfer_status === 'Vertrag läuft aus' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                                                'bg-slate-800/50 border-slate-700 text-slate-400'
+                                            }`}>{selectedPlayer.transfer_status}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col gap-3 shrink-0">

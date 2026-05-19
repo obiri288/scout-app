@@ -74,15 +74,17 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-bold text-foreground truncate">{item.players_master?.full_name}</h4>
-                                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-1 truncate">
-                                                    <Shield size={10} className="text-cyan-400 shrink-0" />
-                                                    <span className="truncate">{getClubDisplay(item.players_master)}</span>
+                                            {!(item.players_master?.email === 'kontakt@cavio.me' || item.players_master?.is_official || item.players_master?.role === 'system') && (
+                                                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-1 truncate">
+                                                        <Shield size={10} className="text-cyan-400 shrink-0" />
+                                                        <span className="truncate">{getClubDisplay(item.players_master)}</span>
+                                                    </div>
+                                                    <span className="bg-gray-800 rounded px-1.5 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
+                                                        {formatPosition(item.players_master?.position_primary)}
+                                                    </span>
                                                 </div>
-                                                <span className="bg-gray-800 rounded px-1.5 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
-                                                    {formatPosition(item.players_master?.position_primary)}
-                                                </span>
-                                            </div>
+                                            )}
                                         </div>
                                         <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-muted-foreground hover:text-red-500"><Trash2 size={16} /></button>
                                     </div>
