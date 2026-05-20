@@ -302,36 +302,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         }
         setCareerError('');
 
-        // --- CAPTAIN DEMOTION BYPASS ---
-        // If the user is editing an existing station and unchecking the captain box,
-        // perform a silent update without creating a new pending admin request.
-        const isDemotion = editingCareer && editingCareer.is_captain === true && careerForm.is_captain === false;
-        if (isDemotion) {
-            setCareerLoading(true);
-            try {
-                const { data, error } = await supabase
-                    .from('career_history')
-                    .update({
-                        is_captain: false,
-                        is_captain_request: false
-                    })
-                    .eq('id', editingCareer.id)
-                    .select()
-                    .single();
-                if (error) throw error;
-
-                setCareerEntries(prev => prev.map(e => e.id === data.id ? data : e));
-                onUpdate(profile);
-                resetCareerForm();
-                addToast('Kapitäns-Status erfolgreich entfernt', 'success');
-            } catch (e) {
-                addToast('Fehler: ' + e.message, 'error');
-            } finally {
-                setCareerLoading(false);
-            }
-            return;
-        }
-        // --- END CAPTAIN DEMOTION BYPASS ---
+        // 1. Prüfen: Ist das eine reine Abwahl der Kapitänsbinde?
+        const isCaptainDemotion = editingCareer && editingCareer.is_captain === true && careerForm.is_captain === false;
 
         setCareerLoading(true);
         try {
@@ -345,6 +317,20 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
             };
 
             const isPremium = checkIfPremium(careerForm.league, careerForm.club_name);
+
+            // 2. Den Status erzwingen
+            let finalVerificationStatus = 'pending'; // Standard für echte neue Anträge
+
+            if (isCaptainDemotion) {
+                // HARD-STOP: Wenn abgewählt wird, darf der alte Vereinsstatus NIEMALS angetastet werden!
+                finalVerificationStatus = editingCareer.verification_status; 
+            }
+
+            // Preserve actual captain status if they were already captain and are not demoting
+            const currentIsCaptain = editingCareer ? editingCareer.is_captain : false;
+            const finalIsCaptain = isCaptainDemotion ? false : currentIsCaptain;
+
+            // 3. Payload zusammenbauen
             const payload = {
                 user_id: profile.user_id,
                 club_name: careerForm.club_name.trim(),
@@ -354,10 +340,11 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                 proof_url: careerForm.proof_url.trim() || null,
                 club_id: careerForm.club_id,
                 is_premium: isPremium,
-                verification_status: 'pending',
+                verification_status: finalVerificationStatus,
                 wants_transfer_post: careerForm.wants_transfer_post ?? true,
-                is_captain: false,
-                is_captain_request: careerForm.is_captain ?? false
+                is_captain: finalIsCaptain,
+                // Verhindere auch hier jeden Request-Flag bei Demotion
+                is_captain_request: isCaptainDemotion ? false : (careerForm.is_captain ?? false)
             };
 
             if (editingCareer) {
