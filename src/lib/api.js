@@ -254,6 +254,9 @@ export const fetchVideoById = async (videoId) => {
 };
 
 export const fetchFeed = async (offset = 0, limit = 10) => {
+    // Increase pool size to run a rich algorithmic ranking pool of recent content
+    const fetchPoolSize = 100;
+
     // 1. Fetch from media_highlights
     const highlightsPromise = supabase.from('media_highlights')
         .select('*, media_comments(count), players_master!inner(*, clubs(*, leagues(name)))')
@@ -261,7 +264,7 @@ export const fetchFeed = async (offset = 0, limit = 10) => {
         .eq('is_archived', false)
         .eq('is_under_review', false)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .range(0, fetchPoolSize);
 
     // 2. Fetch from posts
     const postsPromise = supabase.from('posts')
@@ -269,23 +272,71 @@ export const fetchFeed = async (offset = 0, limit = 10) => {
         .eq('players_master.is_deactivated', false)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .range(0, fetchPoolSize);
 
     const [highlightsRes, postsRes] = await Promise.all([highlightsPromise, postsPromise]);
         
     const allItems = [
-        ...(highlightsRes.data || []).map(h => ({ ...h, post_type: h.post_type || 'video' })),
-        ...(postsRes.data || []).map(p => ({ ...p, post_type: p.type, transfer_data: p.metadata }))
+        ...(highlightsRes.data || []).map(h => ({ 
+            ...h, 
+            post_type: h.post_type || 'video',
+            comments_count: h.media_comments?.[0]?.count || 0
+        })),
+        ...(postsRes.data || []).map(p => ({ 
+            ...p, 
+            post_type: p.type, 
+            transfer_data: p.metadata,
+            comments_count: p.comments_count || 0
+        }))
     ];
 
-    return allItems
+    const now = new Date();
+
+    const scoredItems = allItems
         .filter(item => item.players_master !== null)
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, limit)
-        .map(post => ({
-            ...post,
-            comments_count: post.media_comments?.[0]?.count || 0
-        }));
+        .map(item => {
+            const likes = item.likes_count || 0;
+            const comments = item.comments_count || 0;
+            const trendScore = (likes * 1) + (comments * 3);
+            
+            // Boost only stays active for content that is less than 48 hours old
+            const createdTime = new Date(item.created_at);
+            const hoursOld = Math.abs(now - createdTime) / 36e5;
+            const isBoostActive = item.is_admin_boosted && hoursOld <= 48;
+
+            return {
+                ...item,
+                trending_score: trendScore,
+                is_boost_active: isBoostActive,
+                hours_old: hoursOld
+            };
+        });
+
+    // Sort priority logic:
+    // 1. is_boost_active === true (boosted and < 48 hours old)
+    // 2. trending_score DESC
+    // 3. created_at DESC (chronological fallback)
+    const sortedItems = scoredItems.sort((a, b) => {
+        if (a.is_boost_active && !b.is_boost_active) return -1;
+        if (!a.is_boost_active && b.is_boost_active) return 1;
+
+        if (b.trending_score !== a.trending_score) {
+            return b.trending_score - a.trending_score;
+        }
+
+        return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    // Return the slice based on offset and limit
+    return sortedItems.slice(offset, offset + limit);
+};
+
+export const updateContentBoost = async (id, type, isBoosted) => {
+    const table = type === 'video' ? 'media_highlights' : 'posts';
+    const { error } = await supabase.from(table)
+        .update({ is_admin_boosted: isBoosted })
+        .eq('id', id);
+    if (error) throw error;
 };
 
 export const fetchHighlightCount = async (playerId) => {
@@ -1239,3 +1290,55 @@ export const getRecentChatPartners = async (userId) => {
     }
     return [];
 };
+
+// ============================================================
+// NATIONALITY VERIFICATION
+// ============================================================
+
+export const fetchNationalityVerifications = async () => {
+    const { data, error } = await supabase
+        .from('nationality_verifications')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+};
+
+export const approveNationalityVerification = async (requestId, adminId) => {
+    const { data: request, error: fetchErr } = await supabase
+        .from('nationality_verifications')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+    if (fetchErr) throw fetchErr;
+
+    const { error: updateErr } = await supabase
+        .from('nationality_verifications')
+        .update({
+            status: 'approved',
+            verified_by: adminId
+        })
+        .eq('id', requestId);
+    if (updateErr) throw updateErr;
+
+    const { error: profileErr } = await supabase
+        .from('players_master')
+        .update({
+            is_nat_2_verified: true
+        })
+        .eq('user_id', request.user_id);
+    if (profileErr) throw profileErr;
+};
+
+export const rejectNationalityVerification = async (requestId, adminId) => {
+    const { error: updateErr } = await supabase
+        .from('nationality_verifications')
+        .update({
+            status: 'rejected',
+            verified_by: adminId
+        })
+        .eq('id', requestId);
+    if (updateErr) throw updateErr;
+};
+

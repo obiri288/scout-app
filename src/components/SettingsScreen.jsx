@@ -726,6 +726,247 @@ const BlockedAccountsView = ({ onBack }) => {
 };
 
 /* ─────────────────────────────────────────────
+   Locker Room Verification View (Kabinen-Freigaben)
+   ───────────────────────────────────────────── */
+const LockerRoomView = ({ onBack, clubId, activeCaptainStation, currentUserProfile }) => {
+    const { addToast } = useToast();
+    const [pendingPlayers, setPendingPlayers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [verifyingId, setVerifyingId] = useState(null);
+
+    useEffect(() => {
+        const fetchPendingPlayers = async () => {
+            if (!clubId) {
+                setPendingPlayers([]);
+                setLoading(false);
+                return;
+            }
+            try {
+                // Fetch pending career entries for the captain's club (excluding captain requests)
+                const { data: careerData, error: careerError } = await supabase
+                    .from('career_history')
+                    .select('*')
+                    .eq('club_id', clubId)
+                    .eq('verification_status', 'pending')
+                    .eq('is_captain_request', false)
+                    .order('created_at', { ascending: false });
+
+                if (careerError) throw careerError;
+
+                if (!careerData || careerData.length === 0) {
+                    setPendingPlayers([]);
+                    setLoading(false);
+                    return;
+                }
+
+                // Fetch corresponding player profiles from players_master using user_ids
+                const userIds = careerData.map(c => c.user_id);
+                const { data: profileData, error: profileError } = await supabase
+                    .from('players_master')
+                    .select('id, user_id, full_name, username, avatar_url, role, position')
+                    .in('user_id', userIds);
+
+                if (profileError) throw profileError;
+
+                // Merge profiles into career data
+                const joined = careerData.map(c => {
+                    const profile = profileData?.find(p => p.user_id === c.user_id);
+                    return {
+                        ...c,
+                        profile
+                    };
+                });
+
+                setPendingPlayers(joined);
+            } catch (err) {
+                console.error("Error fetching pending players:", err);
+                addToast("Fehler beim Laden der Mitspieler.", "error");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPendingPlayers();
+    }, [clubId]);
+
+    const handleVerify = async (player) => {
+        setVerifyingId(player.id);
+        try {
+            // 1. Update verification status in career_history
+            const { error: updateError } = await supabase
+                .from('career_history')
+                .update({
+                    verification_status: 'approved',
+                    is_verified: true
+                })
+                .eq('id', player.id);
+
+            if (updateError) throw updateError;
+
+            // 2. Sync profile club_id if it's their current club
+            if (!player.end_date) {
+                const { error: syncError } = await supabase
+                    .from('players_master')
+                    .update({ club_id: clubId })
+                    .eq('user_id', player.user_id);
+
+                if (syncError) {
+                    console.warn('Could not sync profile club_id:', syncError);
+                }
+
+                // Single Active Captain Rule: If verified player is a captain, demote other active captains
+                if (player.is_captain) {
+                    try {
+                        await supabase
+                            .from('career_history')
+                            .update({ is_captain: false })
+                            .eq('club_id', clubId)
+                            .is('end_date', null)
+                            .eq('verification_status', 'approved')
+                            .neq('id', player.id);
+                        console.log('Other active captains demoted for club:', clubId);
+                    } catch (demotionErr) {
+                        console.warn('Could not demote other captains:', demotionErr);
+                    }
+                }
+            }
+
+            // 3. Send celebratory notification
+            const recipientId = player.profile?.id;
+            if (recipientId) {
+                try {
+                    await api.createNotification({
+                        userId: recipientId,
+                        actorId: currentUserProfile?.id,
+                        type: 'verification_success',
+                        message: `Dein Kapitän hat dich für "${activeCaptainStation?.club_name || 'deinen Verein'}" verifiziert! Willkommen in der Kabine! 🎖️`,
+                        entityId: player.id
+                    });
+                } catch (notifErr) {
+                    console.warn('Could not send verification notification:', notifErr);
+                }
+            }
+
+            addToast(`${player.profile?.full_name || 'Mitspieler'} erfolgreich verifiziert! 🎉`, 'success');
+
+            // 4. Slide out item from local list
+            setPendingPlayers(prev => prev.filter(p => p.id !== player.id));
+        } catch (err) {
+            console.error("Error verifying player:", err);
+            addToast(`Verifizierung fehlgeschlagen: ${err.message}`, 'error');
+        } finally {
+            setVerifyingId(null);
+        }
+    };
+
+    return (
+        <motion.div
+            key="locker_room"
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -20, opacity: 0 }}
+            className="space-y-4"
+        >
+            <div className="flex items-center gap-3 mb-6">
+                <button onClick={onBack} className="p-2 -ml-2 rounded-xl bg-white/5 hover:bg-white/10 text-muted-foreground transition">
+                    <ArrowLeft size={18} />
+                </button>
+                <div>
+                    <h2 className="text-xl font-black text-foreground">Kabinen-Freigaben</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        Verifiziere Spieler, die sich für <span className="text-amber-500 font-semibold">{activeCaptainStation?.club_name}</span> angemeldet haben.
+                    </p>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="flex justify-center p-12">
+                    <Loader2 size={28} className="animate-spin text-amber-500" />
+                </div>
+            ) : pendingPlayers.length === 0 ? (
+                <div className="bg-card/40 border border-white/6 rounded-2xl p-10 text-center flex flex-col items-center backdrop-blur-sm">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-500/10 to-yellow-500/20 flex items-center justify-center mb-4 border border-amber-500/10">
+                        <CheckCircle size={32} className="text-amber-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground">Kabine ist sauber!</h3>
+                    <p className="text-sm text-muted-foreground mt-2 max-w-xs leading-relaxed">
+                        Keine ausstehenden Beitrittsanfragen für deinen Verein. Alle Spieler sind bereits verifiziert.
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    <AnimatePresence>
+                        {pendingPlayers.map(player => (
+                            <motion.div
+                                key={player.id}
+                                layout
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, x: -100, transition: { duration: 0.2 } }}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/40 border border-white/6 p-4 rounded-2xl backdrop-blur-sm"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <img
+                                        src={player.profile?.avatar_url || '/cavio-icon.png'}
+                                        alt={player.profile?.full_name || 'Spieler'}
+                                        className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0"
+                                    />
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-sm text-foreground truncate">
+                                                {player.profile?.full_name || 'Unbekannter Spieler'}
+                                            </p>
+                                            {player.profile?.position && (
+                                                <span className="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded-md font-semibold text-muted-foreground shrink-0 uppercase tracking-wider">
+                                                    {player.profile.position}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                            @{player.profile?.username || 'user'} • Spielt {player.is_current ? 'aktuell hier' : 'war hier'}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-x-2 mt-1 text-[11px] text-muted-foreground/80">
+                                            <span>Liga: <span className="text-foreground/80 font-medium">{player.league || 'Keine Angabe'}</span></span>
+                                            {player.proof_url && (
+                                                <>
+                                                    <span className="text-muted-foreground/30">•</span>
+                                                    <a
+                                                        href={player.proof_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-cyan-400 hover:underline inline-flex items-center gap-0.5"
+                                                    >
+                                                        Nachweis ansehen
+                                                    </a>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                    <button
+                                        onClick={() => handleVerify(player)}
+                                        disabled={verifyingId !== null}
+                                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white text-xs font-black rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/10 active:scale-95 disabled:opacity-50"
+                                    >
+                                        {verifyingId === player.id ? (
+                                            <Loader2 size={13} className="animate-spin" />
+                                        ) : (
+                                            <CheckCircle size={13} />
+                                        )}
+                                        Verifizieren
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </div>
+            )}
+        </motion.div>
+    );
+};
+
+/* ─────────────────────────────────────────────
    Main SettingsScreen
 ───────────────────────────────────────────── */
 const SettingsScreen = ({
@@ -747,6 +988,12 @@ const SettingsScreen = ({
     // Internal Navigation State
     const [activeView, setActiveView] = useState('main'); // 'main' | 'account' | 'notifications' | 'support' | 'blocked'
     
+    const activeCaptainStation = currentUserProfile?.career_history?.find(
+        c => c.is_captain && !c.end_date && c.verification_status === 'approved'
+    );
+    const isCaptain = !!activeCaptainStation;
+    const activeClubId = activeCaptainStation?.club_id;
+    
     // Modals
     const [showDeactivateModal, setShowDeactivateModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -766,6 +1013,7 @@ const SettingsScreen = ({
         if (hash === '#settings/account') setActiveView('account');
         else if (hash === '#settings/support') setActiveView('support');
         else if (hash === '#settings/blocked') setActiveView('blocked');
+        else if (hash === '#settings/locker_room') setActiveView('locker_room');
         else setActiveView('main');
     }, []);
 
@@ -880,6 +1128,19 @@ const SettingsScreen = ({
 
     const renderView = () => {
         switch (activeView) {
+            case 'locker_room':
+                return (
+                    <LockerRoomView
+                        onBack={() => {
+                            setActiveView('main');
+                            window.history.pushState(null, '', '#settings');
+                        }}
+                        clubId={activeClubId}
+                        activeCaptainStation={activeCaptainStation}
+                        currentUserProfile={currentUserProfile}
+                    />
+                );
+
             case 'blocked':
                 return <BlockedAccountsView onBack={() => {
                     setActiveView('account');
@@ -1059,6 +1320,23 @@ const SettingsScreen = ({
                             />
                         </SectionCard>
 
+                        {isCaptain && (
+                            <div>
+                                <SectionHeader icon={Shield} label="Kapitän-Bereich" />
+                                <SectionCard>
+                                    <SettingsRow
+                                        icon={Users}
+                                        label="Kabinen-Freigaben"
+                                        sublabel="Ausstehende Mitspieler verifizieren"
+                                        onClick={() => {
+                                            setActiveView('locker_room');
+                                            window.history.pushState(null, '', '#settings/locker_room');
+                                        }}
+                                    />
+                                </SectionCard>
+                            </div>
+                        )}
+
                         <div>
                             <SectionHeader icon={Settings} label="App-Einstellungen" />
                             <SectionCard>
@@ -1136,7 +1414,8 @@ const SettingsScreen = ({
                         <h1 className="text-lg font-black tracking-tight text-foreground">
                             {activeView === 'account' ? 'Account & Profil' : 
                              activeView === 'support' ? 'Hilfe & Support' : 
-                             activeView === 'blocked' ? 'Blockierte Konten' : 'Einstellungen'}
+                             activeView === 'blocked' ? 'Blockierte Konten' : 
+                             activeView === 'locker_room' ? 'Kabinen-Freigaben' : 'Einstellungen'}
                         </h1>
                     </div>
                 </div>

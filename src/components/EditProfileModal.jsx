@@ -287,6 +287,52 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         }
     };
 
+    const handleCaptainToggle = async (checked) => {
+        if (!editingCareer) {
+            // If we are creating a new career station, just update the form state locally
+            setCareerForm(prev => ({ ...prev, is_captain: checked }));
+            return;
+        }
+
+        try {
+            const stationId = editingCareer.id;
+            if (checked) {
+                // Promotion (checking): Set is_captain_request to true
+                const { data, error } = await supabase
+                    .from('career_history')
+                    .update({ is_captain_request: true })
+                    .eq('id', stationId)
+                    .select()
+                    .single();
+                if (error) throw error;
+                
+                // Update React states
+                setCareerForm(prev => ({ ...prev, is_captain: true }));
+                setEditingCareer(data);
+                setCareerEntries(prev => prev.map(e => e.id === stationId ? data : e));
+                addToast('👑 Kapitäns-Anfrage an den Admin gesendet!', 'success');
+            } else {
+                // Demotion (unchecking): Immediately set is_captain and is_captain_request to false
+                const { data, error } = await supabase
+                    .from('career_history')
+                    .update({ is_captain: false, is_captain_request: false })
+                    .eq('id', stationId)
+                    .select()
+                    .single();
+                if (error) throw error;
+
+                // Update React states
+                setCareerForm(prev => ({ ...prev, is_captain: false }));
+                setEditingCareer(data);
+                setCareerEntries(prev => prev.map(e => e.id === stationId ? data : e));
+                addToast('Kapitänsbinde abgelegt.', 'success');
+            }
+        } catch (err) {
+            console.error('Error toggling captain status:', err);
+            addToast('Fehler beim Aktualisieren des Kapitäns-Status: ' + err.message, 'error');
+        }
+    };
+
     const handleCareerSave = async () => {
         if (!careerForm.club_name.trim() || !careerForm.start_date) {
             addToast('Vereinsname und Startdatum sind Pflichtfelder.', 'error');
@@ -301,9 +347,6 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
             return;
         }
         setCareerError('');
-
-        // 1. Prüfen: Ist das eine reine Abwahl der Kapitänsbinde?
-        const isCaptainDemotion = editingCareer && editingCareer.is_captain === true && careerForm.is_captain === false;
 
         setCareerLoading(true);
         try {
@@ -321,14 +364,20 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
             // 2. Den Status erzwingen
             let finalVerificationStatus = 'pending'; // Standard für echte neue Anträge
 
-            if (isCaptainDemotion) {
-                // HARD-STOP: Wenn abgewählt wird, darf der alte Vereinsstatus NIEMALS angetastet werden!
-                finalVerificationStatus = editingCareer.verification_status; 
+            if (editingCareer) {
+                // Bei Editierung bleibt der Verifizierungsstatus erhalten, außer wichtige Felder ändern sich
+                const criticalChanged = editingCareer.club_name !== careerForm.club_name.trim() ||
+                                        editingCareer.league !== (careerForm.league.trim() || null) ||
+                                        editingCareer.start_date !== formatForDB(careerForm.start_date) ||
+                                        editingCareer.end_date !== (careerForm.is_current ? null : (formatForDB(careerForm.end_date) || null));
+                
+                finalVerificationStatus = criticalChanged ? 'pending' : editingCareer.verification_status;
             }
 
-            // Preserve actual captain status if they were already captain and are not demoting
-            const currentIsCaptain = editingCareer ? editingCareer.is_captain : false;
-            const finalIsCaptain = isCaptainDemotion ? false : currentIsCaptain;
+            // Kapitäns-Status wird separat/autonom verwaltet.
+            // Beim Speichern der restlichen Formulardaten übernehmen wir einfach den aktuellen Status aus editingCareer (falls vorhanden).
+            const finalIsCaptain = editingCareer ? (editingCareer.is_captain ?? false) : false;
+            const finalIsCaptainRequest = editingCareer ? (editingCareer.is_captain_request ?? false) : (careerForm.is_captain ?? false);
 
             // 3. Payload zusammenbauen
             const payload = {
@@ -343,8 +392,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                 verification_status: finalVerificationStatus,
                 wants_transfer_post: careerForm.wants_transfer_post ?? true,
                 is_captain: finalIsCaptain,
-                // Verhindere auch hier jeden Request-Flag bei Demotion
-                is_captain_request: isCaptainDemotion ? false : (careerForm.is_captain ?? false)
+                is_captain_request: finalIsCaptainRequest
             };
 
             if (editingCareer) {
@@ -1492,7 +1540,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                             <input
                                                 type="checkbox"
                                                 checked={careerForm.is_captain ?? false}
-                                                onChange={e => setCareerForm({ ...careerForm, is_captain: e.target.checked })}
+                                                onChange={e => handleCaptainToggle(e.target.checked)}
                                                 className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-cyan-500"
                                             />
                                             Ich bin/war Kapitän dieses Teams (©)

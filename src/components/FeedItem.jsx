@@ -276,11 +276,15 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
             whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
         >
-            <Card className="bg-card border-border backdrop-blur-sm overflow-hidden mb-5 shadow-lg shadow-black/40">
+            <Card className={`bg-card overflow-hidden mb-5 shadow-lg shadow-black/40 transition-all duration-300 relative ${
+                video.is_admin_boosted 
+                    ? 'border border-amber-500/40 bg-gradient-to-b from-amber-500/[0.03] to-transparent shadow-[0_0_15px_rgba(245,158,11,0.15)]' 
+                    : 'border-border'
+            }`}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => video.players_master && onUserClick(video.players_master)}>
-                        <div className={`w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden p-[1px] ${getClubStyle(video.players_master?.clubs?.is_icon_league)} shadow-inner`}>
+                    <div className="flex items-center gap-3 cursor-pointer group min-w-0" onClick={() => video.players_master && onUserClick(video.players_master)}>
+                        <div className={`w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-900 overflow-hidden p-[1px] ${getClubStyle(video.players_master?.clubs?.is_icon_league)} shadow-inner shrink-0`}>
                             <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-950">
                                 {video.players_master?.avatar_url ? (
                                     <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt={video.players_master?.full_name || 'Profil'} title={video.players_master?.full_name || 'Profil'} />
@@ -289,8 +293,8 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                 )}
                             </div>
                         </div>
-                        <div>
-                            <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors">
+                        <div className="min-w-0">
+                            <div className="font-bold text-foreground text-sm flex items-center gap-1 group-hover:text-cyan-400 transition-colors truncate">
                                 {video.players_master?.full_name || 'Unbekannter Spieler'} 
                                 {(video.players_master?.verification_status && video.players_master?.verification_status !== 'unverified') || video.players_master?.is_official ? (
                                     <VerificationBadge 
@@ -301,13 +305,21 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                     />
                                 ) : null}
                             </div>
-                            <div className="text-[11px] tracking-wider text-muted-foreground uppercase">{getClubDisplay(video.players_master)}</div>
+                            <div className="text-[11px] tracking-wider text-muted-foreground uppercase truncate">{getClubDisplay(video.players_master)}</div>
                         </div>
                     </div>
 
+                    {/* Trending Badge for boosted content */}
+                    {video.is_admin_boosted && (
+                        <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full text-amber-400 text-[10px] font-black uppercase tracking-wider animate-pulse mr-2 shrink-0">
+                            <Flame size={12} className="fill-amber-500" />
+                            Trending
+                        </div>
+                    )}
+
                     {/* Kebab Menu for Transfer/Post cards (header-level) */}
                     {video.post_type === 'transfer' && (
-                        <div className="relative">
+                        <div className="relative shrink-0">
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} 
                                 className="p-2 rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground transition-all"

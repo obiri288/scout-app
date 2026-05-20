@@ -9,7 +9,7 @@ import { getFormattedCountry } from '../lib/countries';
  * The VIP Elite Player Card for sharing.
  * DOM-based, no Canvas. Uses Web Share API.
  */
-export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => {
+export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights, latestCareerEntry }) => {
     // Score
     const { score } = useMemo(() => calculateProReadinessScore(profile, highlights), [profile, highlights]);
 
@@ -60,12 +60,30 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights }) => 
                             </span>
                         </div>
                         <div className="flex flex-col items-end pt-1">
-                            <span className="text-xl font-black text-white">{profile.position_primary || 'ST'}</span>
-                            {profile.nationality && (
-                                <span className="text-xs text-white/50 font-bold uppercase mt-1">
-                                    {getFormattedCountry(profile.nationality)}
-                                </span>
-                            )}
+                            <span className="text-xl font-black text-white flex items-center gap-1">
+                                {profile.position_primary || 'ST'}
+                                {latestCareerEntry?.is_captain && !latestCareerEntry.end_date && latestCareerEntry.verification_status === 'approved' && (
+                                    <span className="text-yellow-500 font-bold">• ©</span>
+                                )}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap justify-end">
+                                {profile.nationality && (
+                                    <span className="text-xs text-white/50 font-bold uppercase">
+                                        {getFormattedCountry(profile.nationality)}
+                                    </span>
+                                )}
+                                {profile.nationality_2 && (
+                                    <span 
+                                        className={`text-xs font-bold uppercase flex items-center gap-1 transition-all ${profile.is_nat_2_verified ? 'opacity-100 text-white' : 'opacity-40 text-white/50'}`}
+                                        title={profile.is_nat_2_verified ? "Zweite Nationalität verifiziert" : "Zweite Nationalität ausstehend"}
+                                    >
+                                        / {getFormattedCountry(profile.nationality_2)}
+                                        {!profile.is_nat_2_verified && (
+                                            <span className="text-[9px] text-amber-500 animate-pulse">⏳</span>
+                                        )}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 

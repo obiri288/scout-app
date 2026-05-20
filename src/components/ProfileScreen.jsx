@@ -777,14 +777,14 @@ export const ProfileScreen = ({
                                 />
                             </div>
                         )}
-                        <div className="absolute -top-1 -left-1 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg border border-white/20 tracking-widest">
+                        <div className="absolute -top-1 -left-1 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg border border-white/20 tracking-widest z-20">
                             {profile.role || 'Spieler'}
                         </div>
                     </div>
 
                     {/* Name & Basic Info */}
                     <div className="text-center space-y-1 mb-6 w-full">
-                        <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center justify-center gap-2">
+                        <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center justify-center gap-1.5 flex-wrap">
                             {profile.full_name || 'Neuer Nutzer'}
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
@@ -795,7 +795,12 @@ export const ProfileScreen = ({
                             ) : (latestCareerEntry?.clubs || profile.clubs) && (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
                                     <Trophy size={14} className="text-amber-500" />
-                                    <span className="font-bold">{latestCareerEntry?.clubs?.name || profile.clubs?.name}</span>
+                                    <span className="font-bold">
+                                        {latestCareerEntry?.clubs?.name || profile.clubs?.name}
+                                        {latestCareerEntry?.is_captain && !latestCareerEntry.end_date && latestCareerEntry.verification_status === 'approved' && (
+                                            <span className="text-yellow-500 font-bold ml-1" title="Kapitän">©</span>
+                                        )}
+                                    </span>
                                     {latestCareerEntry ? (
                                         <CheckCircle size={12} className="text-green-500 fill-green-500/10" title="Verifizierter Verein aus Karriere-Historie" />
                                     ) : profile.club_verification_status === 'pending' ? (
@@ -960,7 +965,7 @@ export const ProfileScreen = ({
 
             {/* Elite Player Card Modal */}
             {showPlayerCard && (
-                <ElitePlayerCard profile={profile} avgRating={avgRating} highlights={highlights} onClose={() => setShowPlayerCard(false)} />
+                <ElitePlayerCard profile={profile} avgRating={avgRating} highlights={highlights} latestCareerEntry={latestCareerEntry} onClose={() => setShowPlayerCard(false)} />
             )}
         </div>
     );
@@ -1323,6 +1328,26 @@ const ProfileTabs = ({
                         <div className="space-y-2">
                             {profile.birth_date && <InfoRow icon="📅" label="Geburtsdatum" value={new Date(profile.birth_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })} />}
                             {profile.nationality && <InfoRow icon={getCountryFlag(profile.nationality)} label="Nationalität" value={getCountryNameOnly(profile.nationality)} />}
+                            {profile.nationality_2 && (
+                                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-border">
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-lg transition-opacity ${profile.is_nat_2_verified ? 'opacity-100' : 'opacity-45'}`}>
+                                            {getCountryFlag(profile.nationality_2)}
+                                        </span>
+                                        <div>
+                                            <div className="text-[10px] text-muted-foreground uppercase font-bold">Zweite Nationalität</div>
+                                            <div className="text-sm text-foreground flex items-center gap-1.5 flex-wrap">
+                                                {getCountryNameOnly(profile.nationality_2)}
+                                                {!profile.is_nat_2_verified && (
+                                                    <span className="text-[9px] text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-black uppercase tracking-wider flex items-center gap-0.5">
+                                                        <Clock size={8} /> Ausstehend
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {(profile.city || profile.zip_code) && <InfoRow icon="📍" label="Standort" value={[profile.zip_code, profile.city].filter(Boolean).join(' ')} />}
                         </div>
                     </div>

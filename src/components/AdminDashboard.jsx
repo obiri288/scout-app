@@ -491,6 +491,66 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 return;
             }
 
+            // --- CAPTAIN APPROVAL: Separate path to prevent generic club verification updates ---
+            if (career.is_captain_request && action === 'approve') {
+                // Update only captain flags; do NOT touch verification_status or is_verified!
+                const { error: captainApproveError } = await supabase
+                    .from('career_history')
+                    .update({
+                        is_captain_request: false,
+                        is_captain: true
+                    })
+                    .eq('id', career.id);
+
+                if (captainApproveError) throw captainApproveError;
+
+                // Single Active Captain Rule: demote other active captains
+                if (career.club_id) {
+                    try {
+                        await supabase
+                            .from('career_history')
+                            .update({ is_captain: false })
+                            .eq('club_id', career.club_id)
+                            .is('end_date', null)
+                            .eq('verification_status', 'approved')
+                            .neq('id', career.id);
+                        console.log('Other active captains demoted for club:', career.club_id);
+                    } catch (demotionErr) {
+                        console.warn('Could not demote other captains:', demotionErr);
+                    }
+                }
+
+                // Send captain approval notification
+                try {
+                    const { data: profileData } = await supabase
+                        .from('players_master')
+                        .select('id')
+                        .eq('user_id', career.user_id)
+                        .maybeSingle();
+
+                    const recipientId = profileData?.id || career.profile?.id;
+
+                    if (recipientId) {
+                        await createNotification({
+                            userId: recipientId,
+                            actorId: currentUserProfile?.id,
+                            type: 'system_success',
+                            message: `Glückwunsch! Deine Anfrage wurde bestätigt. Du trägst nun offiziell die digitale Kapitänsbinde für ${career.club_name}. 👑`,
+                            entityId: career.id 
+                        });
+                    }
+                } catch (notifErr) {
+                    console.warn('Could not send captain approval notification:', notifErr);
+                }
+
+                // Update local state
+                setPendingCareersList(prev => prev.filter(c => c.id !== career.id));
+                setStats(prev => ({ ...prev, pendingCareers: Math.max(0, prev.pendingCareers - 1) }));
+
+                addToast('👑 Kapitäns-Anfrage freigegeben und Spieler benachrichtigt!', 'success');
+                return; // STRICT HARD-SWITCH: Return immediately!
+            }
+
             // --- STANDARD PATH: Regular career station approve/reject ---
             const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
@@ -499,11 +559,6 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 verification_status: newStatus, 
                 is_verified: action === 'approve' 
             };
-
-            if (career.is_captain_request) {
-                updatePayload.is_captain_request = false;
-                updatePayload.is_captain = true;
-            }
 
             const { error: updateError } = await supabase
                 .from('career_history')
@@ -523,23 +578,6 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 } catch (syncErr) {
                     console.warn('Could not sync profile club_id:', syncErr);
                 }
-
-                // Single Active Captain Rule: If the approved station has is_captain === true, demote other active captains
-                const willBeCaptain = career.is_captain || (career.is_captain_request && action === 'approve');
-                if (willBeCaptain) {
-                    try {
-                        await supabase
-                            .from('career_history')
-                            .update({ is_captain: false })
-                            .eq('club_id', career.club_id)
-                            .is('end_date', null)
-                            .eq('verification_status', 'approved')
-                            .neq('id', career.id);
-                        console.log('Other active captains demoted for club:', career.club_id);
-                    } catch (demotionErr) {
-                        console.warn('Could not demote other captains:', demotionErr);
-                    }
-                }
             }
 
             // 2. Send verification notification to the user
@@ -554,23 +592,13 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                     const recipientId = profileData?.id || career.profile?.id;
 
                     if (recipientId) {
-                        if (career.is_captain_request) {
-                            await createNotification({
-                                userId: recipientId,
-                                actorId: currentUserProfile?.id,
-                                type: 'system_success',
-                                message: `Glückwunsch! Deine Anfrage wurde bestätigt. Du trägst nun offiziell die digitale Kapitänsbinde für ${career.club_name}. 👑`,
-                                entityId: career.id 
-                            });
-                        } else {
-                            await createNotification({
-                                userId: recipientId,
-                                actorId: currentUserProfile?.id,
-                                type: 'verification_success',
-                                message: `Deine Karriere-Station bei "${career.club_name}" wurde erfolgreich verifiziert! 🎉`,
-                                entityId: career.id 
-                            });
-                        }
+                        await createNotification({
+                            userId: recipientId,
+                            actorId: currentUserProfile?.id,
+                            type: 'verification_success',
+                            message: `Deine Karriere-Station bei "${career.club_name}" wurde erfolgreich verifiziert! 🎉`,
+                            entityId: career.id 
+                        });
                     }
                 } catch (notifErr) {
                     console.warn('Could not send verification notification:', notifErr);

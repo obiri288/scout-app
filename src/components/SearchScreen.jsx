@@ -107,7 +107,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
 
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         try {
-            let q = supabase.from('players_master').select('*, clubs(*)').eq('is_deactivated', false).eq('is_under_review', false);
+            let q = supabase.from('players_master').select('*, clubs(*), career_history(*)').eq('is_deactivated', false).eq('is_under_review', false);
             if (query) q = q.ilike('full_name', `%${query}%`);
             if (pos !== 'Alle') q = q.eq('position_primary', pos);
             if (status !== 'Alle') q = q.eq('transfer_status', status);
@@ -166,7 +166,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             try {
                 const { data } = await supabase
                     .from('media_highlights')
-                    .select('*, players_master!inner(*, clubs(name))')
+                    .select('*, players_master!inner(*, clubs(name), career_history(*))')
                     .eq('players_master.is_deactivated', false)
                     .eq('is_under_review', false)
                     .contains('action_tags', [selectedActionTag])
@@ -438,51 +438,55 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                 </div>
                                 {loadingAction ? <SearchSkeleton /> : (
                                     <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
-                                        {actionVideos.map(v => (
-                                            <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -2 }} className={`${cardStyle} overflow-hidden cursor-pointer group`} onClick={() => onUserClick(v.players_master)}>
-                                                <div className="flex gap-3 p-3">
-                                                    <div className="w-28 h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 relative border border-white/10">
-                                                        {v.thumbnail_url ? (
-                                                            <img src={v.thumbnail_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center"><Play size={20} className="text-muted-foreground" /></div>
-                                                        )}
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                        <div>
-                                                            <h4 className="font-bold text-foreground text-sm truncate flex items-center gap-1.5">
-                                                                <span className="truncate">{v.players_master?.full_name}</span>
-                                                                {((v.players_master?.verification_status && v.players_master?.verification_status !== 'unverified') || v.players_master?.is_official) && (
-                                                                    <VerificationBadge 
-                                                                        size={12} 
-                                                                        status={v.players_master?.verification_status} 
-                                                                        verificationStatus={v.players_master?.verification_status} 
-                                                                        isOfficial={v.players_master?.is_official} 
-                                                                    />
-                                                                )}
-                                                            </h4>
-                                                            {!(v.players_master?.email === 'kontakt@cavio.me' || v.players_master?.is_official || v.players_master?.role === 'system') && (
-                                                                <div className="flex flex-row items-center gap-3 mt-1">
-                                                                    <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
-                                                                        <Shield size={9} className="text-cyan-400 shrink-0" />
-                                                                        <span className="truncate">{getClubDisplay(v.players_master)}</span>
-                                                                    </div>
-                                                                    <span className="bg-gray-800 rounded-md px-2 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
-                                                                        {formatPosition(v.players_master?.position_primary)}
-                                                                    </span>
-                                                                </div>
+                                        {actionVideos.map(v => {
+                                            const isCaptain = v.players_master?.career_history?.some(c => c.is_captain && !c.end_date && c.verification_status === 'approved') ?? false;
+                                            return (
+                                                <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -2 }} className={`${cardStyle} overflow-hidden cursor-pointer group ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`} onClick={() => onUserClick(v.players_master)}>
+                                                    <div className="flex gap-3 p-3">
+                                                        <div className="w-28 h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 relative border border-white/10">
+                                                            {v.thumbnail_url ? (
+                                                                <img src={v.thumbnail_url} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center"><Play size={20} className="text-muted-foreground" /></div>
                                                             )}
+                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                                                         </div>
-                                                        <div className="flex flex-wrap gap-1 mt-1.5">
-                                                            {(v.action_tags || []).slice(0, 3).map(tag => (
-                                                                <span key={tag} className="bg-white/10 backdrop-blur-xl border border-white/20 text-cyan-400 text-[9px] font-bold px-2 py-0.5 rounded-full">{tag}</span>
-                                                            ))}
+                                                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                                            <div>
+                                                                <h4 className="font-bold text-foreground text-sm truncate flex items-center gap-1.5">
+                                                                    <span className="truncate">{v.players_master?.full_name}</span>
+                                                                    {((v.players_master?.verification_status && v.players_master?.verification_status !== 'unverified') || v.players_master?.is_official) && (
+                                                                        <VerificationBadge 
+                                                                            size={12} 
+                                                                            status={v.players_master?.verification_status} 
+                                                                            verificationStatus={v.players_master?.verification_status} 
+                                                                            isOfficial={v.players_master?.is_official} 
+                                                                        />
+                                                                    )}
+                                                                </h4>
+                                                                {!(v.players_master?.email === 'kontakt@cavio.me' || v.players_master?.is_official || v.players_master?.role === 'system') && (
+                                                                    <div className="flex flex-row items-center gap-3 mt-1">
+                                                                        <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
+                                                                            <Shield size={9} className="text-cyan-400 shrink-0" />
+                                                                            <span className="truncate">{getClubDisplay(v.players_master)}</span>
+                                                                        </div>
+                                                                        <span className="bg-gray-800 rounded-md px-2 py-0.5 text-[10px] text-white/90 font-medium shrink-0 flex items-center">
+                                                                            {formatPosition(v.players_master?.position_primary)}
+                                                                            {isCaptain && <span className="text-yellow-500/90 font-bold ml-1">• ©</span>}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                {(v.action_tags || []).slice(0, 3).map(tag => (
+                                                                    <span key={tag} className="bg-white/10 backdrop-blur-xl border border-white/20 text-cyan-400 text-[9px] font-bold px-2 py-0.5 rounded-full">{tag}</span>
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </motion.div>
-                                        ))}
+                                                </motion.div>
+                                            );
+                                        })}
                                         {actionVideos.length === 0 && (
                                             <div className="text-center py-20 text-muted-foreground">
                                                 <Crosshair size={48} className="mx-auto mb-4 opacity-20" />
@@ -502,42 +506,46 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                         animate="visible"
                                         className="space-y-3"
                                     >
-                                        {res.map(p => (
-                                            <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}>
-                                                <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-bold text-foreground text-base tracking-tight truncate flex items-center gap-1.5">
-                                                        <span className="truncate">{p.full_name}</span>
-                                                        {((p.verification_status && p.verification_status !== 'unverified') || p.is_official) && (
-                                                            <VerificationBadge 
-                                                                size={14} 
-                                                                status={p.verification_status} 
-                                                                verificationStatus={p.verification_status} 
-                                                                isOfficial={p.is_official} 
-                                                            />
-                                                        )}
-                                                    </h3>
-                                                    {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
-                                                        <div className="flex flex-row items-center gap-3 mt-1">
-                                                            <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
-                                                                <Shield size={10} className="text-cyan-400 shrink-0" />
-                                                                <span className="truncate">{getClubDisplay(p)}</span>
-                                                            </div>
-                                                            <span className="bg-gray-800 rounded-md px-2 py-0.5 text-xs text-white/90 font-medium shrink-0">
-                                                                {formatPosition(p.position_primary)}
-                                                            </span>
-                                                            {p.city && (
-                                                                <span className="flex items-center gap-1 text-xs text-gray-500 truncate">
-                                                                    <MapPin size={10} className="shrink-0" />
-                                                                    <span className="truncate">{p.city}</span>
-                                                                </span>
+                                        {res.map(p => {
+                                            const isCaptain = p.career_history?.some(c => c.is_captain && !c.end_date && c.verification_status === 'approved') ?? false;
+                                            return (
+                                                <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle} ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`}>
+                                                    <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-foreground text-base tracking-tight truncate flex items-center gap-1.5">
+                                                            <span className="truncate">{p.full_name}</span>
+                                                            {((p.verification_status && p.verification_status !== 'unverified') || p.is_official) && (
+                                                                <VerificationBadge 
+                                                                    size={14} 
+                                                                    status={p.verification_status} 
+                                                                    verificationStatus={p.verification_status} 
+                                                                    isOfficial={p.is_official} 
+                                                                />
                                                             )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors" />
-                                            </motion.div>
-                                        ))}
+                                                        </h3>
+                                                        {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
+                                                            <div className="flex flex-row items-center gap-3 mt-1">
+                                                                <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
+                                                                    <Shield size={10} className="text-cyan-400 shrink-0" />
+                                                                    <span className="truncate">{getClubDisplay(p)}</span>
+                                                                </div>
+                                                                <span className="bg-gray-800 rounded-md px-2 py-0.5 text-xs text-white/90 font-medium shrink-0 flex items-center">
+                                                                    {formatPosition(p.position_primary)}
+                                                                    {isCaptain && <span className="text-yellow-500/90 font-bold ml-1">• ©</span>}
+                                                                </span>
+                                                                {p.city && (
+                                                                    <span className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                                                                        <MapPin size={10} className="shrink-0" />
+                                                                        <span className="truncate">{p.city}</span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors" />
+                                                </motion.div>
+                                            );
+                                        })}
                                         {res.length === 0 && <div className="text-center py-20 text-muted-foreground"><Search size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Ergebnisse</p></div>}
 
                                         {/* Infinite scroll sentinel */}

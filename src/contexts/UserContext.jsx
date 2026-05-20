@@ -59,7 +59,7 @@ export const UserProvider = ({ children }) => {
         setProfileLoading(true);
         try {
             let { data, error: fetchError } = await supabase.from('players_master')
-                .select('*, clubs(*)')
+                .select('*, clubs(*), career_history(*)')
                 .eq('user_id', s.user.id)
                 .maybeSingle();
 

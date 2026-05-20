@@ -592,11 +592,13 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                             />
                         ) : null}
                     </h4>
-                    <p className={`text-sm truncate leading-tight ${c.unreadCount > 0 ? 'text-blue-400 font-medium' : 'text-muted-foreground/60'}`}>
-                        {c.unreadCount > 0 
-                            ? `${c.unreadCount > 5 ? '5+' : c.unreadCount} neue Nachricht${c.unreadCount === 1 ? '' : 'en'}` 
-                            : 'Tippe, um den Chat zu öffnen'}
-                    </p>
+                    {!(c.email === 'kontakt@cavio.me' || c.is_official || c.role === 'system') && (
+                        <p className={`text-sm truncate leading-tight ${c.unreadCount > 0 ? 'text-blue-400 font-medium' : 'text-muted-foreground/60'}`}>
+                            {c.unreadCount > 0 
+                                ? `${c.unreadCount > 5 ? '5+' : c.unreadCount} neue Nachricht${c.unreadCount === 1 ? '' : 'en'}` 
+                                : 'Tippe, um den Chat zu öffnen'}
+                        </p>
+                    )}
                 </div>
             </div>
 
