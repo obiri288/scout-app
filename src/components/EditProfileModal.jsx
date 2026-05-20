@@ -289,9 +289,41 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
 
     const handleCaptainToggle = async (checked) => {
         if (!editingCareer) {
-            // If we are creating a new career station, just update the form state locally
+            // Local form toggle before saving a new station
+            if (checked) {
+                const confirmMsg = "Möchtest du angeben, dass du Kapitän dieses Teams bist/warst?\n\n" +
+                                   "PROZESS-HINWEIS:\n" +
+                                   "Sobald du diese Karrierestation speicherst, wird automatisch ein offizieller Verifizierungsantrag an das Admin-Team übermittelt. " +
+                                   "Die Kapitäns-Rolle wird erst nach positiver Prüfung durch einen Administrator auf deinem Profil mit dem goldenen ©-Symbol freigeschaltet.\n\n" +
+                                   "Möchtest du diese Angabe vormerken?";
+                if (!window.confirm(confirmMsg)) return;
+            } else {
+                const confirmMsg = "Möchtest du die Kapitäns-Angabe für diese neue Station wieder entfernen?\n\n" +
+                                   "PROZESS-HINWEIS:\n" +
+                                   "Dadurch wird die Vormerkung gelöscht und beim Speichern wird kein Verifizierungsantrag für den Kapitäns-Status an das Admin-Team gesendet.\n\n" +
+                                   "Möchtest du die Kapitäns-Angabe entfernen?";
+                if (!window.confirm(confirmMsg)) return;
+            }
             setCareerForm(prev => ({ ...prev, is_captain: checked }));
             return;
+        }
+
+        if (checked) {
+            const confirmMsg = "Möchtest du die Kapitänsbinde für dieses Team beantragen?\n\n" +
+                               "PROZESS-HINWEIS:\n" +
+                               "Dadurch wird SOFORT ein offizieller Verifizierungsantrag an das Admin-Team gesendet. " +
+                               "Deine Anfrage wird in die Admin-Prüfwarteschlange eingereiht. Das goldene ©-Symbol erscheint erst auf deinem Profil, " +
+                               "sobald ein Administrator deinen Antrag positiv geprüft und freigegeben hat.\n\n" +
+                               "Möchtest du diesen Verifizierungsprozess jetzt starten?";
+            if (!window.confirm(confirmMsg)) return;
+        } else {
+            const confirmMsg = "MÖCHTEST DU DEINEN KAPITÄNS-STATUS FÜR DIESES TEAM WIRKLICH ABLEGEN?\n\n" +
+                               "⚠️ ACHTUNG - DIREKTER DATENBANK-EINGRIFF:\n" +
+                               "- Deine Kapitänsbinde (©) wird SOFORT von deinem Profil entfernt.\n" +
+                               "- Es ist KEINE Freigabe durch einen Admin erforderlich (Sofortiges Bypass-Update).\n" +
+                               "- Das goldene ©-Symbol erlischt augenblicklich für alle Nutzer.\n\n" +
+                               "Bist du dir absolut sicher, dass du deinen Kapitäns-Status jetzt unwiderruflich entfernen möchtest?";
+            if (!window.confirm(confirmMsg)) return;
         }
 
         try {
