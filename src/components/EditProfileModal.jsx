@@ -68,6 +68,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         birth_date: profile?.birth_date || '',
         jersey_number: profile?.jersey_number || '',
         nationality: profile?.nationality || '',
+        nationality_2: profile?.nationality_2 || '',
         player_archetype: profile?.player_archetype || '',
         signature_badges: profile?.signature_badges || [],
         // Coach-specific fields
@@ -87,6 +88,27 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
     const [previewUrl, setPreviewUrl] = useState(profile?.avatar_url);
     const [cropImageSrc, setCropImageSrc] = useState(null);
     const [clubSearch, setClubSearch] = useState('');
+
+    // Nationality 2 States
+    const [nat2Request, setNat2Request] = useState(null);
+    const [nat2Loading, setNat2Loading] = useState(false);
+    const [passportFile, setPassportFile] = useState(null);
+    const [passportPreview, setPassportPreview] = useState(null);
+
+    useEffect(() => {
+        const fetchNat2Request = async () => {
+            if (!profile?.id) return;
+            const { data } = await supabase
+                .from('nationality_verifications')
+                .select('*')
+                .eq('user_id', profile.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            setNat2Request(data);
+        };
+        fetchNat2Request();
+    }, [profile]);
     const [clubResults, setClubResults] = useState([]);
     const [selectedClub, setSelectedClub] = useState(profile?.clubs || null);
     const [showTransferModal, setShowTransferModal] = useState(false);
@@ -98,7 +120,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
     const [showCareerForm, setShowCareerForm] = useState(false);
     const [editingCareer, setEditingCareer] = useState(null);
     const [careerForm, setCareerForm] = useState({
-        club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false, wants_transfer_post: true
+        club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false, wants_transfer_post: true, is_captain: false, club_id: null
     });
     const [careerClubSearch, setCareerClubSearch] = useState('');
     const [careerClubResults, setCareerClubResults] = useState([]);
@@ -210,7 +232,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
     }, [profile.user_id]);
 
     const resetCareerForm = () => {
-        setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false, club_id: null, wants_transfer_post: true });
+        setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false, club_id: null, wants_transfer_post: true, is_captain: false });
         setCareerClubSearch('');
         setCareerClubResults([]);
         setShowCareerClubDropdown(false);
@@ -280,20 +302,62 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         }
         setCareerError('');
 
+        // --- CAPTAIN DEMOTION BYPASS ---
+        // If the user is editing an existing station and unchecking the captain box,
+        // perform a silent update without creating a new pending admin request.
+        const isDemotion = editingCareer && editingCareer.is_captain === true && careerForm.is_captain === false;
+        if (isDemotion) {
+            setCareerLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('career_history')
+                    .update({
+                        is_captain: false,
+                        is_captain_request: false
+                    })
+                    .eq('id', editingCareer.id)
+                    .select()
+                    .single();
+                if (error) throw error;
+
+                setCareerEntries(prev => prev.map(e => e.id === data.id ? data : e));
+                onUpdate(profile);
+                resetCareerForm();
+                addToast('Kapitäns-Status erfolgreich entfernt', 'success');
+            } catch (e) {
+                addToast('Fehler: ' + e.message, 'error');
+            } finally {
+                setCareerLoading(false);
+            }
+            return;
+        }
+        // --- END CAPTAIN DEMOTION BYPASS ---
+
         setCareerLoading(true);
         try {
+            const formatForDB = (dateString) => {
+                if (!dateString) return null;
+                // Wenn es nur YYYY-MM ist (z.B. "2012-04"), mache "2012-04-01" daraus
+                if (dateString.length === 7 && dateString.includes('-')) {
+                    return `${dateString}-01`;
+                }
+                return dateString;
+            };
+
             const isPremium = checkIfPremium(careerForm.league, careerForm.club_name);
             const payload = {
                 user_id: profile.user_id,
                 club_name: careerForm.club_name.trim(),
                 league: careerForm.league.trim() || null,
-                start_date: careerForm.start_date,
-                end_date: careerForm.is_current ? null : (careerForm.end_date || null),
+                start_date: formatForDB(careerForm.start_date),
+                end_date: careerForm.is_current ? null : (formatForDB(careerForm.end_date) || null),
                 proof_url: careerForm.proof_url.trim() || null,
                 club_id: careerForm.club_id,
                 is_premium: isPremium,
                 verification_status: 'pending',
-                wants_transfer_post: careerForm.wants_transfer_post ?? true
+                wants_transfer_post: careerForm.wants_transfer_post ?? true,
+                is_captain: false,
+                is_captain_request: careerForm.is_captain ?? false
             };
 
             if (editingCareer) {
@@ -376,7 +440,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
             end_date: entry.end_date ? entry.end_date.slice(0, 7) : '',
             proof_url: entry.proof_url || '',
             is_current: !entry.end_date,
-            wants_transfer_post: entry.wants_transfer_post ?? true
+            wants_transfer_post: entry.wants_transfer_post ?? true,
+            is_captain: entry.is_captain ?? false,
+            club_id: entry.club_id || null
         });
         setCareerClubSearch(entry.club_name || '');
         setEditingCareer(entry);
@@ -530,6 +596,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                 city: formData.city,
                 birth_date: formData.birth_date || null,
                 nationality: formData.nationality,
+                nationality_2: formData.nationality_2,
+                is_nat_2_verified: formData.nationality_2 === profile.nationality_2 ? (profile.is_nat_2_verified || false) : false,
                 instagram_handle: formData.instagram_handle,
                 tiktok_handle: formData.tiktok_handle,
                 youtube_handle: formData.youtube_handle,
@@ -732,6 +800,135 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                                 onChange={(code) => { setFormData({ ...formData, nationality: code }); setHasUnsavedChanges(true); }}
                                             />
                                         </div>
+
+                                        {/* Second Nationality */}
+                                        <div className="relative min-h-[48px] mt-4">
+                                            <div className="flex items-center justify-between ml-1 mb-1">
+                                                <label className="text-[10px] text-muted-foreground font-bold uppercase block">Zweite Nationalität</label>
+                                                {profile.is_nat_2_verified && formData.nationality_2 === profile.nationality_2 && (
+                                                    <span className="text-[9px] text-green-500 font-extrabold uppercase bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 flex items-center gap-1">
+                                                        <CheckCircle size={10} /> Verifiziert
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <CountryCombobox 
+                                                value={formData.nationality_2}
+                                                onChange={(code) => { 
+                                                    if (profile.is_nat_2_verified && profile.nationality_2 && code !== profile.nationality_2) {
+                                                        addToast("Verifizierte Nationalitäten können nicht geändert werden.", "info");
+                                                        return;
+                                                    }
+                                                    setFormData({ ...formData, nationality_2: code }); 
+                                                    setHasUnsavedChanges(true); 
+                                                }}
+                                                disabled={profile.is_nat_2_verified && formData.nationality_2 === profile.nationality_2}
+                                            />
+                                        </div>
+
+                                        {/* Passport Upload Area */}
+                                        {formData.nationality_2 && (!profile.is_nat_2_verified || formData.nationality_2 !== profile.nationality_2) && (
+                                            <div className="mt-4 p-4 bg-zinc-950/40 border border-dashed border-white/10 rounded-2xl space-y-3">
+                                                <label className="text-[10px] text-zinc-500 font-bold uppercase block">Nachweis zweite Nationalität</label>
+                                                
+                                                {nat2Request && nat2Request.status === 'pending' && nat2Request.nationality === formData.nationality_2 ? (
+                                                    <div className="flex items-center gap-2 text-amber-500 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20 text-xs font-semibold">
+                                                        <Clock size={16} className="animate-pulse shrink-0" />
+                                                        <span>Dokument wird geprüft. Eine Verifizierung steht aus. ⏳</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        <p className="text-[11px] text-zinc-400 leading-normal">
+                                                            Bitte lade ein Foto deines Reisepasses oder Personalausweises hoch, um die Staatsbürgerschaft zu verifizieren.
+                                                        </p>
+                                                        
+                                                        {passportPreview ? (
+                                                             <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/10 flex items-center justify-center">
+                                                                 <img src={passportPreview} className="w-full h-full object-contain" />
+                                                                 <button 
+                                                                     type="button" 
+                                                                     onClick={() => { setPassportFile(null); setPassportPreview(null); }}
+                                                                     className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white transition animate-in fade-in"
+                                                                 >
+                                                                     <X size={14} />
+                                                                 </button>
+                                                             </div>
+                                                         ) : (
+                                                             <div className="relative border border-dashed border-white/10 hover:border-cyan-500/30 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer bg-white/[0.01] hover:bg-white/[0.02] transition-all group">
+                                                                 <Camera size={24} className="text-zinc-600 group-hover:text-cyan-400 mb-2 transition-colors animate-pulse" />
+                                                                 <span className="text-xs font-bold text-zinc-400 group-hover:text-white transition-colors">Pass-Foto auswählen</span>
+                                                                 <span className="text-[9px] text-zinc-600 mt-1">JPEG, PNG oder WEBP</span>
+                                                                 <input 
+                                                                     type="file" 
+                                                                     accept="image/*" 
+                                                                     onChange={e => {
+                                                                         const file = e.target.files[0];
+                                                                         if (file) {
+                                                                             setPassportFile(file);
+                                                                             setPassportPreview(URL.createObjectURL(file));
+                                                                         }
+                                                                     }}
+                                                                     className="absolute inset-0 opacity-0 cursor-pointer" 
+                                                                 />
+                                                             </div>
+                                                         )}
+
+                                                        {passportFile && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={nat2Loading}
+                                                                onClick={async () => {
+                                                                    if (!passportFile) return;
+                                                                    setNat2Loading(true);
+                                                                    try {
+                                                                        const fileExt = passportFile.name.split('.').pop();
+                                                                        const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
+                                                                        const path = `${profile.id}/${fileName}`;
+                                                                        
+                                                                        // Upload file
+                                                                        const { error: uploadErr } = await supabase.storage
+                                                                            .from('identity_documents')
+                                                                            .upload(path, passportFile);
+                                                                        if (uploadErr) throw uploadErr;
+
+                                                                        // Get public URL
+                                                                        const { data: { publicUrl } } = supabase.storage
+                                                                            .from('identity_documents')
+                                                                            .getPublicUrl(path);
+
+                                                                        // Create request
+                                                                        const { data: reqData, error: reqErr } = await supabase
+                                                                            .from('nationality_verifications')
+                                                                            .insert({
+                                                                                user_id: profile.id,
+                                                                                nationality: formData.nationality_2,
+                                                                                status: 'pending',
+                                                                                verification_type: 'document',
+                                                                                document_url: publicUrl
+                                                                            })
+                                                                            .select()
+                                                                            .single();
+                                                                        if (reqErr) throw reqErr;
+
+                                                                        setNat2Request(reqData);
+                                                                        setPassportFile(null);
+                                                                        setPassportPreview(null);
+                                                                        addToast("Pass-Dokument erfolgreich hochgeladen! Die Prüfung läuft. ⏳", "success");
+                                                                    } catch (err) {
+                                                                        console.error("Passport upload failed:", err);
+                                                                        addToast("Fehler beim Hochladen: " + err.message, "error");
+                                                                    } finally {
+                                                                        setNat2Loading(false);
+                                                                    }
+                                                                }}
+                                                                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                                                            >
+                                                                {nat2Loading ? <Loader2 className="animate-spin" size={14} /> : "Dokument einreichen"}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
@@ -1303,6 +1500,15 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                                 className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-cyan-500"
                                             />
                                             Bis heute (aktueller Verein)
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer py-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={careerForm.is_captain ?? false}
+                                                onChange={e => setCareerForm({ ...careerForm, is_captain: e.target.checked })}
+                                                className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-cyan-500"
+                                            />
+                                            Ich bin/war Kapitän dieses Teams (©)
                                         </label>
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Beweis-Link (optional)</label>
