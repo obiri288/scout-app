@@ -94,7 +94,7 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                 supabase.from('reports').select('*').order('created_at', { ascending: false }),
                 supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, verification_status').eq('verification_status', 'pending').order('created_at', { ascending: false }),
                 supabase.from('club_claims').select('*, clubs(name)').eq('status', 'pending').order('created_at', { ascending: false }),
-                supabase.from('career_history').select('*').eq('verification_status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('career_history').select('*').or('verification_status.eq.pending,is_captain_request.eq.true').order('created_at', { ascending: false }),
                 supabase.from('players_master').select('id, full_name, username, role, avatar_url, created_at, club_verification_status, pending_club_id, clubs(name)').eq('club_verification_status', 'pending').order('created_at', { ascending: false }),
                 supabase.from('players_master').select('*', { count: 'exact', head: true }),
                 supabase.from('nationality_verifications').select('*').eq('status', 'pending').order('created_at', { ascending: false })
