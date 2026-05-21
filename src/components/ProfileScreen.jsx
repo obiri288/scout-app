@@ -639,10 +639,14 @@ export const ProfileScreen = ({
                 <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent" />
                 
-                {/* Back Button */}
-                {!isOwnProfile && (
+                {/* Back Button / Hamburger Menu */}
+                {!isOwnProfile ? (
                     <button onClick={onBack} className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] left-4 z-20 p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition">
                         <ArrowLeft size={20} />
+                    </button>
+                ) : (
+                    <button onClick={onMenuOpen} className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] left-4 z-20 p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition active:scale-95" aria-label="Menü öffnen">
+                        <Menu size={20} />
                     </button>
                 )}
 

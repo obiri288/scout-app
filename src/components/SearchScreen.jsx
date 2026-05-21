@@ -248,6 +248,13 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     return (
         <div className="pb-32 max-w-md mx-auto min-h-screen bg-background">
             <div className={`${glassHeader} flex items-center gap-3`}>
+                <button
+                    onClick={onMenuOpen}
+                    className="p-1 text-muted-foreground hover:text-white transition active:scale-95"
+                    aria-label="Menü öffnen"
+                >
+                    <Menu size={24} />
+                </button>
                 <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>
             <div className="px-4 mt-6">

@@ -144,7 +144,16 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             {/* Global Header */}
             <div className="fixed top-0 left-0 right-0 pt-[env(safe-area-inset-top)] bg-background/80 backdrop-blur-xl border-b border-white/5 z-[50] max-w-md mx-auto">
                 <div className="h-16 flex items-center justify-between px-4">
-                    <img src="/cavio-icon.png" className="w-8 h-8 object-contain" alt="CAVIO" />
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={onMenuOpen}
+                            className="p-1 text-muted-foreground hover:text-white transition active:scale-95"
+                            aria-label="Menü öffnen"
+                        >
+                            <Menu size={24} />
+                        </button>
+                        <img src="/cavio-icon.png" className="w-8 h-8 object-contain" alt="CAVIO" />
+                    </div>
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('openUploadModal'))}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-tr from-indigo-600 to-cyan-400 rounded-xl text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform"
