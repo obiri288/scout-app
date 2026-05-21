@@ -89,7 +89,7 @@ const Sidebar = ({
                                             activeEcosystem === 'mens' ? 'text-white' : 'text-muted-foreground hover:text-white'
                                         }`}
                                     >
-                                        Men's ⚽
+                                        Herren ⚽
                                     </button>
                                     <button
                                         onClick={() => setActiveEcosystem('womens')}
@@ -97,7 +97,7 @@ const Sidebar = ({
                                             activeEcosystem === 'womens' ? 'text-white' : 'text-muted-foreground hover:text-white'
                                         }`}
                                     >
-                                        Women's ⚽
+                                        Damen ⚽
                                     </button>
                                 </div>
                             </div>

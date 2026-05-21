@@ -442,7 +442,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                                     }`}
                                                 >
                                                     <span className="text-xl">⚽</span>
-                                                    <span>Men's Football</span>
+                                                    <span>Herrenfußball</span>
                                                 </button>
                                                 <button
                                                     onClick={() => setSelectedEcosystem('womens')}
@@ -453,7 +453,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                                     }`}
                                                 >
                                                     <span className="text-xl">⚽</span>
-                                                    <span>Women's Football</span>
+                                                    <span>Frauenfußball</span>
                                                 </button>
                                             </div>
                                         </div>

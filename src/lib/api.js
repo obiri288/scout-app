@@ -130,7 +130,7 @@ export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, of
         .select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
         .eq('is_under_review', false);
-    if (ecosystem !== 'all') {
+    if (ecosystem !== 'all' && !query) {
         q = q.eq('ecosystem', ecosystem);
     }
     if (query) q = q.ilike('full_name', `%${query}%`);

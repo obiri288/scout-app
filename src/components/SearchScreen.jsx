@@ -110,7 +110,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         try {
             let q = supabase.from('players_master').select('*, clubs(*), career_history(*)').eq('is_deactivated', false).eq('is_under_review', false);
-            if (activeEcosystem !== 'all') {
+            if (activeEcosystem !== 'all' && !query) {
                 q = q.eq('ecosystem', activeEcosystem);
             }
             if (query) q = q.ilike('full_name', `%${query}%`);

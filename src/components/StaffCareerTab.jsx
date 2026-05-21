@@ -423,8 +423,8 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                                 <div className="mt-3">
                                     <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Ökosystem</label>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <button type="button" onClick={() => setFormData({...formData, squad_category: 'mens'})} className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.squad_category === 'mens' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-500' : 'border-border text-muted-foreground'}`}>Men's ⚽</button>
-                                        <button type="button" onClick={() => setFormData({...formData, squad_category: 'womens'})} className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.squad_category === 'womens' ? 'border-violet-500 bg-violet-500/10 text-violet-500' : 'border-border text-muted-foreground'}`}>Women's ⚽</button>
+                                        <button type="button" onClick={() => setFormData({...formData, squad_category: 'mens'})} className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.squad_category === 'mens' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-500' : 'border-border text-muted-foreground'}`}>Herren ⚽</button>
+                                        <button type="button" onClick={() => setFormData({...formData, squad_category: 'womens'})} className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.squad_category === 'womens' ? 'border-violet-500 bg-violet-500/10 text-violet-500' : 'border-border text-muted-foreground'}`}>Damen ⚽</button>
                                     </div>
                                 </div>
                             </div>
