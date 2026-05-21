@@ -5,26 +5,30 @@ import { cardStyle } from '../lib/styles';
 import { formatPosition } from '../lib/utils';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
+import { useEcosystem } from '../contexts/EcosystemContext';
 
 export const ClubScreen = ({ club, onBack, onUserClick }) => {
     const [players, setPlayers] = useState([]);
     const [verifyingId, setVerifyingId] = useState(null);
     const { currentUserProfile } = useUser();
     const { addToast } = useToast();
+    const { activeEcosystem } = useEcosystem();
 
     const isClubAdmin = currentUserProfile?.role === 'admin' || (currentUserProfile?.is_official && currentUserProfile?.club_id === club.id);
 
     useEffect(() => {
         const fetchPlayers = async () => {
             try {
-                const { data } = await supabase.from('players_master').select('*, career_history(*)').eq('club_id', club.id).eq('is_deactivated', false);
+                let q = supabase.from('players_master').select('*, career_history(*)').eq('club_id', club.id).eq('is_deactivated', false);
+                q = q.in('ecosystem', [activeEcosystem, 'all']);
+                const { data } = await q;
                 setPlayers(data || []);
             } catch (e) {
                 console.error("Failed loading club players:", e);
             }
         };
         fetchPlayers();
-    }, [club]);
+    }, [club, activeEcosystem]);
 
     return (
         <div className="min-h-screen bg-black pb-32 animate-in slide-in-from-right">

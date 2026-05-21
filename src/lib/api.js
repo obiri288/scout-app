@@ -125,11 +125,14 @@ export const updatePlayer = async (playerId, updates) => {
     return data;
 };
 
-export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15 }) => {
+export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15, ecosystem = 'mens' }) => {
     let q = supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
         .eq('is_under_review', false);
+    if (ecosystem !== 'all') {
+        q = q.eq('ecosystem', ecosystem);
+    }
     if (query) q = q.ilike('full_name', `%${query}%`);
     if (pos && pos !== 'Alle') q = q.eq('position_primary', pos);
     if (status && status !== 'Alle') q = q.eq('transfer_status', status);
@@ -139,30 +142,39 @@ export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, of
     return data || [];
 };
 
-export const fetchSimilarPlayers = async (excludeId, limit = 100) => {
-    const { data } = await supabase.from('players_master')
+export const fetchSimilarPlayers = async (excludeId, limit = 100, ecosystem = 'mens') => {
+    let q = supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
-        .neq('id', excludeId)
-        .limit(limit);
+        .neq('id', excludeId);
+    if (ecosystem !== 'all') {
+        q = q.eq('ecosystem', ecosystem);
+    }
+    const { data } = await q.limit(limit);
     return data || [];
 };
 
-export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 200 }) => {
+export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 200, ecosystem = 'mens' }) => {
     let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
         .not('city', 'is', null);
+    if (ecosystem !== 'all') {
+        q = q.eq('ecosystem', ecosystem);
+    }
     if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
     if (statusFilter && statusFilter !== 'Alle') q = q.eq('transfer_status', statusFilter);
     const { data } = await q.limit(limit);
     return data || [];
 };
 
-export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200 }) => {
+export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200, ecosystem = 'mens' }) => {
     let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
+    if (ecosystem !== 'all') {
+        q = q.eq('ecosystem', ecosystem);
+    }
     if (posFilter && posFilter !== 'Alle') q = q.eq('position_primary', posFilter);
     if (statusFilter && statusFilter !== 'Alle') q = q.eq('transfer_status', statusFilter);
     const { data } = await q.limit(limit);
@@ -253,26 +265,32 @@ export const fetchVideoById = async (videoId) => {
     };
 };
 
-export const fetchFeed = async (offset = 0, limit = 10) => {
+export const fetchFeed = async (offset = 0, limit = 10, ecosystem = 'mens') => {
     // Increase pool size to run a rich algorithmic ranking pool of recent content
     const fetchPoolSize = 100;
 
     // 1. Fetch from media_highlights
-    const highlightsPromise = supabase.from('media_highlights')
+    let highlightsPromise = supabase.from('media_highlights')
         .select('*, media_comments(count), players_master!inner(*, clubs(*, leagues(name)))')
         .eq('players_master.is_deactivated', false)
         .eq('is_archived', false)
-        .eq('is_under_review', false)
-        .order('created_at', { ascending: false })
-        .range(0, fetchPoolSize);
+        .eq('is_under_review', false);
+        
+    if (ecosystem !== 'all') {
+        highlightsPromise = highlightsPromise.in('players_master.ecosystem', [ecosystem, 'all']);
+    }
+    highlightsPromise = highlightsPromise.order('created_at', { ascending: false }).range(0, fetchPoolSize);
 
     // 2. Fetch from posts
-    const postsPromise = supabase.from('posts')
+    let postsPromise = supabase.from('posts')
         .select('*, players_master!inner(*, clubs(*, leagues(name)))')
         .eq('players_master.is_deactivated', false)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
-        .range(0, fetchPoolSize);
+        .eq('is_deleted', false);
+        
+    if (ecosystem !== 'all') {
+        postsPromise = postsPromise.in('players_master.ecosystem', [ecosystem, 'all']);
+    }
+    postsPromise = postsPromise.order('created_at', { ascending: false }).range(0, fetchPoolSize);
 
     const [highlightsRes, postsRes] = await Promise.all([highlightsPromise, postsPromise]);
         
@@ -1340,5 +1358,25 @@ export const rejectNationalityVerification = async (requestId, adminId) => {
         })
         .eq('id', requestId);
     if (updateErr) throw updateErr;
+};
+
+// ============================================================
+// POST TAGS (ASSIST-TAGS)
+// ============================================================
+
+export const insertPostTags = async (tags) => {
+    if (!tags || tags.length === 0) return;
+    const { error } = await supabase.from('post_tags').insert(tags);
+    if (error) throw error;
+};
+
+export const fetchPostTags = async (videoId = null, postId = null) => {
+    let q = supabase.from('post_tags').select('*, tagged_user:players_master(*)');
+    if (videoId) q = q.eq('video_id', videoId);
+    if (postId) q = q.eq('post_id', postId);
+    
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
 };
 

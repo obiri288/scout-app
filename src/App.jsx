@@ -307,6 +307,18 @@ const App = () => {
         }
     }, [session?.user?.email, addToast]);
 
+    useEffect(() => {
+        const handleOpenUpload = () => {
+            if (session) {
+                setShowUpload(true);
+            } else {
+                setShowLogin(true);
+            }
+        };
+        window.addEventListener('openUploadModal', handleOpenUpload);
+        return () => window.removeEventListener('openUploadModal', handleOpenUpload);
+    }, [session, setShowUpload, setShowLogin]);
+
     // If we're strictly on the email-confirmed standalone page
     if (window.location.pathname === '/auth/email-confirmed') {
         return <EmailConfirmedPage />;
@@ -522,12 +534,13 @@ const App = () => {
             {/* Decoupled Upload FAB */}
             <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 sm:right-6 sm:bottom-[calc(7rem+env(safe-area-inset-bottom))] z-[9000]">
                 <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.92 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => session ? setShowUpload(true) : setShowLogin(true)}
-                    className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-cyan-400 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.3)] border border-white/20 group"
+                    className="px-5 h-14 bg-gradient-to-tr from-indigo-600 to-cyan-400 rounded-full flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(0,240,255,0.3)] border border-white/20 group"
                 >
-                    <Plus size={28} className="text-white group-hover:rotate-90 transition-transform duration-500" strokeWidth={2.5} />
+                    <Plus size={24} className="text-white group-hover:rotate-90 transition-transform duration-500" strokeWidth={3} />
+                    <span className="text-white font-bold tracking-wide shadow-sm">Video hochladen</span>
                 </motion.button>
             </div>
 

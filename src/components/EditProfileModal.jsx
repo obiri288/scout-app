@@ -424,7 +424,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                 verification_status: finalVerificationStatus,
                 wants_transfer_post: careerForm.wants_transfer_post ?? true,
                 is_captain: finalIsCaptain,
-                is_captain_request: finalIsCaptainRequest
+                is_captain_request: finalIsCaptainRequest,
+                squad_category: profile.ecosystem
             };
 
             if (editingCareer) {
@@ -1522,8 +1523,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                                 placeholder="z.B. Bundesliga, Kreisliga A"
                                             />
                                         </div>
-                                        <div className="flex items-center gap-4 w-full">
-                                            <div className="flex-1 min-w-0">
+                                        <div className="grid grid-cols-2 gap-4 w-full">
+                                            <div className="w-full">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Von *</label>
                                                 <div className="relative">
                                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={14} />
@@ -1531,11 +1532,11 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                                         type="date"
                                                         value={careerForm.start_date}
                                                         onChange={e => setCareerForm({ ...careerForm, start_date: e.target.value })}
-                                                        className={`${inputStyle} pl-9 [color-scheme:dark]`}
+                                                        className={`${inputStyle} w-full pl-9 [color-scheme:dark]`}
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
+                                            <div className="w-full">
                                                 <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Bis</label>
                                                 <div className="relative">
                                                     <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none ${careerForm.is_current ? 'opacity-30' : ''}`} size={14} />
@@ -1544,7 +1545,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                                         value={careerForm.end_date}
                                                         min={careerForm.start_date}
                                                         onChange={e => setCareerForm({ ...careerForm, end_date: e.target.value })}
-                                                        className={`${inputStyle} pl-9 [color-scheme:dark] ${careerForm.is_current ? 'opacity-50 cursor-not-allowed bg-slate-200/10' : ''}`}
+                                                        className={`${inputStyle} w-full pl-9 [color-scheme:dark] ${careerForm.is_current ? 'opacity-50 cursor-not-allowed bg-slate-200/10' : ''}`}
                                                         disabled={careerForm.is_current}
                                                     />
                                                 </div>
@@ -1568,15 +1569,17 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                             />
                                             Bis heute (aktueller Verein)
                                         </label>
-                                        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer py-1">
-                                            <input
-                                                type="checkbox"
-                                                checked={careerForm.is_captain ?? false}
-                                                onChange={e => handleCaptainToggle(e.target.checked)}
-                                                className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-cyan-500"
-                                            />
-                                            Ich bin/war Kapitän dieses Teams (©)
-                                        </label>
+                                        {isPlayer && (
+                                            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer py-1">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={careerForm.is_captain ?? false}
+                                                    onChange={e => handleCaptainToggle(e.target.checked)}
+                                                    className="w-4 h-4 rounded border-border text-cyan-500 focus:ring-cyan-500"
+                                                />
+                                                Ich bin/war Kapitän dieses Teams (©)
+                                            </label>
+                                        )}
                                         <div>
                                             <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Beweis-Link (optional)</label>
                                             <input

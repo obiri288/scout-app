@@ -76,6 +76,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const [username, setUsername] = useState('');
     const [position, setPosition] = useState('');
     const [birthDate, setBirthDate] = useState('');
+    const [selectedEcosystem, setSelectedEcosystem] = useState('mens');
 
     // Derived full name
     const fullName = useMemo(() => `${firstName.trim()} ${lastName.trim()}`.trim(), [firstName, lastName]);
@@ -200,6 +201,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 birth_date: isPlayer ? (birthDate || null) : null,
                 transfer_status: isPlayer ? 'Suche Verein' : null,
                 role: selectedRole,
+                ecosystem: isPlayer ? selectedEcosystem : 'all',
                 verification_status: isPlayer ? 'approved' : 'pending',
                 email: session.user.email || null,
             };
@@ -425,9 +427,36 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                     )}
                                 </div>
 
-                                {/* Position & Birthday — only for players */}
+                                {/* Position & Birthday & Ecosystem — only for players */}
                                 {selectedRole === 'player' && (
                                     <>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Ökosystem *</label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <button
+                                                    onClick={() => setSelectedEcosystem('mens')}
+                                                    className={`p-3 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all ${
+                                                        selectedEcosystem === 'mens' 
+                                                        ? 'border-cyan-500 bg-cyan-500/10 text-cyan-500 dark:text-cyan-400 font-bold' 
+                                                        : 'border-border bg-white/5 text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
+                                                    }`}
+                                                >
+                                                    <span className="text-xl">⚽</span>
+                                                    <span>Men's Football</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedEcosystem('womens')}
+                                                    className={`p-3 rounded-2xl flex flex-col items-center gap-1 border-2 transition-all ${
+                                                        selectedEcosystem === 'womens' 
+                                                        ? 'border-violet-500 bg-violet-500/10 text-violet-500 font-bold' 
+                                                        : 'border-border bg-white/5 text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
+                                                    }`}
+                                                >
+                                                    <span className="text-xl">⚽</span>
+                                                    <span>Women's Football</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Position *</label>
                                             <div className="grid grid-cols-3 gap-2">

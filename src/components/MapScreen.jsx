@@ -3,6 +3,7 @@ import { X, User, Shield, MapPin, Loader2, ChevronRight, ArrowLeft } from 'lucid
 import { cardStyle } from '../lib/styles';
 import { fetchPlayersWithCoords, fetchPlayersWithCity, geocodeCity } from '../lib/api';
 import { getClubDisplay } from '../lib/helpers';
+import { useEcosystem } from '../contexts/EcosystemContext';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -17,6 +18,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
     const [posFilter, setPosFilter] = useState('Alle');
     const [statusFilter, setStatusFilter] = useState('Alle');
     const [showToast, setShowToast] = useState(true);
+    const { activeEcosystem } = useEcosystem();
 
     // Social Proof Toast Timer
     useEffect(() => {
@@ -31,10 +33,10 @@ export const MapScreen = ({ onClose, onUserClick }) => {
             setStatus('Spieler laden...');
             try {
                 // First: players with stored coordinates (instant)
-                const withCoords = await fetchPlayersWithCoords({ posFilter, statusFilter });
+                const withCoords = await fetchPlayersWithCoords({ posFilter, statusFilter, ecosystem: activeEcosystem });
 
                 // Second: players with city but no coords (need geocoding)
-                const allWithCity = await fetchPlayersWithCity({ posFilter, statusFilter });
+                const allWithCity = await fetchPlayersWithCity({ posFilter, statusFilter, ecosystem: activeEcosystem });
                 const needsGeo = allWithCity.filter(p => !p.latitude && p.city);
 
                 // Start with coord-having players
@@ -67,7 +69,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
             }
         };
         load();
-    }, [posFilter, statusFilter]);
+    }, [posFilter, statusFilter, activeEcosystem]);
 
     // Initialize map
     useEffect(() => {

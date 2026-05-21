@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     X, Home, Search, Mail, User, Settings, 
     ShieldCheck, UserCheck, Trophy, Building, 
-    Flag, Users, Info, Shield, LogOut
+    Flag, Users, Info, Shield, LogOut, Plus
 } from 'lucide-react';
+import { useEcosystem } from '../contexts/EcosystemContext';
 
 const Sidebar = ({ 
     isOpen, 
@@ -33,6 +34,7 @@ const Sidebar = ({
     ];
 
     const isAdmin = currentUserProfile?.role === 'admin';
+    const { activeEcosystem, setActiveEcosystem, isAll, themeColors } = useEcosystem();
 
     const categories = ['VERWALTUNG', 'PLATTFORM', 'ACCOUNT'];
 
@@ -72,8 +74,48 @@ const Sidebar = ({
                             </button>
                         </div>
 
+                        {/* Ecosystem Toggle für Omnipotente User */}
+                        {isAll && (
+                            <div className="px-6 py-4 border-b border-white/5">
+                                <div className="flex bg-slate-900 rounded-xl p-1 relative">
+                                    <div
+                                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-300 ease-out ${
+                                            activeEcosystem === 'womens' ? 'left-[calc(50%+2px)] bg-gradient-to-r from-violet-500 to-fuchsia-500' : 'left-1 bg-gradient-to-r from-cyan-500 to-blue-500'
+                                        }`}
+                                    />
+                                    <button
+                                        onClick={() => setActiveEcosystem('mens')}
+                                        className={`flex-1 flex items-center justify-center py-2 text-sm font-bold z-10 transition-colors ${
+                                            activeEcosystem === 'mens' ? 'text-white' : 'text-muted-foreground hover:text-white'
+                                        }`}
+                                    >
+                                        Men's ⚽
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveEcosystem('womens')}
+                                        className={`flex-1 flex items-center justify-center py-2 text-sm font-bold z-10 transition-colors ${
+                                            activeEcosystem === 'womens' ? 'text-white' : 'text-muted-foreground hover:text-white'
+                                        }`}
+                                    >
+                                        Women's ⚽
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Navigation Items */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-8 scrollbar-hide">
+                            <div className="px-2">
+                                <button
+                                    onClick={() => {
+                                        onClose();
+                                        window.dispatchEvent(new CustomEvent('openUploadModal'));
+                                    }}
+                                    className="w-full py-3.5 bg-gradient-to-tr from-indigo-600 to-cyan-400 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.2)] hover:scale-[1.02] transition-all"
+                                >
+                                    <Plus size={20} strokeWidth={3} /> Post erstellen
+                                </button>
+                            </div>
                             {categories.map(category => {
                                 const items = NAV_ITEMS.filter(item => item.category === category);
                                 const visibleItems = items.filter(item => !item.adminOnly || isAdmin);

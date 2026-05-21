@@ -32,6 +32,7 @@ const TYPE_CONFIG = {
     comment:         { icon: MessageSquare, color: 'text-green-400',  bg: 'bg-green-500/15',  border: 'border-l-green-400' },
     video_removed:   { icon: AlertTriangle, color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-l-orange-400' },
     verification_success: { icon: CheckCheck, color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-l-green-400' },
+    assist_tag:      { icon: Zap,           color: 'text-cyan-400',   bg: 'bg-cyan-500/15',   border: 'border-l-cyan-400' },
 };
 const cfg = (type) => TYPE_CONFIG[type] || { icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/15', border: 'border-l-cyan-400' };
 
@@ -49,6 +50,7 @@ const getText = (n) => {
         case 'comment':         return `${name} hat dein Video kommentiert`;
         case 'video_removed':   return 'Dein Video wurde aufgrund von Nutzer-Meldungen entfernt.';
         case 'verification_success': return n.message || 'Deine Karriere-Station wurde erfolgreich verifiziert! 🎉';
+        case 'assist_tag':      return `${name} ${n.message || 'hat dich in einem Video markiert.'}`;
     }
 
     // Fallback to the stored message if available, otherwise generic

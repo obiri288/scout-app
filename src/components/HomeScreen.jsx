@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, RefreshCw, Film, Menu, Shield } from 'lucide-react';
+import { Loader2, RefreshCw, Film, Menu, Shield, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
+import { useEcosystem } from '../contexts/EcosystemContext';
 import { FeedItem } from './FeedItem';
 import { FeedSkeleton } from './SkeletonScreens';
 import { WelcomeCard } from './WelcomeCard';
@@ -45,10 +46,11 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     const sentinelRef = useRef(null);
 
     const { currentUserProfile: userFromContext, hiddenUserIds } = useUser();
+    const { activeEcosystem } = useEcosystem();
 
     const fetchFeed = useCallback(async (offset = 0, reset = false) => {
         try {
-            const data = await api.fetchFeed(offset, PAGE_SIZE);
+            const data = await api.fetchFeed(offset, PAGE_SIZE, activeEcosystem);
             
             // Client-side filtering for hidden content
             const hiddenVideos = userFromContext?.hidden_videos || [];
@@ -74,7 +76,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             setLoadingMore(false);
             setRefreshing(false);
         }
-    }, [userFromContext, hiddenUserIds]);
+    }, [userFromContext, hiddenUserIds, activeEcosystem]);
 
     // Fetch current user profile for the WelcomeCard
     useEffect(() => {
@@ -143,8 +145,13 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             <div className="fixed top-0 left-0 right-0 pt-[env(safe-area-inset-top)] bg-background/80 backdrop-blur-xl border-b border-white/5 z-[50] max-w-md mx-auto">
                 <div className="h-16 flex items-center justify-between px-4">
                     <img src="/cavio-icon.png" className="w-8 h-8 object-contain" alt="CAVIO" />
-                    {/* Placeholder for future right-side actions if needed */}
-                    <div />
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('openUploadModal'))}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-tr from-indigo-600 to-cyan-400 rounded-xl text-white font-bold text-xs shadow-lg hover:scale-105 transition-transform"
+                    >
+                        <Plus size={16} strokeWidth={3} />
+                        Hochladen
+                    </button>
                 </div>
             </div>
             {/* Pull-to-Refresh indicator */}

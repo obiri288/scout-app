@@ -61,7 +61,8 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
         // Scout specific
         focus_region: '',
         network_strength: '',
-        club_id: null
+        club_id: null,
+        squad_category: 'mens'
     });
 
     // Club Search States
@@ -213,7 +214,8 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                 achievements: role === 'coach' ? formData.achievements : null,
                 // Scout specific
                 focus_region: role === 'scout' ? formData.focus_region : null,
-                network_strength: role === 'scout' ? formData.network_strength : null
+                network_strength: role === 'scout' ? formData.network_strength : null,
+                squad_category: formData.squad_category || 'mens'
             };
 
             const { data, error } = await supabase.from('career_history').insert(payload).select().single();
@@ -227,7 +229,8 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                 club_name: '', league: '', start_date: '', end_date: '', is_current: false, position: '', departure_type: '',
                 matches_played: '', wins: '', draws: '', losses: '', pps: '', preferred_system: '', achievements: '',
                 focus_region: '', network_strength: '',
-                club_id: null
+                club_id: null,
+                squad_category: 'mens'
             });
         } catch (e) {
             addToast(e.message, 'error');
@@ -368,8 +371,8 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                                         <input value={formData.league} onChange={e => setFormData({...formData, league: e.target.value})} className={inputStyle} placeholder="z.B. Regionalliga" />
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4 w-full">
-                                     <div className="flex-1 min-w-0">
+                                <div className="grid grid-cols-2 gap-4 w-full">
+                                     <div className="w-full">
                                          <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Von *</label>
                                          <div className="relative">
                                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={14} />
@@ -378,11 +381,11 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                                                  type="date" 
                                                  value={formData.start_date} 
                                                  onChange={e => setFormData({...formData, start_date: e.target.value})} 
-                                                 className={`${inputStyle} pl-9 [color-scheme:dark]`} 
+                                                 className={`${inputStyle} w-full pl-9 [color-scheme:dark]`} 
                                              />
                                          </div>
                                      </div>
-                                     <div className="flex-1 min-w-0">
+                                     <div className="w-full">
                                          <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Bis</label>
                                          <div className="relative">
                                              <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none ${formData.is_current ? 'opacity-30' : ''}`} size={14} />
@@ -392,7 +395,7 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                                                  min={formData.start_date}
                                                  value={formData.end_date} 
                                                  onChange={e => setFormData({...formData, end_date: e.target.value})} 
-                                                 className={`${inputStyle} pl-9 [color-scheme:dark] ${formData.is_current ? 'opacity-50 cursor-not-allowed bg-slate-200/10' : ''}`} 
+                                                 className={`${inputStyle} w-full pl-9 [color-scheme:dark] ${formData.is_current ? 'opacity-50 cursor-not-allowed bg-slate-200/10' : ''}`} 
                                              />
                                          </div>
                                      </div>
@@ -415,6 +418,13 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                                             <option value="Auf eigenen Wunsch">Auf eigenen Wunsch</option>
                                             <option value="Wechsel">Wechsel (Ablöse)</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <div className="mt-3">
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase ml-1 mb-1 block">Ökosystem</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button type="button" onClick={() => setFormData({...formData, squad_category: 'mens'})} className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.squad_category === 'mens' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-500' : 'border-border text-muted-foreground'}`}>Men's ⚽</button>
+                                        <button type="button" onClick={() => setFormData({...formData, squad_category: 'womens'})} className={`py-2 rounded-xl text-[10px] font-bold border-2 transition-all ${formData.squad_category === 'womens' ? 'border-violet-500 bg-violet-500/10 text-violet-500' : 'border-border text-muted-foreground'}`}>Women's ⚽</button>
                                     </div>
                                 </div>
                             </div>

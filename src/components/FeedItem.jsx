@@ -45,6 +45,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     const [showMenu, setShowMenu] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [assistTags, setAssistTags] = useState([]);
     
     const { currentUserProfile } = useUser();
     const userRole = currentUserProfile?.role || 'scout';
@@ -99,6 +100,26 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
         };
 
         fetchCommentState();
+        return () => { isMounted = false; };
+    }, [video.id, video.post_type]);
+
+    // Fetch Assist Tags
+    useEffect(() => {
+        if (!video.id) return;
+        let isMounted = true;
+        const loadTags = async () => {
+            try {
+                const isTransfer = video.post_type === 'transfer';
+                const tags = await api.fetchPostTags(
+                    isTransfer ? null : video.id,
+                    isTransfer ? video.id : null
+                );
+                if (isMounted) setAssistTags(tags);
+            } catch (err) {
+                console.warn("Failed to fetch assist tags", err);
+            }
+        };
+        loadTags();
         return () => { isMounted = false; };
     }, [video.id, video.post_type]);
 
@@ -394,6 +415,35 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                 {video.skill_tags.slice(0, 3).map(tag => (
                                     <span key={tag} className="bg-cyan-500/20 backdrop-blur-xl border border-cyan-500/30 text-white text-[10px] font-medium tracking-wide px-2.5 py-1 rounded-full">{tag}</span>
                                 ))}
+                            </div>
+                        )}
+                        
+                        {/* Assist Tags Overlay */}
+                        {assistTags.length > 0 && (
+                            <div className="absolute bottom-12 left-4 flex flex-col gap-1.5 z-10">
+                                {assistTags.map(tag => {
+                                    const TagIcon = tag.role === 'assist' ? Zap :
+                                                    tag.role === 'pre_assist' ? Wind :
+                                                    tag.role === 'ball_recovery' ? ShieldCheck :
+                                                    tag.role === 'save' ? Hand :
+                                                    tag.role === 'deal_maker' ? Swords : Flame; // Mastermind default
+                                    const roleLabel = tag.role === 'assist' ? 'Assist' :
+                                                      tag.role === 'pre_assist' ? 'Pre-Assist' :
+                                                      tag.role === 'ball_recovery' ? 'Balleroberung' :
+                                                      tag.role === 'save' ? 'Glanzparade' :
+                                                      tag.role === 'deal_maker' ? 'Deal-Maker' : 'Mastermind';
+
+                                    return (
+                                        <div 
+                                            key={tag.id}
+                                            onClick={(e) => { e.stopPropagation(); onUserClick(tag.tagged_user); }}
+                                            className="inline-flex items-center gap-1.5 bg-black/40 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold px-2.5 py-1 rounded-full cursor-pointer hover:bg-white/20 hover:scale-105 transition-all"
+                                        >
+                                            <TagIcon size={12} className="text-cyan-400" />
+                                            <span>{roleLabel} von @{tag.tagged_user?.username || tag.tagged_user?.full_name}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

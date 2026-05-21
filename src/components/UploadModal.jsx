@@ -20,9 +20,12 @@ import {
     ChevronRight,
     ArrowLeft,
     CheckCircle2,
-    Info
+    Info,
+    UserPlus,
+    Search
 } from 'lucide-react';
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
+import { searchPlayers, insertPostTags, createNotification } from '../lib/api';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { generateVideoThumbnail, isValidVideoFile, ALLOWED_VIDEO_EXTENSIONS } from '../lib/helpers';
 import { useToast } from '../contexts/ToastContext';
@@ -59,7 +62,64 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
     const [selectedActionTags, setSelectedActionTags] = useState([]);
     const [editorData, setEditorData] = useState(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [taggedUsers, setTaggedUsers] = useState([]); // Array of { user, role }
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showRoleModalFor, setShowRoleModalFor] = useState(null);
     const { addToast } = useToast();
+
+    // Available Assist Roles
+    const ASSIST_ROLES = [
+        { id: 'assist', label: '👟 Assist' },
+        { id: 'pre_assist', label: '👁️ Pre-Assist' },
+        { id: 'ball_recovery', label: '🧱 Balleroberer' },
+        { id: 'save', label: '🧤 Glanzparade' },
+        { id: 'deal_maker', label: '🤝 Deal-Maker' },
+        { id: 'mastermind', label: '🧠 Mastermind' }
+    ];
+
+    // Search effect
+    useEffect(() => {
+        if (searchQuery.trim().length < 2) {
+            setSearchResults([]);
+            return;
+        }
+        const delayDebounceFn = setTimeout(async () => {
+            setIsSearching(true);
+            try {
+                const results = await searchPlayers({ query: searchQuery, limit: 5 });
+                setSearchResults(results.filter(r => r.id !== profile.id)); // Don't allow tagging self
+            } catch (err) {
+                console.error("Player search failed", err);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, profile.id]);
+
+    const handleSelectTagUser = (user) => {
+        if (taggedUsers.find(t => t.user.id === user.id)) {
+            addToast('Spieler ist bereits markiert', 'info');
+            return;
+        }
+        setShowRoleModalFor(user);
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const confirmUserRole = (role) => {
+        if (showRoleModalFor) {
+            setTaggedUsers(prev => [...prev, { user: showRoleModalFor, role: role.id, roleLabel: role.label }]);
+            setShowRoleModalFor(null);
+        }
+    };
+
+    const removeTaggedUser = (userId) => {
+        setTaggedUsers(prev => prev.filter(t => t.user.id !== userId));
+    };
+
 
     const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
     const handleDragLeave = () => setIsDragOver(false);
@@ -143,7 +203,7 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
             const { data: { publicUrl } } = supabase.storage.from('player-videos').getPublicUrl(fileName);
 
             // 3. Database entry
-            const { error: dbErr } = await supabase.from('media_highlights').insert({
+            const { data: insertedVideo, error: dbErr } = await supabase.from('media_highlights').insert({
                 player_id: profile.id,
                 video_url: publicUrl,
                 thumbnail_url: thumbUrl,
@@ -160,9 +220,34 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                 spotlight_y: editorData?.spotlight?.y || null,
                 spotlight_duration: editorData?.spotlight?.duration || 2.0,
                 created_at: new Date().toISOString()
-            });
+            }).select().single();
 
             if (dbErr) throw dbErr;
+
+            // 4. Insert post_tags if any
+            if (taggedUsers.length > 0 && insertedVideo) {
+                const tagsToInsert = taggedUsers.map(t => ({
+                    video_id: insertedVideo.id,
+                    tagged_user_id: t.user.id,
+                    role: t.role
+                }));
+                await insertPostTags(tagsToInsert);
+
+                // 5. Send notifications
+                for (const t of taggedUsers) {
+                    try {
+                        await createNotification({
+                            userId: t.user.id,
+                            actorId: profile.id,
+                            type: 'assist_tag',
+                            message: `hat dich als ${t.roleLabel} markiert.`,
+                            videoId: insertedVideo.id
+                        });
+                    } catch (e) {
+                        console.warn("Failed to send tag notification", e);
+                    }
+                }
+            }
 
             clearInterval(progressInterval);
             setProgress(100);
@@ -190,10 +275,10 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className={`w-full sm:max-w-xl ${cardStyle} p-0 overflow-hidden border-t border-border shadow-2xl relative mb-20 sm:mb-0`}>
+            <div className={`w-full sm:max-w-xl ${cardStyle} p-0 border-t border-border shadow-2xl relative mb-20 sm:mb-0 overflow-visible`}>
                 
                 {/* Modal Header */}
-                <div className="flex justify-between items-center p-6 border-b border-white/5 bg-zinc-900/50">
+                <div className="flex justify-between items-center p-6 border-b border-white/5 bg-zinc-900/50 rounded-t-2xl sm:rounded-3xl">
                     <div>
                         <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                             {uploading ? (
@@ -377,6 +462,65 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                                         </div>
                                     </div>
 
+                                    {/* Assist-Tags Section */}
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                            Beteiligte verlinken
+                                        </label>
+                                        
+                                        {/* Selected Tags Display */}
+                                        {taggedUsers.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {taggedUsers.map(tag => (
+                                                    <div key={tag.user.id} className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-2 py-1.5 rounded-xl">
+                                                        <img src={tag.user.avatar_url || '/cavio-icon.png'} className="w-5 h-5 rounded-full object-cover" />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] font-bold text-white leading-none">{tag.user.full_name}</span>
+                                                            <span className="text-[9px] text-blue-400">{tag.roleLabel}</span>
+                                                        </div>
+                                                        <button onClick={() => removeTaggedUser(tag.user.id)} className="ml-1 text-zinc-400 hover:text-red-400">
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="relative">
+                                            <div className="relative flex items-center">
+                                                <Search className="absolute left-3 text-zinc-500" size={16} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Spieler suchen (Name, Verein)..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    className="w-full bg-zinc-900 border border-white/5 text-white py-3 pl-10 pr-3 rounded-xl text-sm font-medium outline-none focus:border-blue-500/50 transition placeholder:text-zinc-700"
+                                                />
+                                                {isSearching && <Loader2 className="absolute right-3 text-blue-500 animate-spin" size={16} />}
+                                            </div>
+
+                                            {/* Search Results Dropdown */}
+                                            {searchResults.length > 0 && (
+                                                <div className="absolute z-[9999] top-full mt-2 w-full bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                                                    {searchResults.map(user => (
+                                                        <div 
+                                                            key={user.id} 
+                                                            onClick={() => handleSelectTagUser(user)}
+                                                            className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 last:border-0"
+                                                        >
+                                                            <img src={user.avatar_url || '/cavio-icon.png'} className="w-8 h-8 rounded-full object-cover bg-zinc-800" />
+                                                            <div>
+                                                                <div className="text-sm font-bold text-white">{user.full_name}</div>
+                                                                <div className="text-[10px] text-zinc-500">{user.clubs?.name || 'Vereinslos'}</div>
+                                                            </div>
+                                                            <UserPlus size={16} className="ml-auto text-blue-500" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <div className="flex gap-3 pt-4">
                                         <button 
                                             onClick={() => setStep(1)}
@@ -423,6 +567,40 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                             setIsEditorOpen(false);
                         }}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* Role Selection Modal */}
+            <AnimatePresence>
+                {showRoleModalFor && (
+                    <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="w-full max-w-sm bg-zinc-900 border border-white/10 rounded-3xl p-6 shadow-2xl relative"
+                        >
+                            <button onClick={() => setShowRoleModalFor(null)} className="absolute top-4 right-4 text-zinc-400 hover:text-white transition">
+                                <X size={20} />
+                            </button>
+                            <div className="text-center mb-6">
+                                <img src={showRoleModalFor.avatar_url || '/cavio-icon.png'} className="w-16 h-16 rounded-full mx-auto mb-3 object-cover border-2 border-white/10" />
+                                <h3 className="text-lg font-black text-white">Welche Rolle hatte {showRoleModalFor.full_name}?</h3>
+                                <p className="text-xs text-zinc-400 mt-1">Wähle den passenden Assist-Tag</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {ASSIST_ROLES.map(role => (
+                                    <button
+                                        key={role.id}
+                                        onClick={() => confirmUserRole(role)}
+                                        className="py-3 px-2 bg-white/5 border border-white/10 text-white rounded-xl text-xs font-bold hover:bg-blue-500/20 hover:border-blue-500/50 hover:text-blue-400 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        {role.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

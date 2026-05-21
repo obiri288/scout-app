@@ -10,6 +10,7 @@ import { formatPosition } from '../lib/utils';
 import { SearchSkeleton } from './SkeletonScreens';
 import { MapScreen } from './MapScreen';
 import { useUser } from '../contexts/UserContext';
+import { useEcosystem } from '../contexts/EcosystemContext';
 import { VerificationBadge } from './VerificationBadge';
 import { getClubDisplay } from '../lib/helpers';
 
@@ -104,10 +105,14 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     }, [clubQuery]);
 
     const { currentUserProfile: userFromContext, hiddenUserIds } = useUser();
+    const { activeEcosystem } = useEcosystem();
 
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         try {
             let q = supabase.from('players_master').select('*, clubs(*), career_history(*)').eq('is_deactivated', false).eq('is_under_review', false);
+            if (activeEcosystem !== 'all') {
+                q = q.eq('ecosystem', activeEcosystem);
+            }
             if (query) q = q.ilike('full_name', `%${query}%`);
             if (pos !== 'Alle') q = q.eq('position_primary', pos);
             if (status !== 'Alle') q = q.eq('transfer_status', status);
@@ -145,7 +150,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext]);
+    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext, selectedArchetype, activeEcosystem]);
 
     // Reset and refetch when filters change
     useEffect(() => {
@@ -156,7 +161,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             if (query && query.trim().length >= 2) saveRecentSearch(query);
         }, 500);
         return () => clearTimeout(t);
-    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype]);
+    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype, activeEcosystem]);
 
     // Fetch videos when action tag is selected
     useEffect(() => {
@@ -164,7 +169,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         setLoadingAction(true);
         const fetchActionVideos = async () => {
             try {
-                const { data } = await supabase
+                let actionQ = supabase
                     .from('media_highlights')
                     .select('*, players_master!inner(*, clubs(name), career_history(*))')
                     .eq('players_master.is_deactivated', false)
@@ -172,6 +177,11 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                     .contains('action_tags', [selectedActionTag])
                     .order('created_at', { ascending: false })
                     .limit(20);
+
+                if (activeEcosystem !== 'all') {
+                    actionQ = actionQ.in('players_master.ecosystem', [activeEcosystem, 'all']);
+                }
+                const { data } = await actionQ;
 
                 // Client-side filtering for hidden videos/profiles
                 const hiddenVideos = userFromContext?.hidden_videos || [];
@@ -192,7 +202,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             }
         };
         fetchActionVideos();
-    }, [selectedActionTag]);
+    }, [selectedActionTag, activeEcosystem]);
 
     // Infinite scroll via IntersectionObserver
     useEffect(() => {
