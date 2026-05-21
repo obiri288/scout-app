@@ -431,7 +431,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                 {selectedRole === 'player' && (
                                     <>
                                         <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Ökosystem *</label>
+                                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geschlecht *</label>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <button
                                                     onClick={() => setSelectedEcosystem('mens')}
@@ -441,8 +441,8 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                                         : 'border-border bg-white/5 text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
                                                     }`}
                                                 >
-                                                    <span className="text-xl">⚽</span>
-                                                    <span>Herrenfußball</span>
+                                                    <span className="text-xl">👨</span>
+                                                    <span>Männlich</span>
                                                 </button>
                                                 <button
                                                     onClick={() => setSelectedEcosystem('womens')}
@@ -452,8 +452,8 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                                         : 'border-border bg-white/5 text-muted-foreground hover:border-slate-400 dark:hover:border-zinc-500'
                                                     }`}
                                                 >
-                                                    <span className="text-xl">⚽</span>
-                                                    <span>Frauenfußball</span>
+                                                    <span className="text-xl">👩</span>
+                                                    <span>Weiblich</span>
                                                 </button>
                                             </div>
                                         </div>
