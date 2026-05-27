@@ -6,6 +6,7 @@ import {
     Flag, Users, Info, Shield, LogOut, Plus
 } from 'lucide-react';
 import { useEcosystem } from '../contexts/EcosystemContext';
+import { Footer } from './Footer';
 
 const Sidebar = ({ 
     isOpen, 
@@ -168,17 +169,22 @@ const Sidebar = ({
                         </div>
 
                         {/* Footer / Logout */}
-                        {session && (
-                            <div className="p-4 border-t border-white/5 bg-black/20">
-                                <button 
-                                    onClick={() => { if (onLogoutRequest) { onClose(); onLogoutRequest(); } else { onLogout(); onClose(); } }}
-                                    className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-red-400/70 hover:text-red-400 hover:bg-red-500/5 transition-all group"
-                                >
-                                    <LogOut size={20} />
-                                    <span className="font-bold text-[15px]">Abmelden</span>
-                                </button>
+                        <div className="mt-auto flex flex-col">
+                            {session && (
+                                <div className="p-4 border-t border-white/5 bg-black/20">
+                                    <button 
+                                        onClick={() => { if (onLogoutRequest) { onClose(); onLogoutRequest(); } else { onLogout(); onClose(); } }}
+                                        className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-red-400/70 hover:text-red-400 hover:bg-red-500/5 transition-all group"
+                                    >
+                                        <LogOut size={20} />
+                                        <span className="font-bold text-[15px]">Abmelden</span>
+                                    </button>
+                                </div>
+                            )}
+                            <div className="bg-black/40">
+                                <Footer className="py-4 opacity-50" />
                             </div>
-                        )}
+                        </div>
                     </motion.div>
                 </>
             )}

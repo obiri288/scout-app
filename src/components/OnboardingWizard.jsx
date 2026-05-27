@@ -59,8 +59,6 @@ const slideVariants = {
     exit: (dir) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
 };
 
-const TOTAL_STEPS = 4;
-
 export const OnboardingWizard = ({ session, onComplete }) => {
     const [step, setStep] = useState(0);
     const [dir, setDir] = useState(1);
@@ -95,6 +93,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     // Step 2 data (avatar)
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
+
+    // Step 2/3 data (Club & Team Assignment for Players)
+    const [clubSearch, setClubSearch] = useState('');
+    const [selectedClubName, setSelectedClubName] = useState('');
+    const [clubResults, setClubResults] = useState([]);
+    const [showClubDropdown, setShowClubDropdown] = useState(false);
+    const [ageCategory, setAgeCategory] = useState('');
+    const [genderCategory, setGenderCategory] = useState('Männlich');
 
     // Pre-fill username from user_metadata (if set during registration)
     useEffect(() => {
@@ -156,6 +162,22 @@ export const OnboardingWizard = ({ session, onComplete }) => {
         };
     }, [username, checkUsername]);
 
+    useEffect(() => {
+        if (clubSearch.length < 2) { setClubResults([]); return; }
+        const t = setTimeout(async () => {
+            try {
+                const { data } = await supabase
+                    .from('clubs')
+                    .select('id, name, logo_url, league, leagues(name)')
+                    .ilike('name', `%${clubSearch}%`)
+                    .limit(8);
+                setClubResults(data || []);
+                setShowClubDropdown(true);
+            } catch (e) { /* silent */ }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [clubSearch]);
+
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -167,10 +189,14 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const goNext = () => { setDir(1); setStep(s => s + 1); };
     const goBack = () => { setDir(-1); setStep(s => s - 1); };
 
-    // Step 1 validation: first/last name, username, position (only required for players)
+    // Validations
     const isStep1Valid = selectedRole === 'player'
         ? firstName.trim() && lastName.trim() && position && username.trim() && usernameStatus === 'available' && birthDate && !ageInfo.isUnder16
         : firstName.trim() && lastName.trim() && username.trim() && usernameStatus === 'available';
+
+    const isStep2Valid = selectedRole === 'player'
+        ? (selectedClubName.trim() || clubSearch.trim()) && ageCategory && genderCategory
+        : true; // Only applies to players
 
     const handleFinish = async (skipVideo = true) => {
         if (!firstName.trim() || !lastName.trim()) {
@@ -233,7 +259,23 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 player = await api.updatePlayer(player.id, { avatar_url: avatarUrl });
             }
 
-            if (isPlayer) {
+            // 3. Autonomous Team Assignment for Players
+            if (isPlayer && (selectedClubName || clubSearch.trim()) && ageCategory && genderCategory) {
+                // Add a small delay for the "Validierung..." feel
+                addToast('Validierung...', 'info');
+                await new Promise(r => setTimeout(r, 1000));
+                
+                try {
+                    const finalClubName = selectedClubName || clubSearch.trim();
+                    await api.joinOrCreateTeam(finalClubName, ageCategory, genderCategory);
+                    // Fetch updated player state to reflect current_team_id
+                    player = await api.fetchPlayerByUserId(session.user.id);
+                    addToast(`Du wurdest dem Kader von ${finalClubName} hinzugefügt. Deine Teamkollegen wurden benachrichtigt.`, 'success');
+                } catch (teamErr) {
+                    console.error('Team assignment error:', teamErr);
+                    addToast('Fehler bei der Team-Zuordnung.', 'error');
+                }
+            } else if (isPlayer) {
                 addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
             } else {
                 addToast('Willkommen! Dein Verifiziert-Badge wird nach Prüfung freigeschaltet.', 'success');
@@ -261,26 +303,38 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
     const steps = [
         {
+            id: 'role',
             icon: <Sparkles className="text-cyan-400" size={28} />,
             title: 'Willkommen bei Cavio!',
             subtitle: 'Wie möchtest du die Plattform nutzen?',
         },
         {
+            id: 'basic',
             icon: <Target className="text-cyan-400" size={28} />,
             title: currentRole?.profileTitle || 'Dein Profil',
             subtitle: selectedRole === 'player' ? 'Erzähl uns ein bisschen über dich.' : 'Wie sollen wir dich nennen?',
         },
+        ...(selectedRole === 'player' ? [{
+            id: 'club',
+            icon: <Target className="text-cyan-400" size={28} />,
+            title: 'Dein Team',
+            subtitle: 'Schließe dich deinem aktuellen Kader an.',
+        }] : []),
         {
+            id: 'avatar',
             icon: <Camera className="text-cyan-400" size={28} />,
             title: 'Dein Profilbild',
             subtitle: 'Ein gutes Foto erhöht deine Sichtbarkeit.',
         },
         {
+            id: 'finish',
             icon: <Sparkles className="text-cyan-400" size={28} />,
             title: 'Fast geschafft!',
             subtitle: selectedRole === 'player' ? 'Starte jetzt und werde entdeckt.' : 'Dein Profil wird nach Absenden geprüft.',
         },
     ];
+
+    const TOTAL_STEPS = steps.length;
 
     return (
         <div className="fixed inset-0 z-[10002] bg-background/95 backdrop-blur-xl flex flex-col items-center overflow-y-auto">
@@ -321,7 +375,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         <p className="text-muted-foreground text-sm text-center mb-8">{steps[step].subtitle}</p>
 
                         {/* Step 0: Role Selection */}
-                        {step === 0 && (
+                        {steps[step].id === 'role' && (
                             <div className="w-full space-y-3">
                                 {ROLE_OPTIONS.map((role) => (
                                     <button
@@ -363,7 +417,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         )}
 
                         {/* Step 1: First Name, Last Name, Username, Position, Birthday */}
-                        {step === 1 && (
+                        {steps[step].id === 'basic' && (
                             <div className="w-full space-y-4">
                                 {/* First & Last Name side by side */}
                                 <div className="grid grid-cols-2 gap-3">
@@ -502,8 +556,119 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                             </div>
                         )}
 
+                        {/* Step 1.5: Club & Team Selection */}
+                        {steps[step].id === 'club' && (
+                            <div className="w-full space-y-4">
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Verein *</label>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                        <input
+                                            type="text"
+                                            value={clubSearch}
+                                            onChange={(e) => {
+                                                setClubSearch(e.target.value);
+                                                setSelectedClubName('');
+                                                setShowClubDropdown(true);
+                                            }}
+                                            className={`${inputStyle} pl-10`}
+                                            placeholder="Verein suchen oder eingeben..."
+                                        />
+                                    </div>
+                                    <AnimatePresence>
+                                        {showClubDropdown && clubSearch.length >= 2 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute top-full mt-2 w-full bg-slate-900/90 backdrop-blur-xl border border-slate-700 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-20"
+                                            >
+                                                {clubResults.length > 0 ? (
+                                                    clubResults.map((club) => (
+                                                        <button
+                                                            key={club.id}
+                                                            onClick={() => {
+                                                                setSelectedClubName(club.name);
+                                                                setClubSearch(club.name);
+                                                                setShowClubDropdown(false);
+                                                            }}
+                                                            className="w-full flex items-center gap-3 p-3 hover:bg-slate-800/50 transition-colors text-left border-b border-slate-800/50 last:border-0"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-cover" /> : <ShieldAlert size={14} className="text-slate-400" />}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-sm text-slate-200">{club.name}</p>
+                                                                <p className="text-xs text-muted-foreground">{club.leagues?.name || club.league || 'Verein'}</p>
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="p-3">
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedClubName(clubSearch);
+                                                                setShowClubDropdown(false);
+                                                            }}
+                                                            className="w-full p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-medium transition-colors text-center"
+                                                        >
+                                                            "{clubSearch}" neu anlegen
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                <AnimatePresence>
+                                    {(selectedClubName || clubSearch.length >= 2) && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="grid grid-cols-2 gap-3 pt-2 overflow-hidden"
+                                        >
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Kategorie *</label>
+                                                <select
+                                                    value={ageCategory}
+                                                    onChange={(e) => setAgeCategory(e.target.value)}
+                                                    className="w-full bg-slate-900/50 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-3 text-slate-200 appearance-none outline-none transition-colors"
+                                                >
+                                                    <option value="" disabled>Wählen...</option>
+                                                    <option value="Senioren">Senioren</option>
+                                                    <option value="U19">U19</option>
+                                                    <option value="U18">U18</option>
+                                                    <option value="U17">U17</option>
+                                                    <option value="U16">U16</option>
+                                                    <option value="U15">U15</option>
+                                                    <option value="U14">U14</option>
+                                                    <option value="U13">U13</option>
+                                                    <option value="Jugend">Jugend</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Geschlecht *</label>
+                                                <select
+                                                    value={genderCategory}
+                                                    onChange={(e) => setGenderCategory(e.target.value)}
+                                                    className="w-full bg-slate-900/50 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-3 text-slate-200 appearance-none outline-none transition-colors"
+                                                >
+                                                    <option value="" disabled>Wählen...</option>
+                                                    <option value="Männlich">Männlich</option>
+                                                    <option value="Weiblich">Weiblich</option>
+                                                    <option value="Mixed">Mixed</option>
+                                                </select>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
+
                         {/* Step 2: Avatar */}
-                        {step === 2 && (
+                        {steps[step].id === 'avatar' && (
                             <div className="w-full flex flex-col items-center space-y-6">
                                 <label className="cursor-pointer group">
                                     <div className="relative w-36 h-36 rounded-full bg-slate-100 dark:bg-zinc-800 border-2 border-dashed border-border group-hover:border-cyan-500 transition-colors overflow-hidden flex items-center justify-center">
@@ -531,7 +696,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                         )}
 
                         {/* Step 3: Finish */}
-                        {step === 3 && (
+                        {steps[step].id === 'finish' && (
                             <div className="w-full space-y-4">
                                 <div className="bg-card border border-border rounded-2xl p-5 space-y-3 relative">
                                     <div className="flex items-center gap-3">
@@ -586,7 +751,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                             {step < TOTAL_STEPS - 1 ? (
                                 <button
                                     onClick={goNext}
-                                    disabled={step === 1 && !isStep1Valid}
+                                    disabled={(steps[step].id === 'basic' && !isStep1Valid) || (steps[step].id === 'club' && !isStep2Valid)}
                                     className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-400 hover:shadow-[0_0_20px_rgba(0,240,255,0.4)] disabled:opacity-30 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
                                 >
                                     Weiter <ArrowRight size={16} />

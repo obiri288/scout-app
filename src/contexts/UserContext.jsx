@@ -59,7 +59,7 @@ export const UserProvider = ({ children }) => {
         setProfileLoading(true);
         try {
             let { data, error: fetchError } = await supabase.from('players_master')
-                .select('*, clubs(*), career_history(*)')
+                .select('*, clubs(*), club_teams(*, clubs(*)), career_history(*)')
                 .eq('user_id', s.user.id)
                 .maybeSingle();
 
@@ -85,7 +85,7 @@ export const UserProvider = ({ children }) => {
     // Enforce Single Source of Truth: Cleanup ghost club data
     // If user has a club_id but no approved current career station, reset it
     const enforceSSOTCleanup = useCallback(async (profile) => {
-        if (!profile || !profile.club_id) return;
+        if (!profile || (!profile.club_id && !profile.current_team_id)) return;
         
         try {
             // Check if there is an approved station without an end_date (current station)
@@ -101,16 +101,16 @@ export const UserProvider = ({ children }) => {
             
             // If no approved current station exists -> Ghost Data detected
             if (!data) {
-                console.log("[SSOT Cleanup] Ghost club detected for user", profile.id, "- Wiping club_id");
+                console.log("[SSOT Cleanup] Ghost club detected for user", profile.id, "- Wiping club_id and current_team_id");
                 const { error: updateError } = await supabase
                     .from('players_master')
-                    .update({ club_id: null })
+                    .update({ club_id: null, current_team_id: null })
                     .eq('id', profile.id);
                 
                 if (updateError) throw updateError;
                 
                 // Update local state to reflect the cleanup
-                setCurrentUserProfile(prev => prev ? { ...prev, club_id: null, clubs: null } : null);
+                setCurrentUserProfile(prev => prev ? { ...prev, club_id: null, clubs: null, current_team_id: null, club_teams: null } : null);
             }
         } catch (err) {
             console.error("[SSOT Cleanup] Failed:", err.message);

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Bell, X, Heart, UserPlus, Eye, Star, Trophy, Zap, 
-    MessageSquare, CheckCheck, AlertTriangle, Loader2 
+    MessageSquare, CheckCheck, AlertTriangle, Loader2, Users, Shield 
 } from 'lucide-react';
 import { useUser } from '../contexts/UserContext';
 import * as api from '../lib/api';
@@ -33,6 +33,8 @@ const TYPE_CONFIG = {
     video_removed:   { icon: AlertTriangle, color: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-l-orange-400' },
     verification_success: { icon: CheckCheck, color: 'text-green-400', bg: 'bg-green-500/15', border: 'border-l-green-400' },
     assist_tag:      { icon: Zap,           color: 'text-cyan-400',   bg: 'bg-cyan-500/15',   border: 'border-l-cyan-400' },
+    team_join:       { icon: Users,         color: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-l-emerald-400' },
+    club_roster_update: { icon: Shield,     color: 'text-indigo-400',  bg: 'bg-indigo-500/15',  border: 'border-l-indigo-400' },
 };
 const cfg = (type) => TYPE_CONFIG[type] || { icon: Zap, color: 'text-cyan-400', bg: 'bg-cyan-500/15', border: 'border-l-cyan-400' };
 
@@ -51,6 +53,8 @@ const getText = (n) => {
         case 'video_removed':   return 'Dein Video wurde aufgrund von Nutzer-Meldungen entfernt.';
         case 'verification_success': return n.message || 'Deine Karriere-Station wurde erfolgreich verifiziert! 🎉';
         case 'assist_tag':      return `${name} ${n.message || 'hat dich in einem Video markiert.'}`;
+        case 'team_join':       return n.message || '⚡ Ein neuer Athlet hat sich für dein Team verifiziert.';
+        case 'club_roster_update': return n.message || '📡 Kader-Erweiterung in deinem Verein.';
     }
 
     // Fallback to the stored message if available, otherwise generic

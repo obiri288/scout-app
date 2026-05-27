@@ -67,7 +67,7 @@ export const ensureUniqueSlug = async (baseSlug, currentId = null) => {
 
 export const fetchPlayerByUserId = async (userId) => {
     const { data, error } = await supabase.from('players_master')
-        .select('*, following_count, clubs(*, leagues(name))')
+        .select('*, following_count, clubs(*, leagues(name)), club_teams(*, clubs(*))')
         .eq('user_id', userId)
         .eq('is_deactivated', false)
         .maybeSingle();
@@ -77,7 +77,7 @@ export const fetchPlayerByUserId = async (userId) => {
 
 export const fetchPlayerBySlug = async (slug) => {
     const { data, error } = await supabase.from('players_master')
-        .select('*, following_count, clubs(*, leagues(name))')
+        .select('*, following_count, clubs(*, leagues(name)), club_teams(*, clubs(*))')
         .eq('slug', slug)
         .eq('is_deactivated', false)
         .maybeSingle();
@@ -99,7 +99,7 @@ export const fetchLatestCareerEntry = async (userId) => {
 
 export const fetchPlayerByUsername = async (username) => {
     const { data, error } = await supabase.from('players_master')
-        .select('*, following_count, clubs(*, leagues(name))')
+        .select('*, following_count, clubs(*, leagues(name)), club_teams(*, clubs(*))')
         .eq('username', username)
         .eq('is_deactivated', false)
         .maybeSingle();
@@ -109,7 +109,7 @@ export const fetchPlayerByUsername = async (username) => {
 
 export const fetchPlayersByIds = async (ids) => {
     const { data } = await supabase.from('players_master')
-        .select('*, clubs(*, leagues(name))')
+        .select('*, clubs(*, leagues(name)), club_teams(*, clubs(*))')
         .eq('is_deactivated', false)
         .in('id', ids);
     return data || [];
@@ -119,7 +119,7 @@ export const updatePlayer = async (playerId, updates) => {
     const { data, error } = await supabase.from('players_master')
         .update(updates)
         .eq('id', playerId)
-        .select('*, clubs(*, leagues(name))')
+        .select('*, clubs(*, leagues(name)), club_teams(*, clubs(*))')
         .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     return data;
@@ -1100,6 +1100,87 @@ export const createClub = async (name) => {
         .single();
     if (error) throw error;
     return data;
+};
+
+// ============================================================
+// CLUB TEAMS ECOSYSTEM
+// ============================================================
+
+/**
+ * Autonomous team join/create: Finds or creates club, finds or creates team,
+ * links player, and notifies teammates. All in a single secure RPC call.
+ */
+export const joinOrCreateTeam = async (clubName, ageCategory, gender) => {
+    const { data, error } = await supabase.rpc('join_or_create_team', {
+        p_club_name: clubName,
+        p_age_category: ageCategory,
+        p_gender: gender
+    });
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Fetch all teams for a given club, with the parent club data.
+ */
+export const fetchClubTeams = async (clubId) => {
+    const { data, error } = await supabase
+        .from('club_teams')
+        .select('*, clubs(*)')
+        .eq('club_id', clubId)
+        .order('age_category');
+    if (error) throw error;
+    return data || [];
+};
+
+/**
+ * Fetch all active players on a specific team.
+ */
+export const fetchTeamMembers = async (teamId) => {
+    const { data, error } = await supabase
+        .from('players_master')
+        .select('*, club_teams(*, clubs(*))')
+        .eq('current_team_id', teamId)
+        .eq('is_deactivated', false);
+    if (error) throw error;
+    return data || [];
+};
+
+/**
+ * Leave current team (sets current_team_id to null).
+ */
+export const leaveTeam = async (playerId) => {
+    const { error } = await supabase
+        .from('players_master')
+        .update({ current_team_id: null })
+        .eq('id', playerId);
+    if (error) throw error;
+};
+
+/**
+ * Fetch a club with all its teams and member counts.
+ */
+export const fetchClubWithTeams = async (clubId) => {
+    const { data: teams, error } = await supabase
+        .from('club_teams')
+        .select('*')
+        .eq('club_id', clubId)
+        .order('age_category');
+    if (error) throw error;
+
+    // Fetch player counts per team
+    const teamsWithCounts = await Promise.all(
+        (teams || []).map(async (team) => {
+            const { count } = await supabase
+                .from('players_master')
+                .select('id', { count: 'exact', head: true })
+                .eq('current_team_id', team.id)
+                .eq('is_deactivated', false);
+            return { ...team, member_count: count || 0 };
+        })
+    );
+
+    return teamsWithCounts;
 };
 
 // ============================================================

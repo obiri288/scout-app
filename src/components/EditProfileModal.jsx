@@ -459,6 +459,19 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                     
                     if (syncError) throw syncError;
                     
+                    // Also auto-join the team via RPC (creates club_teams entry if needed)
+                    try {
+                        const ageCategory = profile.ecosystem === 'jugend' ? 'U19' : 'Senioren';
+                        const gender = 'Männlich'; // Default; can be refined later
+                        await api.joinOrCreateTeam(
+                            careerForm.club_name.trim(),
+                            ageCategory,
+                            gender
+                        );
+                    } catch (teamErr) {
+                        console.warn("Auto team-join during career sync skipped:", teamErr.message);
+                    }
+                    
                     // Update local selectedClub to reflect change in Profile tab
                     const { data: newClubData } = await supabase
                         .from('clubs')

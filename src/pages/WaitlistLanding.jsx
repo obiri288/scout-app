@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Instagram } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Footer } from '../components/Footer';
 import logoImg from '../assets/image.png';
 
 /**
@@ -357,13 +358,14 @@ export const WaitlistLanding = () => {
                 </motion.div>
             </motion.div>
 
-            {/* === Keyframe Animations === */}
             <style>{`
                 @keyframes waitlistPulse {
                     0%, 100% { opacity: 1; transform: scale(1); }
                     50% { opacity: 0.4; transform: scale(0.8); }
                 }
             `}</style>
+
+            <Footer />
         </div>
     );
 };

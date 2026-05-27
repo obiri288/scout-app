@@ -53,15 +53,18 @@ const getRecentProfiles = () => {
 };
 
 export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
+    const [searchMode, setSearchMode] = useState('athletes'); // 'athletes' | 'clubs'
     const [query, setQuery] = useState('');
     const [cityQuery, setCityQuery] = useState('');
     const [clubQuery, setClubQuery] = useState('');
     const [res, setRes] = useState([]);
+    const [clubRes, setClubRes] = useState([]);
     const [pos, setPos] = useState('Alle');
     const [status, setStatus] = useState('Alle');
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    const [clubHasMore, setClubHasMore] = useState(true);
     const [showTagFilter, setShowTagFilter] = useState(false);
     const [selectedTag, setSelectedTag] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -137,6 +140,24 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const { activeEcosystem } = useEcosystem();
 
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
+        if (searchMode === 'clubs') {
+            try {
+                let q = supabase.from('clubs').select('id, name, logo_url, is_verified, club_teams(count)').ilike('name', `%${query}%`);
+                const { data } = await q.range(offset, offset + PAGE_SIZE - 1);
+                
+                const newItems = data || [];
+                if (reset) setClubRes(newItems);
+                else setClubRes(prev => [...prev, ...newItems]);
+                setClubHasMore(newItems.length === PAGE_SIZE);
+            } catch (e) {
+                console.error("Club search error:", e);
+            } finally {
+                setLoading(false);
+                setLoadingMore(false);
+            }
+            return;
+        }
+
         try {
             let q = supabase.from('players_master').select('*, clubs(*), career_history(*)').eq('is_deactivated', false).eq('is_under_review', false);
             if (activeEcosystem !== 'all' && !query) {
@@ -179,18 +200,19 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext, selectedArchetype, activeEcosystem]);
+    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext, selectedArchetype, activeEcosystem, searchMode]);
 
     // Reset and refetch when filters change
     useEffect(() => {
         setLoading(true);
         setHasMore(true);
+        setClubHasMore(true);
         const t = setTimeout(() => {
             fetchResults(0, true);
             if (query && query.trim().length >= 2) saveRecentSearch(query);
         }, 500);
         return () => clearTimeout(t);
-    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype, activeEcosystem]);
+    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype, activeEcosystem, searchMode]);
 
     // Fetch videos when action tag is selected
     useEffect(() => {
@@ -235,18 +257,19 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
 
     // Infinite scroll via IntersectionObserver
     useEffect(() => {
-        if (!sentinelRef.current || !hasMore) return;
+        const currentHasMore = searchMode === 'clubs' ? clubHasMore : hasMore;
+        if (!sentinelRef.current || !currentHasMore) return;
 
         const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting && !loadingMore && !loading && hasMore) {
+            if (entry.isIntersecting && !loadingMore && !loading && currentHasMore) {
                 setLoadingMore(true);
-                fetchResults(res.length);
+                fetchResults(searchMode === 'clubs' ? clubRes.length : res.length);
             }
         }, { rootMargin: '400px' });
 
         observer.observe(sentinelRef.current);
         return () => observer.disconnect();
-    }, [res.length, hasMore, loadingMore, loading, fetchResults]);
+    }, [res.length, clubRes.length, hasMore, clubHasMore, loadingMore, loading, fetchResults, searchMode]);
 
     const activeFilterCount = [
         pos !== 'Alle',
@@ -287,12 +310,28 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                 <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>
             <div className="px-4 mt-6 relative">
+                {/* Search Mode Toggle */}
+                <div className="flex bg-slate-900/50 p-1 rounded-full mb-4 border border-white/5 shadow-inner">
+                    <button 
+                        onClick={() => setSearchMode('athletes')}
+                        className={`flex-1 text-sm font-bold py-2 rounded-full transition-all ${searchMode === 'athletes' ? 'bg-slate-800 text-cyan-400 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        Athleten
+                    </button>
+                    <button 
+                        onClick={() => setSearchMode('clubs')}
+                        className={`flex-1 text-sm font-bold py-2 rounded-full transition-all ${searchMode === 'clubs' ? 'bg-slate-800 text-cyan-400 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                        Vereine
+                    </button>
+                </div>
+
                 {/* Main search and Map Toggle */}
                 <div className="flex items-center gap-3 mb-4">
                     <div className="relative flex-1 z-50">
                         <Search className="absolute left-4 top-4 text-muted-foreground" size={20} />
                         <input 
-                            placeholder="Spieler suchen..." 
+                            placeholder={searchMode === 'clubs' ? "Verein suchen..." : "Spieler suchen..."} 
                             value={query} 
                             onChange={e => setQuery(e.target.value)} 
                             onFocus={() => setIsSearchFocused(true)}
@@ -353,12 +392,14 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                             </div>
                         )}
                     </div>
-                    <button
-                        onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
-                        className="h-14 w-14 shrink-0 bg-white/5 border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner z-40"
-                    >
-                        {viewMode === 'list' ? <Map size={24} /> : <List size={24} />}
-                    </button>
+                    {searchMode === 'athletes' && (
+                        <button
+                            onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
+                            className="h-14 w-14 shrink-0 bg-white/5 border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner z-40"
+                        >
+                            {viewMode === 'list' ? <Map size={24} /> : <List size={24} />}
+                        </button>
+                    )}
                 </div>
 
                 {viewMode === 'map' ? (
@@ -367,6 +408,8 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                     </div>
                 ) : (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
+                        {searchMode === 'athletes' && (
+                            <>
                         {/* Advanced search toggle */}
                         <button
                             onClick={() => setShowAdvanced(!showAdvanced)}
@@ -506,9 +549,57 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                 )}
                             </div>
                         )}
+                            </>
+                        )}
 
-                        {/* Results: Action Videos OR Player Search */}
-                        {selectedActionTag ? (
+                        {/* Results: Action Videos OR Player Search OR Club Search */}
+                        {searchMode === 'clubs' ? (
+                            <div className="space-y-3 animate-in fade-in">
+                                {loading ? <SearchSkeleton /> : (
+                                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
+                                        {clubRes.map(club => (
+                                            <motion.div 
+                                                key={club.id} 
+                                                variants={listItemVariants} 
+                                                whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} 
+                                                whileTap={{ scale: 0.98 }} 
+                                                onClick={() => window.location.hash = `#club/${club.id}`} 
+                                                className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}
+                                            >
+                                                <div className="w-14 h-14 rounded-2xl bg-slate-900 flex-shrink-0 overflow-hidden border border-white/10 flex items-center justify-center relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">
+                                                    {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-cover" /> : <Shield size={24} className="text-slate-500" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <h3 className="font-bold text-foreground text-base tracking-tight truncate">{club.name}</h3>
+                                                        {club.is_verified && <VerificationBadge size={14} status="approved" />}
+                                                    </div>
+                                                    {club.club_teams && club.club_teams.length > 0 && club.club_teams[0].count > 0 && (
+                                                        <div className="mt-1">
+                                                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap bg-slate-800/50 border border-slate-700 px-2 py-0.5 rounded-md">
+                                                                {club.club_teams[0].count} aktive Kader
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                                            </motion.div>
+                                        ))}
+                                        {clubRes.length === 0 && <div className="text-center py-20 text-muted-foreground"><Shield size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Vereine gefunden</p></div>}
+                                        
+                                        {/* Infinite scroll sentinel */}
+                                        {clubHasMore && (
+                                            <div ref={sentinelRef} className="flex justify-center py-6">
+                                                {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
+                                            </div>
+                                        )}
+                                        {!clubHasMore && clubRes.length > 0 && (
+                                            <div className="text-center text-muted-foreground text-xs py-6">Alle Ergebnisse geladen.</div>
+                                        )}
+                                    </motion.div>
+                                )}
+                            </div>
+                        ) : selectedActionTag ? (
                             // Action Video Results
                             <div className="space-y-3 animate-in fade-in">
                                 <div className="flex items-center gap-2 mb-2">

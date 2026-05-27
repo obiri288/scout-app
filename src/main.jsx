@@ -9,6 +9,7 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import WaitlistGuard from './components/WaitlistGuard'
+import { NetworkGuard } from './components/NetworkGuard'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -18,9 +19,11 @@ createRoot(document.getElementById('root')).render(
           <ToastProvider>
             <UserProvider>
               <EcosystemProvider>
-                <WaitlistGuard>
-                  <App />
-                </WaitlistGuard>
+                <NetworkGuard>
+                  <WaitlistGuard>
+                    <App />
+                  </WaitlistGuard>
+                </NetworkGuard>
               </EcosystemProvider>
             </UserProvider>
           </ToastProvider>

@@ -495,7 +495,7 @@ const App = () => {
             )}
 
             {activeTab === 'directory' && <UserDirectoryScreen currentUserProfile={currentUserProfile} onUserClick={loadProfile} onBack={() => switchTab('home')} onMenuOpen={() => setIsSidebarOpen(true)} />}
-            {activeTab === 'teams' && <TeamsScreen currentUserProfile={currentUserProfile} onBack={() => switchTab('home')} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'teams' && <TeamsScreen currentUserProfile={currentUserProfile} onBack={() => switchTab('home')} onMenuOpen={() => setIsSidebarOpen(true)} onUserClick={loadProfile} />}
             {activeTab === 'club' && viewedClub && <ClubScreen club={viewedClub} onBack={() => switchTab('home')} onUserClick={loadProfile} />}
             {activeTab === 'settings' && (
                 <Suspense fallback={<LazyFallback />}>
