@@ -8,6 +8,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import WaitlistGuard from './components/WaitlistGuard'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')).render(
           <ToastProvider>
             <UserProvider>
               <EcosystemProvider>
-                <App />
+                <WaitlistGuard>
+                  <App />
+                </WaitlistGuard>
               </EcosystemProvider>
             </UserProvider>
           </ToastProvider>

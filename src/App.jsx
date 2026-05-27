@@ -354,6 +354,31 @@ const App = () => {
         );
     }
 
+    // Direct /login route — used by WaitlistGuard's subtle login link
+    if (window.location.pathname === '/login') {
+        return (
+            <div className="min-h-screen bg-background">
+                <Suspense fallback={<LazyFallback />}>
+                    <LoginModal
+                        onClose={() => {
+                            // Navigate back to root when closing login
+                            window.history.replaceState({}, document.title, '/');
+                            window.location.reload();
+                        }}
+                        onSuccess={(s) => {
+                            handleLoginSuccess(s);
+                            // Navigate to root after successful login
+                            window.history.replaceState({}, document.title, '/');
+                        }}
+                        onLegalOpen={(key) => {
+                            setActiveSettingsModal(key);
+                        }}
+                    />
+                </Suspense>
+            </div>
+        );
+    }
+
     // Block ALL rendering until auth state AND initial profile fetch are resolved
     // Also block if a reactivation is pending (force modal decision)
     if (authLoading || (isAuthCallback && !window.location.pathname.includes('/auth-callback')) || pendingReactivationProfile || (session && !currentUserProfile && profileLoading)) {

@@ -47,6 +47,11 @@ const getRecentSearches = () => {
     try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || []; } catch { return []; }
 };
 
+const RECENT_PROFILES_KEY = 'scout_recent_profiles';
+const getRecentProfiles = () => {
+    try { return JSON.parse(localStorage.getItem(RECENT_PROFILES_KEY)) || []; } catch { return []; }
+};
+
 export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const [query, setQuery] = useState('');
     const [cityQuery, setCityQuery] = useState('');
@@ -61,7 +66,9 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const [selectedTag, setSelectedTag] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [recentSearches, setRecentSearches] = useState(getRecentSearches);
+    const [recentProfiles, setRecentProfiles] = useState(getRecentProfiles);
     const [showActionFilter, setShowActionFilter] = useState(false);
     const [selectedActionTag, setSelectedActionTag] = useState(null);
     const [actionVideos, setActionVideos] = useState([]);
@@ -79,9 +86,31 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
     }, [recentSearches]);
 
-    const clearRecentSearches = () => {
+    const saveRecentProfile = useCallback((profile) => {
+        if (!profile) return;
+        const profileData = { 
+            id: profile.id, 
+            name: profile.full_name || profile.username || 'Unbekannt', 
+            avatarUrl: profile.avatar_url, 
+            role: profile.role,
+            slug: profile.slug,
+            user_id: profile.user_id
+        };
+        const updated = [profileData, ...recentProfiles.filter(p => p.id !== profile.id)].slice(0, 5);
+        setRecentProfiles(updated);
+        localStorage.setItem(RECENT_PROFILES_KEY, JSON.stringify(updated));
+    }, [recentProfiles]);
+
+    const clearRecentHistory = () => {
         setRecentSearches([]);
+        setRecentProfiles([]);
         localStorage.removeItem(RECENT_SEARCHES_KEY);
+        localStorage.removeItem(RECENT_PROFILES_KEY);
+    };
+
+    const handleUserClick = (profile) => {
+        saveRecentProfile(profile);
+        onUserClick(profile);
     };
 
     // Fetch clubs matching clubQuery for client-side filtering
@@ -257,44 +286,80 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                 </button>
                 <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>
-            <div className="px-4 mt-6">
+            <div className="px-4 mt-6 relative">
                 {/* Main search and Map Toggle */}
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="relative flex-1">
+                    <div className="relative flex-1 z-50">
                         <Search className="absolute left-4 top-4 text-muted-foreground" size={20} />
-                        <input placeholder="Spieler suchen..." value={query} onChange={e => setQuery(e.target.value)} className={`${inputStyle} pl-12 pr-12`} />
+                        <input 
+                            placeholder="Spieler suchen..." 
+                            value={query} 
+                            onChange={e => setQuery(e.target.value)} 
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && query.trim()) {
+                                    saveRecentSearch(query);
+                                    setIsSearchFocused(false);
+                                }
+                            }}
+                            className={`${inputStyle} pl-12 pr-12 bg-white/5 focus:bg-white/10 transition-colors`} 
+                        />
                         {query && (
-                            <button onClick={() => setQuery('')} className="absolute right-4 top-4 text-muted-foreground hover:text-white">
+                            <button onClick={() => { setQuery(''); setIsSearchFocused(true); }} className="absolute right-4 top-4 text-muted-foreground hover:text-white transition-colors">
                                 <X size={18} />
                             </button>
+                        )}
+
+                        {/* Search History Empty State Dropdown */}
+                        {!query && isSearchFocused && viewMode === 'list' && (recentSearches.length > 0 || recentProfiles.length > 0) && (
+                            <div className="absolute top-full left-0 right-0 mt-2 p-4 rounded-2xl bg-slate-900/95 border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-50 animate-in fade-in slide-in-from-top-2">
+                                
+                                {recentSearches.length > 0 && (
+                                    <div className="mb-5">
+                                        <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-bold">Zuletzt gesucht</h4>
+                                        <ul className="space-y-1">
+                                            {recentSearches.map(term => (
+                                                <li key={term} onClick={() => { setQuery(term); setIsSearchFocused(false); }} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-cyan-400 hover:bg-white/5 cursor-pointer transition-colors group">
+                                                    <Clock size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                                                    <span>{term}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {recentProfiles.length > 0 && (
+                                    <div>
+                                        <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-bold">Zuletzt aufgerufen</h4>
+                                        <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 px-1">
+                                            {recentProfiles.map(p => (
+                                                <div key={p.id} onClick={() => handleUserClick(p)} className="flex flex-col items-center gap-2 cursor-pointer group min-w-[64px]">
+                                                    <div className="w-14 h-14 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all bg-slate-800 flex-shrink-0">
+                                                        {p.avatarUrl ? (
+                                                            <img src={p.avatarUrl} className="w-full h-full object-cover" alt={p.name} />
+                                                        ) : (
+                                                            <img src="/cavio-icon.png" className="w-full h-full object-contain p-3 opacity-60" alt={p.name} />
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400 group-hover:text-cyan-400 truncate max-w-full font-medium text-center leading-tight">
+                                                        {p.name.split(' ')[0]}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
                     <button
                         onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
-                        className="h-14 w-14 shrink-0 bg-white/5 border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner"
+                        className="h-14 w-14 shrink-0 bg-white/5 border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner z-40"
                     >
                         {viewMode === 'list' ? <Map size={24} /> : <List size={24} />}
                     </button>
                 </div>
-
-                {/* Recent Searches */}
-                {!query && recentSearches.length > 0 && viewMode === 'list' && (
-                    <div className="mb-4 animate-in fade-in">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1.5"><Clock size={10} /> Zuletzt gesucht</span>
-                            <button onClick={clearRecentSearches} className="text-[10px] text-muted-foreground hover:text-red-400 transition flex items-center gap-1">
-                                <Trash2 size={10} /> Löschen
-                            </button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {recentSearches.map(term => (
-                                <button key={term} onClick={() => setQuery(term)} className="px-3 py-1.5 bg-white/5 border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-white/10 transition">
-                                    {term}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 {viewMode === 'map' ? (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
@@ -458,7 +523,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                         {actionVideos.map(v => {
                                             const isCaptain = v.players_master?.career_history?.some(c => c.is_captain && !c.end_date && c.verification_status === 'approved') ?? false;
                                             return (
-                                                <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -2 }} className={`${cardStyle} overflow-hidden cursor-pointer group ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`} onClick={() => onUserClick(v.players_master)}>
+                                                <motion.div key={v.id} variants={listItemVariants} whileHover={{ y: -2 }} className={`${cardStyle} overflow-hidden cursor-pointer group ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`} onClick={() => handleUserClick(v.players_master)}>
                                                     <div className="flex gap-3 p-3">
                                                         <div className="w-28 h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 relative border border-white/10">
                                                             {v.thumbnail_url ? (
@@ -526,7 +591,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                         {res.map(p => {
                                             const isCaptain = p.career_history?.some(c => c.is_captain && !c.end_date && c.verification_status === 'approved') ?? false;
                                             return (
-                                                <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle} ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`}>
+                                                <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => handleUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle} ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`}>
                                                     <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
                                                     <div className="flex-1 min-w-0">
                                                         <h3 className="font-bold text-foreground text-base tracking-tight truncate flex items-center gap-1.5">

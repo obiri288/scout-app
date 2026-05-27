@@ -635,7 +635,7 @@ export const ProfileScreen = ({
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-500">
             {/* Header / Cover */}
-            <div className="relative h-52 bg-gradient-to-br from-indigo-900 via-slate-900 to-black overflow-hidden">
+            <div className="relative h-52 bg-gradient-to-br from-indigo-900 via-slate-900 to-black">
                 <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent" />
                 
@@ -680,10 +680,11 @@ export const ProfileScreen = ({
                                             className="fixed inset-0 z-30"
                                         />
                                         <motion.div 
-                                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                            className="absolute right-0 mt-2 w-56 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-40 overflow-hidden py-1"
+                                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                            transition={{ duration: 0.15, ease: "easeOut" }}
+                                            className="absolute right-0 top-full mt-2 w-56 bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-xl p-2 z-50 overflow-hidden"
                                         >
                                             <button 
                                                 onClick={() => {
@@ -692,7 +693,7 @@ export const ProfileScreen = ({
                                                     addToast("Link kopiert", "success");
                                                     setIsProfileMenuOpen(false);
                                                 }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 text-slate-200 hover:bg-white/10 transition text-sm font-bold"
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-800/60 hover:text-cyan-400 transition-all duration-200 rounded-lg text-left"
                                             >
                                                 <Copy size={16} /> Profil-URL kopieren
                                             </button>
@@ -701,17 +702,17 @@ export const ProfileScreen = ({
                                                     handleShare();
                                                     setIsProfileMenuOpen(false);
                                                 }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 text-slate-200 hover:bg-white/10 transition text-sm font-bold"
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-200 hover:bg-slate-800/60 hover:text-cyan-400 transition-all duration-200 rounded-lg text-left"
                                             >
                                                 <Share2 size={16} /> Dieses Profil teilen
                                             </button>
-                                            <div className="h-px bg-white/5 mx-2" />
+                                            <div className="h-px bg-slate-700/50 my-1 mx-2" />
                                             <button 
                                                 onClick={() => {
                                                     onReport(profile.id, 'profile');
                                                     setIsProfileMenuOpen(false);
                                                 }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 text-red-500 hover:bg-red-500/10 transition text-sm font-bold"
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 rounded-lg text-left"
                                             >
                                                 <Flag size={16} /> Melden
                                             </button>
@@ -720,7 +721,7 @@ export const ProfileScreen = ({
                                                     setIsBlockModalOpen(true);
                                                     setIsProfileMenuOpen(false);
                                                 }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 text-red-500 hover:bg-red-500/10 transition text-sm font-bold"
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200 rounded-lg text-left"
                                             >
                                                 <Ban size={16} /> Blockieren
                                             </button>
