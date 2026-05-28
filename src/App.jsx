@@ -45,8 +45,8 @@ const UpdateEmailModal = lazy(() => import('./components/UpdateEmailModal').then
 const DeactivateAccountModal = lazy(() => import('./components/DeactivateAccountModal').then(m => ({ default: m.DeactivateAccountModal })));
 const ReactivateAccountModal = lazy(() => import('./components/ReactivateAccountModal').then(m => ({ default: m.ReactivateAccountModal })));
 const UpdatePasswordScreen = lazy(() => import('./components/UpdatePasswordScreen'));
-const PrivacyScreen = lazy(() => import('./components/PrivacyScreen'));
-const ImprintScreen = lazy(() => import('./components/ImprintScreen'));
+const PrivacyScreen = lazy(() => import('./components/Datenschutz'));
+const ImprintScreen = lazy(() => import('./components/Impressum'));
 import { EmailConfirmedPage } from './components/EmailConfirmedPage';
 import { AuthCallbackScreen } from './components/AuthCallbackScreen';
 

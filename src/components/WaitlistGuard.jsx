@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { WaitlistLanding } from '../pages/WaitlistLanding';
 import { supabase } from '../lib/supabase';
-import ImprintScreen from './ImprintScreen';
-import PrivacyScreen from './PrivacyScreen';
+import Impressum from './Impressum';
+import Datenschutz from './Datenschutz';
 
 /**
  * WaitlistGuard — Intelligent routing component for pre-launch phase.
@@ -119,8 +119,8 @@ const WaitlistGuard = ({ children }) => {
     }
 
     // --- Final Render Decision ---
-    if (isImpressumRoute) return <ImprintScreen />;
-    if (isDatenschutzRoute) return <PrivacyScreen />;
+    if (isImpressumRoute) return <Impressum />;
+    if (isDatenschutzRoute) return <Datenschutz />;
 
     // If they are legitimately on the waitlist route and not logged in (Regel B)
     if (isWaitlistRoute && !hasSession) {
