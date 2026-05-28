@@ -28,7 +28,7 @@ const Impressum = () => {
 
                 <h2 className="text-slate-100 font-bold mt-8 mb-4 text-xl">Angaben gemäß § 5 TMG</h2>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    trendtriebwerk<br />
+                    trendtriebwerk - Obiri-Yeboah Bordom<br />
                     Georg-Blume-Straße 19<br />
                     22119 Hamburg
                 </p>

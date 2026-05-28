@@ -76,7 +76,7 @@ const Datenschutz = () => {
                     Die verantwortliche Stelle für die Datenverarbeitung auf dieser Website ist:
                 </p>
                 <p className="text-slate-300 text-sm leading-relaxed font-semibold mt-2">
-                    trendtriebwerk, Georg-Blume-Straße 19, 22119 Hamburg, Deutschland. E-Mail: kontakt@cavio.me
+                    trendtriebwerk - Obiri-Yeboah Bordom, Georg-Blume-Straße 19, 22119 Hamburg, Deutschland. E-Mail: kontakt@cavio.me
                 </p>
                 <p className="text-slate-300 text-sm leading-relaxed mt-2">
                     Verantwortliche Stelle ist die natürliche oder juristische Person, die allein oder gemeinsam mit anderen über die Zwecke und Mittel der Verarbeitung von personenbezogenen Daten (z. B. Namen, E-Mail-Adressen o. Ä.) entscheidet.
