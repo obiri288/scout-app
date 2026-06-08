@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WaitlistLanding } from '../pages/WaitlistLanding';
 import { supabase } from '../lib/supabase';
+import { SECRET_ACCESS_PATH } from '../lib/config';
 import Impressum from './Impressum';
 import Datenschutz from './Datenschutz';
 
@@ -70,7 +71,7 @@ const WaitlistGuard = ({ children }) => {
     // --- Layer 4: Routing & Gatekeeper Logic ---
     const path = window.location.pathname;
     const isWaitlistRoute = path === '/waitlist';
-    const isLoginRoute = path === '/login';
+    const isLoginRoute = path === SECRET_ACCESS_PATH;
     const isResetPasswordRoute = path === '/reset-password';
     const isImpressumRoute = path === '/impressum';
     const isDatenschutzRoute = path === '/datenschutz';
@@ -81,6 +82,12 @@ const WaitlistGuard = ({ children }) => {
     useEffect(() => {
         if (!sessionChecked) return;
 
+        // Redirect standard /login route to /waitlist immediately
+        if (path === '/login') {
+            window.location.replace('/waitlist');
+            return;
+        }
+
         // Bypass logic if not in waitlist mode, though typically we always want auth guards.
         // Assuming WaitlistGuard is our primary AuthGuard for pre-launch:
         if (!hasSession && !isPublicRoute && !hasBetaAccess) {
@@ -90,7 +97,7 @@ const WaitlistGuard = ({ children }) => {
             // Regel C: User is logged in and tries to access /waitlist or /login -> redirect to inside the app (/)
             window.location.replace('/');
         }
-    }, [sessionChecked, hasSession, isPublicRoute, hasBetaAccess, isWaitlistRoute, isLoginRoute]);
+    }, [sessionChecked, hasSession, isPublicRoute, hasBetaAccess, isWaitlistRoute, isLoginRoute, path]);
 
     // --- Wait for session check or redirect to complete before rendering ---
     if (!sessionChecked || (!hasSession && !isPublicRoute && !hasBetaAccess) || (hasSession && (isWaitlistRoute || isLoginRoute))) {

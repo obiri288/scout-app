@@ -4,6 +4,9 @@ import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, 
 import { useAppState } from './hooks/useAppState';
 import { useToast } from './contexts/ToastContext';
 import * as api from './lib/api';
+import { SECRET_ACCESS_PATH } from './lib/config';
+import { WaitlistInjector } from './components/WaitlistInjector';
+
 
 // Eagerly loaded — visible on first render
 import { CookieBanner } from './components/CookieBanner';
@@ -354,27 +357,40 @@ const App = () => {
         );
     }
 
-    // Direct /login route — used by WaitlistGuard's subtle login link
+    // Redirect standard /login route to /waitlist
     if (window.location.pathname === '/login') {
+        window.location.replace('/waitlist');
+        return null;
+    }
+
+    // Direct SECRET_ACCESS_PATH route — used by WaitlistGuard's subtle login link
+    if (window.location.pathname === SECRET_ACCESS_PATH) {
         return (
-            <div className="min-h-screen bg-background">
-                <Suspense fallback={<LazyFallback />}>
-                    <LoginModal
-                        onClose={() => {
-                            // Navigate back to root when closing login
-                            window.history.replaceState({}, document.title, '/');
-                            window.location.reload();
-                        }}
-                        onSuccess={(s) => {
-                            handleLoginSuccess(s);
-                            // Navigate to root after successful login
-                            window.history.replaceState({}, document.title, '/');
-                        }}
-                        onLegalOpen={(key) => {
-                            setActiveSettingsModal(key);
-                        }}
-                    />
-                </Suspense>
+            <div className="min-h-screen bg-slate-950 text-foreground flex flex-col items-center justify-center p-4 py-12 gap-6 relative overflow-y-auto">
+                {/* Glow effects */}
+                <div className="absolute pointer-events-none top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[100px]" />
+
+                <div className="z-10 w-full max-w-sm flex flex-col gap-6">
+                    <Suspense fallback={<LazyFallback />}>
+                        <LoginModal
+                            isInline={true}
+                            onClose={() => {
+                                // Navigate back to root when closing login
+                                window.history.replaceState({}, document.title, '/');
+                                window.location.reload();
+                            }}
+                            onSuccess={(s) => {
+                                handleLoginSuccess(s);
+                                // Navigate to root after successful login
+                                window.history.replaceState({}, document.title, '/');
+                            }}
+                            onLegalOpen={(key) => {
+                                setActiveSettingsModal(key);
+                            }}
+                        />
+                    </Suspense>
+                    <WaitlistInjector />
+                </div>
             </div>
         );
     }

@@ -4,6 +4,7 @@ import { Instagram } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Footer } from '../components/Footer';
 import logoImg from '../assets/image.png';
+import { SECRET_ACCESS_PATH } from '../lib/config';
 
 /**
  * WaitlistLanding — Premium Glassmorphism pre-launch landing page.
@@ -21,6 +22,11 @@ export const WaitlistLanding = () => {
     const [email, setEmail] = useState('');
     const [status, setStatus] = useState('idle'); // idle | loading | success | error | duplicate
     const [errorMsg, setErrorMsg] = useState('');
+    
+    // Team Invite States
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteStatus, setInviteStatus] = useState('idle'); // idle | loading | success | error
+    const [inviteError, setInviteError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,6 +54,50 @@ export const WaitlistLanding = () => {
         } catch (err) {
             setStatus('error');
             setErrorMsg('Netzwerkfehler. Bitte versuche es erneut.');
+        }
+    };
+
+    const handleInvite = async (e) => {
+        e.preventDefault();
+        if (!inviteEmail || !inviteEmail.includes('@')) return;
+
+        setInviteStatus('loading');
+        setInviteError('');
+
+        try {
+            // Try with referred_by field
+            let { error } = await supabase
+                .from('waitlist')
+                .insert({ 
+                    email: inviteEmail.trim().toLowerCase(), 
+                    referred_by: email.trim().toLowerCase() 
+                });
+            
+            // If the column referred_by doesn't exist (PGRST204 or 42703), retry without it
+            if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+                const retry = await supabase
+                    .from('waitlist')
+                    .insert({ email: inviteEmail.trim().toLowerCase() });
+                error = retry.error;
+            }
+
+            if (error) {
+                if (error.code === '23505') {
+                    setInviteStatus('error');
+                    setInviteError('Diese E-Mail steht bereits auf der Liste.');
+                } else {
+                    setInviteStatus('error');
+                    setInviteError(error.message || 'Ein Fehler ist aufgetreten.');
+                }
+            } else {
+                setInviteStatus('success');
+                setInviteEmail(''); // clear field
+                // Timeout to reset success message after a few seconds so user can invite more
+                setTimeout(() => setInviteStatus('idle'), 4000);
+            }
+        } catch (err) {
+            setInviteStatus('error');
+            setInviteError('Netzwerkfehler. Bitte versuche es erneut.');
         }
     };
 
@@ -183,11 +233,63 @@ export const WaitlistLanding = () => {
                                     </svg>
                                 </motion.div>
                                 <h2 className="text-xl font-bold text-slate-100 mb-2">
-                                    Du stehst auf der Liste! 🚀
+                                    Du bist auf der VIP-Warteliste! 🚀
                                 </h2>
-                                <p className="text-slate-400 text-sm leading-relaxed">
-                                    Wir benachrichtigen dich, sobald CAVIO live geht. Bereite dich auf die Zukunft des Scoutings vor.
+                                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                                    Wir benachrichtigen dich, sobald CAVIO live geht.
                                 </p>
+
+                                {/* Referral Section */}
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.4 }}
+                                    className="bg-slate-950/50 border border-slate-800 rounded-xl p-6 mt-4 text-left"
+                                >
+                                    <h3 className="text-lg font-bold text-cyan-400 mb-2">
+                                        Bringe dein Team an den Start
+                                    </h3>
+                                    <p className="text-slate-400 text-xs sm:text-sm mb-4 leading-relaxed">
+                                        CAVIO schaltet Vereins-Hubs priorisiert frei, sobald sich mehrere Spieler eines Teams registrieren. Nominiere deine Teamkollegen, um euren Kader schneller freizuschalten.
+                                    </p>
+
+                                    <form onSubmit={handleInvite} className="space-y-3">
+                                        <div className="relative">
+                                            <input
+                                                type="email"
+                                                value={inviteEmail}
+                                                onChange={(e) => setInviteEmail(e.target.value)}
+                                                placeholder="kollege@email.com"
+                                                required
+                                                disabled={inviteStatus === 'loading'}
+                                                className="w-full bg-slate-900 border border-slate-800 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 text-slate-200 rounded-xl px-4 py-3 outline-none text-sm transition-all placeholder:text-slate-600 disabled:opacity-50"
+                                            />
+                                        </div>
+                                        
+                                        {inviteError && (
+                                            <p className="text-rose-400 text-xs mt-1">{inviteError}</p>
+                                        )}
+                                        
+                                        {inviteStatus === 'success' && (
+                                            <p className="text-emerald-400 text-xs mt-1">Erfolgreich eingetragen. Weiteren Kollegen einladen...</p>
+                                        )}
+
+                                        <button
+                                            type="submit"
+                                            disabled={inviteStatus === 'loading' || !inviteEmail}
+                                            className="w-full bg-slate-800 hover:bg-slate-700 text-cyan-400 font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                                        >
+                                            {inviteStatus === 'loading' ? (
+                                                <span className="flex items-center gap-2">
+                                                    <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                                                    Lade ein...
+                                                </span>
+                                            ) : (
+                                                'Kollegen nominieren'
+                                            )}
+                                        </button>
+                                    </form>
+                                </motion.div>
                             </motion.div>
                         ) : status === 'duplicate' ? (
                             /* === Duplicate State === */
@@ -308,6 +410,9 @@ export const WaitlistLanding = () => {
                                             'Platz sichern'
                                         )}
                                     </motion.button>
+                                    <p className="text-[11px] text-slate-500 mt-3 text-center">
+                                        Mit dem Eintragen stimmst du unserer <a href="/datenschutz" className="text-cyan-500 hover:text-cyan-400 underline">Datenschutzerklärung</a> zu. Abmeldung jederzeit möglich.
+                                    </p>
                                 </form>
 
                                 {/* Social proof / counter */}
@@ -324,7 +429,6 @@ export const WaitlistLanding = () => {
                     </AnimatePresence>
                 </motion.div>
 
-                {/* === Login Link (outside glass card) === */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -332,7 +436,7 @@ export const WaitlistLanding = () => {
                     className="mt-8 flex flex-col items-center gap-0"
                 >
                     <a
-                        href="/login"
+                        href={SECRET_ACCESS_PATH}
                         id="waitlist-login-link"
                         className="text-sm transition-colors"
                         style={{
@@ -346,14 +450,14 @@ export const WaitlistLanding = () => {
 
                     {/* === Instagram Link === */}
                     <a
-                        href="https://www.instagram.com/cavio.sports/"
+                        href="https://www.instagram.com/cavio.me/"
                         target="_blank"
                         rel="noopener noreferrer"
                         id="waitlist-instagram-link"
                         className="flex items-center justify-center gap-2 mt-6 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
                     >
                         <Instagram size={16} />
-                        @cavio.sports
+                        @cavio.me
                     </a>
                 </motion.div>
             </motion.div>
