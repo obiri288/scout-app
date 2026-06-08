@@ -23,6 +23,7 @@ import { calculateAge } from '../lib/helpers';
 import { getCountryFlag, getCountryNameOnly } from '../lib/countries';
 import { SIGNATURE_BADGES, getBadgeById, getBadgeColors } from '../lib/badges';
 import { VerificationBadge } from './VerificationBadge';
+import { ScoutPassportCard } from './ScoutPassportCard';
 
 import {
     AlertDialog,
@@ -797,6 +798,16 @@ export const ProfileScreen = ({
                                 <span className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-cyan-500/10 border border-amber-500/20 px-3 py-1 rounded-lg shadow-sm">
                                     <span className="text-xs font-black text-amber-500 uppercase tracking-widest">CAVIO Support</span>
                                 </span>
+                            ) : profile.role === 'scout' && profile.agencies ? (
+                                <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
+                                    <Briefcase size={14} className="text-cyan-500" />
+                                    <span className="font-bold">
+                                        {profile.agencies.name}
+                                    </span>
+                                    {profile.agencies.is_premium && (
+                                        <CheckCircle size={12} className="text-cyan-500 fill-cyan-500/10" title="Premium Partner" />
+                                    )}
+                                </span>
                             ) : (latestCareerEntry?.clubs || profile.clubs) && (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
                                     <Trophy size={14} className="text-amber-500" />
@@ -880,7 +891,7 @@ export const ProfileScreen = ({
                                     whileTap={{ scale: 0.95 }} 
                                     onClick={() => setShowPlayerCard(true)} 
                                     className="flex-none bg-amber-500/10 text-amber-500 p-2.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 transition-all shadow-lg shadow-amber-500/5"
-                                    title="Digitale Player Card"
+                                    title={profile.role === 'scout' ? "Scout Passport" : "Digitale Player Card"}
                                 >
                                     <Crown size={18} />
                                 </motion.button>
@@ -913,7 +924,7 @@ export const ProfileScreen = ({
                                     whileTap={{ scale: 0.95 }} 
                                     onClick={() => setShowPlayerCard(true)} 
                                     className="flex-none bg-amber-500/10 text-amber-500 p-2.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 transition-all"
-                                    title="Digitale Player Card"
+                                    title={profile.role === 'scout' ? "Scout Passport" : "Digitale Player Card"}
                                 >
                                     <Crown size={18} />
                                 </motion.button>
@@ -970,7 +981,24 @@ export const ProfileScreen = ({
 
             {/* Elite Player Card Modal */}
             {showPlayerCard && (
-                <ElitePlayerCard profile={profile} avgRating={avgRating} highlights={highlights} latestCareerEntry={latestCareerEntry} onClose={() => setShowPlayerCard(false)} />
+                profile.role === 'scout' ? (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowPlayerCard(false)}>
+                        <div onClick={e => e.stopPropagation()} className="relative">
+                            <button onClick={() => setShowPlayerCard(false)} className="absolute -top-12 right-0 text-white hover:text-cyan-400 transition-colors bg-black/40 rounded-full p-2">
+                                <X size={24} />
+                            </button>
+                            <ScoutPassportCard
+                                fullName={profile.full_name}
+                                scoutTitle={profile.club_affiliation || profile.scout_title}
+                                agencyName={profile.agencies?.name}
+                                agencyLogo={profile.agencies?.logo_url}
+                                isAccredited={!!profile.agencies}
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <ElitePlayerCard profile={profile} avgRating={avgRating} highlights={highlights} latestCareerEntry={latestCareerEntry} onClose={() => setShowPlayerCard(false)} />
+                )
             )}
         </div>
     );

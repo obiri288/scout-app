@@ -16,6 +16,7 @@ import * as api from '../lib/api';
 import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '../lib/badges';
 import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
 import { CountryCombobox } from './CountryCombobox';
+import { ScoutPassportCard } from './ScoutPassportCard';
 export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) => {
     const isAdmin = profile?.role === 'admin';
     const [loading, setLoading] = useState(false);
@@ -88,6 +89,30 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
     const [previewUrl, setPreviewUrl] = useState(profile?.avatar_url);
     const [cropImageSrc, setCropImageSrc] = useState(null);
     const [clubSearch, setClubSearch] = useState('');
+
+    // Agency States
+    const [agencySearch, setAgencySearch] = useState(profile?.agencies?.name || '');
+    const [agencyResults, setAgencyResults] = useState([]);
+    const [showAgencyDropdown, setShowAgencyDropdown] = useState(false);
+    const [selectedAgencyName, setSelectedAgencyName] = useState(profile?.agencies?.name || '');
+    const [selectedAgencyLogo, setSelectedAgencyLogo] = useState(profile?.agencies?.logo_url || null);
+    const [selectedAgencyId, setSelectedAgencyId] = useState(profile?.agency_id || null);
+
+    useEffect(() => {
+        if (agencySearch.length < 2) {
+            setAgencyResults([]);
+            return;
+        }
+        const timer = setTimeout(async () => {
+            try {
+                const results = await api.fetchAgencies(agencySearch);
+                setAgencyResults(results || []);
+            } catch (err) {
+                console.error("Error fetching agencies:", err);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [agencySearch]);
 
     // Nationality 2 States
     const [nat2Request, setNat2Request] = useState(null);
@@ -698,6 +723,19 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                 updates.tactical_identity = formData.focus_age_groups || [];
                 updates.specializations = formData.scout_expertise || [];
                 updates.preferred_system = formData.scout_radius || null;
+                updates.scout_title = formData.scout_title || null;
+
+                // Handle Agency Logic
+                if (selectedAgencyName) {
+                    try {
+                        const agency = await api.getOrCreateAgency(selectedAgencyName, selectedAgencyLogo);
+                        updates.agency_id = agency.id;
+                    } catch (err) {
+                        console.error("Error saving agency:", err);
+                    }
+                } else {
+                    updates.agency_id = null;
+                }
             } else if (isCoach) {
                 // Coach-specific field mapping
                 updates.preferred_system = formData.preferred_formation || null;
@@ -1085,13 +1123,102 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                 {isScout ? (
                                     /* ===== SCOUT-SPECIFIC FIELDS ===== */
                                     <>
-                                        {/* Berufsbezeichnung */}
+                                        {/* Berufsbezeichnung & Agentur in 2 Columns */}
                                         <div className="pt-2 border-t border-border">
-                                            <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Briefcase size={14} /> Berufsbezeichnung</h3>
-                                            <select value={formData.scout_title} onChange={e => setFormData({ ...formData, scout_title: e.target.value })} className={inputStyle}>
-                                                <option value="">Bitte auswählen</option>
-                                                {['Vereins-Scout', 'Freier Scout', 'Spielervermittler/Agent', 'Kaderplaner/Sportdirektor'].map(t => <option key={t}>{t}</option>)}
-                                            </select>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Briefcase size={14} /> Berufsbezeichnung</h3>
+                                                    <select value={formData.scout_title} onChange={e => { setFormData({ ...formData, scout_title: e.target.value }); setHasUnsavedChanges(true); }} className={inputStyle}>
+                                                        <option value="">Bitte auswählen</option>
+                                                        {['Vereins-Scout', 'Freier Scout', 'Spielervermittler/Agent', 'Kaderplaner/Sportdirektor'].map(t => <option key={t}>{t}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="relative">
+                                                    <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Globe size={14} /> Agentur</h3>
+                                                    <div className="relative">
+                                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                                        <input
+                                                            type="text"
+                                                            value={agencySearch}
+                                                            onChange={(e) => {
+                                                                setAgencySearch(e.target.value);
+                                                                setSelectedAgencyName('');
+                                                                setSelectedAgencyLogo(null);
+                                                                setShowAgencyDropdown(true);
+                                                                setHasUnsavedChanges(true);
+                                                            }}
+                                                            className={`${inputStyle} pl-10`}
+                                                            placeholder="Suchen..."
+                                                        />
+                                                    </div>
+                                                    <AnimatePresence>
+                                                        {showAgencyDropdown && agencySearch.length >= 2 && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: -10 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                exit={{ opacity: 0, y: -10 }}
+                                                                className="absolute top-full mt-2 w-full bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[100]"
+                                                            >
+                                                                {agencyResults.length > 0 ? (
+                                                                    agencyResults.map((ag) => (
+                                                                        <button
+                                                                            key={ag.id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedAgencyName(ag.name);
+                                                                                setSelectedAgencyLogo(ag.logo_url);
+                                                                                setSelectedAgencyId(ag.id);
+                                                                                setAgencySearch(ag.name);
+                                                                                setShowAgencyDropdown(false);
+                                                                                setHasUnsavedChanges(true);
+                                                                            }}
+                                                                            className="w-full flex items-center gap-3 p-3 hover:bg-slate-800/80 transition-colors text-left border-b border-slate-800/50 last:border-0"
+                                                                        >
+                                                                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                                {ag.logo_url ? <img src={ag.logo_url} className="w-full h-full object-cover" /> : <Search size={14} className="text-slate-400" />}
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="font-bold text-sm text-slate-200">{ag.name}</p>
+                                                                                {ag.is_premium && <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mt-0.5">Premium Partner</p>}
+                                                                            </div>
+                                                                        </button>
+                                                                    ))
+                                                                ) : (
+                                                                    <div className="p-3">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedAgencyName(agencySearch);
+                                                                                setSelectedAgencyLogo(null);
+                                                                                setSelectedAgencyId(null);
+                                                                                setShowAgencyDropdown(false);
+                                                                                setHasUnsavedChanges(true);
+                                                                            }}
+                                                                            className="w-full p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-medium transition-colors text-center"
+                                                                        >
+                                                                            "{agencySearch}" neu anlegen
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Digital ID Card Preview */}
+                                        <div className="pt-6 border-t border-border flex justify-center">
+                                            <div className="w-full max-w-sm">
+                                                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 text-center">Digitale ID-Card Vorschau</h3>
+                                                <ScoutPassportCard
+                                                    fullName={`${formData.first_name} ${formData.last_name}`}
+                                                    scoutTitle={formData.scout_title}
+                                                    agencyName={selectedAgencyName || agencySearch}
+                                                    agencyLogo={selectedAgencyLogo}
+                                                    isAccredited={!!selectedAgencyName}
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* Fokus-Altersklassen */}
