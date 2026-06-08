@@ -182,6 +182,48 @@ export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 
 };
 
 // ============================================================
+// AGENCIES
+// ============================================================
+
+export const fetchAgencies = async (query) => {
+    if (!query || query.length < 2) return [];
+    const { data } = await supabase
+        .from('agencies')
+        .select('id, name, logo_url, is_premium')
+        .ilike('name', `%${query}%`)
+        .limit(8);
+    return data || [];
+};
+
+export const getOrCreateAgency = async (agencyName) => {
+    if (!agencyName) return null;
+    const name = agencyName.trim();
+    
+    // Check if it exists
+    let { data } = await supabase
+        .from('agencies')
+        .select('id, name')
+        .ilike('name', name)
+        .maybeSingle();
+        
+    if (data) return data;
+    
+    // Otherwise create it
+    const { data: newAgency, error } = await supabase
+        .from('agencies')
+        .insert({ name })
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error creating agency:", error);
+        return null;
+    }
+    
+    return newAgency;
+};
+
+// ============================================================
 // GEOCODING
 // ============================================================
 

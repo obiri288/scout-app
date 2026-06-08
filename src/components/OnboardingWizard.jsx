@@ -102,6 +102,15 @@ export const OnboardingWizard = ({ session, onComplete }) => {
     const [ageCategory, setAgeCategory] = useState('');
     const [genderCategory, setGenderCategory] = useState('Männlich');
 
+    // Step 2/3 data (Agency Assignment for Scouts)
+    const [agencySearch, setAgencySearch] = useState('');
+    const [selectedAgencyName, setSelectedAgencyName] = useState('');
+    const [selectedAgencyLogo, setSelectedAgencyLogo] = useState(null);
+    const [agencyResults, setAgencyResults] = useState([]);
+    const [showAgencyDropdown, setShowAgencyDropdown] = useState(false);
+    const [scoutTitle, setScoutTitle] = useState('');
+    const [isAccredited, setIsAccredited] = useState(false);
+
     // Pre-fill username from user_metadata (if set during registration)
     useEffect(() => {
         const metaUsername = session?.user?.user_metadata?.username;
@@ -178,6 +187,18 @@ export const OnboardingWizard = ({ session, onComplete }) => {
         return () => clearTimeout(t);
     }, [clubSearch]);
 
+    useEffect(() => {
+        if (agencySearch.length < 2) { setAgencyResults([]); return; }
+        const t = setTimeout(async () => {
+            try {
+                const results = await api.fetchAgencies(agencySearch);
+                setAgencyResults(results || []);
+                setShowAgencyDropdown(true);
+            } catch (e) { /* silent */ }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [agencySearch]);
+
     const handleAvatarChange = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -196,7 +217,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
     const isStep2Valid = selectedRole === 'player'
         ? (selectedClubName.trim() || clubSearch.trim()) && ageCategory && genderCategory
-        : true; // Only applies to players
+        : true; // Only applies to players (scout agency is optional)
 
     const handleFinish = async (skipVideo = true) => {
         if (!firstName.trim() || !lastName.trim()) {
@@ -259,7 +280,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 player = await api.updatePlayer(player.id, { avatar_url: avatarUrl });
             }
 
-            // 3. Autonomous Team Assignment for Players
+            // 3. Autonomous Team Assignment for Players & Agency for Scouts
             if (isPlayer && (selectedClubName || clubSearch.trim()) && ageCategory && genderCategory) {
                 // Add a small delay for the "Validierung..." feel
                 addToast('Validierung...', 'info');
@@ -274,6 +295,24 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                 } catch (teamErr) {
                     console.error('Team assignment error:', teamErr);
                     addToast('Fehler bei der Team-Zuordnung.', 'error');
+                }
+            } else if (selectedRole === 'scout' && (selectedAgencyName || agencySearch.trim())) {
+                setIsAccredited(true); // Trigger animation on the ID card
+                addToast('Verifiziere Agentur...', 'info');
+                await new Promise(r => setTimeout(r, 1200)); // Show off the animation
+                try {
+                    const finalAgencyName = selectedAgencyName || agencySearch.trim();
+                    const agency = await api.getOrCreateAgency(finalAgencyName);
+                    if (agency) {
+                        player = await api.updatePlayer(player.id, { 
+                            agency_id: agency.id, 
+                            scout_title: scoutTitle.trim() || 'Authorized Scout' 
+                        });
+                        addToast(`Du wurdest erfolgreich als Scout bei ${agency.name} akkreditiert.`, 'success');
+                    }
+                } catch (agencyErr) {
+                    console.error('Agency assignment error:', agencyErr);
+                    addToast('Fehler bei der Agentur-Zuordnung.', 'error');
                 }
             } else if (isPlayer) {
                 addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
@@ -319,6 +358,12 @@ export const OnboardingWizard = ({ session, onComplete }) => {
             icon: <Target className="text-cyan-400" size={28} />,
             title: 'Dein Team',
             subtitle: 'Schließe dich deinem aktuellen Kader an.',
+        }] : []),
+        ...(selectedRole === 'scout' ? [{
+            id: 'agency',
+            icon: <Target className="text-cyan-400" size={28} />,
+            title: 'Deine Agentur',
+            subtitle: 'Optional: Verknüpfe dich mit deiner Scouting-Agentur.',
         }] : []),
         {
             id: 'avatar',
@@ -664,6 +709,160 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
+                            </div>
+                        )}
+
+                        {/* Step 1.5: Agency Selection (Scouts) */}
+                        {steps[step].id === 'agency' && (
+                            <div className="w-full space-y-6">
+                                {/* The Form */}
+                                <div className="space-y-4 relative z-20">
+                                    <div className="space-y-1.5 relative">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Scouting Agentur</label>
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                                            <input
+                                                type="text"
+                                                value={agencySearch}
+                                                onChange={(e) => {
+                                                    setAgencySearch(e.target.value);
+                                                    setSelectedAgencyName('');
+                                                    setSelectedAgencyLogo(null);
+                                                    setShowAgencyDropdown(true);
+                                                }}
+                                                className={`${inputStyle} pl-10`}
+                                                placeholder="Agentur suchen oder neu eingeben..."
+                                            />
+                                        </div>
+                                        <AnimatePresence>
+                                            {showAgencyDropdown && agencySearch.length >= 2 && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className="absolute top-full mt-2 w-full bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-30"
+                                                >
+                                                    {agencyResults.length > 0 ? (
+                                                        agencyResults.map((ag) => (
+                                                            <button
+                                                                key={ag.id}
+                                                                onClick={() => {
+                                                                    setSelectedAgencyName(ag.name);
+                                                                    setSelectedAgencyLogo(ag.logo_url);
+                                                                    setAgencySearch(ag.name);
+                                                                    setShowAgencyDropdown(false);
+                                                                }}
+                                                                className="w-full flex items-center gap-3 p-3 hover:bg-slate-800/80 transition-colors text-left border-b border-slate-800/50 last:border-0"
+                                                            >
+                                                                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                                    {ag.logo_url ? <img src={ag.logo_url} className="w-full h-full object-cover" /> : <Search size={14} className="text-slate-400" />}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-sm text-slate-200">{ag.name}</p>
+                                                                    {ag.is_premium && <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mt-0.5">Premium Partner</p>}
+                                                                </div>
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-3">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedAgencyName(agencySearch);
+                                                                    setSelectedAgencyLogo(null);
+                                                                    setShowAgencyDropdown(false);
+                                                                }}
+                                                                className="w-full p-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 rounded-lg text-sm font-medium transition-colors text-center"
+                                                            >
+                                                                "{agencySearch}" neu anlegen
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Dein Titel (optional)</label>
+                                        <input
+                                            type="text"
+                                            value={scoutTitle}
+                                            onChange={(e) => setScoutTitle(e.target.value)}
+                                            className={inputStyle}
+                                            placeholder="z.B. Head of Scouting, Regional Scout"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* The Digital ID Card */}
+                                <div className="mt-8 flex justify-center perspective-1000">
+                                    <motion.div 
+                                        className={`w-80 h-48 rounded-2xl p-5 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border backdrop-blur-xl shadow-2xl relative overflow-hidden flex flex-col justify-between group transition-colors duration-500 ${isAccredited ? 'border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.3)]' : 'border-slate-700/50'}`}
+                                        initial={{ rotateX: 10, rotateY: -10, opacity: 0 }}
+                                        animate={{ rotateX: 0, rotateY: 0, opacity: 1 }}
+                                        transition={{ duration: 0.6, type: "spring" }}
+                                    >
+                                        {/* Background Effect */}
+                                        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[40px] pointer-events-none"></div>
+
+                                        {/* Top Row */}
+                                        <div className="flex justify-between items-start z-10">
+                                            <div>
+                                                <div className="flex items-center gap-1.5 opacity-90">
+                                                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                                                    <span className="text-[10px] font-black tracking-[0.2em] text-slate-300">CAVIO</span>
+                                                </div>
+                                                <div className="text-[10px] tracking-widest text-slate-500 font-semibold mt-1">SCOUT PASSPORT</div>
+                                            </div>
+                                            
+                                            {/* Agency Logo or Placeholder */}
+                                            <div className="w-10 h-10 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center overflow-hidden relative">
+                                                {selectedAgencyLogo ? (
+                                                    <img src={selectedAgencyLogo} alt="Agency Logo" className="w-full h-full object-cover" />
+                                                ) : selectedAgencyName || agencySearch ? (
+                                                    <span className="text-cyan-400 font-bold text-xs uppercase">{(selectedAgencyName || agencySearch).substring(0,2)}</span>
+                                                ) : (
+                                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent animate-[scan_2s_ease-in-out_infinite]"></div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Bottom Row */}
+                                        <div className="z-10 mt-auto">
+                                            <p className="text-lg font-black text-slate-100 uppercase tracking-wide truncate">
+                                                {fullName || 'Name'}
+                                            </p>
+                                            <p className="text-cyan-400 text-[10px] font-bold tracking-widest uppercase mt-0.5 truncate">
+                                                {scoutTitle || 'Authorized Scout'}
+                                            </p>
+                                            {(selectedAgencyName || agencySearch) && (
+                                                <p className="text-slate-400 text-xs mt-2 truncate">
+                                                    @ {selectedAgencyName || agencySearch}
+                                                </p>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Accredited Overlay Flash */}
+                                        <AnimatePresence>
+                                            {isAccredited && (
+                                                <motion.div 
+                                                    className="absolute inset-0 bg-cyan-400/10 z-20 pointer-events-none flex items-center justify-center backdrop-blur-[2px]"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                >
+                                                    <motion.div 
+                                                        initial={{ scale: 0.5, opacity: 0 }}
+                                                        animate={{ scale: 1, opacity: 1 }}
+                                                        className="px-4 py-2 bg-slate-950/80 border border-cyan-400 rounded-lg text-cyan-400 text-sm font-bold tracking-widest uppercase shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                                                    >
+                                                        Akkreditiert
+                                                    </motion.div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </motion.div>
+                                </div>
                             </div>
                         )}
 
