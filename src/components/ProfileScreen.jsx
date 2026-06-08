@@ -792,6 +792,9 @@ export const ProfileScreen = ({
                     <div className="text-center space-y-1 mb-6 w-full">
                         <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center justify-center gap-1.5 flex-wrap">
                             {profile.full_name || 'Neuer Nutzer'}
+                            {profile.role === 'scout' && latestCareerEntry && (
+                                <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap ml-2">Former Player</span>
+                            )}
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
                             {profile.email === 'kontakt@cavio.me' || profile.is_official || profile.role === 'system' ? (
@@ -808,7 +811,7 @@ export const ProfileScreen = ({
                                         <CheckCircle size={12} className="text-cyan-500 fill-cyan-500/10" title="Premium Partner" />
                                     )}
                                 </span>
-                            ) : (latestCareerEntry?.clubs || profile.clubs) && (
+                            ) : (latestCareerEntry?.clubs || profile.clubs) && profile.role !== 'scout' && (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
                                     <Trophy size={14} className="text-amber-500" />
                                     <span className="font-bold">
@@ -972,6 +975,7 @@ export const ProfileScreen = ({
                 isWatchlistLoading={isWatchlistLoading}
                 archivedHighlights={archivedHighlights}
                 onUnarchiveVideo={onUnarchiveVideo}
+                hasCareerHistory={!!latestCareerEntry}
             />
 
             {/* Footer / Similar Players */}
@@ -1010,7 +1014,7 @@ const ProfileTabs = ({
     onDeleteVideo, onUpload, session, currentUserProfile, 
     playerStats, skillEndorsements, onEndorseSkill, smartStatus,
     careerRefreshKey, watchlistVideos, isWatchlistLoading,
-    archivedHighlights = [], onUnarchiveVideo
+    archivedHighlights = [], onUnarchiveVideo, hasCareerHistory
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
 
@@ -1234,6 +1238,14 @@ const ProfileTabs = ({
                                     )}
                                 </div>
                             </div>
+                            
+                            {/* EX-PRO SCOUT PEDIGREE: PLAYING BACKGROUND */}
+                            {hasCareerHistory && (
+                                <div className="mt-6 bg-slate-900/50 border border-slate-800 rounded-2xl p-5 shadow-sm">
+                                    <h3 className="font-['Montserrat'] font-bold text-foreground text-lg tracking-tight uppercase border-b border-border pb-2 mb-4">Playing Background</h3>
+                                    <CareerTimeline userId={profile.user_id} refreshKey={careerRefreshKey} isOwnProfile={false} hideAddButton={true} />
+                                </div>
+                            )}
                         </>
                     ) : (
                         <>
