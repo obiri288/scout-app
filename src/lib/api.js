@@ -282,7 +282,17 @@ export const fetchPlayerHighlights = async (playerId, includeArchived = false) =
     ];
 
     return allItems
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .sort((a, b) => {
+            // Pinned videos always come first
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            // Among pinned, sort by pinned_at DESC
+            if (a.is_pinned && b.is_pinned) {
+                return new Date(b.pinned_at || 0) - new Date(a.pinned_at || 0);
+            }
+            // Rest by created_at DESC
+            return new Date(b.created_at) - new Date(a.created_at);
+        })
         .map(post => ({
             ...post,
             comments_count: post.media_comments?.[0]?.count || 0
@@ -425,6 +435,28 @@ export const insertHighlight = async (highlight) => {
     const { data, error } = await supabase.from('media_highlights').insert(highlight).select().single();
     if (error) throw error;
     return data;
+};
+
+export const pinHighlight = async (videoId) => {
+    const { error } = await supabase.from('media_highlights')
+        .update({ is_pinned: true, pinned_at: new Date().toISOString() })
+        .eq('id', videoId);
+    if (error) throw error;
+};
+
+export const unpinHighlight = async (videoId) => {
+    const { error } = await supabase.from('media_highlights')
+        .update({ is_pinned: false, pinned_at: null })
+        .eq('id', videoId);
+    if (error) throw error;
+};
+
+export const countPinnedHighlights = async (playerId) => {
+    const { count } = await supabase.from('media_highlights')
+        .select('id', { count: 'exact', head: true })
+        .eq('player_id', playerId)
+        .eq('is_pinned', true);
+    return count || 0;
 };
 
 // ============================================================

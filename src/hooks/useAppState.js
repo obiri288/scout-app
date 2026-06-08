@@ -286,6 +286,11 @@ export const useAppState = () => {
             }
 
             setViewedProfile(p);
+
+            // Dispatch event for search history tracking (only for other users' profiles)
+            if (session?.user?.id !== p.user_id) {
+                window.dispatchEvent(new CustomEvent('profileVisited', { detail: p }));
+            }
             
             // Highlights & Archive
             const isOwn = session?.user?.id === p.user_id;
@@ -424,6 +429,49 @@ export const useAppState = () => {
         }
     };
 
+    const handlePinVideo = async (video) => {
+        if (!session || !viewedProfile) return;
+        const isPinned = video.is_pinned;
+
+        if (!isPinned) {
+            // Check max 3 limit
+            const pinnedCount = profileHighlights.filter(v => v.is_pinned).length;
+            if (pinnedCount >= 3) {
+                addToast('Maximal 3 Highlights anpinnbar. Bitte entpinne zuerst ein anderes Video.', 'error');
+                return;
+            }
+        }
+
+        // Optimistic UI update
+        const updatedHighlights = profileHighlights.map(v =>
+            v.id === video.id
+                ? { ...v, is_pinned: !isPinned, pinned_at: !isPinned ? new Date().toISOString() : null }
+                : v
+        ).sort((a, b) => {
+            if (a.is_pinned && !b.is_pinned) return -1;
+            if (!a.is_pinned && b.is_pinned) return 1;
+            if (a.is_pinned && b.is_pinned) return new Date(b.pinned_at || 0) - new Date(a.pinned_at || 0);
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+        setProfileHighlights(updatedHighlights);
+
+        try {
+            if (isPinned) {
+                await api.unpinHighlight(video.id);
+            } else {
+                await api.pinHighlight(video.id);
+            }
+        } catch (e) {
+            console.error('Pin/Unpin failed:', e);
+            addToast('Fehler beim Anpinnen/Entpinnen.', 'error');
+            // Rollback
+            const rolled = profileHighlights.map(v =>
+                v.id === video.id ? { ...v, is_pinned: isPinned, pinned_at: video.pinned_at } : v
+            );
+            setProfileHighlights(rolled);
+        }
+    };
+
     const switchTab = (tab) => {
         setActiveTab(tab);
         if (tab === 'inbox') checkUnreadMessages();
@@ -485,7 +533,7 @@ export const useAppState = () => {
 
         // Handlers
         handleLoginSuccess, handleFollow, handleWatchlistToggle,
-        handleDeleteVideo, handleUnarchiveVideo, handleInstallApp, handlePushRequest,
+        handleDeleteVideo, handleUnarchiveVideo, handlePinVideo, handleInstallApp, handlePushRequest,
 
         // PWA
         deferredPrompt,

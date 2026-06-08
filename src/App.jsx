@@ -278,7 +278,7 @@ const App = () => {
         reportTarget, setReportTarget,
         comparePlayer, setComparePlayer,
         handleLoginSuccess, handleFollow, handleWatchlistToggle,
-        handleDeleteVideo, handleUnarchiveVideo, handleInstallApp, handlePushRequest,
+        handleDeleteVideo, handleUnarchiveVideo, handlePinVideo, handleInstallApp, handlePushRequest,
         showCelebration, setShowCelebration,
         deferredPrompt,
         isRecoveryMode, setIsRecoveryMode,
@@ -507,6 +507,7 @@ const App = () => {
                     careerRefreshKey={careerRefreshKey}
                     archivedHighlights={profileArchivedHighlights}
                     onUnarchiveVideo={handleUnarchiveVideo}
+                    onPinVideo={handlePinVideo}
                 />
             )}
 

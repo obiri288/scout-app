@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, 
     X, Map, List, Trash2, Clock, Crosshair, Play, Menu 
@@ -13,6 +13,7 @@ import { useUser } from '../contexts/UserContext';
 import { useEcosystem } from '../contexts/EcosystemContext';
 import { VerificationBadge } from './VerificationBadge';
 import { getClubDisplay } from '../lib/helpers';
+import { useSearchHistory } from '../hooks/useSearchHistory';
 
 const PAGE_SIZE = 15;
 
@@ -47,11 +48,6 @@ const getRecentSearches = () => {
     try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || []; } catch { return []; }
 };
 
-const RECENT_PROFILES_KEY = 'scout_recent_profiles';
-const getRecentProfiles = () => {
-    try { return JSON.parse(localStorage.getItem(RECENT_PROFILES_KEY)) || []; } catch { return []; }
-};
-
 export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const [searchMode, setSearchMode] = useState('athletes'); // 'athletes' | 'clubs'
     const [query, setQuery] = useState('');
@@ -71,7 +67,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [recentSearches, setRecentSearches] = useState(getRecentSearches);
-    const [recentProfiles, setRecentProfiles] = useState(getRecentProfiles);
+    const { recentProfiles, removeProfile: removeRecentProfile, clearAll: clearRecentProfiles } = useSearchHistory();
     const [showActionFilter, setShowActionFilter] = useState(false);
     const [selectedActionTag, setSelectedActionTag] = useState(null);
     const [actionVideos, setActionVideos] = useState([]);
@@ -90,29 +86,17 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     }, [recentSearches]);
 
     const saveRecentProfile = useCallback((profile) => {
-        if (!profile) return;
-        const profileData = { 
-            id: profile.id, 
-            name: profile.full_name || profile.username || 'Unbekannt', 
-            avatarUrl: profile.avatar_url, 
-            role: profile.role,
-            slug: profile.slug,
-            user_id: profile.user_id
-        };
-        const updated = [profileData, ...recentProfiles.filter(p => p.id !== profile.id)].slice(0, 5);
-        setRecentProfiles(updated);
-        localStorage.setItem(RECENT_PROFILES_KEY, JSON.stringify(updated));
-    }, [recentProfiles]);
+        // Profile saving is now handled by useSearchHistory via the profileVisited event
+        // dispatched from useAppState.loadProfile(). No manual save needed here.
+    }, []);
 
     const clearRecentHistory = () => {
         setRecentSearches([]);
-        setRecentProfiles([]);
+        clearRecentProfiles();
         localStorage.removeItem(RECENT_SEARCHES_KEY);
-        localStorage.removeItem(RECENT_PROFILES_KEY);
     };
 
     const handleUserClick = (profile) => {
-        saveRecentProfile(profile);
         onUserClick(profile);
     };
 
@@ -370,23 +354,56 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
 
                                 {recentProfiles.length > 0 && (
                                     <div>
-                                        <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-bold">Zuletzt aufgerufen</h4>
-                                        <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 px-1">
-                                            {recentProfiles.map(p => (
-                                                <div key={p.id} onClick={() => handleUserClick(p)} className="flex flex-col items-center gap-2 cursor-pointer group min-w-[64px]">
-                                                    <div className="w-14 h-14 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all bg-slate-800 flex-shrink-0">
-                                                        {p.avatarUrl ? (
-                                                            <img src={p.avatarUrl} className="w-full h-full object-cover" alt={p.name} />
-                                                        ) : (
-                                                            <img src="/cavio-icon.png" className="w-full h-full object-contain p-3 opacity-60" alt={p.name} />
-                                                        )}
-                                                    </div>
-                                                    <span className="text-[10px] text-slate-400 group-hover:text-cyan-400 truncate max-w-full font-medium text-center leading-tight">
-                                                        {p.name.split(' ')[0]}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                        <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-bold">Zuletzt besucht</h4>
+                                        <div className="space-y-1">
+                                            <AnimatePresence mode="popLayout">
+                                                {recentProfiles.map(p => (
+                                                    <motion.div
+                                                        key={p.id}
+                                                        layout
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: 20, transition: { duration: 0.2 } }}
+                                                        className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
+                                                    >
+                                                        <div
+                                                            onClick={() => handleUserClick(p)}
+                                                            className="flex items-center gap-3 flex-1 min-w-0"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.2)] transition-all bg-slate-800 flex-shrink-0">
+                                                                {p.avatar_url ? (
+                                                                    <img src={p.avatar_url} className="w-full h-full object-cover" alt={p.full_name} />
+                                                                ) : (
+                                                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-2.5 opacity-60" alt={p.full_name} />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-bold text-slate-200 group-hover:text-cyan-400 truncate transition-colors">{p.full_name}</p>
+                                                                <p className="text-[10px] text-slate-500 truncate">
+                                                                    {p.club_name || (p.role === 'scout' ? 'Scout' : 'Spieler')}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                removeRecentProfile(p.id);
+                                                            }}
+                                                            className="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0"
+                                                            title="Aus Verlauf entfernen"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </motion.div>
+                                                ))}
+                                            </AnimatePresence>
                                         </div>
+                                        <button
+                                            onClick={clearRecentHistory}
+                                            className="w-full text-center text-[10px] text-slate-600 hover:text-red-400 transition-colors mt-3 py-1.5 uppercase tracking-wider font-bold"
+                                        >
+                                            Verlauf löschen
+                                        </button>
                                     </div>
                                 )}
                             </div>

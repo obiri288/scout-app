@@ -6,7 +6,7 @@ import {
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
     Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw, Crown,
-    MoreHorizontal, Flag, Ban, Copy, Shield
+    MoreHorizontal, Flag, Ban, Copy, Shield, Pin
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
@@ -38,7 +38,7 @@ import {
 } from './ui/alert-dialog';
 
 // --- Sub-Component: Video Tile ---
-const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete, onUnarchive, badgeId }) => {
+const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete, onUnarchive, onPin, badgeId }) => {
     const { ref, isIntersecting } = useIntersectionObserver({ threshold: 0.1, rootMargin: '200px' });
     const [loaded, setLoaded] = useState(false);
 
@@ -115,13 +115,34 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete, onUnarch
                             ))}
                         </div>
                     )}
-                    {badgeId && (
+                    {video.is_pinned && (
+                        <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                            <div className="p-1 rounded-full bg-black/50 backdrop-blur-sm shadow-[0_0_8px_rgba(34,211,238,0.6)]">
+                                <Pin size={12} className="text-cyan-400" fill="currentColor" />
+                            </div>
+                        </div>
+                    )}
+                    {badgeId && !video.is_pinned && (
                         <div className="absolute top-2 left-2 pointer-events-none">
                             <BadgeOverlay badgeId={badgeId} />
                         </div>
                     )}
                     {isOwnProfile && (
                         <div className="absolute top-2 right-2 flex flex-col gap-2 z-10 opacity-0 group-hover:opacity-100 transition-all">
+                            {/* Pin/Unpin Toggle */}
+                            {video.post_type !== 'transfer' && onPin && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onPin(video); }}
+                                    className={`p-1.5 rounded-full backdrop-blur-sm transition-all ${
+                                        video.is_pinned
+                                            ? 'bg-cyan-500/80 text-white shadow-[0_0_12px_rgba(34,211,238,0.5)] hover:bg-cyan-600'
+                                            : 'bg-black/60 text-zinc-300 hover:bg-cyan-500/60 hover:text-white'
+                                    }`}
+                                    title={video.is_pinned ? 'Entpinnen' : 'Anpinnen'}
+                                >
+                                    <Pin size={14} className={video.is_pinned ? 'fill-current' : ''} />
+                                </button>
+                            )}
                             {video.is_archived ? (
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); onUnarchive(video.id); }}
@@ -263,7 +284,8 @@ export const ProfileScreen = ({
     onMenuOpen,
     careerRefreshKey,
     archivedHighlights = [],
-    onUnarchiveVideo
+    onUnarchiveVideo,
+    onPinVideo
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
     const [showContactModal, setShowContactModal] = useState(false);
@@ -976,6 +998,7 @@ export const ProfileScreen = ({
                 archivedHighlights={archivedHighlights}
                 onUnarchiveVideo={onUnarchiveVideo}
                 hasCareerHistory={!!latestCareerEntry}
+                onPinVideo={onPinVideo}
             />
 
             {/* Footer / Similar Players */}
@@ -1014,7 +1037,7 @@ const ProfileTabs = ({
     onDeleteVideo, onUpload, session, currentUserProfile, 
     playerStats, skillEndorsements, onEndorseSkill, smartStatus,
     careerRefreshKey, watchlistVideos, isWatchlistLoading,
-    archivedHighlights = [], onUnarchiveVideo, hasCareerHistory
+    archivedHighlights = [], onUnarchiveVideo, hasCareerHistory, onPinVideo
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
 
@@ -1071,7 +1094,8 @@ const ProfileTabs = ({
                                     video={v} 
                                     onClick={onVideoClick} 
                                     isOwnProfile={isOwnProfile} 
-                                    onDelete={onDeleteVideo} 
+                                    onDelete={onDeleteVideo}
+                                    onPin={onPinVideo}
                                     badgeId={profile.role === 'player' ? profile.signature_badges?.[0] : null}
                                 />
                             </motion.div>
