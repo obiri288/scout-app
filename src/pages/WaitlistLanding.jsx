@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Instagram } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -22,18 +22,33 @@ export const WaitlistLanding = () => {
     const [email, setEmail] = useState('');
     const [status, setStatus] = useState('idle'); // idle | loading | success | error | duplicate
     const [errorMsg, setErrorMsg] = useState('');
-    
+    const [isSubmitting, setIsSubmitting] = useState(false); // Spam-Cooldown (5s)
+
+    // Honeypot state — must remain empty; bots fill it automatically
+    const [honeypot, setHoneypot] = useState('');
+
     // Team Invite States
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteStatus, setInviteStatus] = useState('idle'); // idle | loading | success | error
     const [inviteError, setInviteError] = useState('');
+    const [isInviteSubmitting, setIsInviteSubmitting] = useState(false); // Invite-Cooldown (5s)
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!email || !email.includes('@')) return;
 
+        // 🛡️ Honeypot check — bots fill hidden fields, humans don't
+        if (honeypot) return;
+
+        // 🛡️ Cooldown check — prevent spam-clicking
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
         setStatus('loading');
         setErrorMsg('');
+
+        // Re-enable button after 5 seconds regardless of outcome
+        setTimeout(() => setIsSubmitting(false), 5000);
 
         try {
             const { error } = await supabase
@@ -61,8 +76,15 @@ export const WaitlistLanding = () => {
         e.preventDefault();
         if (!inviteEmail || !inviteEmail.includes('@')) return;
 
+        // 🛡️ Cooldown check — prevent spam-clicking
+        if (isInviteSubmitting) return;
+
+        setIsInviteSubmitting(true);
         setInviteStatus('loading');
         setInviteError('');
+
+        // Re-enable button after 5 seconds
+        setTimeout(() => setIsInviteSubmitting(false), 5000);
 
         try {
             // Try with referred_by field
@@ -192,7 +214,7 @@ export const WaitlistLanding = () => {
                 >
                     <img 
                         src={logoImg} 
-                        alt="CAVIO Logo" 
+                        alt="CAVIOS Logo" 
                         className="h-16 sm:h-20 w-auto object-contain filter drop-shadow-[0_0_12px_rgba(34,211,238,0.2)]"
                     />
                 </motion.div>
@@ -236,7 +258,7 @@ export const WaitlistLanding = () => {
                                     Du bist auf der VIP-Warteliste! 🚀
                                 </h2>
                                 <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                                    Wir benachrichtigen dich, sobald CAVIO live geht.
+                                    Wir benachrichtigen dich, sobald CAVIOS live geht.
                                 </p>
 
                                 {/* Referral Section */}
@@ -250,7 +272,7 @@ export const WaitlistLanding = () => {
                                         Bringe dein Team an den Start
                                     </h3>
                                     <p className="text-slate-400 text-xs sm:text-sm mb-4 leading-relaxed">
-                                        CAVIO schaltet Vereins-Hubs priorisiert frei, sobald sich mehrere Spieler eines Teams registrieren. Nominiere deine Teamkollegen, um euren Kader schneller freizuschalten.
+                                        CAVIOS schaltet Vereins-Hubs priorisiert frei, sobald sich mehrere Spieler eines Teams registrieren. Nominiere deine Teamkollegen, um euren Kader schneller freizuschalten.
                                     </p>
 
                                     <form onSubmit={handleInvite} className="space-y-3">
@@ -333,11 +355,22 @@ export const WaitlistLanding = () => {
                                     Die Zukunft des Scoutings.
                                 </h2>
                                 <p className="text-slate-400 text-sm sm:text-base mt-2 mb-6 leading-relaxed">
-                                    CAVIO bereitet den offiziellen Launch vor.<br />
+                                    CAVIOS bereitet den offiziellen Launch vor.<br />
                                     Sichere dir exklusiven Vorabzugang.
                                 </p>
 
                                 <form onSubmit={handleSubmit} className="space-y-4">
+                                    {/* 🛡️ Honeypot — invisible to humans, bots fill it → silent abort */}
+                                    <input
+                                        type="text"
+                                        name="b_confirm_fax"
+                                        value={honeypot}
+                                        onChange={(e) => setHoneypot(e.target.value)}
+                                        tabIndex={-1}
+                                        autoComplete="off"
+                                        aria-hidden="true"
+                                        style={{ display: 'none' }}
+                                    />
                                     <div className="relative">
                                         <input
                                             id="waitlist-email"
@@ -379,7 +412,7 @@ export const WaitlistLanding = () => {
                                     <motion.button
                                         id="waitlist-submit"
                                         type="submit"
-                                        disabled={status === 'loading' || !email}
+                                        disabled={status === 'loading' || !email || isSubmitting}
                                         whileHover={{ scale: 1.01 }}
                                         whileTap={{ scale: 0.98 }}
                                         className="w-full mt-4 bg-cyan-500 text-slate-950 font-bold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -450,14 +483,14 @@ export const WaitlistLanding = () => {
 
                     {/* === Instagram Link === */}
                     <a
-                        href="https://www.instagram.com/cavio.me/"
+                        href="https://www.instagram.com/cavios.de/"
                         target="_blank"
                         rel="noopener noreferrer"
                         id="waitlist-instagram-link"
                         className="flex items-center justify-center gap-2 mt-6 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
                     >
                         <Instagram size={16} />
-                        @cavio.me
+                        @cavios.de
                     </a>
                 </motion.div>
             </motion.div>

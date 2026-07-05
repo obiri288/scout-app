@@ -104,23 +104,25 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
 
             // @Mention Logic
             const mentions = currentText.match(/@[\w.-]+/g);
-            if (mentions) {
-                for (let m of mentions) {
-                    const username = m.substring(1).toLowerCase();
-                    const targetPlayer = await api.fetchPlayerByUsername(username);
-                    if (targetPlayer && targetPlayer.id !== myProfileId) {
-                        try {
-                            await api.createNotification({
-                                userId: targetPlayer.id,
-                                actorId: myProfileId,
-                                type: 'mention',
-                                message: 'hat dich in einem Kommentar markiert.',
-                                videoId: video.id
-                            });
-                        } catch (error) {
-                            console.warn("Notification failed, but interaction saved", error);
-                        }
+            if (mentions && mentions.length > 0) {
+                const usernames = Array.from(new Set(mentions.map(m => m.substring(1).toLowerCase())));
+                try {
+                    const targetPlayers = await api.fetchPlayersByUsernames(usernames);
+                    const notificationsToInsert = targetPlayers
+                        .filter(tp => tp && tp.id !== myProfileId)
+                        .map(tp => ({
+                            userId: tp.id,
+                            actorId: myProfileId,
+                            type: 'mention',
+                            message: 'hat dich in einem Kommentar markiert.',
+                            videoId: video.id
+                        }));
+
+                    if (notificationsToInsert.length > 0) {
+                        await api.createNotifications(notificationsToInsert);
                     }
+                } catch (error) {
+                    console.warn("Notification batch failed, but interaction saved", error);
                 }
             }
 

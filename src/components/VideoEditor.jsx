@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Scissors, 
@@ -153,7 +153,7 @@ export const VideoEditor = ({ file, onSave, onCancel }) => {
                     </span>
                     <div className="px-4 py-1.5 bg-black/30 backdrop-blur-md border border-white/10 rounded-full text-[11px] font-bold text-white shadow-xl flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                        CAVIO Editor
+                        CAVIOS Editor
                     </div>
                 </div>
 

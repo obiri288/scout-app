@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
     X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, 
     Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, 
@@ -45,7 +45,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
     const isCoach = profile?.role === 'coach';
     const isScout = profile?.role === 'scout';
     const isPlayer = !isCoach && !isScout && profile?.role !== 'admin' && profile?.role !== 'manager';
-    const isSystemAccount = profile?.role === 'system' || profile?.is_official || profile?.email === 'kontakt@cavio.me';
+    const isSystemAccount = profile?.role === 'system' || profile?.is_official || profile?.email === 'kontakt@cavios.de';
 
 
     const [formData, setFormData] = useState({
@@ -608,14 +608,14 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         e.preventDefault();
         
         // Phishing Protection: Validate reserved words
-        const reservedWords = ['cavio', 'support', 'admin', 'system', 'official', 'verified', 'moderator'];
+        const reservedWords = ['CAVIOS', 'support', 'admin', 'system', 'official', 'verified', 'moderator'];
         const nameFields = [formData.first_name, formData.last_name, formData.username];
         const containsReserved = nameFields.some(field => 
             field && reservedWords.some(word => field.toLowerCase().includes(word))
         );
 
         if (containsReserved && profile.role !== 'system') {
-            addToast('Reservierter Name: Begriffe wie "CAVIO" oder "Support" sind offiziellen Accounts vorbehalten.', 'error');
+            addToast('Reservierter Name: Begriffe wie "CAVIOS" oder "Support" sind offiziellen Accounts vorbehalten.', 'error');
             return;
         }
 
@@ -822,7 +822,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                     <div className="flex justify-center items-center py-5 px-6 bg-slate-950/20 dark:bg-black/30 border-b border-border">
                         <div className="flex items-center justify-center w-full p-4 bg-slate-900/60 backdrop-blur-md border border-blue-500/30 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.15)]">
                             <span className="text-white font-bold text-xl tracking-wide">
-                                CAVIO Support
+                                CAVIOS Support
                             </span>
                             <BadgeCheck size={20} className="text-blue-500 ml-2 fill-blue-500/10 flex-shrink-0" />
                         </div>
@@ -846,7 +846,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                 <div className="flex justify-center">
                                     <div className="relative group cursor-pointer">
                                         <div className="w-28 h-28 rounded-full bg-slate-200 dark:bg-zinc-800 border-4 border-white dark:border-zinc-900 overflow-hidden shadow-xl">
-                                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-8 opacity-60" />}
+                                            {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-8 opacity-60" />}
                                         </div>
                                         <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-sm">
                                             <Camera size={28} className="text-white" />
@@ -1871,7 +1871,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                                 <Shield size={20} className="text-cyan-400" />
-                                <span className="font-black tracking-widest text-white uppercase text-sm">CAVIO Command Center</span>
+                                <span className="font-black tracking-widest text-white uppercase text-sm">CAVIOS Command Center</span>
                             </button>
                         </div>
                     )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { X, Search, User, Shield, ChevronRight, ArrowLeftRight, Plus, Crown, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
@@ -124,7 +124,7 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                                 {searchResults.map(p => (
                                     <div key={p.id} onClick={() => selectPlayer(p)} className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl cursor-pointer transition">
                                         <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border shrink-0">
-                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />}
+                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-2 opacity-60" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold text-foreground truncate">{p.full_name}</div>
@@ -175,7 +175,7 @@ const PlayerSlot = ({ player, label, onSelect, onClear }) => (
         {player ? (
             <div className="flex flex-col items-center text-center group relative">
                 <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border-2 border-border mb-2 shadow-lg">
-                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
+                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
                 </div>
                 <div className="text-sm font-bold text-foreground truncate max-w-[120px] flex items-center gap-1">
                     {player.full_name}

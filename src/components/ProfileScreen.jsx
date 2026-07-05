@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Video, Users, UserPlus, UserCheck, Edit, Share2, MessageCircle, 
@@ -323,11 +323,11 @@ export const ProfileScreen = ({
 
     useEffect(() => {
         if (profile) {
-            const isCavioSupport = profile.email === 'kontakt@cavio.me' || profile.role === 'system' || profile.is_official;
-            document.title = isCavioSupport ? 'CAVIO Support' : `${profile.full_name || 'Profil'} | CAVIO`;
+            const isCAVIOSSupport = profile.email === 'kontakt@cavios.de' || profile.role === 'system' || profile.is_official;
+            document.title = isCAVIOSSupport ? 'CAVIOS Support' : `${profile.full_name || 'Profil'} | CAVIOS`;
         }
         return () => {
-            document.title = 'CAVIO - Digital Player Profile';
+            document.title = 'CAVIOS - Digital Player Profile';
         };
     }, [profile]);
 
@@ -453,7 +453,7 @@ export const ProfileScreen = ({
         const url = `${window.location.origin}/#profile/${profile.slug || profile.user_id || profile.id}`;
         if (navigator.share) {
             navigator.share({
-                title: `${profile.full_name} auf Cavio`,
+                title: `${profile.full_name} auf CAVIOS`,
                 url: url
             });
         } else {
@@ -555,8 +555,8 @@ export const ProfileScreen = ({
                             <div className="w-32 h-32 rounded-3xl p-1 bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-500 overflow-hidden shadow-2xl rotate-3">
                                 <div className="w-full h-full bg-slate-900 rounded-[22px] p-1 -rotate-3">
                                     <img 
-                                        src={profile.avatar_url || `/cavio-icon.png`} 
-                                        alt="CAVIO Support"
+                                        src={profile.avatar_url || `/cavios-icon.png`} 
+                                        alt="CAVIOS Support"
                                         className={`w-full h-full ${profile.avatar_url ? 'object-cover' : 'object-contain p-4 opacity-50'} rounded-2xl`}
                                     />
                                 </div>
@@ -567,7 +567,7 @@ export const ProfileScreen = ({
                         </div>
 
                         <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">
-                            {profile.full_name || 'CAVIO Support'}
+                            {profile.full_name || 'CAVIOS Support'}
                         </h1>
                         
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-6">
@@ -575,7 +575,7 @@ export const ProfileScreen = ({
                         </div>
 
                         <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed mb-8">
-                            {profile.bio || 'Willkommen beim offiziellen CAVIO Support. Wir helfen dir bei technischen Fragen, Feedback oder Account-Problemen.'}
+                            {profile.bio || 'Willkommen beim offiziellen CAVIOS Support. Wir helfen dir bei technischen Fragen, Feedback oder Account-Problemen.'}
                         </p>
 
                         <div className="w-full space-y-3">
@@ -592,11 +592,11 @@ export const ProfileScreen = ({
                             )}
                             
                             <a 
-                                href="mailto:kontakt@cavio.me"
+                                href="mailto:kontakt@cavios.de"
                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-border bg-slate-50 dark:bg-white/5 text-muted-foreground font-bold hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                             >
                                 <Globe size={18} />
-                                kontakt@cavio.me
+                                kontakt@cavios.de
                             </a>
                         </div>
                     </div>
@@ -606,7 +606,7 @@ export const ProfileScreen = ({
                         <div className="space-y-1">
                             <h4 className="font-bold text-amber-500 text-sm tracking-tight">Sicherheitshinweis</h4>
                             <p className="text-xs text-amber-500/80 leading-relaxed">
-                                Offizielle CAVIO-Mitarbeiter werden dich niemals nach deinem Passwort oder sensiblen Bankdaten fragen. Achte immer auf das goldene Verifizierungs-Badge.
+                                Offizielle CAVIOS-Mitarbeiter werden dich niemals nach deinem Passwort oder sensiblen Bankdaten fragen. Achte immer auf das goldene Verifizierungs-Badge.
                             </p>
                         </div>
                     </div>
@@ -788,16 +788,14 @@ export const ProfileScreen = ({
             <div className="px-4 -mt-20 relative z-10 space-y-4">
                 <div className="bg-white dark:bg-slate-900/90 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border border-white/10 flex flex-col items-center">
                     {/* Profile Image & Role Badge */}
-                    <div className="relative mb-4">
-                        <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-800 p-1 bg-gradient-to-tr from-cyan-500 to-indigo-500 overflow-hidden shadow-xl">
-                            <img 
-                                src={profile.avatar_url || `/cavio-icon.png`} 
-                                alt={profile.full_name}
-                                className={`w-full h-full ${profile.avatar_url ? 'object-cover' : 'object-contain p-6 opacity-60'} rounded-full`}
-                            />
-                        </div>
+                    <div className="relative w-32 h-32 mb-4">
+                        <img 
+                            src={profile.avatar_url || `/cavios-icon.png`} 
+                            alt={profile.full_name}
+                            className={`w-full h-full rounded-full border-4 border-slate-900 ring-2 ring-cyan-500 overflow-hidden shadow-[0_0_20px_rgba(34,211,238,0.4)] ${profile.avatar_url ? 'object-cover' : 'object-contain p-6 opacity-60 bg-slate-800'}`}
+                        />
                         {(profile.is_verified || profile.is_official) && (
-                            <div className="absolute bottom-1 right-1 bg-white dark:bg-slate-900 p-1.5 rounded-full shadow-lg border border-border">
+                            <div className="absolute bottom-0 right-0 bg-slate-900 rounded-full p-0.5 z-10">
                                 <VerificationBadge 
                                     size={20} 
                                     isOfficial={profile.is_official}
@@ -805,7 +803,7 @@ export const ProfileScreen = ({
                                 />
                             </div>
                         )}
-                        <div className="absolute -top-1 -left-1 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-lg border border-white/20 tracking-widest z-20">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-indigo-500 to-cyan-400 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-lg z-10 whitespace-nowrap">
                             {profile.role || 'Spieler'}
                         </div>
                     </div>
@@ -819,9 +817,9 @@ export const ProfileScreen = ({
                             )}
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
-                            {profile.email === 'kontakt@cavio.me' || profile.is_official || profile.role === 'system' ? (
+                            {profile.email === 'kontakt@cavios.de' || profile.is_official || profile.role === 'system' ? (
                                 <span className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-cyan-500/10 border border-amber-500/20 px-3 py-1 rounded-lg shadow-sm">
-                                    <span className="text-xs font-black text-amber-500 uppercase tracking-widest">CAVIO Support</span>
+                                    <span className="text-xs font-black text-amber-500 uppercase tracking-widest">CAVIOS Support</span>
                                 </span>
                             ) : profile.role === 'scout' && profile.agencies ? (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
@@ -1041,13 +1039,29 @@ const ProfileTabs = ({
 }) => {
     const [activeTab, setActiveTab] = useState('highlights');
 
-    const TabBtn = ({ id, label, icon: Icon }) => (
+    // Derive pinned count for the owner's badge indicator
+    const pinnedCount = highlights.filter(v => v.is_pinned && v.post_type !== 'transfer').length;
+
+    const TabBtn = ({ id, label, icon: Icon, badge }) => (
         <button
             onClick={() => setActiveTab(id)}
             className={`relative pb-3 text-sm font-bold transition flex items-center gap-2 ${activeTab === id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/70'}`}
         >
             {Icon && <Icon size={16} className={activeTab === id ? 'text-cyan-500' : ''} />}
             {label}
+            {badge && (
+                <span
+                    className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black tracking-tight leading-none"
+                    style={{
+                        background: 'rgba(34,211,238,0.15)',
+                        color: '#22d3ee',
+                        border: '1px solid rgba(34,211,238,0.3)',
+                        boxShadow: '0 0 6px rgba(34,211,238,0.2)',
+                    }}
+                >
+                    {badge}
+                </span>
+            )}
             {activeTab === id && (
                 <motion.div 
                     layoutId="activeTab"
@@ -1061,7 +1075,12 @@ const ProfileTabs = ({
     return (
         <>
             <div className="flex px-4 pt-4 gap-6 border-b border-border sticky top-0 z-40 bg-slate-50/90 dark:bg-slate-950/80 backdrop-blur-md overflow-x-auto no-scrollbar">
-                <TabBtn id="highlights" label="Beiträge" icon={Video} />
+                <TabBtn
+                    id="highlights"
+                    label="Beiträge"
+                    icon={Video}
+                    badge={isOwnProfile && pinnedCount > 0 ? `${pinnedCount}/3 📌` : null}
+                />
                 <TabBtn id="stats" label={profile.role === 'scout' ? 'Visitenkarte' : 'Stats'} icon={Trophy} />
                 <TabBtn id="karriere" label="Karriere" icon={Calendar} />
                 <TabBtn id="about" label="Über" icon={Info} />

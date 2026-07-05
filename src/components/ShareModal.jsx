@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Share2, Link as LinkIcon, User, Loader2, MessageSquare 
@@ -32,7 +32,7 @@ export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) =>
         try {
             if (navigator.share) {
                 await navigator.share({
-                    title: 'CAVIO Scouting',
+                    title: 'CAVIOS Scouting',
                     text: shareText,
                     url: shareUrl
                 });
@@ -145,7 +145,7 @@ export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) =>
                                                     {partner.avatar_url ? (
                                                         <img src={partner.avatar_url} alt={partner.full_name} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <img src="/cavio-icon.png" className="w-full h-full object-contain p-3 opacity-60" />
+                                                        <img src="/cavios-icon.png" className="w-full h-full object-contain p-3 opacity-60" />
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col">

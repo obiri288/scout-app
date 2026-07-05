@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import { 
     ShieldAlert, X, Shield, Flag, CheckCircle, AlertTriangle, Loader2, 
     Trash2, Menu, Video, MessageSquare, TrendingUp, Users, AlertOctagon, 
@@ -475,7 +475,7 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                             userId: recipientId,
                             actorId: currentUserProfile?.id,
                             type: 'system_alert',
-                            message: "Deine Anfrage für die Kapitänsbinde deines Vereins wurde vom System-Admin abgelehnt. Bei Fragen wende dich bitte an den CAVIO Support.",
+                            message: "Deine Anfrage für die Kapitänsbinde deines Vereins wurde vom System-Admin abgelehnt. Bei Fragen wende dich bitte an den CAVIOS Support.",
                             entityId: career.id
                         });
                     }

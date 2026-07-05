@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, AtSign, Lock, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -337,7 +337,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
                             <Mail size={36} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-foreground mb-2">Willkommen bei Cavio</h2>
+                            <h2 className="text-2xl font-bold text-foreground mb-2">Willkommen bei CAVIOS</h2>
                             <p className="text-muted-foreground text-sm leading-relaxed">
                                 Wir haben dir einen Link geschickt. Bitte bestätige deine E-Mail-Adresse, um den Tresor zu öffnen.
                             </p>
@@ -363,12 +363,12 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
                     <>
                         <div className="flex flex-col items-center gap-3 mb-8">
                             <img
-                                src="/cavio-icon.png"
-                                alt="Cavio"
+                                src="/cavios-icon.png"
+                                alt="CAVIOS"
                                 className="h-16 w-16 object-contain mix-blend-screen drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]"
                             />
                             <h2 className="text-2xl font-bold text-foreground">
-                                {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Exklusiver CAVIO Zugang'}
+                                {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Exklusiver CAVIOS Zugang'}
                             </h2>
                             <p className="text-muted-foreground text-sm text-center">
                                 {view === 'register' ? 'Dein Fundament für den Profisport.' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Dieser Bereich ist ausschließlich für verifizierte Partner und Athleten vorgesehen.'}
@@ -535,7 +535,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
                 )}
                 {(view !== 'forgot' && view !== 'registerSuccess') && (
                     <div className="mt-6 pt-6 border-t border-border text-center">
-                        <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei Cavio?'}</p>
+                        <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei CAVIOS?'}</p>
                         <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Partner Login' : 'Kostenlos registrieren'}</button>
                     </div>
                 )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     User, Camera, Video, ArrowRight, ArrowLeft, Check, Loader2, Sparkles, 
@@ -316,7 +316,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                     addToast('Fehler bei der Agentur-Zuordnung.', 'error');
                 }
             } else if (isPlayer) {
-                addToast('Profil erstellt! Willkommen bei Cavio 🎉', 'success');
+                addToast('Profil erstellt! Willkommen bei CAVIOS 🎉', 'success');
             } else {
                 addToast('Willkommen! Dein Verifiziert-Badge wird nach Prüfung freigeschaltet.', 'success');
             }
@@ -345,7 +345,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
         {
             id: 'role',
             icon: <Sparkles className="text-cyan-400" size={28} />,
-            title: 'Willkommen bei Cavio!',
+            title: 'Willkommen bei CAVIOS!',
             subtitle: 'Wie möchtest du die Plattform nutzen?',
         },
         {
@@ -491,7 +491,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
 
                                 {/* Username mit @-Prefix */}
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Cavio-Username *</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">CAVIOS-Username *</label>
                                     <div className="relative flex items-center">
                                         <span className="absolute left-3 text-cyan-500 font-bold text-base select-none pointer-events-none z-10">@</span>
                                         <input
@@ -841,7 +841,7 @@ export const OnboardingWizard = ({ session, onComplete }) => {
                                 <div className="bg-card border border-border rounded-2xl p-5 space-y-3 relative">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                                            {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}
+                                            {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}
                                         </div>
                                         <div>
                                             <p className="font-bold text-foreground">{fullName || 'Dein Name'}</p>

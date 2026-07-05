@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { User, Loader2, Sparkles, Check, X, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -195,7 +195,7 @@ export const NamePromptModal = () => {
                     {/* Username mit @-Prefix — nur wenn noch kein Username gesetzt */}
                     {!hasExistingUsername && (
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Cavio-Username *</label>
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">CAVIOS-Username *</label>
                             <div className="relative flex items-center">
                                 <span className="absolute left-3 text-cyan-500 font-bold text-base select-none pointer-events-none z-10">@</span>
                                 <input

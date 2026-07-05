@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, Settings, User, Shield, AlertTriangle,
@@ -392,7 +392,7 @@ const SupportContactModal = ({ onClose, onDirectMessage }) => {
 
                                 <button
                                     onClick={() => {
-                                        window.location.href = 'mailto:kontakt@cavio.me';
+                                        window.location.href = 'mailto:kontakt@cavios.de';
                                         onClose();
                                     }}
                                     className="flex flex-col items-center justify-center gap-2 p-4 bg-muted/40 hover:bg-muted/60 rounded-2xl border border-border transition-all active:scale-[0.96] group"
@@ -402,7 +402,7 @@ const SupportContactModal = ({ onClose, onDirectMessage }) => {
                                     </div>
                                     <div className="text-center">
                                         <p className="font-bold text-foreground text-xs">E-Mail</p>
-                                        <p className="text-[9px] text-muted-foreground mt-0.5">kontakt@cavio.me</p>
+                                        <p className="text-[9px] text-muted-foreground mt-0.5">kontakt@cavios.de</p>
                                     </div>
                                 </button>
                             </div>
@@ -702,7 +702,7 @@ const BlockedAccountsView = ({ onBack }) => {
                         <div key={profile.id} className="flex items-center justify-between bg-card border border-border p-4 rounded-xl">
                             <div className="flex items-center gap-3">
                                 <img 
-                                    src={profile.avatar_url || '/cavio-icon.png'} 
+                                    src={profile.avatar_url || '/cavios-icon.png'} 
                                     alt={profile.full_name} 
                                     className="w-10 h-10 rounded-full object-cover border border-border"
                                 />
@@ -907,7 +907,7 @@ const LockerRoomView = ({ onBack, clubId, activeCaptainStation, currentUserProfi
                             >
                                 <div className="flex items-center gap-3">
                                     <img
-                                        src={player.profile?.avatar_url || '/cavio-icon.png'}
+                                        src={player.profile?.avatar_url || '/cavios-icon.png'}
                                         alt={player.profile?.full_name || 'Spieler'}
                                         className="w-12 h-12 rounded-full object-cover border border-white/10 shrink-0"
                                     />
@@ -1067,7 +1067,7 @@ const SettingsScreen = ({
                 // Construct partner object for ChatWindow
                 const partner = {
                     user_id: supportUser.user_id, // Important: use user_id for messaging
-                    full_name: supportUser.full_name || 'CAVIO Support',
+                    full_name: supportUser.full_name || 'CAVIOS Support',
                     avatar_url: supportUser.avatar_url,
                     is_official: true,
                     verification_status: supportUser.verification_status,
@@ -1077,7 +1077,7 @@ const SettingsScreen = ({
                 onSelectChat(partner);
             } else {
                 // Fallback to email if no official account found
-                window.location.href = 'mailto:kontakt@cavio.me';
+                window.location.href = 'mailto:kontakt@cavios.de';
                 addToast('Support-Chat aktuell nicht verfügbar. E-Mail wird geöffnet.', 'info');
             }
         } catch (err) {
@@ -1258,7 +1258,7 @@ const SettingsScreen = ({
                                     icon={Share2}
                                     label="Problem melden"
                                     sublabel="Fehler in der App mitteilen"
-                                    onClick={() => window.location.href = 'mailto:kontakt@cavio.me?subject=Fehlermeldung'}
+                                    onClick={() => window.location.href = 'mailto:kontakt@cavios.de?subject=Fehlermeldung'}
                                 />
                             </SectionCard>
                         </div>
@@ -1428,7 +1428,7 @@ const SettingsScreen = ({
                 </AnimatePresence>
 
                 <p className="mt-12 text-center text-[10px] font-bold text-muted-foreground/40 uppercase tracking-[0.2em]">
-                    CAVIO PLATFORM v3.0.4 • 2026
+                    CAVIOS PLATFORM v3.0.4 • 2026
                 </p>
             </div>
 

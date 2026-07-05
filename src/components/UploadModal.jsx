@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     X, 
@@ -25,7 +25,7 @@ import {
     Search
 } from 'lucide-react';
 import { supabase, MAX_FILE_SIZE } from '../lib/supabase';
-import { searchPlayers, insertPostTags, createNotification } from '../lib/api';
+import { searchPlayers, insertPostTags, createNotifications } from '../lib/api';
 import { btnPrimary, inputStyle, cardStyle } from '../lib/styles';
 import { generateVideoThumbnail, isValidVideoFile, ALLOWED_VIDEO_EXTENSIONS } from '../lib/helpers';
 import { useToast } from '../contexts/ToastContext';
@@ -234,17 +234,18 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                 await insertPostTags(tagsToInsert);
 
                 // 5. Send notifications
-                for (const t of taggedUsers) {
+                const notificationsToInsert = taggedUsers.map(t => ({
+                    userId: t.user.id,
+                    actorId: profile.id,
+                    type: 'assist_tag',
+                    message: `hat dich als ${t.roleLabel} markiert.`,
+                    videoId: insertedVideo.id
+                }));
+                if (notificationsToInsert.length > 0) {
                     try {
-                        await createNotification({
-                            userId: t.user.id,
-                            actorId: profile.id,
-                            type: 'assist_tag',
-                            message: `hat dich als ${t.roleLabel} markiert.`,
-                            videoId: insertedVideo.id
-                        });
+                        await createNotifications(notificationsToInsert);
                     } catch (e) {
-                        console.warn("Failed to send tag notification", e);
+                        console.warn("Failed to send tag notifications in batch", e);
                     }
                 }
             }
@@ -473,7 +474,7 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                                             <div className="flex flex-wrap gap-2 mb-2">
                                                 {taggedUsers.map(tag => (
                                                     <div key={tag.user.id} className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-2 py-1.5 rounded-xl">
-                                                        <img src={tag.user.avatar_url || '/cavio-icon.png'} className="w-5 h-5 rounded-full object-cover" />
+                                                        <img src={tag.user.avatar_url || '/cavios-icon.png'} className="w-5 h-5 rounded-full object-cover" />
                                                         <div className="flex flex-col">
                                                             <span className="text-[10px] font-bold text-white leading-none">{tag.user.full_name}</span>
                                                             <span className="text-[9px] text-blue-400">{tag.roleLabel}</span>
@@ -508,7 +509,7 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                                                             onClick={() => handleSelectTagUser(user)}
                                                             className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 last:border-0"
                                                         >
-                                                            <img src={user.avatar_url || '/cavio-icon.png'} className="w-8 h-8 rounded-full object-cover bg-zinc-800" />
+                                                            <img src={user.avatar_url || '/cavios-icon.png'} className="w-8 h-8 rounded-full object-cover bg-zinc-800" />
                                                             <div>
                                                                 <div className="text-sm font-bold text-white">{user.full_name}</div>
                                                                 <div className="text-[10px] text-zinc-500">{user.clubs?.name || 'Vereinslos'}</div>
@@ -584,7 +585,7 @@ export const UploadModal = ({ profile, onClose, onUploadComplete }) => {
                                 <X size={20} />
                             </button>
                             <div className="text-center mb-6">
-                                <img src={showRoleModalFor.avatar_url || '/cavio-icon.png'} className="w-16 h-16 rounded-full mx-auto mb-3 object-cover border-2 border-white/10" />
+                                <img src={showRoleModalFor.avatar_url || '/cavios-icon.png'} className="w-16 h-16 rounded-full mx-auto mb-3 object-cover border-2 border-white/10" />
                                 <h3 className="text-lg font-black text-white">Welche Rolle hatte {showRoleModalFor.full_name}?</h3>
                                 <p className="text-xs text-zinc-400 mt-1">Wähle den passenden Assist-Tag</p>
                             </div>

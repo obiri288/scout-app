@@ -1,4 +1,4 @@
-export const MIN_AGE = 16;
+﻿export const MIN_AGE = 16;
 
 export const calculateAgeInfo = (birthDate) => {
     if (!birthDate) return { age: null, isUnder16: false };
@@ -12,4 +12,4 @@ export const calculateAgeInfo = (birthDate) => {
     return { age, isUnder16: age < MIN_AGE };
 };
 
-export const AGE_ERROR_MESSAGE = 'Du musst mindestens 16 Jahre alt sein, um Cavio zu nutzen. Für jüngere Athleten folgt in Zukunft ein Managed-Account-System.';
+export const AGE_ERROR_MESSAGE = 'Du musst mindestens 16 Jahre alt sein, um CAVIOS zu nutzen. Für jüngere Athleten folgt in Zukunft ein Managed-Account-System.';

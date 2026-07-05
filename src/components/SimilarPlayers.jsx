@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Shield, ChevronRight, Sparkles, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -105,10 +105,10 @@ export const SimilarPlayers = ({ profile, onUserClick }) => {
                         className="shrink-0 w-28 flex flex-col items-center text-center cursor-pointer group"
                     >
                         <div className="w-16 h-16 rounded-full bg-zinc-800 overflow-hidden border-2 border-white/10 mb-2 group-hover:border-blue-500 transition shadow-lg">
-                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
+                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
                         </div>
                         <div className="text-xs font-bold text-foreground truncate w-full group-hover:text-blue-400 transition">{p.full_name}</div>
-                        {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
+                        {!(p.email === 'kontakt@cavios.de' || p.is_official || p.role === 'system') && (
                             <>
                                 <div className="text-[10px] text-zinc-500 truncate w-full flex items-center justify-center gap-1 mt-0.5">
                                     <Shield size={8} /> {getClubDisplay(p)}

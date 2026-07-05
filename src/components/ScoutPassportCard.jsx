@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const ScoutPassportCard = ({ fullName, scoutTitle, agencyName, agencyLogo, isAccredited, className = '' }) => {
@@ -19,7 +19,7 @@ export const ScoutPassportCard = ({ fullName, scoutTitle, agencyName, agencyLogo
                     <div>
                         <div className="flex items-center gap-1.5 opacity-90">
                             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                            <span className="text-[10px] font-black tracking-[0.2em] text-slate-300">CAVIO</span>
+                            <span className="text-[10px] font-black tracking-[0.2em] text-slate-300">CAVIOS</span>
                         </div>
                         <div className="text-[10px] tracking-widest text-slate-500 font-semibold mt-1">SCOUT PASSPORT</div>
                     </div>

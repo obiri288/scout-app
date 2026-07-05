@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, RefreshCw, Film, Menu, Shield, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -152,7 +152,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
                         >
                             <Menu size={24} />
                         </button>
-                        <img src="/cavio-icon.png" className="w-8 h-8 object-contain" alt="CAVIO" />
+                        <img src="/cavios-icon.png" className="w-8 h-8 object-contain" alt="CAVIOS" />
                     </div>
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('openUploadModal'))}

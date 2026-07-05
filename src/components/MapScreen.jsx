@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, User, Shield, MapPin, Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { cardStyle } from '../lib/styles';
 import { fetchPlayersWithCoords, fetchPlayersWithCity, geocodeCity } from '../lib/api';
@@ -128,7 +128,15 @@ export const MapScreen = ({ onClose, onUserClick }) => {
     }, [players]);
 
     const FilterChip = ({ label, active, onClick }) => (
-        <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white' : 'bg-black/50 text-zinc-400 hover:bg-zinc-800'}`}>{label}</button>
+        <button
+            onClick={onClick}
+            className={active
+                ? 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center px-3 py-1.5 rounded-full text-[10px] font-bold text-white bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-lg shadow-cyan-500/30 transition-all border-none'
+                : 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-400 bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-slate-200 transition-all'
+            }
+        >
+            {label}
+        </button>
     );
 
     return (
@@ -152,7 +160,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
             )}
 
             {/* Navigation Filter Overlay (Top Right) */}
-            <div className="absolute top-28 right-4 z-[10001] flex flex-col items-end gap-3 pointer-events-none max-w-[200px]">
+            <div className="absolute top-28 right-4 z-[10001] flex flex-col items-end gap-3 pointer-events-auto max-w-[200px]">
                 {['Alle', 'Suche Verein', 'Vertrag läuft aus', 'Gebunden'].map(s => (
                     <FilterChip key={s} label={s === 'Alle' ? 'Status: Alle' : s} active={statusFilter === s} onClick={() => setStatusFilter(s)} />
                 ))}
@@ -194,11 +202,11 @@ export const MapScreen = ({ onClose, onUserClick }) => {
 
                         <div className="flex items-center gap-5">
                             <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-white/10 shadow-inner overflow-hidden shrink-0">
-                                {selectedPlayer.avatar_url ? <img src={selectedPlayer.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}
+                                {selectedPlayer.avatar_url ? <img src={selectedPlayer.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-white text-lg truncate tracking-tight">{selectedPlayer.full_name}</h3>
-                                {!(selectedPlayer.email === 'kontakt@cavio.me' || selectedPlayer.is_official || selectedPlayer.role === 'system') && (
+                                {!(selectedPlayer.email === 'kontakt@cavios.de' || selectedPlayer.is_official || selectedPlayer.role === 'system') && (
                                     <div className="flex items-center gap-2.5 text-xs text-slate-400 mt-1 font-medium">
                                         <span className="flex items-center gap-1"><Shield size={12} className="text-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" /> {getClubDisplay(selectedPlayer)}</span>
                                         {selectedPlayer.city && (
@@ -209,7 +217,7 @@ export const MapScreen = ({ onClose, onUserClick }) => {
                                         )}
                                     </div>
                                 )}
-                                {!(selectedPlayer.email === 'kontakt@cavio.me' || selectedPlayer.is_official || selectedPlayer.role === 'system') && (
+                                {!(selectedPlayer.email === 'kontakt@cavios.de' || selectedPlayer.is_official || selectedPlayer.role === 'system') && (
                                     <div className="flex items-center gap-2.5 mt-2.5">
                                         <span className="text-[10px] bg-white/5 border border-white/10 px-2.5 py-1 rounded-md text-slate-300 font-bold uppercase tracking-wider shadow-inner">{selectedPlayer.position_primary}</span>
                                         <span className={`text-[10px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border shadow-inner ${selectedPlayer.transfer_status === 'Suche Verein' ? 'bg-green-500/10 border-green-500/30 text-green-400' :

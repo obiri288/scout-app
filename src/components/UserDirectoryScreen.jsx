@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Search, User, Shield, ArrowLeft, Menu, 
     ShieldAlert, Flag, ExternalLink, Clock, 
@@ -238,7 +238,7 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                                     {user.avatar_url ? (
                                         <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
                                     ) : (
-                                        <img src="/cavio-icon.png" className="w-7 h-7 object-contain opacity-60" />
+                                        <img src="/cavios-icon.png" className="w-7 h-7 object-contain opacity-60" />
                                     )}
                                 </div>
                                 {user.is_verified && (
@@ -311,7 +311,7 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                                                 <img src={selectedUser.avatar_url} className="w-full h-full object-cover" alt="" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
-                                                    <img src="/cavio-icon.png" className="w-8 h-8 object-contain opacity-60" />
+                                                    <img src="/cavios-icon.png" className="w-8 h-8 object-contain opacity-60" />
                                                 </div>
                                             )}
                                         </div>

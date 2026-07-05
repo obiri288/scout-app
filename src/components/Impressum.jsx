@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 const Impressum = () => {
@@ -35,7 +35,7 @@ const Impressum = () => {
 
                 <h2 className="text-slate-100 font-bold mt-8 mb-4 text-xl">Kontakt</h2>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    E-Mail: <a href="mailto:kontakt@cavio.me" className="text-cyan-400 hover:underline">kontakt@cavio.me</a>
+                    E-Mail: <a href="mailto:kontakt@cavios.de" className="text-cyan-400 hover:underline">kontakt@cavios.de</a>
                 </p>
 
                 <h2 className="text-slate-100 font-bold mt-8 mb-4 text-xl">Verbraucherstreitbeilegung/Universalschlichtungsstelle</h2>

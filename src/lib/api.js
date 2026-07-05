@@ -837,7 +837,7 @@ export const addPostComment = async (postId, userId, content) => {
 
 export const fetchConversation = async (userA, userB) => {
     const { data } = await supabase.from('direct_messages')
-        .select('*')
+        .select('id, sender_id, receiver_id, content, created_at, is_read')
         .or(`sender_id.eq.${userA},receiver_id.eq.${userA}`)
         .or(`sender_id.eq.${userB},receiver_id.eq.${userB}`)
         .order('created_at', { ascending: true });
@@ -862,7 +862,7 @@ export const markMessagesRead = async (ids) => {
 
 export const fetchConversationList = async (userId) => {
     const { data } = await supabase.from('direct_messages')
-        .select('*')
+        .select('id, sender_id, receiver_id, content, created_at, is_read')
         .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order('created_at', { ascending: false });
     return data || [];
@@ -1043,7 +1043,7 @@ export const getProfileViewCount = async (profileId) => {
 
 export const fetchPlayerAttributes = async (playerId) => {
     const { data } = await supabase.from('player_attributes')
-        .select('*')
+        .select('id, player_id, rater_id, pace, shooting, passing, dribbling, defending, physical, created_at')
         .eq('player_id', playerId);
     return data || [];
 };
@@ -1060,7 +1060,7 @@ export const upsertPlayerAttributes = async (playerId, raterId, attributes) => {
 
 export const getPlayerStats = async (playerId) => {
     const { data } = await supabase.from('player_attributes')
-        .select('*')
+        .select('pace, shooting, passing, dribbling, defending, physical')
         .eq('player_id', playerId);
     
     if (!data || data.length === 0) {
@@ -1082,7 +1082,7 @@ export const getPlayerStats = async (playerId) => {
 
 export const getSkillEndorsements = async (playerId) => {
     const { data } = await supabase.from('endorsements')
-        .select('*')
+        .select('id, sender_id, receiver_id, skill_name, created_at')
         .eq('receiver_id', playerId);
     return data || [];
 };
@@ -1154,7 +1154,7 @@ export const getPlayerXP = async (playerId) => {
 
 export const searchClubs = async (query, limit = 5) => {
     const { data } = await supabase.from('clubs')
-        .select('*')
+        .select('id, name, is_verified, league_id, logo_url')
         .ilike('name', `%${query}%`)
         .limit(limit);
     return data || [];
@@ -1237,22 +1237,32 @@ export const leaveTeam = async (playerId) => {
 export const fetchClubWithTeams = async (clubId) => {
     const { data: teams, error } = await supabase
         .from('club_teams')
-        .select('*')
+        .select('id, club_id, age_category, gender')
         .eq('club_id', clubId)
         .order('age_category');
     if (error) throw error;
 
-    // Fetch player counts per team
-    const teamsWithCounts = await Promise.all(
-        (teams || []).map(async (team) => {
-            const { count } = await supabase
-                .from('players_master')
-                .select('id', { count: 'exact', head: true })
-                .eq('current_team_id', team.id)
-                .eq('is_deactivated', false);
-            return { ...team, member_count: count || 0 };
-        })
-    );
+    if (!teams || teams.length === 0) return [];
+
+    const teamIds = teams.map(t => t.id);
+    const { data: players, error: playersError } = await supabase
+        .from('players_master')
+        .select('current_team_id')
+        .in('current_team_id', teamIds)
+        .eq('is_deactivated', false);
+    if (playersError) throw playersError;
+
+    const counts = (players || []).reduce((acc, p) => {
+        if (p.current_team_id) {
+            acc[p.current_team_id] = (acc[p.current_team_id] || 0) + 1;
+        }
+        return acc;
+    }, {});
+
+    const teamsWithCounts = teams.map(team => ({
+        ...team,
+        member_count: counts[team.id] || 0
+    }));
 
     return teamsWithCounts;
 };
@@ -1438,7 +1448,7 @@ export const sendTestNotification = async (userId) => {
 
 export const getRecentChatPartners = async (userId) => {
     const { data } = await supabase.from('direct_messages')
-        .select('*')
+        .select('id, sender_id, receiver_id, content, created_at')
         .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -1451,7 +1461,7 @@ export const getRecentChatPartners = async (userId) => {
 
     if (map.size > 0) {
         const { data: users } = await supabase.from('players_master')
-            .select('*')
+            .select('id, user_id, full_name, username, avatar_url, is_official, verification_status')
             .in('user_id', [...map.keys()])
             .eq('is_deactivated', false);
             
@@ -1471,7 +1481,7 @@ export const getRecentChatPartners = async (userId) => {
 export const fetchNationalityVerifications = async () => {
     const { data, error } = await supabase
         .from('nationality_verifications')
-        .select('*')
+        .select('id, player_id, status, created_at, document_url')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
     if (error) throw error;
@@ -1533,5 +1543,39 @@ export const fetchPostTags = async (videoId = null, postId = null) => {
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
+};
+
+export const fetchPlayersByUsernames = async (usernames) => {
+    if (!usernames || usernames.length === 0) return [];
+    const { data, error } = await supabase.from('players_master')
+        .select('*, following_count, clubs(*, leagues(name)), club_teams(*, clubs(*))')
+        .in('username', usernames)
+        .eq('is_deactivated', false);
+    if (error) throw error;
+    return data || [];
+};
+
+export const createNotifications = async (notifications) => {
+    if (!notifications || notifications.length === 0) return;
+    
+    const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+    const payloads = notifications.map(notif => cleanPayload({
+        user_id: notif.userId,
+        actor_id: notif.actorId,
+        type: notif.type,
+        message: notif.message,
+        is_read: false,
+        entity_id: isUUID(notif.entityId) ? notif.entityId : null,
+        video_id: isUUID(notif.videoId) ? notif.videoId : null
+    }));
+
+    try {
+        const { error } = await supabase.from('notifications').insert(payloads);
+        if (error) throw error;
+    } catch (error) {
+        console.error("DB Error in createNotifications. Payloads:", payloads, "Error:", error);
+        throw error;
+    }
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
     Clock, LogOut, ShieldAlert, RefreshCw, UserCircle, Loader2 
@@ -51,8 +51,8 @@ export const PendingVerificationScreen = ({ profile, onLogout, onRoleChanged }) 
                 {/* Logo */}
                 <div className="flex justify-center">
                     <img
-                        src="/cavio-icon.png"
-                        alt="Cavio"
+                        src="/cavios-icon.png"
+                        alt="CAVIOS"
                         className="h-16 w-16 object-contain mix-blend-screen drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]"
                     />
                 </div>

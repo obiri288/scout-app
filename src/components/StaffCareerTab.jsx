@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     List, GitCommit, Sparkles, Plus, Check, Award, Briefcase, 
@@ -264,14 +264,14 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                 </div>
             </div>
 
-            {/* CAVIO Insights */}
+            {/* CAVIOS Insights */}
             {careerStations.length > 0 && insights && (
                 <div className="mb-6 bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border border-cyan-500/20 rounded-2xl p-4 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-500 shrink-0">
                         <Sparkles size={20} />
                     </div>
                     <div>
-                        <h4 className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest">CAVIO Insights</h4>
+                        <h4 className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest">CAVIOS Insights</h4>
                         <p className="text-sm font-bold text-foreground mt-0.5">{insights}</p>
                     </div>
                 </div>
@@ -492,7 +492,7 @@ export const StaffCareerTab = ({ profile, isOwnProfile, onUpdate }) => {
                                     <Award size={20} className="text-emerald-500 mt-0.5 shrink-0" />
                                     <div>
                                         <h5 className="font-bold text-emerald-500 text-sm">Premium-Station erkannt</h5>
-                                        <p className="text-xs text-emerald-600 dark:text-emerald-400/80 mt-1">Diese Station qualifiziert sich als Elite-Referenz und wird nach Speicherung durch das CAVIO-Team verifiziert.</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400/80 mt-1">Diese Station qualifiziert sich als Elite-Referenz und wird nach Speicherung durch das CAVIOS-Team verifiziert.</p>
                                     </div>
                                 </div>
                             )}

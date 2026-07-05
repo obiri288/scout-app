@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+﻿import { useState, useCallback, useEffect, useRef } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -199,7 +199,7 @@ export const useAppState = () => {
             setActiveTab('profile');
             navigateToHash(`profile/${sessionData.user.id}`);
         } else {
-            addToast('Willkommen bei Cavio! 👋', 'success');
+            addToast('Willkommen bei CAVIOS! 👋', 'success');
         }
     };
 

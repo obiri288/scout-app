@@ -1,12 +1,12 @@
-/**
- * Cavio Username Blocklist & Validation
+﻿/**
+ * CAVIOS Username Blocklist & Validation
  * Nuclear blocklist + format validation for username registration.
  */
 
 export const RESTRICTED_USERNAMES = [
   // 1. Reservierte System- & Marken-Namen
   "admin", "administrator", "root", "system", "support", "help", "info", "contact",
-  "cavio", "cavioapp", "probase", "moderator", "mod", "staff", "official", "verified",
+  "CAVIOS", "CAVIOSapp", "probase", "moderator", "mod", "staff", "official", "verified",
   "team", "security", "bot", "noreply", "billing", "api", "test", "tester", "demo",
   // 2. Unsinnige Tasten-Kombinationen & Dummys
   "asdf", "asdfgh", "qwertz", "qwerty", "1234", "123456", "user", "guest", "null",

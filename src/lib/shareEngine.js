@@ -1,9 +1,9 @@
-export const generateShareText = ({ role, isCreator = false, playerName, tags = [] }) => {
+﻿export const generateShareText = ({ role, isCreator = false, playerName, tags = [] }) => {
     const displayTags = tags.slice(0, 2);
     const tagString = displayTags.join(" & ");
     const hasTags = displayTags.length > 0;
 
-    const fallback = `Sieh dir das Profil von ${playerName} auf CAVIO an.`;
+    const fallback = `Sieh dir das Profil von ${playerName} auf CAVIOS an.`;
 
     // Pools with tags
     const pools = {
@@ -13,13 +13,13 @@ export const generateShareText = ({ role, isCreator = false, playerName, tags = 
             `${playerName} ist auf dem Radar. Gutes Profil mit Fokus auf ${tagString}.`
         ],
         player_creator: [
-            `Neues Tape ist online! 🎥 Fokus auf ${tagString} heute. Check mein Profil auf CAVIO ab.`,
+            `Neues Tape ist online! 🎥 Fokus auf ${tagString} heute. Check mein Profil auf CAVIOS ab.`,
             `Work in progress. ⏳ Guck dir meine neueste Session auf dem Platz an.`,
-            `${playerName} ist live auf CAVIO. ⚽️ Lass ein Feedback da.`
+            `${playerName} ist live auf CAVIOS. ⚽️ Lass ein Feedback da.`
         ],
         player_viewer: [
             `Starkes Highlight von ${playerName} gesehen! 🎥 Fokus auf ${tagString}.`,
-            `Sieh dir dieses Tape von ${playerName} auf CAVIO an. Fokus liegt auf ${tagString}.`,
+            `Sieh dir dieses Tape von ${playerName} auf CAVIOS an. Fokus liegt auf ${tagString}.`,
             `Krasses Material von ${playerName} ⚽️ Guck mal rein.`
         ]
     };
@@ -28,17 +28,17 @@ export const generateShareText = ({ role, isCreator = false, playerName, tags = 
     const fallbackPools = {
         scout: [
             `Interessantes Videomaterial zu ${playerName}. Er bringt genau die Attribute mit, die wir aktuell suchen. Sollten wir im Auge behalten.`,
-            `Bin auf CAVIO auf ${playerName} aufmerksam geworden. Ein sehr sauberes Profil, das eine genauere Analyse wert ist. Lass uns das bei Gelegenheit besprechen.`,
+            `Bin auf CAVIOS auf ${playerName} aufmerksam geworden. Ein sehr sauberes Profil, das eine genauere Analyse wert ist. Lass uns das bei Gelegenheit besprechen.`,
             `Ich habe ${playerName} auf unsere Watchlist gesetzt. Die aktuellen Aufnahmen machen einen extrem vielversprechenden Eindruck.`
         ],
         player_creator: [
-            `Neues Tape ist online! 🎥 Check mein Profil auf CAVIO ab.`,
+            `Neues Tape ist online! 🎥 Check mein Profil auf CAVIOS ab.`,
             `Work in progress. ⏳ Guck dir meine neueste Session auf dem Platz an.`,
-            `${playerName} ist live auf CAVIO. ⚽️ Lass ein Feedback da.`
+            `${playerName} ist live auf CAVIOS. ⚽️ Lass ein Feedback da.`
         ],
         player_viewer: [
-            `Starkes Highlight von ${playerName} auf CAVIO gesehen! 🎥`,
-            `Sieh dir dieses Tape von ${playerName} auf CAVIO an.`,
+            `Starkes Highlight von ${playerName} auf CAVIOS gesehen! 🎥`,
+            `Sieh dir dieses Tape von ${playerName} auf CAVIOS an.`,
             `Krasses Material von ${playerName} ⚽️ Guck mal rein.`
         ]
     };

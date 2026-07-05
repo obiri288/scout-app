@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { WifiOff } from 'lucide-react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -20,7 +20,7 @@ export const NetworkGuard = ({ children }) => {
                     >
                         <WifiOff size={16} className="flex-shrink-0" />
                         <span className="font-medium text-center leading-tight">
-                            Du bist offline. CAVIO benötigt eine Internetverbindung.
+                            Du bist offline. CAVIOS benötigt eine Internetverbindung.
                         </span>
                     </motion.div>
                 )}

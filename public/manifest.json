@@ -1,19 +1,19 @@
 {
-  "name": "CAVIO - Digital Player Profile",
-  "short_name": "CAVIO",
-  "description": "CAVIO – Die exklusive Scouting-Datenbank für angehende Profis",
+  "name": "CAVIOS - Digital Player Profile",
+  "short_name": "CAVIOS",
+  "description": "CAVIOS – Die exklusive Scouting-Datenbank für angehende Profis",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "icons": [
     {
-      "src": "/cavio-icon.png",
+      "src": "/cavios-icon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/cavio-icon.png",
+      "src": "/cavios-icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }

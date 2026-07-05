@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useUser } from './UserContext';
 
 const EcosystemContext = createContext();
@@ -12,7 +12,7 @@ export const EcosystemProvider = ({ children }) => {
     
     // Initialize state from localStorage or default to 'mens'
     const [activeEcosystem, setActiveEcosystem] = useState(() => {
-        const saved = localStorage.getItem('cavio_ecosystem');
+        const saved = localStorage.getItem('CAVIOS_ecosystem');
         return saved || 'mens';
     });
 
@@ -21,16 +21,16 @@ export const EcosystemProvider = ({ children }) => {
             const userEco = currentUserProfile.ecosystem;
             if (userEco === 'womens') {
                 setActiveEcosystem('womens');
-                localStorage.setItem('cavio_ecosystem', 'womens');
+                localStorage.setItem('CAVIOS_ecosystem', 'womens');
             } else if (userEco === 'mens') {
                 setActiveEcosystem('mens');
-                localStorage.setItem('cavio_ecosystem', 'mens');
+                localStorage.setItem('CAVIOS_ecosystem', 'mens');
             } else if (userEco === 'all') {
                 // Keep the current activeEcosystem (either from localStorage or default)
                 // But ensure it's valid
                 if (activeEcosystem !== 'mens' && activeEcosystem !== 'womens') {
                     setActiveEcosystem('mens');
-                    localStorage.setItem('cavio_ecosystem', 'mens');
+                    localStorage.setItem('CAVIOS_ecosystem', 'mens');
                 }
             }
         }
@@ -39,7 +39,7 @@ export const EcosystemProvider = ({ children }) => {
     const switchEcosystem = (eco) => {
         if (eco !== 'mens' && eco !== 'womens') return;
         setActiveEcosystem(eco);
-        localStorage.setItem('cavio_ecosystem', eco);
+        localStorage.setItem('CAVIOS_ecosystem', eco);
         // Optional: Dispatch event to trigger refresh in specific components
         window.dispatchEvent(new CustomEvent('ecosystemChanged', { detail: { ecosystem: eco } }));
     };

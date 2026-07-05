@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, 
@@ -83,6 +83,16 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         const updated = [trimmed, ...recentSearches.filter(s => s !== trimmed)].slice(0, 5);
         setRecentSearches(updated);
         localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    }, [recentSearches]);
+
+    const removeRecentSearch = useCallback((term) => {
+        const updated = recentSearches.filter(s => s !== term);
+        setRecentSearches(updated);
+        try {
+            localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+        } catch {
+            // Silently fail
+        }
     }, [recentSearches]);
 
     const saveRecentProfile = useCallback((profile) => {
@@ -278,7 +288,15 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     };
 
     const FilterChip = ({ label, active, onClick }) => (
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick} className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border ${active ? 'bg-gradient-to-r from-indigo-600 to-cyan-400 text-white border-transparent shadow-[0_0_15px_rgba(0,240,255,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20 hover:text-white shadow-inner'}`}>{label}</motion.button>
+        <button
+            onClick={onClick}
+            className={active
+                ? 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-lg shadow-cyan-500/30 transition-all border-none'
+                : 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium text-slate-400 bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-slate-200 transition-all'
+            }
+        >
+            {label}
+        </button>
     );
 
     return (
@@ -340,41 +358,84 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                 
                                 {recentSearches.length > 0 && (
                                     <div className="mb-5">
-                                        <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-bold">Zuletzt gesucht</h4>
-                                        <ul className="space-y-1">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-xs text-slate-500 uppercase tracking-wider font-bold">Zuletzt gesucht</h4>
+                                        </div>
+                                        <AnimatePresence mode="popLayout">
                                             {recentSearches.map(term => (
-                                                <li key={term} onClick={() => { setQuery(term); setIsSearchFocused(false); }} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-cyan-400 hover:bg-white/5 cursor-pointer transition-colors group">
-                                                    <Clock size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors" />
-                                                    <span>{term}</span>
-                                                </li>
+                                                <motion.li
+                                                    key={term}
+                                                    layout
+                                                    initial={{ opacity: 0, x: -8 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0, transition: { duration: 0.18 } }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-cyan-400 hover:bg-white/5 cursor-pointer transition-colors group list-none"
+                                                >
+                                                    <span
+                                                        onClick={() => { setQuery(term); setIsSearchFocused(false); }}
+                                                        className="flex items-center gap-3 flex-1 min-w-0"
+                                                    >
+                                                        <Clock size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                                                        <span className="truncate">{term}</span>
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removeRecentSearch(term);
+                                                        }}
+                                                        className="p-1 text-slate-600 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0 opacity-0 group-hover:opacity-100"
+                                                        title="Aus Verlauf entfernen"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </motion.li>
                                             ))}
-                                        </ul>
+                                        </AnimatePresence>
                                     </div>
                                 )}
 
                                 {recentProfiles.length > 0 && (
                                     <div>
-                                        <h4 className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-bold">Zuletzt besucht</h4>
-                                        <div className="space-y-1">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-xs text-slate-500 uppercase tracking-wider font-bold">Zuletzt besucht</h4>
+                                            <button
+                                                onClick={clearRecentHistory}
+                                                className="text-[9px] text-slate-600 hover:text-red-400 transition-colors uppercase tracking-wider font-bold"
+                                            >
+                                                Alles löschen
+                                            </button>
+                                        </div>
+                                        <motion.div
+                                            className="space-y-0.5"
+                                            initial="hidden"
+                                            animate="visible"
+                                            variants={{
+                                                hidden: {},
+                                                visible: { transition: { staggerChildren: 0.05 } }
+                                            }}
+                                        >
                                             <AnimatePresence mode="popLayout">
                                                 {recentProfiles.map(p => (
                                                     <motion.div
                                                         key={p.id}
                                                         layout
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        exit={{ opacity: 0, x: 20, transition: { duration: 0.2 } }}
+                                                        variants={{
+                                                            hidden: { opacity: 0, y: 8 },
+                                                            visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } }
+                                                        }}
+                                                        exit={{ opacity: 0, x: 20, transition: { duration: 0.18 } }}
                                                         className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
                                                     >
                                                         <div
                                                             onClick={() => handleUserClick(p)}
                                                             className="flex items-center gap-3 flex-1 min-w-0"
                                                         >
-                                                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.2)] transition-all bg-slate-800 flex-shrink-0">
+                                                            <div className="w-9 h-9 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_12px_rgba(34,211,238,0.25)] transition-all bg-slate-800 flex-shrink-0">
                                                                 {p.avatar_url ? (
                                                                     <img src={p.avatar_url} className="w-full h-full object-cover" alt={p.full_name} />
                                                                 ) : (
-                                                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-2.5 opacity-60" alt={p.full_name} />
+                                                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-2 opacity-60" alt={p.full_name} />
                                                                 )}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
@@ -389,21 +450,15 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                                 e.stopPropagation();
                                                                 removeRecentProfile(p.id);
                                                             }}
-                                                            className="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0"
+                                                            className="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0 opacity-0 group-hover:opacity-100"
                                                             title="Aus Verlauf entfernen"
                                                         >
-                                                            <X size={14} />
+                                                            <X size={13} />
                                                         </button>
                                                     </motion.div>
                                                 ))}
                                             </AnimatePresence>
-                                        </div>
-                                        <button
-                                            onClick={clearRecentHistory}
-                                            className="w-full text-center text-[10px] text-slate-600 hover:text-red-400 transition-colors mt-3 py-1.5 uppercase tracking-wider font-bold"
-                                        >
-                                            Verlauf löschen
-                                        </button>
+                                        </motion.div>
                                     </div>
                                 )}
                             </div>
@@ -499,7 +554,10 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide px-1">
                             <button
                                 onClick={() => setShowTagFilter(!showTagFilter)}
-                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedTag ? 'bg-gradient-to-r from-indigo-600 to-cyan-400 text-white border-transparent shadow-[0_0_15px_rgba(0,240,255,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
+                                className={selectedTag
+                                    ? 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-lg shadow-cyan-500/30 transition-all border-none'
+                                    : 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-slate-400 bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-slate-200 transition-all'
+                                }
                             >
                                 <Filter size={12} /> {selectedTag || 'Skill-Filter'}
                             </button>
@@ -517,7 +575,10 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide px-1">
                             <button
                                 onClick={() => setShowArchetypeFilter(!showArchetypeFilter)}
-                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedArchetype ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-transparent shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
+                                className={selectedArchetype
+                                    ? 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-lg shadow-cyan-500/30 transition-all border-none'
+                                    : 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-slate-400 bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-slate-200 transition-all'
+                                }
                             >
                                 <User size={12} /> {selectedArchetype || 'Spielertyp'}
                             </button>
@@ -535,7 +596,10 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                         <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide border-b border-border mb-4 px-1">
                             <button
                                 onClick={() => setShowActionFilter(!showActionFilter)}
-                                className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 ease-out border flex items-center gap-1.5 ${selectedActionTag ? 'bg-gradient-to-r from-amber-500 to-cyan-400 text-white border-transparent shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 shadow-inner'}`}
+                                className={selectedActionTag
+                                    ? 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-lg shadow-cyan-500/30 transition-all border-none'
+                                    : 'flex-shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-slate-400 bg-slate-900 border border-slate-700 hover:bg-slate-800 hover:text-slate-200 transition-all'
+                                }
                             >
                                 <Crosshair size={12} /> {selectedActionTag || 'Video-Highlights'}
                             </button>
@@ -654,7 +718,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                                         />
                                                                     )}
                                                                 </h4>
-                                                                {!(v.players_master?.email === 'kontakt@cavio.me' || v.players_master?.is_official || v.players_master?.role === 'system') && (
+                                                                {!(v.players_master?.email === 'kontakt@cavios.de' || v.players_master?.is_official || v.players_master?.role === 'system') && (
                                                                     <div className="flex flex-row items-center gap-3 mt-1">
                                                                         <div className="text-[10px] text-gray-400 flex items-center gap-1 min-w-0">
                                                                             <Shield size={9} className="text-cyan-400 shrink-0" />
@@ -700,7 +764,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                             const isCaptain = p.career_history?.some(c => c.is_captain && !c.end_date && c.verification_status === 'approved') ?? false;
                                             return (
                                                 <motion.div key={p.id} variants={listItemVariants} whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} whileTap={{ scale: 0.98 }} onClick={() => handleUserClick(p)} className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle} ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`}>
-                                                    <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
+                                                    <div className="w-14 h-14 rounded-2xl bg-card flex-shrink-0 overflow-hidden border border-border relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">{p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-4 opacity-60" />}</div>
                                                     <div className="flex-1 min-w-0">
                                                         <h3 className="font-bold text-foreground text-base tracking-tight truncate flex items-center gap-1.5">
                                                             <span className="truncate">{p.full_name}</span>
@@ -713,7 +777,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                                                 />
                                                             )}
                                                         </h3>
-                                                        {!(p.email === 'kontakt@cavio.me' || p.is_official || p.role === 'system') && (
+                                                        {!(p.email === 'kontakt@cavios.de' || p.is_official || p.role === 'system') && (
                                                             <div className="flex flex-row items-center gap-3 mt-1">
                                                                 <div className="text-sm text-gray-400 flex items-center gap-1 min-w-0">
                                                                     <Shield size={10} className="text-cyan-400 shrink-0" />

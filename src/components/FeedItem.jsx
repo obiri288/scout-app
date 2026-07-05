@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, MoreVertical, Flag, Play, User, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand, VolumeX, Volume2, Bookmark, Archive, Trash2, EyeOff, AlertTriangle, Edit } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
@@ -260,7 +260,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
     const handleShareNative = async (e) => {
         e.stopPropagation();
         const shareUrl = `${window.location.origin}/#profile/${video.players_master?.slug || video.players_master?.user_id || video.id}`;
-        const shareTitle = `CAVIO | Video von ${video.players_master?.full_name || 'einem Spieler'}`;
+        const shareTitle = `CAVIOS | Video von ${video.players_master?.full_name || 'einem Spieler'}`;
         
         if (navigator.share) {
             try {
@@ -310,7 +310,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                 {video.players_master?.avatar_url ? (
                                     <img src={video.players_master.avatar_url} className="w-full h-full object-cover" alt={video.players_master?.full_name || 'Profil'} title={video.players_master?.full_name || 'Profil'} />
                                 ) : (
-                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
+                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-2 opacity-60" />
                                 )}
                             </div>
                         </div>

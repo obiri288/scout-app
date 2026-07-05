@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, User, Send, Check, CheckCheck, MoreVertical, Flag, ShieldOff, ShieldAlert } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
@@ -177,7 +177,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
                 <button onClick={onClose}><ArrowLeft className="text-muted-foreground hover:text-foreground" /></button>
                 <div onClick={() => { onClose(); onUserClick(partner); }} className="flex items-center gap-3 cursor-pointer group flex-1">
                     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border group-hover:border-blue-500 transition">
-                        {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-2.5 opacity-60" />}
+                        {partner.avatar_url ? <img src={partner.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-2.5 opacity-60" />}
                     </div>
                     <div className="font-bold text-foreground flex items-center gap-1.5">
                         {partner.full_name} 

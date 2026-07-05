@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useFocusEffect } from '../hooks/useFocusEffect';
 import { 
@@ -257,7 +257,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         if (!session?.user?.id) return;
         try {
             const { data } = await supabase.from('direct_messages')
-                .select('*')
+                .select('id, sender_id, receiver_id, content, created_at, is_read')
                 .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
                 .order('created_at', { ascending: false })
                 .limit(100);
@@ -276,7 +276,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
 
             if (map.size > 0) {
                 const { data: users } = await supabase.from('players_master')
-                    .select('*')
+                    .select('id, user_id, full_name, avatar_url, is_official, verification_status, role, email, username')
                     .in('user_id', [...map.keys()])
                     .eq('is_deactivated', false);
                 setChats((users || []).map(u => ({
@@ -321,7 +321,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                     try {
                         const { data, error } = await supabase
                             .from('profiles')
-                            .select('*')
+                            .select('id, full_name, username, avatar_url, is_official, verification_status')
                             .eq('id', partnerId)
                             .single();
                         
@@ -425,7 +425,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
         if (!actor || !actor.user_id) return;
         try {
             const firstName = actor.full_name?.split(' ')[0] || 'Hey';
-            await api.sendMessage(session.user.id, actor.user_id, `Hey ${firstName} 👋, willkommen bei Cavio!`);
+            await api.sendMessage(session.user.id, actor.user_id, `Hey ${firstName} 👋, willkommen bei CAVIOS!`);
             setGreetedUsers(prev => new Set(prev).add(actor.user_id));
         } catch (error) {
             console.error("Fehler beim Senden der Hey-Nachricht:", error);
@@ -572,7 +572,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                         {c.avatar_url ? (
                             <img src={c.avatar_url} className="w-full h-full object-cover" />
                         ) : (
-                            <img src="/cavio-icon.png" className="w-full h-full object-contain p-3.5 opacity-60" />
+                            <img src="/cavios-icon.png" className="w-full h-full object-contain p-3.5 opacity-60" />
                         )}
                     </div>
                 </div>
@@ -592,7 +592,7 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                             />
                         ) : null}
                     </h4>
-                    {!(c.email === 'kontakt@cavio.me' || c.is_official || c.role === 'system') && (
+                    {!(c.email === 'kontakt@cavios.de' || c.is_official || c.role === 'system') && (
                         <p className={`text-sm truncate leading-tight ${c.unreadCount > 0 ? 'text-blue-400 font-medium' : 'text-muted-foreground/60'}`}>
                             {c.unreadCount > 0 
                                 ? `${c.unreadCount > 5 ? '5+' : c.unreadCount} neue Nachricht${c.unreadCount === 1 ? '' : 'en'}` 

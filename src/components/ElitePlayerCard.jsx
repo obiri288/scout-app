@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { X, Share2, Crown, Shield, Navigation } from 'lucide-react';
 import { calculateProReadinessScore, calculateAge, getClubDisplay } from '../lib/helpers';
@@ -20,8 +20,8 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights, lates
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: `${profile.full_name} – CAVIO Elite Card`,
-                    text: `Sieh dir das Profil von ${profile.full_name} auf CAVIO an. Pro-Readiness: ${score}%.`,
+                    title: `${profile.full_name} – CAVIOS Elite Card`,
+                    text: `Sieh dir das Profil von ${profile.full_name} auf CAVIOS an. Pro-Readiness: ${score}%.`,
                     url: profileUrl,
                 });
             } catch (err) {
@@ -94,7 +94,7 @@ export const ElitePlayerCard = ({ profile, avgRating, onClose, highlights, lates
                                 {profile.avatar_url ? (
                                     <img src={profile.avatar_url} className="w-full h-full object-cover" />
                                 ) : (
-                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-8 opacity-60" />
+                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-8 opacity-60" />
                                 )}
                             </div>
                         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { WaitlistLanding } from '../pages/WaitlistLanding';
 import { supabase } from '../lib/supabase';
 import { SECRET_ACCESS_PATH } from '../lib/config';
@@ -10,7 +10,7 @@ import Datenschutz from './Datenschutz';
  * 
  * 4 logic layers:
  * 1. Status-Check:  Is the app in waitlist mode? (VITE_APP_STATUS === 'waitlist')
- * 2. VIP-Bypass:    ?beta=cavio-vip URL parameter → persisted in localStorage
+ * 2. VIP-Bypass:    ?beta=CAVIOS-vip URL parameter → persisted in localStorage
  * 3. Session-Check: Active Supabase session → user gets full access
  * 4. Login-Route:   /login path is always accessible (for the subtle link on WaitlistLanding)
  * 
@@ -28,15 +28,15 @@ const WaitlistGuard = ({ children }) => {
     useEffect(() => {
         const url = new URL(window.location.href);
         const betaParam = url.searchParams.get('beta');
-        if (betaParam === 'cavio-vip') {
-            localStorage.setItem('cavio_beta_access', 'true');
+        if (betaParam === 'CAVIOS-vip') {
+            localStorage.setItem('CAVIOS_beta_access', 'true');
             // Clean the URL to hide the beta parameter
             url.searchParams.delete('beta');
             window.history.replaceState({}, document.title, url.pathname + url.hash);
         }
     }, []);
 
-    const hasBetaAccess = localStorage.getItem('cavio_beta_access') === 'true';
+    const hasBetaAccess = localStorage.getItem('CAVIOS_beta_access') === 'true';
 
     // --- Layer 3: Session Check (Supabase) ---
     useEffect(() => {
@@ -111,8 +111,8 @@ const WaitlistGuard = ({ children }) => {
                 justifyContent: 'center',
             }}>
                 <img 
-                    src="/cavio-icon.png" 
-                    alt="CAVIO Loading" 
+                    src="/cavios-icon.png" 
+                    alt="CAVIOS Loading" 
                     style={{
                         width: '64px',
                         height: '64px',

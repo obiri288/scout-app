@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     X, Home, Search, Mail, User, Settings, 
@@ -64,7 +64,7 @@ const Sidebar = ({
                         <div className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex items-center justify-between border-b border-white/5">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)] overflow-hidden">
-                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-2" alt="Logo" />
+                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-2" alt="Logo" />
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Navigation</p>

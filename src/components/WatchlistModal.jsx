@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { 
     X, Bookmark, Trash2, User, Loader2, Pencil, Shield 
 } from 'lucide-react';
@@ -70,11 +70,11 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
                                 <div key={item.id} className="bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-border">
                                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>
                                         <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden shrink-0">
-                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-3 opacity-60" />}
+                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-3 opacity-60" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-bold text-foreground truncate">{item.players_master?.full_name}</h4>
-                                            {!(item.players_master?.email === 'kontakt@cavio.me' || item.players_master?.is_official || item.players_master?.role === 'system') && (
+                                            {!(item.players_master?.email === 'kontakt@cavios.de' || item.players_master?.is_official || item.players_master?.role === 'system') && (
                                                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                                                     <div className="flex items-center gap-1 truncate">
                                                         <Shield size={10} className="text-cyan-400 shrink-0" />

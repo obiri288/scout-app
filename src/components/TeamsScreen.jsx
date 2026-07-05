@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Building, ArrowLeft, Menu, Users, Shield, Search, Loader2, 
     ChevronRight, Plus, X, LogOut, CheckCircle
@@ -250,7 +250,7 @@ const TeamsScreen = ({ currentUserProfile, onBack, onMenuOpen, onUserClick }) =>
                                                 {mate.avatar_url ? (
                                                     <img src={mate.avatar_url} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-2.5 opacity-50" />
+                                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-2.5 opacity-50" />
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">

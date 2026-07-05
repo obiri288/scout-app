@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
 
-const STORAGE_KEY = 'cavio_recent_searches_v2';
+const STORAGE_KEY = 'CAVIOS_recent_searches_v2';
 const MAX_ENTRIES = 5;
 
 /**

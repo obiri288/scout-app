@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     CheckCircle, ArrowRight, Loader2 
@@ -50,7 +50,7 @@ export const AuthCallbackScreen = () => {
                         <div className="relative">
                             <div className="w-20 h-20 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <img src="/cavio-icon.png" alt="Cavio" className="w-10 h-10 animate-pulse" />
+                                <img src="/cavios-icon.png" alt="CAVIOS" className="w-10 h-10 animate-pulse" />
                             </div>
                         </div>
                         <div className="text-center space-y-2">
@@ -85,7 +85,7 @@ export const AuthCallbackScreen = () => {
                                 E-Mail bestätigt!
                             </h1>
                             <p className="text-zinc-400 leading-relaxed px-4">
-                                Willkommen bei Cavio. Deine E-Mail-Adresse wurde erfolgreich verifiziert. Du kannst jetzt alle Funktionen nutzen.
+                                Willkommen bei CAVIOS. Deine E-Mail-Adresse wurde erfolgreich verifiziert. Du kannst jetzt alle Funktionen nutzen.
                             </p>
                         </div>
 

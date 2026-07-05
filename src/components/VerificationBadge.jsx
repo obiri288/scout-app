@@ -1,9 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { BadgeCheck, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 /**
- * Cavio Trust Protocol — 3-Tier Verification Badge
+ * CAVIOS Trust Protocol — 3-Tier Verification Badge
  * 
  * Renders a tier-appropriate verification badge:
  * - blue_athlete:   Blue BadgeCheck with blue glow (Peer Verified)
@@ -33,10 +33,10 @@ export const VerificationBadge = ({ size = 16, className = '', status, role, ver
                     style={{ width: badgeSize, height: badgeSize, padding: '2px' }}
                 >
                     <img 
-                        src="/cavio-icon.png" 
+                        src="/cavios-icon.png" 
                         className="w-full h-full object-contain brightness-125" 
-                        alt="CAVIO Official"
-                        title="Offizieller CAVIO Account"
+                        alt="CAVIOS Official"
+                        title="Offizieller CAVIOS Account"
                     />
                 </div>
             </motion.div>

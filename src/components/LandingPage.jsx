@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Video, Users, BarChart3, Eye, Globe, Shield, ChevronRight, Zap, Star, ArrowRight, Play } from 'lucide-react';
 
@@ -78,8 +78,8 @@ export const LandingPage = ({ onLogin, onRegister }) => (
         {/* Logo */}
         <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.href = '/'}>
           <img
-            src="/cavio-icon.png"
-            alt="Cavio Icon"
+            src="/cavios-icon.png"
+            alt="CAVIOS Icon"
             className="h-10 w-10 object-contain mix-blend-screen rounded-lg transition-transform duration-300 group-hover:scale-110"
           />
         </div>
@@ -117,8 +117,8 @@ export const LandingPage = ({ onLogin, onRegister }) => (
         >
           <div className="absolute inset-0 w-28 h-28 sm:w-32 sm:h-32 bg-amber-400/20 rounded-full blur-[40px] landing-glow-pulse" />
           <img
-            src="/cavio-floating-logo.png"
-            alt="Cavio"
+            src="/CAVIOS-floating-logo.png"
+            alt="CAVIOS"
             className="relative w-28 h-28 sm:w-32 sm:h-32 object-contain mix-blend-screen landing-float drop-shadow-[0_0_30px_rgba(245,158,11,0.4)]"
           />
         </motion.div>
@@ -292,8 +292,8 @@ export const LandingPage = ({ onLogin, onRegister }) => (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           {/* Logo + Copyright */}
           <div className="flex items-center gap-3">
-            <img src="/cavio-icon.png" alt="Cavio" className="h-7 w-7 object-contain mix-blend-screen rounded" />
-            <span className="text-xs text-slate-500 ml-2">© 2026 Cavio</span>
+            <img src="/cavios-icon.png" alt="CAVIOS" className="h-7 w-7 object-contain mix-blend-screen rounded" />
+            <span className="text-xs text-slate-500 ml-2">© 2026 CAVIOS</span>
           </div>
 
           {/* Legal links */}

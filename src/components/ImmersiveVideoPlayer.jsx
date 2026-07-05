@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Bookmark, Share2, User, VolumeX, Volume2, X, Send, MoreVertical, Archive, Trash2, Edit, Flag, AlertTriangle, Eye, EyeOff, Scan, Play, Pause, Maximize2, ChevronLeft } from 'lucide-react';
 import { inputStyle } from '../lib/styles';
@@ -165,7 +165,7 @@ export const ImmersiveVideoPlayer = ({
     const handleShareNative = async (e) => {
         e.stopPropagation();
         const shareUrl = `${window.location.origin}/#profile/${resolvedVideo.players_master?.slug || resolvedVideo.players_master?.user_id || resolvedVideo.id}`;
-        const shareTitle = `CAVIO | Video von ${resolvedVideo.players_master?.full_name || 'einem Spieler'}`;
+        const shareTitle = `CAVIOS | Video von ${resolvedVideo.players_master?.full_name || 'einem Spieler'}`;
         
         if (navigator.share) {
             try {
@@ -746,7 +746,7 @@ export const ImmersiveVideoPlayer = ({
                                 <img src={resolvedVideo.players_master.avatar_url} className="w-full h-full object-cover" alt="Profile" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-slate-900">
-                                    <img src="/cavio-icon.png" className="w-full h-full object-contain p-1.5 opacity-60" />
+                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-1.5 opacity-60" />
                                 </div>
                             )}
                         </div>

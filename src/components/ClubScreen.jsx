@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Shield, Users, ChevronRight, CheckCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
@@ -101,7 +101,7 @@ export const ClubScreen = ({ club, onBack, onUserClick }) => {
         return (
             <div key={p.id} onClick={() => onUserClick(p)} className={`flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition ${cardStyle} ${isCaptain ? 'border-l-2 border-yellow-500/80' : ''}`}>
                 <div className="w-12 h-12 rounded-full bg-zinc-800 overflow-hidden border border-white/10 flex-shrink-0">
-                    {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavio-icon.png" className="w-full h-full object-contain p-3 opacity-60" />}
+                    {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-3 opacity-60" />}
                 </div>
                 <div className="min-w-0 flex-1">
                     <h4 className="font-bold text-white text-sm flex flex-wrap items-center gap-1.5 leading-tight">
