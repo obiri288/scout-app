@@ -313,12 +313,14 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
         setLoading(true);
         setMsg('');
         try {
-            const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
-            const redirectTo = `${baseUrl.replace(/\/$/, '')}/auth-callback`;
+            const redirectTo = `${window.location.origin}/`;
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo
+                    redirectTo,
+                    queryParams: {
+                        prompt: 'select_account'
+                    }
                 }
             });
             if (error) throw error;

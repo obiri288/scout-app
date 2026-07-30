@@ -16,18 +16,17 @@ export const AuthCallbackScreen = () => {
     useEffect(() => {
         const finishAuthFlow = () => {
             setIsAuthCallback(false);
-            const cleanUrl = window.location.origin + '/';
-            window.history.replaceState(null, '', cleanUrl);
+            window.location.href = '/';
         };
 
         if (session) {
             setStatus('success');
-            const timer = setTimeout(finishAuthFlow, 1200);
+            const timer = setTimeout(finishAuthFlow, 1000);
             return () => clearTimeout(timer);
         }
 
         // Safety fallback: if session takes too long, auto-dismiss screen
-        const safetyTimer = setTimeout(finishAuthFlow, 3000);
+        const safetyTimer = setTimeout(finishAuthFlow, 2500);
         return () => clearTimeout(safetyTimer);
     }, [session, setIsAuthCallback]);
 
