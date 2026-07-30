@@ -125,7 +125,7 @@ export const updatePlayer = async (playerId, updates) => {
     return data;
 };
 
-export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15, ecosystem = 'mens' }) => {
+export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, offset = 0, limit = 15, ecosystem = 'all' }) => {
     let q = supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
@@ -142,7 +142,7 @@ export const searchPlayers = async ({ query, pos, status, cityQuery, clubIds, of
     return data || [];
 };
 
-export const fetchSimilarPlayers = async (excludeId, limit = 100, ecosystem = 'mens') => {
+export const fetchSimilarPlayers = async (excludeId, limit = 100, ecosystem = 'all') => {
     let q = supabase.from('players_master')
         .select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
@@ -154,7 +154,7 @@ export const fetchSimilarPlayers = async (excludeId, limit = 100, ecosystem = 'm
     return data || [];
 };
 
-export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 200, ecosystem = 'mens' }) => {
+export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 200, ecosystem = 'all' }) => {
     let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
         .not('city', 'is', null);
@@ -167,7 +167,7 @@ export const fetchPlayersWithCity = async ({ posFilter, statusFilter, limit = 20
     return data || [];
 };
 
-export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200, ecosystem = 'mens' }) => {
+export const fetchPlayersWithCoords = async ({ posFilter, statusFilter, limit = 200, ecosystem = 'all' }) => {
     let q = supabase.from('players_master').select('*, clubs(*, leagues(name))')
         .eq('is_deactivated', false)
         .not('latitude', 'is', null)
@@ -317,7 +317,7 @@ export const fetchVideoById = async (videoId) => {
     };
 };
 
-export const fetchFeed = async (offset = 0, limit = 10, ecosystem = 'mens') => {
+export const fetchFeed = async (offset = 0, limit = 10, ecosystem = 'all') => {
     // Increase pool size to run a rich algorithmic ranking pool of recent content
     const fetchPoolSize = 100;
 
@@ -1314,10 +1314,11 @@ export const hideContent = async (userId, targetId, targetType) => {
 // ============================================================
 
 export const uploadAvatar = async (path, file) => {
-    const { error } = await supabase.storage.from('avatars').upload(path, file);
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (error) throw error;
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-    return data.publicUrl;
+    const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+    return publicUrl;
 };
 
 export const uploadVideo = async (path, file) => {

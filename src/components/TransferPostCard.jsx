@@ -60,7 +60,7 @@ const TransferPostCard = ({ post, onUserClick }) => {
                     className="mb-6"
                 >
                     <h2 className="text-white text-4xl font-black italic uppercase tracking-tighter leading-none mb-2 drop-shadow-2xl">
-                        Done Deal
+                        Next Chapter
                     </h2>
                     <div className="h-1 w-24 bg-gradient-to-r from-cyan-500 to-purple-500 mx-auto rounded-full" />
                 </motion.div>

@@ -188,10 +188,10 @@ export const NotificationBell = () => {
             });
 
             if (error) throw error;
-            addToast("Done Deal erfolgreich geteilt! 🚀", "success");
+            addToast("Next Chapter erfolgreich geteilt! 🚀", "success");
             setShowDoneDealModal(false);
         } catch (err) {
-            console.error("Done Deal Error:", err);
+            console.error("Next Chapter Error:", err);
             addToast("Fehler beim Teilen: " + err.message, "error");
         } finally {
             setPosting(false);
@@ -392,7 +392,7 @@ export const NotificationBell = () => {
                 )}
             </AnimatePresence>
 
-            {/* ── Done Deal Modal ───────────────────────── */}
+            {/* ── Next Chapter Modal ──────────────────────── */}
             <AnimatePresence>
                 {showDoneDealModal && selectedCareer && (
                     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -409,7 +409,7 @@ export const NotificationBell = () => {
                             <h3 className="text-xl font-bold mb-3 text-foreground">Glückwunsch! 🎊</h3>
                             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
                                 Deine Station bei <strong>{selectedCareer.club_name}</strong> wurde verifiziert. 
-                                Möchtest du diesen "Done Deal" jetzt mit deinem Netzwerk teilen?
+                                Möchtest du dieses "Next Chapter" jetzt mit deinem Netzwerk teilen?
                             </p>
                             
                             <div className="w-full space-y-3">

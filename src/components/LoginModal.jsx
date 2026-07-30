@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, User, LogIn, AlertCircle, Loader2, ArrowLeft, Mail, AtSign, Lock, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -313,10 +313,12 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
         setLoading(true);
         setMsg('');
         try {
+            const baseUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+            const redirectTo = `${baseUrl.replace(/\/$/, '')}/auth-callback`;
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: import.meta.env.VITE_SITE_URL || window.location.origin
+                    redirectTo
                 }
             });
             if (error) throw error;
@@ -536,7 +538,16 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
                 {(view !== 'forgot' && view !== 'registerSuccess') && (
                     <div className="mt-6 pt-6 border-t border-border text-center">
                         <p className="text-muted-foreground text-xs mb-2">{view === 'register' ? 'Du hast schon einen Account?' : 'Neu bei CAVIOS?'}</p>
-                        <button type="button" onClick={() => { setView(view === 'login' ? 'register' : 'login'); setMsg(''); }} className="text-foreground hover:text-cyan-400 font-bold text-sm transition">{view === 'register' ? 'Partner Login' : 'Kostenlos registrieren'}</button>
+                        <button 
+                            type="button" 
+                            onClick={() => { 
+                                setView(view === 'login' ? 'register' : 'login'); 
+                                setMsg(''); 
+                            }} 
+                            className="text-foreground hover:text-cyan-400 font-bold text-sm transition"
+                        >
+                            {view === 'register' ? 'Partner Login' : 'Kostenlos registrieren'}
+                        </button>
                     </div>
                 )}
                 {/* Legal Links */}

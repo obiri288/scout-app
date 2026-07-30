@@ -101,7 +101,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "CAVIOS <kontakt@cavios.de>",
+        from: "CAVIOS <auth@cavios.de>",
         to: [email],
         subject: "Willkommen im exklusiven CAVIOS-Netzwerk 🚀",
         html: htmlContent,

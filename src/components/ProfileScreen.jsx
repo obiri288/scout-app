@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Video, Users, UserPlus, UserCheck, Edit, Share2, MessageCircle, 
@@ -6,7 +6,7 @@ import {
     Briefcase, Target, Globe, CheckCircle, Info, Star, ChevronRight,
     Trophy, Zap, MapPin, Calendar, ExternalLink, Instagram, Youtube, Eye,
     Loader2, X, Trash2, Play, Clock, Menu, Plus, Archive, EyeOff, RefreshCw, Crown,
-    MoreHorizontal, Flag, Ban, Copy, Shield, Pin
+    MoreHorizontal, Flag, Ban, Copy, Shield, Pin, LayoutGrid, BadgeCheck
 } from 'lucide-react';
 import { RadarChart } from './RadarChart';
 import { EmptyState } from './EmptyState';
@@ -48,7 +48,7 @@ const VideoTile = React.memo(({ video, onClick, isOwnProfile, onDelete, onUnarch
                 <div className="z-10 flex flex-col items-center pointer-events-none">
                     <Shield size={20} className="text-cyan-400 mb-2 opacity-80" />
                     <span className="text-white text-[8px] font-black uppercase tracking-[0.2em] mb-1.5 opacity-60">Transfer</span>
-                    <span className="text-white text-[10px] font-black leading-tight line-clamp-2 uppercase tracking-tight">{video.transfer_data?.new_club_name || 'Done Deal'}</span>
+                    <span className="text-white text-[10px] font-black leading-tight line-clamp-2 uppercase tracking-tight">{video.transfer_data?.new_club_name || 'Next Chapter'}</span>
                 </div>
                 
                 {/* Background Decor */}
@@ -321,10 +321,14 @@ export const ProfileScreen = ({
         }
     }, [profile?.id, isOwnProfile]);
 
+    // --- Official Master-Account flag ---
+    // Catches both is_official accounts AND role==='system' (master account viewing own profile)
+    const isOfficialAccount = !!(profile?.is_official || profile?.role === 'system');
+
     useEffect(() => {
         if (profile) {
-            const isCAVIOSSupport = profile.email === 'kontakt@cavios.de' || profile.role === 'system' || profile.is_official;
-            document.title = isCAVIOSSupport ? 'CAVIOS Support' : `${profile.full_name || 'Profil'} | CAVIOS`;
+            const isCAVIOSSupport = profile.id === '16cc9cfa-94ac-4902-a948-d5b1193a846a' || profile.email === 'kontakt@cavios.de' || profile.role === 'system' || profile.is_official;
+            document.title = isCAVIOSSupport ? 'CAVIOS Official' : `${profile.full_name || 'Profil'} | CAVIOS`;
         }
         return () => {
             document.title = 'CAVIOS - Digital Player Profile';
@@ -530,6 +534,178 @@ export const ProfileScreen = ({
 
     const smartStatus = getSmartTransferStatus();
 
+    // ═══════════════════════════════════════════════════════════════
+    // OFFICIAL MASTER-ACCOUNT LAYOUT (e.g. CAVIOS brand account)
+    // Only header (avatar, name, bio) + video feed — no player data
+    // ═══════════════════════════════════════════════════════════════
+    if (isOfficialAccount) {
+        return (
+            <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-500">
+                {/* Premium Gradient Header */}
+                <div className="relative h-56 bg-gradient-to-br from-amber-900/60 via-slate-900 to-black overflow-hidden">
+                    {/* Animated mesh background */}
+                    <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(251,191,36,0.4) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(34,211,238,0.3) 0%, transparent 50%)' }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent" />
+                    
+                    {/* Floating glow orbs */}
+                    <div className="absolute top-8 right-12 w-32 h-32 bg-amber-500/10 blur-[80px] rounded-full animate-pulse" />
+                    <div className="absolute bottom-4 left-8 w-24 h-24 bg-cyan-500/10 blur-[60px] rounded-full" />
+
+                    {!isOwnProfile ? (
+                        <button onClick={onBack} className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] left-4 z-20 p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition">
+                            <ArrowLeft size={20} />
+                        </button>
+                    ) : (
+                        <button onClick={onMenuOpen} className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] left-4 z-20 p-2.5 bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition active:scale-95" aria-label="Menü öffnen">
+                            <Menu size={20} />
+                        </button>
+                    )}
+
+                    <div className="absolute top-[calc(1.25rem+env(safe-area-inset-top))] right-6 z-20 flex flex-row items-center gap-3">
+                        {isOwnProfile && (
+                            <button onClick={onSettingsReq} className="w-11 h-11 flex items-center justify-center bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition-all active:scale-95">
+                                <Settings size={20} />
+                            </button>
+                        )}
+                        <button onClick={handleShare} className="w-11 h-11 flex items-center justify-center bg-black/30 backdrop-blur-md rounded-full text-white border border-white/10 hover:bg-black/50 transition-all active:scale-95">
+                            <Share2 size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Profile Card */}
+                <div className="px-4 -mt-24 relative z-10 space-y-5">
+                    <div className="bg-white dark:bg-slate-900/90 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border border-amber-500/10 flex flex-col items-center">
+                        {/* Avatar with premium golden ring */}
+                        <div className="relative w-28 h-28 mb-4">
+                            <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-cyan-400 animate-[spin_6s_linear_infinite] opacity-70 blur-[2px]" />
+                            <img 
+                                src={profile.avatar_url || `/cavios-icon.png`} 
+                                alt={profile.full_name}
+                                className={`relative w-full h-full rounded-full border-[3px] border-slate-900 overflow-hidden shadow-[0_0_30px_rgba(251,191,36,0.3)] ${profile.avatar_url ? 'object-cover' : 'object-contain p-5 bg-slate-800 opacity-70'}`}
+                            />
+                            {/* Official badge — prominently placed */}
+                            <div className="absolute -bottom-1 -right-1 bg-slate-900 rounded-full p-1 z-10 shadow-[0_0_12px_rgba(251,191,36,0.5)]">
+                                <VerificationBadge size={24} isOfficial={true} />
+                            </div>
+                        </div>
+
+                        {/* Name + official label */}
+                        <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
+                            {profile.full_name || 'CAVIOS'}
+                        </h1>
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 mt-2 rounded-full bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 border border-amber-500/30 shadow-[0_0_20px_rgba(251,191,36,0.15),inset_0_1px_0_rgba(251,191,36,0.1)]">
+                            <BadgeCheck size={14} className="text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]">Official Account</span>
+                        </div>
+
+                        {/* Bio */}
+                        {profile.bio && (
+                            <p className="text-muted-foreground text-sm leading-relaxed text-center mt-4 max-w-md">
+                                {profile.bio}
+                            </p>
+                        )}
+
+                        {/* Stats (followers/following/posts only) */}
+                        <div className="grid grid-cols-3 gap-2 w-full mt-5 mb-4">
+                            <div onClick={onShowFollowing} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-amber-400/50 transition cursor-pointer h-[80px]">
+                                <UserPlus size={20} className="text-amber-500 mb-1" />
+                                <span className="text-lg font-black text-foreground leading-none">{following}</span>
+                                <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Gefolgt</span>
+                            </div>
+                            <div onClick={onShowFollowers} className="col-span-1 relative bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center group hover:border-amber-400/50 transition cursor-pointer h-[80px]">
+                                <Users size={20} className="text-amber-500 mb-1" />
+                                <span className="text-lg font-black text-foreground leading-none">{followers}</span>
+                                <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Follower</span>
+                            </div>
+                            <div className="col-span-1 bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center h-[80px]">
+                                <LayoutGrid size={20} className="text-amber-500 mb-1" />
+                                <span className="text-lg font-black text-foreground leading-none">{highlights.length}</span>
+                                <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">{highlights.length === 1 ? 'BEITRAG' : 'BEITRÄGE'}</span>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="w-full flex gap-2 items-center">
+                            {isOwnProfile ? (
+                                <>
+                                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={onEditReq} className="flex-1 bg-slate-100 dark:bg-slate-800 text-foreground font-bold py-2.5 rounded-xl border border-border hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center gap-2 text-sm">
+                                        <Edit size={16} /> Profil bearbeiten
+                                    </motion.button>
+                                    {profile.role === 'admin' && (
+                                        <button onClick={onAdminReq} className="flex-none bg-cyan-900/30 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/30">
+                                            <Database size={18} />
+                                        </button>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <motion.button 
+                                        whileHover={{ scale: 1.02 }} 
+                                        whileTap={{ scale: 0.98 }} 
+                                        onClick={handleToggleFollow} 
+                                        disabled={isLoading}
+                                        className={`flex-1 ${isFollowing ? 'bg-slate-100 dark:bg-slate-800 text-foreground' : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-500 shadow-lg shadow-amber-500/20'} border py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50`}
+                                    >
+                                        {isLoading ? <Loader2 size={16} className="animate-spin" /> : (isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />)}
+                                        {isFollowing ? 'Gefolgt' : 'Folgen'}
+                                    </motion.button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Video Feed — only "Beiträge" tab, no player tabs */}
+                <div className="flex px-4 pt-4 gap-6 border-b border-border sticky top-0 z-40 bg-slate-50/90 dark:bg-slate-950/80 backdrop-blur-md">
+                    <div className="relative pb-3 text-sm font-bold text-foreground flex items-center gap-2">
+                        <Video size={16} className="text-amber-500" />
+                        Beiträge
+                        <motion.div layoutId="officialActiveTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full" />
+                    </div>
+                </div>
+
+                <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-3 gap-0.5 mt-0.5"
+                >
+                    <AnimatePresence mode="popLayout">
+                        {highlights.map(v => (
+                            <motion.div
+                                key={v.id}
+                                layout
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <VideoTile 
+                                    video={v} 
+                                    onClick={onVideoClick} 
+                                    isOwnProfile={isOwnProfile} 
+                                    onDelete={onDeleteVideo}
+                                    onPin={onPinVideo}
+                                />
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                    {highlights.length === 0 && (
+                        <div className="col-span-3">
+                            <EmptyState
+                                icon={Video}
+                                title="Noch keine Beiträge 🎬"
+                                description={isOwnProfile ? "Lade deinen ersten offiziellen Beitrag hoch." : "Noch keine offiziellen Beiträge vorhanden."}
+                                actionLabel={isOwnProfile ? "Video hochladen" : undefined}
+                                onAction={isOwnProfile ? onUpload : undefined}
+                            />
+                        </div>
+                    )}
+                </motion.div>
+            </div>
+        );
+    }
+
     if (profile.role === 'system') {
         return (
             <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-500">
@@ -556,7 +732,7 @@ export const ProfileScreen = ({
                                 <div className="w-full h-full bg-slate-900 rounded-[22px] p-1 -rotate-3">
                                     <img 
                                         src={profile.avatar_url || `/cavios-icon.png`} 
-                                        alt="CAVIOS Support"
+                                        alt={profile.full_name || 'CAVIOS Official'}
                                         className={`w-full h-full ${profile.avatar_url ? 'object-cover' : 'object-contain p-4 opacity-50'} rounded-2xl`}
                                     />
                                 </div>
@@ -570,8 +746,9 @@ export const ProfileScreen = ({
                             {profile.full_name || 'CAVIOS Support'}
                         </h1>
                         
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-6">
-                            Offizieller Account
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 border border-amber-500/30 shadow-[0_0_20px_rgba(251,191,36,0.15),inset_0_1px_0_rgba(251,191,36,0.1)] mb-6">
+                            <BadgeCheck size={14} className="text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+                            <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em] drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]">Official Account</span>
                         </div>
 
                         <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed mb-8">
@@ -817,9 +994,10 @@ export const ProfileScreen = ({
                             )}
                         </h1>
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm text-muted-foreground font-medium">
-                            {profile.email === 'kontakt@cavios.de' || profile.is_official || profile.role === 'system' ? (
-                                <span className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 to-cyan-500/10 border border-amber-500/20 px-3 py-1 rounded-lg shadow-sm">
-                                    <span className="text-xs font-black text-amber-500 uppercase tracking-widest">CAVIOS Support</span>
+                            {profile.id === '16cc9cfa-94ac-4902-a948-d5b1193a846a' || profile.email === 'kontakt@cavios.de' || profile.is_official || profile.role === 'system' ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-950/60 via-amber-900/40 to-amber-950/60 border border-amber-500/30 shadow-[0_0_16px_rgba(251,191,36,0.12),inset_0_1px_0_rgba(251,191,36,0.1)]">
+                                    <BadgeCheck size={13} className="text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" />
+                                    <span className="text-[10px] font-black text-amber-400 uppercase tracking-[0.15em] drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]">Official</span>
                                 </span>
                             ) : profile.role === 'scout' && profile.agencies ? (
                                 <span className="flex items-center gap-1.5 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
@@ -876,9 +1054,11 @@ export const ProfileScreen = ({
                         </div>
 
                         <div className="col-span-1 bg-white dark:bg-slate-950 border border-border shadow-sm rounded-xl p-2 flex flex-col items-center justify-center h-[90px]">
-                            <Video size={22} className="text-cyan-500 mb-1" />
+                            <LayoutGrid size={22} className="text-cyan-500 mb-1" />
                             <span className="text-xl font-black text-foreground leading-none">{highlights.length}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">Clips</span>
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">
+                                {highlights.length === 1 ? 'BEITRAG' : 'BEITRÄGE'}
+                            </span>
                         </div>
 
                         {isOwnProfile && (

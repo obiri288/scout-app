@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { User, Loader2, Sparkles, Check, X, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -122,7 +122,7 @@ export const NamePromptModal = () => {
                 updateData.birth_date = birthDate;
             }
 
-            console.log('Sende Daten an Supabase:', updateData);
+            // Submitting profile update to Supabase
 
             const { error, data } = await supabase
                 .from('players_master')

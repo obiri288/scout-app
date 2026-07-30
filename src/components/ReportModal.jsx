@@ -30,7 +30,7 @@ export const ReportModal = ({ targetId, targetType, onClose, session }) => {
         setIsSubmitting(true);
         try {
             const result = await api.submitReport(session.user.id, targetId, targetType, reason);
-            console.log("Report Insert Result:", result);
+            // Report submitted successfully
             setStep(STEPS.HIDE);
         } catch (error) {
             console.error("Report Insert Error:", error);

@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -192,6 +192,7 @@ export const useAppState = () => {
     const handleLoginSuccess = async (sessionData) => {
         setSession(sessionData);
         setShowLogin(false);
+        setShowLanding(false);
         const profile = await refreshProfile(sessionData);
         if (profile && profile.full_name) {
             addToast(`Willkommen zurück, ${profile.first_name || profile.full_name}!`, 'success');
@@ -200,6 +201,7 @@ export const useAppState = () => {
             navigateToHash(`profile/${sessionData.user.id}`);
         } else {
             addToast('Willkommen bei CAVIOS! 👋', 'success');
+            setActiveTab('home');
         }
     };
 
@@ -275,7 +277,7 @@ export const useAppState = () => {
                         .maybeSingle();
                     
                     if (!approvedStation) {
-                        console.log(`[SSOT Cleanup] Ghost club detected for ${p.full_name} - Wiping club_id`);
+                        // Ghost club detected — wiping stale club_id
                         await supabase.from('players_master').update({ club_id: null }).eq('id', p.id);
                         p.club_id = null;
                         p.clubs = null;

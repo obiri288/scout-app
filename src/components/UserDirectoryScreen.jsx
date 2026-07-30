@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Search, User, Shield, ArrowLeft, Menu, 
     ShieldAlert, Flag, ExternalLink, Clock, 
@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useToast } from '../contexts/ToastContext';
 import { useUser } from '../contexts/UserContext';
 import { VerificationBadge } from './VerificationBadge';
+import { EcosystemBadge } from './EcosystemBadge';
 
 const FILTERS = [
     { id: 'all', label: 'Alle' },
@@ -16,6 +17,8 @@ const FILTERS = [
     { id: 'coach', label: 'Trainer' },
     { id: 'scout', label: 'Scouts' },
     { id: 'manager', label: 'Manager' },
+    { id: 'mens', label: 'Herren' },
+    { id: 'womens', label: 'Damen' },
 ];
 
 const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOpen }) => {
@@ -49,6 +52,8 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                 query = query.eq('is_verified', true);
             } else if (['coach', 'scout', 'manager'].includes(activeFilter)) {
                 query = query.eq('role', activeFilter);
+            } else if (['mens', 'womens'].includes(activeFilter)) {
+                query = query.eq('ecosystem', activeFilter);
             }
 
             const { data, error } = await query;
@@ -275,6 +280,7 @@ const UserDirectoryScreen = ({ currentUserProfile, onUserClick, onBack, onMenuOp
                                      user.role === 'coach' ? 'Trainer' : 
                                      user.role === 'manager' ? 'Manager' : 'Spieler'}
                                 </span>
+                                <EcosystemBadge ecosystem={user.ecosystem} />
                             </div>
                         </motion.div>
                     ))

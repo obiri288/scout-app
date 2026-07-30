@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     X, User, Save, Camera, Search, Plus, Loader2, Shield, Activity, 
     Share2, Calendar, Globe, MapPin, History, Trash2, Edit, ExternalLink, 
@@ -660,11 +660,8 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         try {
             let av = profile.avatar_url;
             if (avatarFile) {
-                const p = `${profile.user_id}/${Date.now()}.jpg`;
-                const { error: uploadErr } = await supabase.storage.from('avatars').upload(p, avatarFile);
-                if (uploadErr) throw uploadErr;
-                const { data } = supabase.storage.from('avatars').getPublicUrl(p);
-                av = data.publicUrl;
+                const path = `${profile.user_id}/${Date.now()}.jpg`;
+                av = await api.uploadAvatar(path, avatarFile);
             }
 
             // Geocode city if changed
@@ -693,6 +690,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
 
             // Build base updates (shared fields)
             const updates = {
+                avatar_url: av,
                 slug: finalSlug,
                 first_name: formData.first_name,
                 last_name: formData.last_name,
@@ -1753,7 +1751,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                                                     className="w-5 h-5 mt-0.5 rounded border-border text-cyan-500 focus:ring-cyan-500 shrink-0"
                                                 />
                                                 <div>
-                                                    <span className="text-sm font-bold text-foreground block">Wechsel als "Done Deal" Beitrag teilen</span>
+                                                    <span className="text-sm font-bold text-foreground block">Wechsel als "Next Chapter" Beitrag teilen</span>
                                                     <span className="text-[11px] text-muted-foreground leading-snug block mt-0.5">Nach erfolgreicher Verifizierung wird automatisch ein Transfer-Post in deinem Feed erstellt.</span>
                                                 </div>
                                             </label>
@@ -1947,7 +1945,7 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
                             >
                                 <div className="flex items-center justify-center">
                                     {loading && <Loader2 className="animate-spin mr-2" size={20} />}
-                                    <span className="text-white font-bold">Ja, als Done Deal markieren</span>
+                                    <span className="text-white font-bold">Ja, als Next Chapter markieren</span>
                                 </div>
                             </button>
                             <button

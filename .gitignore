@@ -28,3 +28,4 @@ env/
 *.sw?
 .vercel
 .env*.local
+!.env.example

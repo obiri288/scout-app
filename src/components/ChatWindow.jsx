@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, User, Send, Check, CheckCheck, MoreVertical, Flag, ShieldOff, ShieldAlert } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
 import { supabase } from '../lib/supabase';
@@ -25,7 +25,7 @@ export const ChatWindow = ({ partner, session, onClose, onUserClick, onReport, o
             if (error) {
                 console.error("Supabase RLS Error in markAsRead:", error);
             } else {
-                console.log("Successfully marked as read:", data);
+                // Messages marked as read successfully
             }
 
             // Optimistic UI Update for global Inbox badge

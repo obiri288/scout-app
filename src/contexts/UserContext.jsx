@@ -101,7 +101,7 @@ export const UserProvider = ({ children }) => {
             
             // If no approved current station exists -> Ghost Data detected
             if (!data) {
-                console.log("[SSOT Cleanup] Ghost club detected for user", profile.id, "- Wiping club_id and current_team_id");
+                // Ghost club detected — wiping stale club_id and current_team_id
                 const { error: updateError } = await supabase
                     .from('players_master')
                     .update({ club_id: null, current_team_id: null })

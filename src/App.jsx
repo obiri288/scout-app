@@ -1,4 +1,4 @@
-﻿import React, { lazy, Suspense, useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, Key, FileText, Trash2, ChevronLeft, CheckCircle } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
@@ -9,7 +9,7 @@ import { WaitlistInjector } from './components/WaitlistInjector';
 
 
 // Eagerly loaded — visible on first render
-import { CookieBanner } from './components/CookieBanner';
+import { CookieConsent } from './components/CookieConsent';
 import { LandingPage } from './components/LandingPage';
 import { SplashScreen } from './components/SplashScreen';
 import { HomeScreen } from './components/HomeScreen';
@@ -52,6 +52,7 @@ const PrivacyScreen = lazy(() => import('./components/Datenschutz'));
 const ImprintScreen = lazy(() => import('./components/Impressum'));
 import { EmailConfirmedPage } from './components/EmailConfirmedPage';
 import { AuthCallbackScreen } from './components/AuthCallbackScreen';
+const AdminWaitlist = lazy(() => import('./components/AdminWaitlist').then(m => ({ default: m.AdminWaitlist })));
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center">
@@ -341,6 +342,14 @@ const App = () => {
         );
     }
 
+    if (window.location.pathname === '/admin/waitlist') {
+        return (
+            <Suspense fallback={<SplashScreen />}>
+                <AdminWaitlist />
+            </Suspense>
+        );
+    }
+
     if (window.location.pathname === '/privacy') {
         return (
             <Suspense fallback={<SplashScreen />}>
@@ -381,8 +390,8 @@ const App = () => {
                             }}
                             onSuccess={(s) => {
                                 handleLoginSuccess(s);
-                                // Navigate to root after successful login
-                                window.history.replaceState({}, document.title, '/');
+                                // Navigate to root after successful login so App re-renders and opens Onboarding/App
+                                window.location.href = '/';
                             }}
                             onLegalOpen={(key) => {
                                 setActiveSettingsModal(key);
@@ -629,7 +638,7 @@ const App = () => {
                 </button>
             </div>
 
-            <CookieBanner />
+            <CookieConsent />
 
             {/* Video Fullscreen — Now using the Immersive Engagement Player */}
             <AnimatePresence>
@@ -675,9 +684,10 @@ const App = () => {
                     <EditProfileModal
                         profile={currentUserProfile}
                         onClose={() => setShowEditProfile(false)}
-                        onUpdate={(updated) => { 
+                        onUpdate={async (updated) => { 
                             updateProfile(updated); 
                             setViewedProfile(updated); 
+                            if (typeof refreshProfile === 'function') await refreshProfile();
                             setCareerRefreshKey(prev => prev + 1);
                         }}
                         onAdminHubReq={() => {

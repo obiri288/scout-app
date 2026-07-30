@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Shield, ChevronRight, Sparkles, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { calculateAge, getClubDisplay } from '../lib/helpers';
 import { formatPosition } from '../lib/utils';
+import { EcosystemBadge } from './EcosystemBadge';
 
 /**
  * Shows similar players based on:
@@ -115,6 +116,7 @@ export const SimilarPlayers = ({ profile, onUserClick }) => {
                                 </div>
                                 <div className="flex items-center gap-1 mt-1">
                                     <span className="text-[9px] bg-gray-800 px-1.5 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
+                                    <EcosystemBadge ecosystem={p.ecosystem} />
                                     {p.city && <span className="text-[9px] text-zinc-400 flex items-center gap-0.5"><MapPin size={7} />{p.city}</span>}
                                 </div>
                             </>

@@ -1,10 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Instagram } from 'lucide-react';
+import { Instagram, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Footer } from '../components/Footer';
 import logoImg from '../assets/image.png';
 import { SECRET_ACCESS_PATH } from '../lib/config';
+import { LoginModal } from '../components/LoginModal';
 
 /**
  * WaitlistLanding — Premium Glassmorphism pre-launch landing page.
@@ -23,6 +24,7 @@ export const WaitlistLanding = () => {
     const [status, setStatus] = useState('idle'); // idle | loading | success | error | duplicate
     const [errorMsg, setErrorMsg] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false); // Spam-Cooldown (5s)
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     // Honeypot state — must remain empty; bots fill it automatically
     const [honeypot, setHoneypot] = useState('');
@@ -125,6 +127,15 @@ export const WaitlistLanding = () => {
 
     return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden font-sans">
+            {/* Header / Login Bar */}
+            <div className="absolute top-4 right-4 z-50">
+                <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-cyan-400 font-bold rounded-xl text-xs transition shadow-lg backdrop-blur-md"
+                >
+                    <LogIn size={14} /> Anmelden
+                </button>
+            </div>
 
             {/* === Ambient Glow Effects === */}
             <div
@@ -468,10 +479,11 @@ export const WaitlistLanding = () => {
                     transition={{ delay: 1, duration: 0.6 }}
                     className="mt-8 flex flex-col items-center gap-0"
                 >
-                    <a
-                        href={SECRET_ACCESS_PATH}
+                    <button
+                        type="button"
+                        onClick={() => setShowLoginModal(true)}
                         id="waitlist-login-link"
-                        className="text-sm transition-colors"
+                        className="text-sm transition-colors cursor-pointer"
                         style={{
                             color: 'rgba(100,116,139,0.7)',
                         }}
@@ -479,7 +491,7 @@ export const WaitlistLanding = () => {
                         onMouseLeave={(e) => (e.target.style.color = 'rgba(100,116,139,0.7)')}
                     >
                         Bereits verifiziertes Mitglied? Login
-                    </a>
+                    </button>
 
                     {/* === Instagram Link === */}
                     <a
@@ -490,10 +502,20 @@ export const WaitlistLanding = () => {
                         className="flex items-center justify-center gap-2 mt-6 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
                     >
                         <Instagram size={16} />
-                        @cavios.de
+                        cavios.de
                     </a>
                 </motion.div>
             </motion.div>
+
+            {showLoginModal && (
+                <LoginModal
+                    onClose={() => setShowLoginModal(false)}
+                    onSuccess={() => {
+                        setShowLoginModal(false);
+                        window.location.href = '/';
+                    }}
+                />
+            )}
 
             <style>{`
                 @keyframes waitlistPulse {

@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, RefreshCw, Film, Menu, Shield, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
-import { useEcosystem } from '../contexts/EcosystemContext';
+
 import { FeedItem } from './FeedItem';
 import { FeedSkeleton } from './SkeletonScreens';
 import { WelcomeCard } from './WelcomeCard';
@@ -46,11 +46,11 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
     const sentinelRef = useRef(null);
 
     const { currentUserProfile: userFromContext, hiddenUserIds } = useUser();
-    const { activeEcosystem } = useEcosystem();
+
 
     const fetchFeed = useCallback(async (offset = 0, reset = false) => {
         try {
-            const data = await api.fetchFeed(offset, PAGE_SIZE, activeEcosystem);
+            const data = await api.fetchFeed(offset, PAGE_SIZE);
             
             // Client-side filtering for hidden content
             const hiddenVideos = userFromContext?.hidden_videos || [];
@@ -76,7 +76,7 @@ export const HomeScreen = ({ onVideoClick, session, onLikeReq, onCommentClick, o
             setLoadingMore(false);
             setRefreshing(false);
         }
-    }, [userFromContext, hiddenUserIds, activeEcosystem]);
+    }, [userFromContext, hiddenUserIds]);
 
     // Fetch current user profile for the WelcomeCard
     useEffect(() => {

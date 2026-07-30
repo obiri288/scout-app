@@ -24,7 +24,7 @@ if (!TARGET_EMAIL) {
 }
 
 const data = JSON.stringify({
-    from: "CAVIOS <kontakt@cavios.de>",
+    from: "CAVIOS <auth@cavios.de>",
     to: [TARGET_EMAIL],
     subject: "CAVIOS: Resend DKIM/SPF Test",
     html: "<p>Dies ist eine automatisierte Test-E-Mail, um die DKIM- und SPF-Verifizierung für <strong>cavios.de</strong> zu prüfen.</p><p>Wenn du diese E-Mail in deinem Posteingang (nicht Spam) erhältst, funktioniert die Einrichtung über Resend fehlerfrei.</p>"
@@ -41,7 +41,7 @@ const options = {
     }
 };
 
-console.log(`Sende Test-E-Mail von kontakt@cavios.de an ${TARGET_EMAIL}...`);
+console.log(`Sende Test-E-Mail von auth@cavios.de an ${TARGET_EMAIL}...`);
 
 const req = https.request(options, (res) => {
     let responseData = '';

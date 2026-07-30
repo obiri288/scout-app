@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WaitlistLanding } from '../pages/WaitlistLanding';
 import { supabase } from '../lib/supabase';
 import { SECRET_ACCESS_PATH } from '../lib/config';
@@ -20,6 +20,9 @@ import Datenschutz from './Datenschutz';
 const WaitlistGuard = ({ children }) => {
     const [hasSession, setHasSession] = useState(false);
     const [sessionChecked, setSessionChecked] = useState(false);
+    const [isApproved, setIsApproved] = useState(false);
+    const [approvalChecked, setApprovalChecked] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
 
     // --- Layer 1: Status Check ---
     const isWaitlistMode = import.meta.env.VITE_APP_STATUS === 'waitlist';
@@ -30,7 +33,6 @@ const WaitlistGuard = ({ children }) => {
         const betaParam = url.searchParams.get('beta');
         if (betaParam === 'CAVIOS-vip') {
             localStorage.setItem('CAVIOS_beta_access', 'true');
-            // Clean the URL to hide the beta parameter
             url.searchParams.delete('beta');
             window.history.replaceState({}, document.title, url.pathname + url.hash);
         }
@@ -38,74 +40,114 @@ const WaitlistGuard = ({ children }) => {
 
     const hasBetaAccess = localStorage.getItem('CAVIOS_beta_access') === 'true';
 
-    // --- Layer 3: Session Check (Supabase) ---
+    // --- Layer 3: Session & Waitlist Approval Check (Supabase) ---
     useEffect(() => {
-        // Only bother checking session if we're actually in waitlist mode
         if (!isWaitlistMode) {
             setSessionChecked(true);
+            setApprovalChecked(true);
+            setIsApproved(true);
             return;
         }
 
-        const checkSession = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                setHasSession(!!session);
-            } catch (e) {
-                console.warn('[WaitlistGuard] Session check failed:', e);
+        const verifyUserApproval = async (session) => {
+            if (!session?.user) {
                 setHasSession(false);
+                setIsApproved(false);
+                setUserEmail('');
+                setSessionChecked(true);
+                setApprovalChecked(true);
+                return;
+            }
+
+            setHasSession(true);
+            const email = (session.user.email || '').toLowerCase();
+            setUserEmail(email);
+
+            // Admins are always approved
+            const ADMIN_EMAILS = ['bordomobiri@gmail.com', 'kontakt@cavios.de'];
+            if (ADMIN_EMAILS.includes(email) || hasBetaAccess) {
+                setIsApproved(true);
+                setSessionChecked(true);
+                setApprovalChecked(true);
+                return;
+            }
+
+            try {
+                // Check 1: Does user already have a player profile in players_master?
+                const { data: profile } = await supabase
+                    .from('players_master')
+                    .select('id')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+
+                if (profile) {
+                    setIsApproved(true);
+                    setSessionChecked(true);
+                    setApprovalChecked(true);
+                    return;
+                }
+
+                // Check 2: Is the user's email approved or invited in the waitlist table?
+                const { data: waitlistEntry } = await supabase
+                    .from('waitlist')
+                    .select('status')
+                    .ilike('email', email)
+                    .maybeSingle();
+
+                if (waitlistEntry && (waitlistEntry.status === 'approved' || waitlistEntry.status === 'invited')) {
+                    setIsApproved(true);
+                } else if (!waitlistEntry) {
+                    // Auto-register to waitlist if not present yet
+                    await supabase.from('waitlist').insert({ email, status: 'pending' }).catch(() => {});
+                    setIsApproved(false);
+                } else {
+                    setIsApproved(false);
+                }
+            } catch (e) {
+                console.warn('[WaitlistGuard] Approval check error:', e);
+                // Fallback: If error, allow session so users are not locked out
+                setIsApproved(true);
             } finally {
                 setSessionChecked(true);
+                setApprovalChecked(true);
             }
         };
 
-        checkSession();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            verifyUserApproval(session);
+        });
 
-        // Listen for auth state changes (e.g., login while on waitlist page)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setHasSession(!!session);
+            verifyUserApproval(session);
         });
 
         return () => subscription?.unsubscribe();
-    }, [isWaitlistMode]);
+    }, [isWaitlistMode, hasBetaAccess]);
 
     // --- Layer 4: Routing & Gatekeeper Logic ---
     const path = window.location.pathname;
     const isWaitlistRoute = path === '/waitlist';
-    const isLoginRoute = path === SECRET_ACCESS_PATH;
+    const isLoginRoute = path === SECRET_ACCESS_PATH || path === '/login' || path === '/partner-access';
     const isResetPasswordRoute = path === '/reset-password';
-    const isImpressumRoute = path === '/impressum';
-    const isDatenschutzRoute = path === '/datenschutz';
+    const isImpressumRoute = path === '/impressum' || path === '/privacy';
+    const isDatenschutzRoute = path === '/datenschutz' || path === '/imprint';
+    const isAuthCallbackRoute = path === '/auth-callback' || path === '/welcome' || path.startsWith('/auth/');
+
+    const hasOAuthToken = typeof window !== 'undefined' && (
+        window.location.hash.includes('access_token=') ||
+        window.location.hash.includes('refresh_token=') ||
+        window.location.hash.includes('error=') ||
+        window.location.search.includes('code=')
+    );
     
-    const isPublicRoute = isWaitlistRoute || isLoginRoute || isResetPasswordRoute || isImpressumRoute || isDatenschutzRoute;
+    const isPublicRoute = isWaitlistRoute || isLoginRoute || isResetPasswordRoute || isImpressumRoute || isDatenschutzRoute || isAuthCallbackRoute || hasOAuthToken;
 
-    // Redirect logic
-    useEffect(() => {
-        if (!sessionChecked) return;
-
-        // Redirect standard /login route to /waitlist immediately
-        if (path === '/login') {
-            window.location.replace('/waitlist');
-            return;
-        }
-
-        // Bypass logic if not in waitlist mode, though typically we always want auth guards.
-        // Assuming WaitlistGuard is our primary AuthGuard for pre-launch:
-        if (!hasSession && !isPublicRoute && !hasBetaAccess) {
-            // Regel A: User is not logged in and tries to access protected route -> redirect to /waitlist
-            window.location.replace('/waitlist');
-        } else if (hasSession && (isWaitlistRoute || isLoginRoute)) {
-            // Regel C: User is logged in and tries to access /waitlist or /login -> redirect to inside the app (/)
-            window.location.replace('/');
-        }
-    }, [sessionChecked, hasSession, isPublicRoute, hasBetaAccess, isWaitlistRoute, isLoginRoute, path]);
-
-    // --- Wait for session check or redirect to complete before rendering ---
-    if (!sessionChecked || (!hasSession && !isPublicRoute && !hasBetaAccess) || (hasSession && (isWaitlistRoute || isLoginRoute))) {
-        // Fallback / Ladezustand (Regel 3)
+    // Loading State
+    if (!sessionChecked || !approvalChecked) {
         return (
             <div style={{
                 minHeight: '100vh',
-                background: '#020617', // Midnight Slate
+                background: '#020617',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -125,16 +167,54 @@ const WaitlistGuard = ({ children }) => {
         );
     }
 
-    // --- Final Render Decision ---
-    if (isImpressumRoute) return <Impressum />;
-    if (isDatenschutzRoute) return <Datenschutz />;
+    // Static Legal Pages
+    if (isImpressumRoute && path === '/impressum') return <Impressum />;
+    if (isDatenschutzRoute && path === '/datenschutz') return <Datenschutz />;
 
-    // If they are legitimately on the waitlist route and not logged in (Regel B)
-    if (isWaitlistRoute && !hasSession) {
+    // Unauthenticated user attempting to access protected route -> show WaitlistLanding
+    if (!hasSession) {
+        if (isPublicRoute) {
+            if (isWaitlistRoute) return <WaitlistLanding />;
+            return <>{children}</>;
+        }
         return <WaitlistLanding />;
     }
 
-    // All other cases (e.g. they are logged in on a protected route, or on /login): let the user through
+    // Logged-in User but NOT approved yet
+    if (hasSession && !isApproved && isWaitlistMode && !hasBetaAccess) {
+        return (
+            <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center font-sans">
+                <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl shadow-2xl space-y-6">
+                    <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                    </div>
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-bold">Warteliste ausstehend</h2>
+                        <p className="text-slate-400 text-sm leading-relaxed">
+                            Deine E-Mail <span className="text-cyan-400 font-medium">{userEmail}</span> ist registriert, wurde jedoch noch nicht freigeschaltet.
+                        </p>
+                        <p className="text-slate-400 text-xs leading-relaxed">
+                            Wir schalten schrittweise neue Kontingente frei. Du erhältst eine Benachrichtigung, sobald dein Zugang freigeschaltet ist.
+                        </p>
+                    </div>
+                    <button
+                        onClick={async () => {
+                            await supabase.auth.signOut();
+                            window.location.href = '/waitlist';
+                        }}
+                        className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl transition text-sm border border-white/10"
+                    >
+                        Mit anderem Account anmelden
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // User is logged in and approved -> Grant full access to app
     return <>{children}</>;
 };
 

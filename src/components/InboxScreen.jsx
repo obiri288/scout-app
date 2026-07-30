@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { useFocusEffect } from '../hooks/useFocusEffect';
 import { 
@@ -484,7 +484,9 @@ export const InboxScreen = ({ session, onSelectChat, onUserClick, onLoginReq, on
                 .select()
                 .then(({ data, error }) => {
                     if (error) console.error("Supabase RLS Error in handleOpenChat:", error);
-                    else console.log("Optimistic update confirmed by Supabase:", data);
+                    else {
+                        // Optimistic update confirmed by Supabase
+                    }
                 });
         }
         

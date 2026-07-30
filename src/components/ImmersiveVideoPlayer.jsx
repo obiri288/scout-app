@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Bookmark, Share2, User, VolumeX, Volume2, X, Send, MoreVertical, Archive, Trash2, Edit, Flag, AlertTriangle, Eye, EyeOff, Scan, Play, Pause, Maximize2, ChevronLeft } from 'lucide-react';
 import { inputStyle } from '../lib/styles';
@@ -10,7 +10,7 @@ import { EmptyState } from './EmptyState';
 import { CommentItem } from './CommentItem';
 import { ShareModal } from './ShareModal';
 import { useUser } from '../contexts/UserContext';
-import { generateShareText } from '../lib/shareEngine';
+import { generateShareText, generateTransferShareText } from '../lib/shareEngine';
 
 export const ImmersiveVideoPlayer = ({
     video,
@@ -51,6 +51,7 @@ export const ImmersiveVideoPlayer = ({
     const [isUiVisible, setIsUiVisible] = useState(true);
     const [isPlaying, setIsPlaying] = useState(isActive);
     const [showPlayStatusAnim, setShowPlayStatusAnim] = useState(false);
+    const [showSeekBar, setShowSeekBar] = useState(false);
 
     const videoCreatorId = video?.players_master?.user_id || video?.user_id;
     const isCreator = session?.user?.id === videoCreatorId;
@@ -452,12 +453,21 @@ export const ImmersiveVideoPlayer = ({
         // Use direct video link so shared URL opens the exact video with full profile data
         const shareUrl = `${window.location.origin}/#video/${resolvedVideo?.id}`;
         
-        const shareText = generateShareText({
-            role: userRole,
-            isCreator: isCreator,
-            playerName,
-            tags
-        });
+        let shareText;
+        if (resolvedVideo?.post_type === 'transfer') {
+            shareText = generateTransferShareText({
+                playerName,
+                oldClub: resolvedVideo?.transfer_data?.old_club_name,
+                newClub: resolvedVideo?.transfer_data?.new_club_name
+            });
+        } else {
+            shareText = generateShareText({
+                role: userRole,
+                isCreator: isCreator,
+                playerName,
+                tags
+            });
+        }
 
         setShareData({ text: shareText, url: shareUrl });
         setIsShareOpen(true);

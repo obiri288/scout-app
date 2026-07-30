@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
@@ -67,7 +67,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "CAVIOS <kontakt@cavios.de>",
+        from: "CAVIOS <auth@cavios.de>",
         to: [email],
         subject: "Status: Bestätigt. Deine Position auf der CAVIOS Warteliste.",
         html: htmlContent,

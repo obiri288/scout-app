@@ -1,4 +1,24 @@
-﻿export const generateShareText = ({ role, isCreator = false, playerName, tags = [] }) => {
+/**
+ * Generates share text for transfer ("Next Chapter") posts.
+ * Uses player name, old club, and new club to produce dynamic, modern messages.
+ */
+export const generateTransferShareText = ({ playerName, oldClub, newClub }) => {
+    const name = playerName || 'Ein Spieler';
+    const from = oldClub || 'seinem bisherigen Verein';
+    const to = newClub || 'einem neuen Verein';
+
+    const templates = [
+        `NEXT CHAPTER ⚽ ${name} wechselt von ${from} zu ${to}. Neues Kapitel, neue Ziele! Verfolge den Weg auf CAVIOS.`,
+        `Neues Kapitel für ${name}! 🚀 Der Wechsel von ${from} zu ${to} ist offiziell. Alle Details auf CAVIOS.`,
+        `${name} schlägt ein neues Kapitel auf. ✍️ ${from} ➜ ${to}. Schau dir das Profil auf CAVIOS an!`,
+        `NEXT CHAPTER: ${name} unterschreibt bei ${to}! ⚽ Kommt von ${from}. Jetzt auf CAVIOS entdecken.`,
+        `Offiziell: ${name} startet sein nächstes Kapitel bei ${to}. 🏟️ Alle Infos auf CAVIOS.`,
+    ];
+
+    return templates[Math.floor(Math.random() * templates.length)];
+};
+
+export const generateShareText = ({ role, isCreator = false, playerName, tags = [] }) => {
     const displayTags = tags.slice(0, 2);
     const tagString = displayTags.join(" & ");
     const hasTags = displayTags.length > 0;

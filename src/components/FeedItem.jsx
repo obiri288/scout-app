@@ -1,14 +1,15 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Share2, MoreVertical, Flag, Play, User, Zap, Wind, Crosshair, ArrowUpRight, Swords, ShieldCheck, Gauge, CircleDot, Flame, Hand, VolumeX, Volume2, Bookmark, Archive, Trash2, EyeOff, AlertTriangle, Edit } from 'lucide-react';
 import { VerificationBadge } from './VerificationBadge';
+import { EcosystemBadge } from './EcosystemBadge';
 import { ShareModal } from './ShareModal';
 import TransferPostCard from './TransferPostCard';
 import { TransferActionBar } from './TransferActionBar';
 import { Card } from '@/components/ui/card';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
-import { generateShareText } from '../lib/shareEngine';
+import { generateShareText, generateTransferShareText } from '../lib/shareEngine';
 import { getClubStyle, getClubDisplay } from '../lib/helpers';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { useToast } from '../contexts/ToastContext';
@@ -325,6 +326,7 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                                         isOfficial={video.players_master?.is_official}
                                     />
                                 ) : null}
+                                <EcosystemBadge ecosystem={video.players_master?.ecosystem} />
                             </div>
                             <div className="text-[11px] tracking-wider text-muted-foreground uppercase truncate">{getClubDisplay(video.players_master)}</div>
                         </div>
@@ -540,8 +542,8 @@ export const FeedItem = React.memo(({ video, onClick, session, onLikeReq, onComm
                         onCommentClick={() => onCommentClick(video)}
                         onShareClick={() => {
                             const shareUrl = `${window.location.origin}/#profile/${video.players_master?.slug || video.players_master?.user_id || video.id}`;
-                            const playerName = video.players_master?.full_name || 'ein Spieler';
-                            setShareData({ text: generateShareText({ role: userRole, isCreator, playerName, tags: [] }), url: shareUrl });
+                            const playerName = video.players_master?.full_name || video.transfer_data?.player_name || 'ein Spieler';
+                            setShareData({ text: generateTransferShareText({ playerName, oldClub: video.transfer_data?.old_club_name, newClub: video.transfer_data?.new_club_name }), url: shareUrl });
                             setIsShareOpen(true);
                         }}
                     />

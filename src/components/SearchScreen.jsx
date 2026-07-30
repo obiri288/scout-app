@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, Shield, ChevronRight, User, Filter, Loader2, MapPin, 
@@ -9,8 +9,9 @@ import { inputStyle, cardStyle, glassHeader } from '../lib/styles';
 import { formatPosition } from '../lib/utils';
 import { SearchSkeleton } from './SkeletonScreens';
 import { MapScreen } from './MapScreen';
+import MapExplorer from './MapExplorer';
 import { useUser } from '../contexts/UserContext';
-import { useEcosystem } from '../contexts/EcosystemContext';
+import { EcosystemBadge } from './EcosystemBadge';
 import { VerificationBadge } from './VerificationBadge';
 import { getClubDisplay } from '../lib/helpers';
 import { useSearchHistory } from '../hooks/useSearchHistory';
@@ -74,6 +75,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     const [loadingAction, setLoadingAction] = useState(false);
     const [showArchetypeFilter, setShowArchetypeFilter] = useState(false);
     const [selectedArchetype, setSelectedArchetype] = useState(null);
+    const [genderFilter, setGenderFilter] = useState('all');
     const sentinelRef = useRef(null);
 
     // Save search to recent history
@@ -131,18 +133,31 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
     }, [clubQuery]);
 
     const { currentUserProfile: userFromContext, hiddenUserIds } = useUser();
-    const { activeEcosystem } = useEcosystem();
 
     const fetchResults = useCallback(async (offset = 0, reset = false) => {
         if (searchMode === 'clubs') {
             try {
-                let q = supabase.from('clubs').select('id, name, logo_url, is_verified, club_teams(count)').ilike('name', `%${query}%`);
-                const { data } = await q.range(offset, offset + PAGE_SIZE - 1);
+                const trimmed = query.trim();
+                let q = supabase.from('clubs').select('id, name, logo_url, is_verified, league, city, club_teams(count)');
                 
-                const newItems = data || [];
-                if (reset) setClubRes(newItems);
-                else setClubRes(prev => [...prev, ...newItems]);
-                setClubHasMore(newItems.length === PAGE_SIZE);
+                if (trimmed.length >= 2) {
+                    const { data } = await q
+                        .ilike('name', `%${trimmed}%`)
+                        .range(offset, offset + PAGE_SIZE - 1);
+                    
+                    const newItems = data || [];
+                    if (reset) setClubRes(newItems);
+                    else setClubRes(prev => [...prev, ...newItems]);
+                    setClubHasMore(newItems.length === PAGE_SIZE);
+                } else {
+                    // Initial State: Top & Verifizierte Vereine (Limit 8)
+                    const { data } = await q
+                        .order('is_verified', { ascending: false })
+                        .limit(8);
+
+                    setClubRes(data || []);
+                    setClubHasMore(false);
+                }
             } catch (e) {
                 console.error("Club search error:", e);
             } finally {
@@ -154,8 +169,8 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
 
         try {
             let q = supabase.from('players_master').select('*, clubs(*), career_history(*)').eq('is_deactivated', false).eq('is_under_review', false);
-            if (activeEcosystem !== 'all' && !query) {
-                q = q.eq('ecosystem', activeEcosystem);
+            if (genderFilter !== 'all' && !query) {
+                q = q.eq('ecosystem', genderFilter);
             }
             if (query) q = q.ilike('full_name', `%${query}%`);
             if (pos !== 'Alle') q = q.eq('position_primary', pos);
@@ -194,7 +209,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext, selectedArchetype, activeEcosystem, searchMode]);
+    }, [query, pos, status, cityQuery, matchingClubIds, userFromContext, selectedArchetype, genderFilter, searchMode]);
 
     // Reset and refetch when filters change
     useEffect(() => {
@@ -206,7 +221,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             if (query && query.trim().length >= 2) saveRecentSearch(query);
         }, 500);
         return () => clearTimeout(t);
-    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype, activeEcosystem, searchMode]);
+    }, [query, pos, status, cityQuery, matchingClubIds, selectedArchetype, genderFilter, searchMode]);
 
     // Fetch videos when action tag is selected
     useEffect(() => {
@@ -223,8 +238,8 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                     .order('created_at', { ascending: false })
                     .limit(20);
 
-                if (activeEcosystem !== 'all') {
-                    actionQ = actionQ.in('players_master.ecosystem', [activeEcosystem, 'all']);
+                if (genderFilter !== 'all') {
+                    actionQ = actionQ.in('players_master.ecosystem', [genderFilter, 'all']);
                 }
                 const { data } = await actionQ;
 
@@ -247,7 +262,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
             }
         };
         fetchActionVideos();
-    }, [selectedActionTag, activeEcosystem]);
+    }, [selectedActionTag, genderFilter]);
 
     // Infinite scroll via IntersectionObserver
     useEffect(() => {
@@ -272,7 +287,8 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         clubQuery,
         selectedTag,
         selectedActionTag,
-        selectedArchetype
+        selectedArchetype,
+        genderFilter !== 'all'
     ].filter(Boolean).length;
 
     const clearAllFilters = () => {
@@ -284,6 +300,7 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
         setSelectedTag(null);
         setSelectedActionTag(null);
         setSelectedArchetype(null);
+        setGenderFilter('all');
         setShowAdvanced(false);
     };
 
@@ -312,174 +329,195 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                 <h2 className="text-2xl font-black text-foreground tracking-tight drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">Scouting</h2>
             </div>
             <div className="px-4 mt-6 relative">
-                {/* Search Mode Toggle */}
-                <div className="flex bg-slate-900/50 p-1 rounded-full mb-4 border border-white/5 shadow-inner">
+                {/* View Mode Segmented Toggle: Liste vs. Karte */}
+                <div className="flex bg-slate-900/60 p-1 rounded-2xl mb-4 border border-white/10 shadow-inner gap-1">
                     <button 
-                        onClick={() => setSearchMode('athletes')}
-                        className={`flex-1 text-sm font-bold py-2 rounded-full transition-all ${searchMode === 'athletes' ? 'bg-slate-800 text-cyan-400 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                        onClick={() => setViewMode('list')}
+                        className={`flex-1 flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition-all ${
+                            viewMode === 'list' 
+                                ? 'bg-slate-800 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-500/10' 
+                                : 'text-slate-400 hover:text-slate-200'
+                        }`}
                     >
-                        Athleten
+                        <List size={16} />
+                        Liste
                     </button>
                     <button 
-                        onClick={() => setSearchMode('clubs')}
-                        className={`flex-1 text-sm font-bold py-2 rounded-full transition-all ${searchMode === 'clubs' ? 'bg-slate-800 text-cyan-400 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                        onClick={() => setViewMode('map')}
+                        className={`flex-1 flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition-all ${
+                            viewMode === 'map' 
+                                ? 'bg-slate-800 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-500/10' 
+                                : 'text-slate-400 hover:text-slate-200'
+                        }`}
                     >
-                        Vereine
+                        <Map size={16} />
+                        Karte
                     </button>
-                </div>
-
-                {/* Main search and Map Toggle */}
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="relative flex-1 z-50">
-                        <Search className="absolute left-4 top-4 text-muted-foreground" size={20} />
-                        <input 
-                            placeholder={searchMode === 'clubs' ? "Verein suchen..." : "Spieler suchen..."} 
-                            value={query} 
-                            onChange={e => setQuery(e.target.value)} 
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && query.trim()) {
-                                    saveRecentSearch(query);
-                                    setIsSearchFocused(false);
-                                }
-                            }}
-                            className={`${inputStyle} pl-12 pr-12 bg-white/5 focus:bg-white/10 transition-colors`} 
-                        />
-                        {query && (
-                            <button onClick={() => { setQuery(''); setIsSearchFocused(true); }} className="absolute right-4 top-4 text-muted-foreground hover:text-white transition-colors">
-                                <X size={18} />
-                            </button>
-                        )}
-
-                        {/* Search History Empty State Dropdown */}
-                        {!query && isSearchFocused && viewMode === 'list' && (recentSearches.length > 0 || recentProfiles.length > 0) && (
-                            <div className="absolute top-full left-0 right-0 mt-2 p-4 rounded-2xl bg-slate-900/95 border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-50 animate-in fade-in slide-in-from-top-2">
-                                
-                                {recentSearches.length > 0 && (
-                                    <div className="mb-5">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h4 className="text-xs text-slate-500 uppercase tracking-wider font-bold">Zuletzt gesucht</h4>
-                                        </div>
-                                        <AnimatePresence mode="popLayout">
-                                            {recentSearches.map(term => (
-                                                <motion.li
-                                                    key={term}
-                                                    layout
-                                                    initial={{ opacity: 0, x: -8 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0, transition: { duration: 0.18 } }}
-                                                    transition={{ duration: 0.2 }}
-                                                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-cyan-400 hover:bg-white/5 cursor-pointer transition-colors group list-none"
-                                                >
-                                                    <span
-                                                        onClick={() => { setQuery(term); setIsSearchFocused(false); }}
-                                                        className="flex items-center gap-3 flex-1 min-w-0"
-                                                    >
-                                                        <Clock size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-                                                        <span className="truncate">{term}</span>
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            removeRecentSearch(term);
-                                                        }}
-                                                        className="p-1 text-slate-600 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0 opacity-0 group-hover:opacity-100"
-                                                        title="Aus Verlauf entfernen"
-                                                    >
-                                                        <X size={12} />
-                                                    </button>
-                                                </motion.li>
-                                            ))}
-                                        </AnimatePresence>
-                                    </div>
-                                )}
-
-                                {recentProfiles.length > 0 && (
-                                    <div>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="text-xs text-slate-500 uppercase tracking-wider font-bold">Zuletzt besucht</h4>
-                                            <button
-                                                onClick={clearRecentHistory}
-                                                className="text-[9px] text-slate-600 hover:text-red-400 transition-colors uppercase tracking-wider font-bold"
-                                            >
-                                                Alles löschen
-                                            </button>
-                                        </div>
-                                        <motion.div
-                                            className="space-y-0.5"
-                                            initial="hidden"
-                                            animate="visible"
-                                            variants={{
-                                                hidden: {},
-                                                visible: { transition: { staggerChildren: 0.05 } }
-                                            }}
-                                        >
-                                            <AnimatePresence mode="popLayout">
-                                                {recentProfiles.map(p => (
-                                                    <motion.div
-                                                        key={p.id}
-                                                        layout
-                                                        variants={{
-                                                            hidden: { opacity: 0, y: 8 },
-                                                            visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } }
-                                                        }}
-                                                        exit={{ opacity: 0, x: 20, transition: { duration: 0.18 } }}
-                                                        className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
-                                                    >
-                                                        <div
-                                                            onClick={() => handleUserClick(p)}
-                                                            className="flex items-center gap-3 flex-1 min-w-0"
-                                                        >
-                                                            <div className="w-9 h-9 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_12px_rgba(34,211,238,0.25)] transition-all bg-slate-800 flex-shrink-0">
-                                                                {p.avatar_url ? (
-                                                                    <img src={p.avatar_url} className="w-full h-full object-cover" alt={p.full_name} />
-                                                                ) : (
-                                                                    <img src="/cavios-icon.png" className="w-full h-full object-contain p-2 opacity-60" alt={p.full_name} />
-                                                                )}
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-bold text-slate-200 group-hover:text-cyan-400 truncate transition-colors">{p.full_name}</p>
-                                                                <p className="text-[10px] text-slate-500 truncate">
-                                                                    {p.club_name || (p.role === 'scout' ? 'Scout' : 'Spieler')}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                removeRecentProfile(p.id);
-                                                            }}
-                                                            className="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0 opacity-0 group-hover:opacity-100"
-                                                            title="Aus Verlauf entfernen"
-                                                        >
-                                                            <X size={13} />
-                                                        </button>
-                                                    </motion.div>
-                                                ))}
-                                            </AnimatePresence>
-                                        </motion.div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    {searchMode === 'athletes' && (
-                        <button
-                            onClick={() => setViewMode(prev => prev === 'list' ? 'map' : 'list')}
-                            className="h-14 w-14 shrink-0 bg-white/5 border border-border rounded-xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-all duration-300 active:scale-95 shadow-inner z-40"
-                        >
-                            {viewMode === 'list' ? <Map size={24} /> : <List size={24} />}
-                        </button>
-                    )}
                 </div>
 
                 {viewMode === 'map' ? (
-                    <div className="animate-in fade-in zoom-in-95 duration-300">
-                        <MapScreen onClose={() => setViewMode('list')} onUserClick={onUserClick} />
+                    <div className="animate-in fade-in zoom-in-95 duration-300 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+                        <MapExplorer
+                            onSelectVideo={(video) => {
+                                if (video.player) handleUserClick(video.player);
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="animate-in fade-in zoom-in-95 duration-300">
+                        {/* Search Mode Toggle */}
+                        <div className="flex bg-slate-900/50 p-1 rounded-full mb-4 border border-white/5 shadow-inner">
+                            <button 
+                                onClick={() => setSearchMode('athletes')}
+                                className={`flex-1 text-sm font-bold py-2 rounded-full transition-all ${searchMode === 'athletes' ? 'bg-slate-800 text-cyan-400 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                Athleten
+                            </button>
+                            <button 
+                                onClick={() => setSearchMode('clubs')}
+                                className={`flex-1 text-sm font-bold py-2 rounded-full transition-all ${searchMode === 'clubs' ? 'bg-slate-800 text-cyan-400 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                Vereine
+                            </button>
+                        </div>
+
+                        {/* Main search input */}
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="relative flex-1 z-50">
+                                <Search className="absolute left-4 top-4 text-muted-foreground" size={20} />
+                                <input 
+                                    placeholder={searchMode === 'clubs' ? "Verein suchen..." : "Spieler suchen..."} 
+                                    value={query} 
+                                    onChange={e => setQuery(e.target.value)} 
+                                    onFocus={() => setIsSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && query.trim()) {
+                                            saveRecentSearch(query);
+                                            setIsSearchFocused(false);
+                                        }
+                                    }}
+                                    className={`${inputStyle} pl-12 pr-12 bg-white/5 focus:bg-white/10 transition-colors`} 
+                                />
+                                {query && (
+                                    <button onClick={() => { setQuery(''); setIsSearchFocused(true); }} className="absolute right-4 top-4 text-muted-foreground hover:text-white transition-colors">
+                                        <X size={18} />
+                                    </button>
+                                )}
+
+                                {/* Search History Empty State Dropdown */}
+                                {!query && isSearchFocused && (recentSearches.length > 0 || recentProfiles.length > 0) && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 p-4 rounded-2xl bg-slate-900/95 border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-50 animate-in fade-in slide-in-from-top-2">
+                                        
+                                        {recentSearches.length > 0 && (
+                                            <div className="mb-5">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h4 className="text-xs text-slate-500 uppercase tracking-wider font-bold">Zuletzt gesucht</h4>
+                                                </div>
+                                                <AnimatePresence mode="popLayout">
+                                                    {recentSearches.map(term => (
+                                                        <motion.li
+                                                            key={term}
+                                                            layout
+                                                            initial={{ opacity: 0, x: -8 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0, transition: { duration: 0.18 } }}
+                                                            transition={{ duration: 0.2 }}
+                                                            className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-cyan-400 hover:bg-white/5 cursor-pointer transition-colors group list-none"
+                                                        >
+                                                            <span
+                                                                onClick={() => { setQuery(term); setIsSearchFocused(false); }}
+                                                                className="flex items-center gap-3 flex-1 min-w-0"
+                                                            >
+                                                                <Clock size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                                                                <span className="truncate">{term}</span>
+                                                            </span>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    removeRecentSearch(term);
+                                                                }}
+                                                                className="p-1 text-slate-600 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0 opacity-0 group-hover:opacity-100"
+                                                                title="Aus Verlauf entfernen"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        </motion.li>
+                                                    ))}
+                                                </AnimatePresence>
+                                            </div>
+                                        )}
+
+                                        {recentProfiles.length > 0 && (
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <h4 className="text-xs text-slate-500 uppercase tracking-wider font-bold">Zuletzt besucht</h4>
+                                                    <button
+                                                        onClick={clearRecentHistory}
+                                                        className="text-[9px] text-slate-600 hover:text-red-400 transition-colors uppercase tracking-wider font-bold"
+                                                    >
+                                                        Alles löschen
+                                                    </button>
+                                                </div>
+                                                <motion.div
+                                                    className="space-y-0.5"
+                                                    initial="hidden"
+                                                    animate="visible"
+                                                    variants={{
+                                                        hidden: {},
+                                                        visible: { transition: { staggerChildren: 0.05 } }
+                                                    }}
+                                                >
+                                                    <AnimatePresence mode="popLayout">
+                                                        {recentProfiles.map(p => (
+                                                            <motion.div
+                                                                key={p.id}
+                                                                layout
+                                                                variants={{
+                                                                    hidden: { opacity: 0, y: 8 },
+                                                                    visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } }
+                                                                }}
+                                                                exit={{ opacity: 0, x: 20, transition: { duration: 0.18 } }}
+                                                                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors group"
+                                                            >
+                                                                <div
+                                                                    onClick={() => handleUserClick(p)}
+                                                                    className="flex items-center gap-3 flex-1 min-w-0"
+                                                                >
+                                                                    <div className="w-9 h-9 rounded-full overflow-hidden border border-white/10 group-hover:border-cyan-400/50 group-hover:shadow-[0_0_12px_rgba(34,211,238,0.25)] transition-all bg-slate-800 flex-shrink-0">
+                                                                        {p.avatar_url ? (
+                                                                            <img src={p.avatar_url} className="w-full h-full object-cover" alt={p.full_name} />
+                                                                        ) : (
+                                                                            <img src="/cavios-icon.png" className="w-full h-full object-contain p-2 opacity-60" alt={p.full_name} />
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-sm font-bold text-slate-200 group-hover:text-cyan-400 truncate transition-colors">{p.full_name}</p>
+                                                                        <p className="text-[10px] text-slate-500 truncate">
+                                                                            {p.club_name || (p.role === 'scout' ? 'Scout' : 'Spieler')}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        removeRecentProfile(p.id);
+                                                                    }}
+                                                                    className="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-full hover:bg-red-500/10 flex-shrink-0 opacity-0 group-hover:opacity-100"
+                                                                    title="Aus Verlauf entfernen"
+                                                                >
+                                                                    <X size={13} />
+                                                                </button>
+                                                            </motion.div>
+                                                        ))}
+                                                    </AnimatePresence>
+                                                </motion.div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         {searchMode === 'athletes' && (
                             <>
                         {/* Advanced search toggle */}
@@ -534,6 +572,34 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
                                         {clubQuery && (
                                             <button onClick={() => setClubQuery('')} className="absolute right-3 top-3.5 text-muted-foreground hover:text-white"><X size={14} /></button>
                                         )}
+                                    </div>
+                                </div>
+
+                                {/* Gender / Ecosystem filter */}
+                                <div>
+                                    <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider ml-1 mb-1.5 block">Geschlecht</label>
+                                    <div className="flex gap-2">
+                                        {[
+                                            { id: 'all', label: 'Alle' },
+                                            { id: 'mens', label: 'Herren' },
+                                            { id: 'womens', label: 'Damen' }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.id}
+                                                onClick={() => setGenderFilter(opt.id)}
+                                                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                    genderFilter === opt.id
+                                                        ? opt.id === 'mens'
+                                                            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.1)]'
+                                                            : opt.id === 'womens'
+                                                                ? 'bg-violet-500/15 text-violet-400 border-violet-500/30 shadow-[0_0_10px_rgba(139,92,246,0.1)]'
+                                                                : 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.1)]'
+                                                        : 'bg-white/5 text-muted-foreground border-white/5 hover:bg-white/10'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -635,49 +701,104 @@ export const SearchScreen = ({ onUserClick, onMenuOpen }) => {
 
                         {/* Results: Action Videos OR Player Search OR Club Search */}
                         {searchMode === 'clubs' ? (
-                            <div className="space-y-3 animate-in fade-in">
+                            <div className="space-y-4 animate-in fade-in">
+                                {/* Header for Initial State vs Search Results */}
+                                <div className="flex items-center justify-between px-1">
+                                    <div className="flex items-center gap-2">
+                                        <Shield size={14} className="text-cyan-400" />
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                                            {query.trim().length >= 2 ? `Suchergebnisse (${clubRes.length})` : 'Empfohlene & Top-Vereine'}
+                                        </h4>
+                                    </div>
+                                    {query.trim().length < 2 && (
+                                        <span className="text-[10px] text-slate-500 font-medium">Mind. 2 Zeichen tippen</span>
+                                    )}
+                                </div>
+
                                 {loading ? <SearchSkeleton /> : (
-                                    <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
-                                        {clubRes.map(club => (
-                                            <motion.div 
-                                                key={club.id} 
-                                                variants={listItemVariants} 
-                                                whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} 
-                                                whileTap={{ scale: 0.98 }} 
-                                                onClick={() => window.location.hash = `#club/${club.id}`} 
-                                                className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}
-                                            >
-                                                <div className="w-14 h-14 rounded-2xl bg-slate-900 flex-shrink-0 overflow-hidden border border-white/10 flex items-center justify-center relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">
-                                                    {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-cover" /> : <Shield size={24} className="text-slate-500" />}
-                                                </div>
-                                                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <h3 className="font-bold text-foreground text-base tracking-tight truncate">{club.name}</h3>
-                                                        {club.is_verified && <VerificationBadge size={14} status="approved" />}
+                                    query.trim().length < 2 ? (
+                                        /* Initial State: Horizontal Carousel with Compact Club Tiles */
+                                        <div className="flex flex-row overflow-x-auto gap-3 py-2 px-1 scrollbar-hide">
+                                            {clubRes.map(club => (
+                                                <motion.div
+                                                    key={club.id}
+                                                    whileHover={{ y: -3, scale: 1.02 }}
+                                                    whileTap={{ scale: 0.96 }}
+                                                    onClick={() => window.location.hash = `#club/${club.id}`}
+                                                    className="flex-shrink-0 w-24 p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-cyan-500/50 hover:bg-white/10 flex flex-col items-center justify-center text-center transition-all cursor-pointer group shadow-lg"
+                                                >
+                                                    <div className="w-12 h-12 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden mb-2 group-hover:border-cyan-500/50 shadow-inner transition-colors">
+                                                        {club.logo_url ? (
+                                                            <img src={club.logo_url} className="w-full h-full object-cover" alt={club.name} />
+                                                        ) : (
+                                                            <Shield size={20} className="text-slate-400 group-hover:text-cyan-400 transition-colors" />
+                                                        )}
                                                     </div>
-                                                    {club.club_teams && club.club_teams.length > 0 && club.club_teams[0].count > 0 && (
+                                                    <h5 className="text-xs font-bold text-slate-200 group-hover:text-cyan-400 truncate w-full text-center transition-colors">
+                                                        {club.short_name || club.name}
+                                                    </h5>
+                                                    {club.is_verified && (
                                                         <div className="mt-1">
-                                                            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap bg-slate-800/50 border border-slate-700 px-2 py-0.5 rounded-md">
-                                                                {club.club_teams[0].count} aktive Kader
-                                                            </span>
+                                                            <VerificationBadge size={12} status="approved" />
                                                         </div>
                                                     )}
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        /* Active Search State: Full Vertical List */
+                                        <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-3">
+                                            {clubRes.map(club => (
+                                                <motion.div 
+                                                    key={club.id} 
+                                                    variants={listItemVariants} 
+                                                    whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.07)" }} 
+                                                    whileTap={{ scale: 0.98 }} 
+                                                    onClick={() => window.location.hash = `#club/${club.id}`} 
+                                                    className={`flex items-center gap-4 p-3 cursor-pointer group ${cardStyle}`}
+                                                >
+                                                    <div className="w-14 h-14 rounded-2xl bg-slate-900 flex-shrink-0 overflow-hidden border border-white/10 flex items-center justify-center relative shadow-inner group-hover:border-cyan-500/50 transition-colors duration-300">
+                                                        {club.logo_url ? <img src={club.logo_url} className="w-full h-full object-cover" alt={club.name} /> : <Shield size={24} className="text-slate-500" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <h3 className="font-bold text-foreground text-base tracking-tight truncate">{club.name}</h3>
+                                                            {club.is_verified && <VerificationBadge size={14} status="approved" />}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            {club.league && (
+                                                                <span className="text-[10px] text-cyan-400 font-semibold truncate bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+                                                                    {club.league}
+                                                                </span>
+                                                            )}
+                                                            {club.club_teams && club.club_teams.length > 0 && club.club_teams[0].count > 0 && (
+                                                                <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap bg-slate-800/50 border border-slate-700 px-2 py-0.5 rounded-md">
+                                                                    {club.club_teams[0].count} aktive Kader
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                                                </motion.div>
+                                            ))}
+                                            {clubRes.length === 0 && (
+                                                <div className="text-center py-20 text-muted-foreground">
+                                                    <Shield size={48} className="mx-auto mb-4 opacity-20" />
+                                                    <p>Keine Vereine zu "{query}" gefunden</p>
                                                 </div>
-                                                <ChevronRight size={18} className="text-muted-foreground group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-                                            </motion.div>
-                                        ))}
-                                        {clubRes.length === 0 && <div className="text-center py-20 text-muted-foreground"><Shield size={48} className="mx-auto mb-4 opacity-20" /><p>Keine Vereine gefunden</p></div>}
-                                        
-                                        {/* Infinite scroll sentinel */}
-                                        {clubHasMore && (
-                                            <div ref={sentinelRef} className="flex justify-center py-6">
-                                                {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
-                                            </div>
-                                        )}
-                                        {!clubHasMore && clubRes.length > 0 && (
-                                            <div className="text-center text-muted-foreground text-xs py-6">Alle Ergebnisse geladen.</div>
-                                        )}
-                                    </motion.div>
+                                            )}
+                                            
+                                            {/* Infinite scroll sentinel */}
+                                            {clubHasMore && (
+                                                <div ref={sentinelRef} className="flex justify-center py-6">
+                                                    {loadingMore && <Loader2 className="animate-spin text-muted-foreground" size={24} />}
+                                                </div>
+                                            )}
+                                            {!clubHasMore && clubRes.length > 0 && (
+                                                <div className="text-center text-muted-foreground text-xs py-6">Alle passenden Vereine geladen.</div>
+                                            )}
+                                        </motion.div>
+                                    )
                                 )}
                             </div>
                         ) : selectedActionTag ? (

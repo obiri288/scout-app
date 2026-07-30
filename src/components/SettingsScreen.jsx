@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, Settings, User, Shield, AlertTriangle,
@@ -824,7 +824,7 @@ const LockerRoomView = ({ onBack, clubId, activeCaptainStation, currentUserProfi
                             .is('end_date', null)
                             .eq('verification_status', 'approved')
                             .neq('id', player.id);
-                        console.log('Other active captains demoted for club:', clubId);
+                        // Other active captains demoted for this club
                     } catch (demotionErr) {
                         console.warn('Could not demote other captains:', demotionErr);
                     }

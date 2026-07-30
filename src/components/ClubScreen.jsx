@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Shield, Users, ChevronRight, CheckCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as api from '../lib/api';
@@ -6,7 +6,7 @@ import { cardStyle } from '../lib/styles';
 import { formatPosition } from '../lib/utils';
 import { useUser } from '../contexts/UserContext';
 import { useToast } from '../contexts/ToastContext';
-import { useEcosystem } from '../contexts/EcosystemContext';
+
 
 const AGE_ORDER = { 'Senioren': 0, 'U19': 1, 'U18': 2, 'U17': 3, 'U16': 4, 'U15': 5, 'U14': 6 };
 
@@ -19,7 +19,7 @@ export const ClubScreen = ({ club, onBack, onUserClick }) => {
     const [loading, setLoading] = useState(true);
     const { currentUserProfile } = useUser();
     const { addToast } = useToast();
-    const { activeEcosystem } = useEcosystem();
+
 
     const isClubAdmin = currentUserProfile?.role === 'admin' || (currentUserProfile?.is_official && currentUserProfile?.club_id === club.id);
 
@@ -40,7 +40,7 @@ export const ClubScreen = ({ club, onBack, onUserClick }) => {
                     .select('*, career_history(*)')
                     .eq('is_deactivated', false)
                     .or(`club_id.eq.${club.id},current_team_id.not.is.null`);
-                q = q.in('ecosystem', [activeEcosystem, 'all']);
+
                 const { data: allPlayers } = await q;
 
                 // Filter players that actually belong to this club
@@ -87,7 +87,7 @@ export const ClubScreen = ({ club, onBack, onUserClick }) => {
             }
         };
         fetchData();
-    }, [club, activeEcosystem]);
+    }, [club]);
 
     const toggleTeam = (teamId) => {
         setExpandedTeams(prev => ({ ...prev, [teamId]: !prev[teamId] }));
