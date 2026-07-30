@@ -572,3 +572,5 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
         </div>
     );
 };
+
+export default LoginModal;
