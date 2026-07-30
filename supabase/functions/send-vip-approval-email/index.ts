@@ -66,7 +66,7 @@ serve(async (req) => {
 
           <!-- Call To Action Button -->
           <div style="margin-bottom: 36px;">
-            <a href="https://cavios.de" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: #ffffff; font-weight: 800; font-size: 15px; text-decoration: none; padding: 14px 36px; border-radius: 12px; box-shadow: 0 0 25px rgba(34, 211, 238, 0.4);">
+            <a href="https://cavios.de/?login=true&beta=CAVIOS-vip" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: #ffffff; font-weight: 800; font-size: 15px; text-decoration: none; padding: 14px 36px; border-radius: 12px; box-shadow: 0 0 25px rgba(34, 211, 238, 0.4);">
               Jetzt bei CAVIOS anmelden &rarr;
             </a>
           </div>

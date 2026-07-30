@@ -24,7 +24,11 @@ export const WaitlistLanding = () => {
     const [status, setStatus] = useState('idle'); // idle | loading | success | error | duplicate
     const [errorMsg, setErrorMsg] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false); // Spam-Cooldown (5s)
-    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const params = new URLSearchParams(window.location.search);
+        return params.get('login') === 'true' || params.get('auth') === 'true';
+    });
 
     // Honeypot state — must remain empty; bots fill it automatically
     const [honeypot, setHoneypot] = useState('');

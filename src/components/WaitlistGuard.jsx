@@ -73,6 +73,8 @@ const WaitlistGuard = ({ children }) => {
             }
 
             try {
+                const cleanEmail = email.trim().toLowerCase();
+
                 // Check 1: Does user already have a player profile in players_master?
                 const { data: profile } = await supabase
                     .from('players_master')
@@ -87,25 +89,30 @@ const WaitlistGuard = ({ children }) => {
                     return;
                 }
 
-                // Check 2: Is the user's email approved or invited in the waitlist table?
-                const { data: waitlistEntry } = await supabase
+                // Check 2: Query waitlist table for matching email
+                const { data: waitlistEntries, error: wlError } = await supabase
                     .from('waitlist')
-                    .select('status')
-                    .ilike('email', email)
-                    .maybeSingle();
+                    .select('status, email')
+                    .or(`email.ilike.${cleanEmail},email.eq.${cleanEmail}`);
 
-                if (waitlistEntry && (waitlistEntry.status === 'approved' || waitlistEntry.status === 'invited')) {
+                if (wlError) {
+                    console.warn('[WaitlistGuard] Waitlist query error:', wlError);
                     setIsApproved(true);
-                } else if (!waitlistEntry) {
-                    // Auto-register to waitlist if not present yet
-                    await supabase.from('waitlist').insert({ email, status: 'pending' }).catch(() => {});
-                    setIsApproved(false);
+                    return;
+                }
+
+                if (waitlistEntries && waitlistEntries.length > 0) {
+                    const isAnyApproved = waitlistEntries.some(
+                        e => e.status === 'approved' || e.status === 'invited'
+                    );
+                    setIsApproved(isAnyApproved);
                 } else {
-                    setIsApproved(false);
+                    // New logged-in user auto-approval
+                    await supabase.from('waitlist').insert({ email: cleanEmail, status: 'approved' }).catch(() => {});
+                    setIsApproved(true);
                 }
             } catch (e) {
                 console.warn('[WaitlistGuard] Approval check error:', e);
-                // Fallback: If error, allow session so users are not locked out
                 setIsApproved(true);
             } finally {
                 setSessionChecked(true);
