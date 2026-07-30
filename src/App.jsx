@@ -366,11 +366,6 @@ const App = () => {
         );
     }
 
-    // Redirect standard /login route to /waitlist
-    if (window.location.pathname === '/login') {
-        window.location.replace('/waitlist');
-        return null;
-    }
 
     // Direct SECRET_ACCESS_PATH route — used by WaitlistGuard's subtle login link
     if (window.location.pathname === SECRET_ACCESS_PATH) {
