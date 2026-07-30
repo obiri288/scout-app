@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     CheckCircle, ArrowRight, Loader2 
@@ -14,25 +14,27 @@ export const AuthCallbackScreen = () => {
     const [status, setStatus] = useState('loading'); // 'loading' | 'success'
 
     useEffect(() => {
-        // If we have a session, it means Supabase has processed the token
+        const finishAuthFlow = () => {
+            setIsAuthCallback(false);
+            const cleanUrl = window.location.origin + '/';
+            window.history.replaceState(null, '', cleanUrl);
+        };
+
         if (session) {
-            // Short delay for a smoother visual transition
-            const timer = setTimeout(() => {
-                setStatus('success');
-            }, 1500);
+            setStatus('success');
+            const timer = setTimeout(finishAuthFlow, 1200);
             return () => clearTimeout(timer);
         }
-    }, [session]);
+
+        // Safety fallback: if session takes too long, auto-dismiss screen
+        const safetyTimer = setTimeout(finishAuthFlow, 3000);
+        return () => clearTimeout(safetyTimer);
+    }, [session, setIsAuthCallback]);
 
     const handleContinue = () => {
-        // Signal that the callback flow is complete
         setIsAuthCallback(false);
-        
-        // Clean URL: remove hash tokens & query params left by Supabase
         const cleanUrl = window.location.origin + '/';
         window.history.replaceState(null, '', cleanUrl);
-        
-        // Final redirect to the app root
         window.location.href = '/';
     };
 

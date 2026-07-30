@@ -152,7 +152,7 @@ export const UserProvider = ({ children }) => {
 
             // Auth callback: clean up URL tokens after session is established
             // Note: If on /auth-callback or /welcome, we let the UI handle the cleanup and state reset
-            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && isAuthCallback) {
+            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && s) {
                 const isDedicatedCallbackPage = window.location.pathname.includes('/auth-callback') || window.location.pathname.includes('/welcome');
                 
                 if (!isDedicatedCallbackPage) {
