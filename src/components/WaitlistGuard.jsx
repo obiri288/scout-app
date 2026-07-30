@@ -19,7 +19,7 @@ const WaitlistGuard = ({ children }) => {
         if (typeof window === 'undefined') return false;
         const hash = window.location.hash || '';
         const search = window.location.search || '';
-        return hash.includes('access_token=') || hash.includes('refresh_token=') || search.includes('code=') || search.includes('auth_callback=');
+        return hash.includes('access_token=') || hash.includes('refresh_token=') || search.includes('code=') || search.includes('auth_callback=') || search.includes('login=true');
     });
 
     // VIP Beta Bypass parameter check
@@ -35,43 +35,53 @@ const WaitlistGuard = ({ children }) => {
     useEffect(() => {
         let isMounted = true;
 
-        const checkSession = async () => {
+        const checkAuth = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (isMounted) {
-                    setHasSession(!!session?.user);
-                    setSessionChecked(true);
                     if (session?.user) {
+                        setHasSession(true);
+                        setSessionChecked(true);
                         setIsVerifyingOAuth(false);
+                    } else if (!isVerifyingOAuth) {
+                        setHasSession(false);
+                        setSessionChecked(true);
                     }
                 }
             } catch (e) {
-                if (isMounted) {
+                if (isMounted && !isVerifyingOAuth) {
+                    setHasSession(false);
                     setSessionChecked(true);
-                    setIsVerifyingOAuth(false);
                 }
             }
         };
 
-        checkSession();
+        checkAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (isMounted) {
-                setHasSession(!!session?.user);
-                setSessionChecked(true);
                 if (session?.user) {
+                    setHasSession(true);
+                    setSessionChecked(true);
+                    setIsVerifyingOAuth(false);
+                } else if (_event === 'SIGNED_OUT') {
+                    setHasSession(false);
+                    setSessionChecked(true);
                     setIsVerifyingOAuth(false);
                 }
             }
         });
 
-        // 3.5s safety fallback timeout for OAuth callback
-        const timeout = setTimeout(() => {
+        // 4s safety fallback timeout for OAuth callback / slow network
+        const timeout = setTimeout(async () => {
             if (isMounted) {
+                // Final re-check before falling back
+                const { data: { session } } = await supabase.auth.getSession();
+                setHasSession(!!session?.user);
                 setSessionChecked(true);
                 setIsVerifyingOAuth(false);
             }
-        }, 3500);
+        }, 4000);
 
         return () => {
             isMounted = false;
@@ -83,6 +93,10 @@ const WaitlistGuard = ({ children }) => {
     const path = window.location.pathname;
     const isImpressumRoute = path === '/impressum' || path === '/privacy';
     const isDatenschutzRoute = path === '/datenschutz' || path === '/imprint';
+
+    // Static Legal Pages
+    if (isImpressumRoute) return <Impressum />;
+    if (isDatenschutzRoute) return <Datenschutz />;
 
     // Loading Spinner while initializing session or verifying OAuth token
     if (!sessionChecked || isVerifyingOAuth) {
@@ -115,10 +129,6 @@ const WaitlistGuard = ({ children }) => {
         );
     }
 
-    // Static Legal Pages
-    if (isImpressumRoute) return <Impressum />;
-    if (isDatenschutzRoute) return <Datenschutz />;
-
     // Unauthenticated Visitor -> Render Waitlist Landing Page
     if (!hasSession) {
         return <WaitlistLanding />;
@@ -129,3 +139,4 @@ const WaitlistGuard = ({ children }) => {
 };
 
 export default WaitlistGuard;
+

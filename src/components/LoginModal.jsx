@@ -314,7 +314,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
         setLoading(true);
         setMsg('');
         try {
-            const redirectTo = `${window.location.origin}/?login=true&auth_callback=true`;
+            const redirectTo = `${window.location.origin}/`;
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
