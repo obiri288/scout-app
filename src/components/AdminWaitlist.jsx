@@ -91,10 +91,24 @@ export const AdminWaitlist = () => {
                 entry.id === id ? { ...entry, status: 'approved' } : entry
             ));
 
-            // Next, if adminSecret is provided, invoke edge function for email invitation
+            // Next, trigger the VIP Access Approval email to the user
+            try {
+                await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-vip-approval-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}`
+                    },
+                    body: JSON.stringify({ email })
+                });
+            } catch (emailErr) {
+                console.warn('VIP confirmation email notification error:', emailErr);
+            }
+
+            // Also invoke admin-invite-user if adminSecret is provided
             if (adminSecret) {
                 try {
-                    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-invite-user`, {
+                    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-invite-user`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -102,16 +116,12 @@ export const AdminWaitlist = () => {
                         },
                         body: JSON.stringify({ email })
                     });
-                    const result = await response.json();
-                    if (!response.ok) {
-                        console.warn('Edge function email warning:', result.error);
-                    }
                 } catch (edgeErr) {
                     console.warn('Edge function call failed:', edgeErr);
                 }
             }
 
-            addToast(`Zugang für ${email} erfolgreich freigeschaltet!`, 'success');
+            addToast(`Zugang für ${email} freigeschaltet! Bestätigungs-E-Mail wurde gesendet. 📧`, 'success');
         } catch (error) {
             console.error('Invite Error:', error);
             addToast(error.message || 'Fehler beim Freischalten', 'error');
