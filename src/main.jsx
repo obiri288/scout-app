@@ -20,7 +20,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import WaitlistGuard from './components/WaitlistGuard'
+
 import { NetworkGuard } from './components/NetworkGuard'
 
 createRoot(document.getElementById('root')).render(
@@ -32,9 +32,7 @@ createRoot(document.getElementById('root')).render(
             <UserProvider>
               <EcosystemProvider>
                 <NetworkGuard>
-                  <WaitlistGuard>
                     <App />
-                  </WaitlistGuard>
                 </NetworkGuard>
               </EcosystemProvider>
             </UserProvider>

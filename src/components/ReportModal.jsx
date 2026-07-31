@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Flag, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import * as api from '../lib/api';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
 const STEPS = {
     REPORT: 'report',
@@ -19,18 +20,20 @@ const REASONS = [
     "Sonstiges"
 ];
 
-export const ReportModal = ({ targetId, targetType, onClose, session }) => {
+export const ReportModalContent = ({ targetId, targetType, onClose, session }) => {
     const [step, setStep] = useState(STEPS.REPORT);
     const [reason, setReason] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { addToast } = useToast();
 
     const handleSubmitReport = async () => {
-        if (!reason) return;
+        if (!reason || !session?.user?.id || !targetId) {
+            if (!session?.user?.id) addToast("Bitte melde dich an, um Inhalte zu melden.", 'error');
+            return;
+        }
         setIsSubmitting(true);
         try {
-            const result = await api.submitReport(session.user.id, targetId, targetType, reason);
-            // Report submitted successfully
+            await api.submitReport(session.user.id, targetId, targetType, reason);
             setStep(STEPS.HIDE);
         } catch (error) {
             console.error("Report Insert Error:", error);
@@ -40,7 +43,7 @@ export const ReportModal = ({ targetId, targetType, onClose, session }) => {
     };
 
     const handleHideContent = async (hide) => {
-        if (hide) {
+        if (hide && session?.user?.id && targetId) {
             try {
                 await api.hideContent(session.user.id, targetId, targetType);
                 addToast("Inhalt wird zukünftig ausgeblendet.", "success");
@@ -49,7 +52,7 @@ export const ReportModal = ({ targetId, targetType, onClose, session }) => {
             }
         }
         setStep(STEPS.SUCCESS);
-        setTimeout(onClose, 2000);
+        setTimeout(() => onClose?.(), 2000);
     };
 
     return (
@@ -185,3 +188,9 @@ export const ReportModal = ({ targetId, targetType, onClose, session }) => {
         </div>
     );
 };
+
+export const ReportModal = (props) => (
+    <SafeErrorBoundary>
+        <ReportModalContent {...props} />
+    </SafeErrorBoundary>
+);

@@ -5,18 +5,26 @@ import {
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
 import * as api from '../lib/api';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
-export const BlockUserModal = ({ targetUser, session, onClose, onBlocked }) => {
+export const BlockUserModalContent = ({ targetUser, session, onClose, onBlocked }) => {
     const [loading, setLoading] = useState(false);
     const { addToast } = useToast();
 
+    const targetUserId = targetUser?.user_id || targetUser?.id;
+    const targetName = targetUser?.full_name || targetUser?.username || 'Nutzer';
+
     const handleBlock = async () => {
+        if (!session?.user?.id || !targetUserId) {
+            addToast("Nutzer konnte nicht identifiziert werden.", 'error');
+            return;
+        }
         setLoading(true);
         try {
-            await api.blockUser(session.user.id, targetUser.user_id);
-            addToast(`${targetUser.full_name} wurde blockiert.`, 'success');
+            await api.blockUser(session.user.id, targetUserId);
+            addToast(`${targetName} wurde blockiert.`, 'success');
             onBlocked?.();
-            onClose();
+            onClose?.();
         } catch (e) {
             addToast("Fehler beim Blockieren.", 'error');
         } finally {
@@ -42,7 +50,7 @@ export const BlockUserModal = ({ targetUser, session, onClose, onBlocked }) => {
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-5 flex items-start gap-3">
                     <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
                     <div className="text-sm text-muted-foreground dark:text-zinc-300">
-                        <strong className="text-foreground">{targetUser.full_name}</strong> wird blockiert.
+                        <strong className="text-foreground">{targetName}</strong> wird blockiert.
                         Du wirst keine Nachrichten, Inhalte oder Profile dieser Person mehr sehen.
                     </div>
                 </div>
@@ -56,7 +64,7 @@ export const BlockUserModal = ({ targetUser, session, onClose, onBlocked }) => {
                     </button>
                     <button
                         onClick={handleBlock}
-                        disabled={loading}
+                        disabled={loading || !targetUserId}
                         className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white py-3 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2"
                     >
                         {loading && <Loader2 size={16} className="animate-spin" />}
@@ -67,3 +75,9 @@ export const BlockUserModal = ({ targetUser, session, onClose, onBlocked }) => {
         </div>
     );
 };
+
+export const BlockUserModal = (props) => (
+    <SafeErrorBoundary>
+        <BlockUserModalContent {...props} />
+    </SafeErrorBoundary>
+);

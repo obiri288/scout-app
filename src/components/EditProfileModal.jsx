@@ -17,7 +17,7 @@ import { SIGNATURE_BADGES, BADGE_CATEGORIES, MAX_BADGES, getBadgeColors } from '
 import { calculateAgeInfo, AGE_ERROR_MESSAGE, MIN_AGE } from '../lib/ageValidation';
 import { CountryCombobox } from './CountryCombobox';
 import { ScoutPassportCard } from './ScoutPassportCard';
-export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) => {
+const EditProfileModalContent = ({ profile, onClose, onUpdate, onAdminHubReq }) => {
     const isAdmin = profile?.role === 'admin';
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
@@ -121,19 +121,25 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
     const [passportPreview, setPassportPreview] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchNat2Request = async () => {
             if (!profile?.id) return;
-            const { data } = await supabase
-                .from('nationality_verifications')
-                .select('*')
-                .eq('user_id', profile.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            setNat2Request(data);
+            try {
+                const { data } = await supabase
+                    .from('nationality_verifications')
+                    .select('*')
+                    .eq('user_id', profile.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (isMounted) setNat2Request(data);
+            } catch (err) {
+                console.warn("Fetch nat2 request error:", err);
+            }
         };
         fetchNat2Request();
-    }, [profile]);
+        return () => { isMounted = false; };
+    }, [profile?.id]);
     const [clubResults, setClubResults] = useState([]);
     const [selectedClub, setSelectedClub] = useState(profile?.clubs || null);
     const [showTransferModal, setShowTransferModal] = useState(false);
@@ -236,25 +242,28 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
 
     // Fetch career entries
     useEffect(() => {
-        if (!profile.user_id) return;
+        let isMounted = true;
+        const targetUserId = profile?.user_id || profile?.id;
+        if (!targetUserId) return;
         const loadCareer = async () => {
-            setCareerLoading(true);
+            if (isMounted) setCareerLoading(true);
             try {
                 const { data, error } = await supabase
                     .from('career_history')
                     .select('*, clubs(is_verified)')
-                    .eq('user_id', profile.user_id)
+                    .eq('user_id', targetUserId)
                     .order('start_date', { ascending: false });
                 if (error) throw error;
-                setCareerEntries(data || []);
+                if (isMounted) setCareerEntries(data || []);
             } catch (e) {
                 console.warn('Career fetch failed:', e);
             } finally {
-                setCareerLoading(false);
+                if (isMounted) setCareerLoading(false);
             }
         };
         loadCareer();
-    }, [profile.user_id]);
+        return () => { isMounted = false; };
+    }, [profile?.user_id, profile?.id]);
 
     const resetCareerForm = () => {
         setCareerForm({ club_name: '', league: '', start_date: '', end_date: '', proof_url: '', is_current: false, club_id: null, wants_transfer_post: true, is_captain: false });
@@ -2086,3 +2095,9 @@ export const EditProfileModal = ({ profile, onClose, onUpdate, onAdminHubReq }) 
         </div>
     );
 };
+
+export const EditProfileModal = (props) => (
+    <SafeErrorBoundary>
+        <EditProfileModalContent {...props} />
+    </SafeErrorBoundary>
+);

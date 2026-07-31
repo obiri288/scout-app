@@ -48,21 +48,11 @@ serve(async (req) => {
       },
     });
 
-    // 1. Invite the user
+    // 1. Invite the user via Auth admin
     const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email);
 
     if (inviteError) {
       throw inviteError;
-    }
-
-    // 2. Update the waitlist table
-    const { error: updateError } = await supabase
-      .from("waitlist")
-      .update({ status: "invited" })
-      .eq("email", email);
-
-    if (updateError) {
-      console.error("Waitlist update error:", updateError);
     }
 
     return new Response(

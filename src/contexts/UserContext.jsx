@@ -150,14 +150,41 @@ export const UserProvider = ({ children }) => {
                 prevEmailRef.current = null;
             }
 
-            // Auth callback: clean up URL tokens after session is established
-            // Note: If on /auth-callback or /welcome, we let the UI handle the cleanup and state reset
-            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && s) {
+            // Check onboarding on sign in
+            if (event === 'SIGNED_IN' && s) {
                 const isDedicatedCallbackPage = window.location.pathname.includes('/auth-callback') || window.location.pathname.includes('/welcome');
-                
                 if (!isDedicatedCallbackPage) {
                     setIsAuthCallback(false);
-                    // Clean URL: remove hash tokens & query params left by Supabase
+                }
+
+                // Check profile and redirect to onboarding if necessary
+                supabase.from('players_master')
+                    .select('onboarding_completed')
+                    .eq('user_id', s.user.id)
+                    .maybeSingle()
+                    .then(({ data, error }) => {
+                        if (error && error.code !== 'PGRST116') {
+                            console.error('Error checking profile on sign in:', error);
+                            return;
+                        }
+                        
+                        const isCompleted = data && data.onboarding_completed;
+                        const currentPath = window.location.pathname;
+
+                        if (!isCompleted && currentPath !== '/onboarding') {
+                            window.location.href = '/onboarding';
+                        } else if (isCompleted && currentPath === '/onboarding') {
+                            window.location.href = '/'; // or /home
+                        } else if (isCompleted && !isDedicatedCallbackPage) {
+                            // Clean URL: remove hash tokens & query params left by Supabase
+                            const cleanUrl = window.location.origin + currentPath;
+                            window.history.replaceState(null, '', cleanUrl);
+                        }
+                    });
+            } else if ((event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && s) {
+                const isDedicatedCallbackPage = window.location.pathname.includes('/auth-callback') || window.location.pathname.includes('/welcome');
+                if (!isDedicatedCallbackPage) {
+                    setIsAuthCallback(false);
                     const cleanUrl = window.location.origin + window.location.pathname;
                     window.history.replaceState(null, '', cleanUrl);
                 }

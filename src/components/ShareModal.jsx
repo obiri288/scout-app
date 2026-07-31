@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Share2, Link as LinkIcon, User, Loader2, MessageSquare 
@@ -6,8 +6,9 @@ import {
 import { VerificationBadge } from './VerificationBadge';
 import { useToast } from '../contexts/ToastContext';
 import * as api from '../lib/api';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
-export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) => {
+export const ShareModalContent = ({ isOpen, onClose, shareText, shareUrl, session }) => {
     const { addToast } = useToast();
     const [partners, setPartners] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -15,17 +16,26 @@ export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) =>
     const [sentUsers, setSentUsers] = useState(new Set()); 
 
     useEffect(() => {
+        let isMounted = true;
         if (isOpen && session?.user?.id) {
             setLoading(true);
             api.getRecentChatPartners(session.user.id)
-                .then(data => setPartners(data))
+                .then(data => {
+                    if (isMounted) setPartners(data || []);
+                })
                 .catch(err => console.error("Error fetching chat partners for share:", err))
-                .finally(() => setLoading(false));
+                .finally(() => {
+                    if (isMounted) setLoading(false);
+                });
         } else {
             if (!isOpen) {
                setSentUsers(new Set());
             }
         }
+
+        return () => {
+            isMounted = false;
+        };
     }, [isOpen, session?.user?.id]);
 
     const handleNativeShare = async () => {
@@ -40,29 +50,29 @@ export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) =>
                 handleCopyLink();
             }
         } catch (error) {
-            if (error.name !== 'AbortError') {
+            if (error?.name !== 'AbortError') {
                 console.error("Error sharing:", error);
                 handleCopyLink();
             }
         }
-        onClose();
+        onClose?.();
     };
 
     const handleCopyLink = async () => {
         try {
-            await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+            await navigator.clipboard.writeText(`${shareText || ''}\n\n${shareUrl || ''}`);
             addToast("Link kopiert!", 'success');
         } catch (err) {
             addToast("Fehler beim Kopieren.", 'error');
         }
-        onClose();
+        onClose?.();
     };
 
     const handleSendInternal = async (partner) => {
-        if (!session?.user?.id) return;
+        if (!session?.user?.id || !partner?.user_id) return;
         setSendingTo(partner.user_id);
         try {
-            const message = `Schau dir dieses Video an: ${shareUrl}`;
+            const message = `Schau dir dieses Video an: ${shareUrl || ''}`;
             await api.sendMessage(session.user.id, partner.user_id, message);
             setSentUsers(prev => new Set(prev).add(partner.user_id));
             addToast("Gesendet!", 'success');
@@ -136,41 +146,41 @@ export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) =>
                                 <div className="flex justify-center items-center py-10">
                                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                                 </div>
-                            ) : partners.length > 0 ? (
+                            ) : (partners || []).length > 0 ? (
                                 <div className="px-2 pb-4 space-y-1">
-                                    {partners.map(partner => (
-                                        <div key={partner.user_id} className="flex items-center justify-between p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition">
+                                    {(partners || []).map(partner => (
+                                        <div key={partner?.user_id || Math.random()} className="flex items-center justify-between p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl transition">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-12 h-12 rounded-2xl overflow-hidden bg-card border border-border flex-shrink-0">
-                                                    {partner.avatar_url ? (
-                                                        <img src={partner.avatar_url} alt={partner.full_name} className="w-full h-full object-cover" />
+                                                    {partner?.avatar_url ? (
+                                                        <img src={partner.avatar_url} alt={partner?.full_name || 'User'} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <img src="/cavios-icon.png" className="w-full h-full object-contain p-3 opacity-60" />
+                                                        <img src="/cavios-icon.png" alt="CAVIOS" className="w-full h-full object-contain p-3 opacity-60" />
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-[14px] font-bold text-foreground flex items-center gap-1.5">
-                                                        {partner.full_name}
-                                                        {partner.verification_status && partner.verification_status !== 'unverified' && (
+                                                        {partner?.full_name || 'Unbekannt'}
+                                                        {partner?.verification_status && partner.verification_status !== 'unverified' && (
                                                             <VerificationBadge size={14} status={partner.verification_status} verificationStatus={partner.verification_status} />
                                                         )}
                                                     </span>
-                                                    <span className="text-[11px] text-muted-foreground">@{partner.username}</span>
+                                                    <span className="text-[11px] text-muted-foreground">@{partner?.username || 'user'}</span>
                                                 </div>
                                             </div>
                                             
                                             <button 
                                                 onClick={() => handleSendInternal(partner)}
-                                                disabled={sentUsers.has(partner.user_id) || sendingTo === partner.user_id}
+                                                disabled={sentUsers.has(partner?.user_id) || sendingTo === partner?.user_id}
                                                 className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-all ${
-                                                    sentUsers.has(partner.user_id) 
+                                                    sentUsers.has(partner?.user_id) 
                                                         ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
                                                         : 'bg-blue-600 text-white hover:bg-blue-500 shadow-md'
                                                 }`}
                                             >
-                                                {sendingTo === partner.user_id ? (
+                                                {sendingTo === partner?.user_id ? (
                                                     <Loader2 size={16} className="animate-spin" />
-                                                ) : sentUsers.has(partner.user_id) ? (
+                                                ) : sentUsers.has(partner?.user_id) ? (
                                                     'Gesendet'
                                                 ) : (
                                                     'Senden'
@@ -192,3 +202,9 @@ export const ShareModal = ({ isOpen, onClose, shareText, shareUrl, session }) =>
         </AnimatePresence>
     );
 };
+
+export const ShareModal = (props) => (
+    <SafeErrorBoundary>
+        <ShareModalContent {...props} />
+    </SafeErrorBoundary>
+);

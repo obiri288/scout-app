@@ -11,8 +11,9 @@ import { CommentItem } from './CommentItem';
 import { CommentActionMenu } from './CommentActionMenu';
 import { ReportModal } from './ReportModal';
 import { useUser } from '../contexts/UserContext';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
-export const CommentsModal = ({ videoId, postId, video, onClose, session, onLoginReq }) => {
+export const CommentsModalContent = ({ videoId, postId, video, onClose, session, onLoginReq }) => {
     const [comments, setComments] = useState([]);
     const [text, setText] = useState('');
     const [loading, setLoading] = useState(true);
@@ -29,13 +30,17 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
         ? (video?.user_id || video?.players_master?.user_id) 
         : (video?.players_master?.user_id || video?.user_id);
     
-    const isCreator = session?.user?.id === videoCreatorId;
+    const isCreator = Boolean(session?.user?.id && session.user.id === videoCreatorId);
     const { currentUserProfile, hiddenUserIds } = useUser();
 
     const [actionComment, setActionComment] = useState(null);
     const [reportTarget, setReportTarget] = useState(null);
 
-    const loadComments = useCallback(async () => {
+    const loadComments = useCallback(async (isMounted = true) => {
+        if (!targetId) {
+            if (isMounted) setLoading(false);
+            return;
+        }
         try {
             const data = effectiveIsTransfer 
                 ? await api.fetchPostComments(targetId)
@@ -44,7 +49,7 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
             // Client-side filtering for hidden comments
             const hiddenComments = currentUserProfile?.hidden_comments || [];
             const hiddens = hiddenUserIds || [];
-            const filteredData = (data || []).filter(c => !hiddenComments.includes(c.id) && !hiddens.includes(c.players_master?.id));
+            const filteredData = (data || []).filter(c => c && !hiddenComments.includes(c.id) && !hiddens.includes(c.players_master?.id));
 
             // Smart Sorting: Pin first, then likes, then date
             const sorted = filteredData.sort((a, b) => {
@@ -52,29 +57,34 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
                 const aLikes = a.comment_likes?.length || 0;
                 const bLikes = b.comment_likes?.length || 0;
                 if (aLikes !== bLikes) return bLikes - aLikes;
-                return new Date(b.created_at) - new Date(a.created_at);
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
             });
-            setComments(sorted);
+            if (isMounted) setComments(sorted);
         } catch (error) {
             console.error("Fetch comments error:", error);
         } finally {
-            setLoading(false);
+            if (isMounted) setLoading(false);
         }
     }, [targetId, currentUserProfile, postType, effectiveIsTransfer, hiddenUserIds]);
 
     useEffect(() => {
-        if (!targetId) return;
-        loadComments();
+        let isMounted = true;
+        loadComments(isMounted);
         
-        const handleLikeUpdate = () => loadComments();
+        const handleLikeUpdate = () => {
+            if (isMounted) loadComments(isMounted);
+        };
         window.addEventListener('commentLikeUpdate', handleLikeUpdate);
-        return () => window.removeEventListener('commentLikeUpdate', handleLikeUpdate);
+        return () => {
+            isMounted = false;
+            window.removeEventListener('commentLikeUpdate', handleLikeUpdate);
+        };
     }, [targetId, loadComments]);
 
     const sendComment = async (e) => {
         e.preventDefault();
-        if (!session) return onLoginReq();
-        if (!text.trim() || isSubmitting) return;
+        if (!session) return onLoginReq?.();
+        if (!text.trim() || isSubmitting || !targetId) return;
 
         const currentText = text.trim();
         setIsSubmitting(true);
@@ -87,10 +97,10 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
             
             // Standard Comment Notification
             const myProfileId = await api.getPlayerIdFromUserId(session.user.id);
-            if (video.players_master?.id && video.players_master?.id !== myProfileId) {
+            if (video?.players_master?.id && video.players_master.id !== myProfileId) {
                 try {
                     await api.createNotification({
-                        userId: video.players_master?.id,
+                        userId: video.players_master.id,
                         actorId: myProfileId,
                         type: 'comment',
                         message: effectiveIsTransfer ? 'hat deinen Transfer-Post kommentiert.' : 'hat dein Video kommentiert.',
@@ -108,14 +118,14 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
                 const usernames = Array.from(new Set(mentions.map(m => m.substring(1).toLowerCase())));
                 try {
                     const targetPlayers = await api.fetchPlayersByUsernames(usernames);
-                    const notificationsToInsert = targetPlayers
+                    const notificationsToInsert = (targetPlayers || [])
                         .filter(tp => tp && tp.id !== myProfileId)
                         .map(tp => ({
                             userId: tp.id,
                             actorId: myProfileId,
                             type: 'mention',
                             message: 'hat dich in einem Kommentar markiert.',
-                            videoId: video.id
+                            videoId: video?.id || targetId
                         }));
 
                     if (notificationsToInsert.length > 0) {
@@ -127,7 +137,7 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
             }
 
             setText('');
-            await loadComments();
+            await loadComments(true);
             window.dispatchEvent(new CustomEvent('commentChange', { detail: { videoId: targetId, delta: 1 } }));
             addToast("Kommentar erfasst", 'success');
         } catch (error) {
@@ -139,9 +149,10 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
     };
 
     const handleDelete = async (commentId) => {
+        if (!commentId) return;
         const previousComments = [...comments];
         // Optimistic update
-        setComments(prev => prev.filter(c => c.id !== commentId));
+        setComments(prev => (prev || []).filter(c => c?.id !== commentId));
         
         try {
             await api.deleteComment(commentId, effectiveIsTransfer ? 'post' : 'video');
@@ -155,9 +166,10 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
     };
 
     const handlePin = async (commentId, state) => {
+        if (!commentId || !targetId) return;
         try {
             await api.toggleCommentPin(targetId, commentId, state, effectiveIsTransfer ? 'post' : 'video');
-            loadComments();
+            loadComments(true);
             addToast(state ? "Kommentar angepinnt 📌" : "Pin gelöst", 'success');
         } catch (error) {
             addToast("Pin fehlgeschlagen", 'error');
@@ -170,7 +182,7 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
                 <div className="p-4 border-b border-border flex justify-between items-center bg-white dark:bg-zinc-900/80 backdrop-blur-md">
                     <h3 className="text-foreground font-bold flex items-center gap-2">
                         <MessageCircle size={18} className="text-blue-500" /> 
-                        Kommentare <span className="bg-muted px-2 py-0.5 rounded text-[10px] text-muted-foreground">{comments.length}</span>
+                        Kommentare <span className="bg-muted px-2 py-0.5 rounded text-[10px] text-muted-foreground">{(comments || []).length}</span>
                     </h3>
                     <button onClick={onClose} className="p-2 bg-slate-100 dark:bg-white/5 rounded-full text-muted-foreground hover:text-foreground transition">
                         <X size={18} />
@@ -183,12 +195,12 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
                             <Loader2 className="animate-spin text-blue-500" size={32} />
                             <span className="text-xs text-muted-foreground font-medium">Lade Kommentare...</span>
                         </div>
-                    ) : comments.length === 0 ? (
+                    ) : (comments || []).length === 0 ? (
                         <EmptyState icon={MessageCircle} title="Noch keine Kommentare" description="Schreibe den ersten Kommentar für dieses Video." variant="subtle" />
                     ) : (
-                        comments.map(c => (
+                        (comments || []).map(c => (
                             <CommentItem 
-                                key={c.id} 
+                                key={c?.id || Math.random()} 
                                 comment={c} 
                                 session={session} 
                                 videoCreatorId={videoCreatorId}
@@ -206,21 +218,21 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
                     comment={actionComment}
                     session={session}
                     videoCreatorId={videoCreatorId}
-                    isOpen={!!actionComment}
+                    isOpen={Boolean(actionComment)}
                     onClose={() => setActionComment(null)}
                     onDelete={handleDelete}
-                    onReport={(c) => setReportTarget({ id: c.id, type: 'comment' })}
+                    onReport={(c) => setReportTarget({ id: c?.id, type: 'comment' })}
                 />
 
                 {/* Shared Report Flow */}
-                {reportTarget && (
+                {reportTarget?.id && (
                     <ReportModal 
                         targetId={reportTarget.id}
                         targetType={reportTarget.type}
                         session={session}
                         onClose={() => {
                             setReportTarget(null);
-                            loadComments(); // Refresh to catch hidden/quarantined
+                            loadComments(true); // Refresh to catch hidden/quarantined
                         }}
                     />
                 )}
@@ -256,3 +268,9 @@ export const CommentsModal = ({ videoId, postId, video, onClose, session, onLogi
         </div>
     );
 };
+
+export const CommentsModal = (props) => (
+    <SafeErrorBoundary>
+        <CommentsModalContent {...props} />
+    </SafeErrorBoundary>
+);

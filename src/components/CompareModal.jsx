@@ -1,48 +1,73 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Search, User, Shield, ChevronRight, ArrowLeftRight, Plus, Crown, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { inputStyle, cardStyle } from '../lib/styles';
 import { calculateAge, getClubDisplay } from '../lib/helpers';
 import { getFormattedCountry } from '../lib/countries';
 import { formatPosition } from '../lib/utils';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
-export const CompareModal = ({ onClose, initialPlayer }) => {
+export const CompareModalContent = ({ onClose, initialPlayer }) => {
     const [playerA, setPlayerA] = useState(initialPlayer || null);
     const [playerB, setPlayerB] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [selectingSlot, setSelectingSlot] = useState(initialPlayer ? 'B' : 'A');
-    const [highlightsA, setHighlightsA] = useState([]);
-    const [highlightsB, setHighlightsB] = useState([]);
+    const [highlightsA, setHighlightsA] = useState(0);
+    const [highlightsB, setHighlightsB] = useState(0);
 
     // Search for players
     useEffect(() => {
-        if (searchQuery.length < 2) { setSearchResults([]); return; }
+        let isMounted = true;
+        if (!searchQuery || searchQuery.length < 2) {
+            setSearchResults([]);
+            return;
+        }
         const t = setTimeout(async () => {
             try {
-                const { data } = await supabase.from('players_master')
+                const { data, error } = await supabase.from('players_master')
                     .select('*, clubs(*)')
                     .ilike('full_name', `%${searchQuery}%`)
                     .limit(8);
-                setSearchResults(data || []);
-            } catch (e) { /* silent */ }
+                if (error) throw error;
+                if (isMounted) setSearchResults(data || []);
+            } catch (e) {
+                if (isMounted) setSearchResults([]);
+            }
         }, 300);
-        return () => clearTimeout(t);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(t);
+        };
     }, [searchQuery]);
 
     // Load highlight counts
     useEffect(() => {
-        if (playerA) {
+        let isMounted = true;
+        if (playerA?.id) {
             supabase.from('media_highlights').select('id', { count: 'exact', head: true }).eq('player_id', playerA.id)
-                .then(({ count }) => setHighlightsA(count || 0));
+                .then(({ count }) => { if (isMounted) setHighlightsA(count || 0); })
+                .catch(() => { if (isMounted) setHighlightsA(0); });
+        } else {
+            setHighlightsA(0);
         }
-        if (playerB) {
+
+        if (playerB?.id) {
             supabase.from('media_highlights').select('id', { count: 'exact', head: true }).eq('player_id', playerB.id)
-                .then(({ count }) => setHighlightsB(count || 0));
+                .then(({ count }) => { if (isMounted) setHighlightsB(count || 0); })
+                .catch(() => { if (isMounted) setHighlightsB(0); });
+        } else {
+            setHighlightsB(0);
         }
-    }, [playerA, playerB]);
+
+        return () => {
+            isMounted = false;
+        };
+    }, [playerA?.id, playerB?.id]);
 
     const selectPlayer = (p) => {
+        if (!p) return;
         if (selectingSlot === 'A') setPlayerA(p);
         else setPlayerB(p);
         setSearchQuery('');
@@ -59,15 +84,15 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
         setHighlightsB(tmpH);
     };
 
-    const bothSelected = playerA && playerB;
+    const bothSelected = Boolean(playerA && playerB);
 
     const CompareRow = ({ label, valA, valB, highlight }) => {
-        const better = highlight && valA !== valB && valA !== '-' && valB !== '-';
+        const better = Boolean(highlight && valA !== valB && valA !== '-' && valB !== '-');
         return (
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-2.5 border-b border-border last:border-0">
-                <div className={`text-sm text-right font-medium ${better && valA > valB ? 'text-cyan-600 dark:text-cyan-400' : 'text-foreground'}`}>{valA || '-'}</div>
+                <div className={`text-sm text-right font-medium ${better && valA > valB ? 'text-cyan-600 dark:text-cyan-400 font-bold' : 'text-foreground'}`}>{valA || '-'}</div>
                 <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider w-20 text-center">{label}</div>
-                <div className={`text-sm text-left font-medium ${better && valB > valA ? 'text-cyan-600 dark:text-cyan-400' : 'text-foreground'}`}>{valB || '-'}</div>
+                <div className={`text-sm text-left font-medium ${better && valB > valA ? 'text-cyan-600 dark:text-cyan-400 font-bold' : 'text-foreground'}`}>{valB || '-'}</div>
             </div>
         );
     };
@@ -89,13 +114,14 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                         onSelect={() => { setSelectingSlot('A'); setSearchQuery(''); }}
                         onClear={() => setPlayerA(null)}
                     />
-                    <div className="pt-12">
-                        {bothSelected && (
+                    <div className="pt-12 text-center">
+                        {bothSelected ? (
                             <button onClick={swapPlayers} className="p-2 bg-slate-100 dark:bg-white/10 rounded-full hover:bg-slate-200 dark:hover:bg-white/20 transition">
                                 <ArrowLeftRight size={16} className="text-muted-foreground" />
                             </button>
+                        ) : (
+                            <div className="text-muted-foreground/60 font-bold text-xl">VS</div>
                         )}
-                        {!bothSelected && <div className="text-muted-foreground/60 font-bold text-xl">VS</div>}
                     </div>
                     <PlayerSlot
                         player={playerB}
@@ -121,19 +147,19 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                                 />
                             </div>
                             <div className="max-h-48 overflow-y-auto space-y-1">
-                                {searchResults.map(p => (
-                                    <div key={p.id} onClick={() => selectPlayer(p)} className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl cursor-pointer transition">
+                                {(searchResults || []).map(p => (
+                                    <div key={p?.id || Math.random()} onClick={() => selectPlayer(p)} className="flex items-center gap-3 p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-xl cursor-pointer transition">
                                         <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border border-border shrink-0">
-                                            {p.avatar_url ? <img src={p.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-2 opacity-60" />}
+                                            {p?.avatar_url ? <img src={p.avatar_url} alt={p?.full_name || 'Spieler'} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" alt="CAVIOS" className="w-full h-full object-contain p-2 opacity-60" />}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-bold text-foreground truncate">{p.full_name}</div>
+                                            <div className="text-sm font-bold text-foreground truncate">{p?.full_name || 'Unbekannt'}</div>
                                             <div className="text-[10px] text-muted-foreground flex items-center gap-1"><Shield size={8} /> {getClubDisplay(p)}</div>
                                         </div>
-                                        <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold">{formatPosition(p.position_primary)}</span>
+                                        <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold">{formatPosition(p?.position_primary)}</span>
                                     </div>
                                 ))}
-                                {searchQuery.length >= 2 && searchResults.length === 0 && (
+                                {searchQuery.length >= 2 && (searchResults || []).length === 0 && (
                                     <div className="text-center text-muted-foreground/60 text-xs py-4">Keine Spieler gefunden.</div>
                                 )}
                             </div>
@@ -143,7 +169,7 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
                 )}
 
                 {/* Comparison table */}
-                {bothSelected && (
+                {bothSelected && playerA && playerB && (
                     <div className="px-4 pb-24 animate-in fade-in slide-in-from-bottom-4">
                         <div className="bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-border p-4 mt-2">
                             <h3 className="text-xs text-muted-foreground font-bold uppercase tracking-wider text-center mb-4">Vergleich</h3>
@@ -169,22 +195,21 @@ export const CompareModal = ({ onClose, initialPlayer }) => {
     );
 };
 
-// Player slot card
 const PlayerSlot = ({ player, label, onSelect, onClear }) => (
     <div className="flex flex-col items-center">
         {player ? (
             <div className="flex flex-col items-center text-center group relative">
                 <div className="w-20 h-20 rounded-full bg-slate-200 dark:bg-zinc-800 overflow-hidden border-2 border-border mb-2 shadow-lg">
-                    {player.avatar_url ? <img src={player.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-5 opacity-60" />}
+                    {player?.avatar_url ? <img src={player.avatar_url} alt={player?.full_name || 'Spieler'} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" alt="CAVIOS" className="w-full h-full object-contain p-5 opacity-60" />}
                 </div>
                 <div className="text-sm font-bold text-foreground truncate max-w-[120px] flex items-center gap-1">
-                    {player.full_name}
-                    {player.is_verified && <CheckCircle size={12} className="text-blue-600 dark:text-blue-500 shrink-0" />}
+                    {player?.full_name || 'Unbekannt'}
+                    {player?.is_verified && <CheckCircle size={12} className="text-blue-600 dark:text-blue-500 shrink-0" />}
                 </div>
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                     <Shield size={8} /> {getClubDisplay(player)}
                 </div>
-                <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold mt-1">{formatPosition(player.position_primary)}</span>
+                <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-white/90 font-bold mt-1">{formatPosition(player?.position_primary)}</span>
                 <button onClick={onClear} className="mt-2 text-[10px] text-muted-foreground/60 hover:text-red-500 transition">Entfernen</button>
             </div>
         ) : (
@@ -194,4 +219,10 @@ const PlayerSlot = ({ player, label, onSelect, onClear }) => (
         )}
         {!player && <span className="text-[10px] text-muted-foreground/60 font-bold">{label}</span>}
     </div>
+);
+
+export const CompareModal = (props) => (
+    <SafeErrorBoundary>
+        <CompareModalContent {...props} />
+    </SafeErrorBoundary>
 );

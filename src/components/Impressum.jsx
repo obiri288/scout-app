@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 const Impressum = () => {
@@ -6,7 +6,7 @@ const Impressum = () => {
         if (window.history.length > 1) {
             window.history.back();
         } else {
-            window.location.href = '/waitlist';
+            window.location.href = '/';
         }
     };
 

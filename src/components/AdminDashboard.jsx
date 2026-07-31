@@ -681,7 +681,7 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
 
     const MENU_ITEMS = [
         { id: 'dashboard', label: 'Übersicht', icon: Shield, badge: 0 },
-        { id: 'waitlist-nav', label: 'Warteliste / App-Zugang', icon: UserCheck, badge: 0 },
+
         { id: 'status-freigaben', label: 'Status-Freigaben', icon: UserCheck, badge: stats.pendingAccounts },
         { id: 'karriere-stationen', label: 'Karriere-Stationen', icon: Trophy, badge: stats.pendingCareers },
         { id: 'vereins-rechte', label: 'Vereins-Rechte', icon: Building, badge: stats.pendingClaims },
@@ -758,19 +758,7 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                     <ShieldCheck size={14} className="text-blue-500" /> Admin Module
                 </h3>
                 <div className="space-y-3">
-                    <button onClick={() => window.location.href = '/admin/waitlist'} className="w-full flex items-center p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group text-left">
-                        <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
-                            <UserCheck size={20} className="text-cyan-400" />
-                        </div>
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                                <h4 className="text-white font-bold text-base">Warteliste & App-Zugang (Closed Beta)</h4>
-                                <span className="bg-cyan-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">VIP</span>
-                            </div>
-                            <p className="text-zinc-500 text-xs mt-0.5">Nutzer für die App freischalten & Einladungen verwalten</p>
-                        </div>
-                        <ChevronRight size={20} className="text-zinc-600 group-hover:text-white transition-colors" />
-                    </button>
+
 
                     <button onClick={() => setActiveView('status-freigaben')} className="w-full flex items-center p-4 bg-[#111] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group text-left">
                         <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mr-4 group-hover:scale-105 transition-transform">
@@ -1498,10 +1486,7 @@ const AdminDashboard = ({ onClose, onMenuOpen }) => {
                                             <button
                                                 key={item.id}
                                                 onClick={() => {
-                                                    if (item.id === 'waitlist-nav') {
-                                                        window.location.href = '/admin/waitlist';
-                                                        return;
-                                                    }
+
                                                     setActiveView(item.id);
                                                     setIsSidebarOpen(false);
                                                 }}

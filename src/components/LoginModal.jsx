@@ -373,10 +373,10 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
                                 className="h-16 w-16 object-contain mix-blend-screen drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]"
                             />
                             <h2 className="text-2xl font-bold text-foreground">
-                                {view === 'register' ? 'Account erstellen' : view === 'forgot' ? 'Passwort vergessen' : 'Exklusiver CAVIOS Zugang'}
+                                {view === 'register' ? 'Starte deine Karriere' : view === 'forgot' ? 'Passwort vergessen' : 'Willkommen zurück'}
                             </h2>
                             <p className="text-muted-foreground text-sm text-center">
-                                {view === 'register' ? 'Dein Fundament für den Profisport.' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Dieser Bereich ist ausschließlich für verifizierte Partner und Athleten vorgesehen.'}
+                                {view === 'register' ? 'Erstelle dein kostenloses Profil und werde entdeckt.' : view === 'forgot' ? 'Gib deine E-Mail ein, wir senden dir einen Reset-Link' : 'Melde dich an, um dein Profil zu verwalten.'}
                             </p>
                         </div>
 
@@ -490,7 +490,7 @@ export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }
                                         )}
                                     </div>
                                 )}
-                                <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Partner Access'}</button>
+                                <button disabled={loading} className={`${btnPrimary} w-full flex justify-center items-center gap-2 mt-2`}>{loading && <Loader2 className="animate-spin" size={18} />} {view === 'register' ? 'Kostenlos registrieren' : 'Anmelden'}</button>
                             </form>
                             
                             {view !== 'forgot' && view !== 'registerSuccess' && (

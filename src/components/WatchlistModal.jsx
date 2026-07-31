@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     X, Bookmark, Trash2, User, Loader2, Pencil, Shield 
 } from 'lucide-react';
@@ -8,36 +8,51 @@ import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
 import { formatPosition } from '../lib/utils';
 import { EmptyState } from './EmptyState';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
-export const WatchlistModal = ({ session, onClose, onUserClick }) => {
+export const WatchlistModalContent = ({ session, onClose, onUserClick }) => {
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingNote, setEditingNote] = useState(null);
     const [noteText, setNoteText] = useState("");
     const { addToast } = useToast();
 
-    const fetchWatchlist = async () => {
-        setLoading(true);
-        try {
-            const { data } = await supabase.from('scout_watchlist')
-                .select('*, players_master(*, clubs(*))')
-                .eq('scout_id', session.user.id)
-                .order('created_at', { ascending: false });
-            setList(data || []);
-        } catch (e) {
-            addToast("Merkliste konnte nicht geladen werden.", 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
+    useEffect(() => {
+        let isMounted = true;
+        const fetchWatchlist = async () => {
+            if (!session?.user?.id) {
+                if (isMounted) setLoading(false);
+                return;
+            }
+            setLoading(true);
+            try {
+                const { data, error } = await supabase.from('scout_watchlist')
+                    .select('*, players_master(*, clubs(*))')
+                    .eq('scout_id', session.user.id)
+                    .order('created_at', { ascending: false });
+                if (error) throw error;
+                if (isMounted) setList(data || []);
+            } catch (e) {
+                console.error("Watchlist fetch error:", e);
+                addToast("Merkliste konnte nicht geladen werden.", 'error');
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
 
-    useEffect(() => { fetchWatchlist(); }, []);
+        fetchWatchlist();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [session?.user?.id]);
 
     const handleRemove = async (playerId) => {
+        if (!session?.user?.id || !playerId) return;
         try {
             const { error } = await supabase.from('scout_watchlist').delete().match({ scout_id: session.user.id, player_id: playerId });
             if (error) throw error;
-            setList(prev => prev.filter(item => item.player_id !== playerId));
+            setList(prev => (prev || []).filter(item => item?.player_id !== playerId));
             addToast("Spieler von Merkliste entfernt.", 'success');
         } catch (e) {
             addToast("Fehler beim Entfernen.", 'error');
@@ -45,10 +60,11 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
     };
 
     const handleSaveNote = async (itemId) => {
+        if (!itemId) return;
         try {
             const { error } = await supabase.from('scout_watchlist').update({ note: noteText }).eq('id', itemId);
             if (error) throw error;
-            setList(prev => prev.map(item => item.id === itemId ? { ...item, note: noteText } : item));
+            setList(prev => (prev || []).map(item => item?.id === itemId ? { ...item, note: noteText } : item));
             setEditingNote(null);
             addToast("Notiz gespeichert.", 'success');
         } catch (e) {
@@ -58,64 +74,80 @@ export const WatchlistModal = ({ session, onClose, onUserClick }) => {
 
     return (
         <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
-            <div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-border rounded-t-3xl sm:rounded-2xl shadow-2xl`}>
+            <div className={`w-full sm:max-w-md ${cardStyle} h-[80vh] flex flex-col border-t border-border rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden`}>
                 <div className="flex justify-between items-center p-6 border-b border-border">
                     <h2 className="text-xl font-bold text-foreground flex items-center gap-2"><Bookmark className="text-blue-500" fill="currentColor" size={20} /> Merkliste</h2>
-                    <button onClick={onClose}><X className="text-muted-foreground hover:text-foreground" /></button>
+                    <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {loading ? <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-muted-foreground" /></div> : (
-                        list.length === 0 ? <EmptyState icon={Bookmark} title="Noch keine Spieler gemerkt" description="Entdecke Talente und merke dir die Besten!" variant="subtle" /> :
-                            list.map(item => (
-                                <div key={item.id} className="bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-border">
-                                    <div className="flex items-center gap-3 cursor-pointer" onClick={() => onUserClick(item.players_master)}>
-                                        <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden shrink-0">
-                                            {item.players_master?.avatar_url ? <img src={item.players_master.avatar_url} className="w-full h-full object-cover" /> : <img src="/cavios-icon.png" className="w-full h-full object-contain p-3 opacity-60" />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-foreground truncate">{item.players_master?.full_name}</h4>
-                                            {!(item.players_master?.email === 'kontakt@cavios.de' || item.players_master?.is_official || item.players_master?.role === 'system') && (
-                                                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                                    <div className="flex items-center gap-1 truncate">
-                                                        <Shield size={10} className="text-cyan-400 shrink-0" />
-                                                        <span className="truncate">{getClubDisplay(item.players_master)}</span>
-                                                    </div>
-                                                    <span className="bg-gray-800 rounded px-1.5 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
-                                                        {formatPosition(item.players_master?.position_primary)}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleRemove(item.player_id); }} className="p-2 text-muted-foreground hover:text-red-500"><Trash2 size={16} /></button>
-                                    </div>
-
-                                    {/* Note area */}
-                                    <div className="mt-3 pt-2 border-t border-border">
-                                        {editingNote === item.id ? (
-                                            <div className="flex gap-2">
-                                                <input
-                                                    autoFocus
-                                                    className="flex-1 bg-white dark:bg-black/30 text-xs text-foreground p-2 rounded-lg outline-none border border-border focus:border-blue-500/50"
-                                                    value={noteText}
-                                                    onChange={e => setNoteText(e.target.value)}
-                                                    placeholder="Notiz für diesen Spieler..."
-                                                />
-                                                <button onClick={() => handleSaveNote(item.id)} className="text-blue-500 font-bold text-xs">OK</button>
-                                            </div>
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-3">
+                            <Loader2 className="animate-spin text-blue-500" size={32} />
+                            <span className="text-xs text-muted-foreground font-medium">Lade Merkliste...</span>
+                        </div>
+                    ) : (list || []).length === 0 ? (
+                        <EmptyState icon={Bookmark} title="Noch keine Spieler gemerkt" description="Entdecke Talente und merke dir die Besten!" variant="subtle" />
+                    ) : (
+                        (list || []).map(item => (
+                            <div key={item?.id || Math.random()} className="bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-border">
+                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => item?.players_master && onUserClick?.(item.players_master)}>
+                                    <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-700 overflow-hidden shrink-0">
+                                        {item?.players_master?.avatar_url ? (
+                                            <img src={item.players_master.avatar_url} alt={item.players_master?.full_name || 'Spieler'} className="w-full h-full object-cover" />
                                         ) : (
-                                            <div
-                                                onClick={() => { setEditingNote(item.id); setNoteText(item.note || ""); }}
-                                                className="text-xs text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground"
-                                            >
-                                                <Pencil size={12} /> {item.note || "Notiz hinzufügen..."}
+                                            <img src="/cavios-icon.png" alt="CAVIOS" className="w-full h-full object-contain p-3 opacity-60" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-foreground truncate">{item?.players_master?.full_name || 'Unbekannt'}</h4>
+                                        {!(item?.players_master?.email === 'kontakt@cavios.de' || item?.players_master?.is_official || item?.players_master?.role === 'system') && (
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-1 truncate">
+                                                    <Shield size={10} className="text-cyan-400 shrink-0" />
+                                                    <span className="truncate">{getClubDisplay(item?.players_master)}</span>
+                                                </div>
+                                                <span className="bg-gray-800 rounded px-1.5 py-0.5 text-[10px] text-white/90 font-medium shrink-0">
+                                                    {formatPosition(item?.players_master?.position_primary)}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
+                                    <button onClick={(e) => { e.stopPropagation(); handleRemove(item?.player_id); }} className="p-2 text-muted-foreground hover:text-red-500 transition"><Trash2 size={16} /></button>
                                 </div>
-                            ))
+
+                                {/* Note area */}
+                                <div className="mt-3 pt-2 border-t border-border">
+                                    {editingNote === item?.id ? (
+                                        <div className="flex gap-2">
+                                            <input
+                                                autoFocus
+                                                className="flex-1 bg-white dark:bg-black/30 text-xs text-foreground p-2 rounded-lg outline-none border border-border focus:border-blue-500/50"
+                                                value={noteText}
+                                                onChange={e => setNoteText(e.target.value)}
+                                                placeholder="Notiz für diesen Spieler..."
+                                            />
+                                            <button onClick={() => handleSaveNote(item?.id)} className="text-blue-500 font-bold text-xs">OK</button>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => { setEditingNote(item?.id); setNoteText(item?.note || ""); }}
+                                            className="text-xs text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition"
+                                        >
+                                            <Pencil size={12} /> {item?.note || "Notiz hinzufügen..."}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
             </div>
         </div>
     );
 };
+
+export const WatchlistModal = (props) => (
+    <SafeErrorBoundary>
+        <WatchlistModalContent {...props} />
+    </SafeErrorBoundary>
+);

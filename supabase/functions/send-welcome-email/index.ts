@@ -3,7 +3,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET");
 
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -54,23 +53,23 @@ serve(async (req) => {
 
           <!-- Header -->
           <h2 style="color: #f8fafc; font-size: 22px; font-weight: 700; margin-bottom: 24px; text-align: center; background: linear-gradient(to right, #22d3ee, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            Willkommen im exklusiven CAVIOS-Netzwerk
+            Willkommen im CAVIOS Scouting-Netzwerk
           </h2>
 
           <!-- Content -->
           <p style="font-size: 16px; margin-bottom: 20px; color: #cbd5e1;">Hallo,</p>
           
           <p style="font-size: 15px; margin-bottom: 20px; color: #94a3b8; line-height: 1.7;">
-            deine Registrierung war erfolgreich. <strong>Du stehst offiziell auf der VIP-Warteliste.</strong>
+            deine Registrierung war erfolgreich. <strong>Dein Account ist ab sofort aktiv.</strong>
           </p>
 
           <p style="font-size: 15px; margin-bottom: 24px; color: #94a3b8; line-height: 1.7;">
-            CAVIOS schafft eine exklusive, datenbasierte Infrastruktur für modernes Scouting. Hier verbinden wir verifizierte Leistungsdaten, Karriereprofile und professionelle Scouts auf höchstem Niveau.
+            CAVIOS bietet dir eine datenbasierte Plattform für modernes Scouting. Verbinde deine Leistungsdaten, poste deinen Highlight-Content und vernetze dich mit Scouts und Vereinen.
           </p>
 
           <!-- Call to Action -->
           <div style="background-color: #1e293b; border-radius: 12px; padding: 24px; border: 1px dashed #334155; margin-bottom: 30px; text-align: center;">
-            <p style="font-size: 15px; margin-bottom: 16px; color: #38bdf8; font-weight: 600;">Verpasse keine Updates bis zum offiziellen Launch!</p>
+            <p style="font-size: 15px; margin-bottom: 16px; color: #38bdf8; font-weight: 600;">Folge uns für Community-Updates!</p>
             <a href="https://instagram.com/cavios.de" target="_blank" style="display: inline-block; background-color: #22d3ee; color: #020617; font-weight: 700; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; box-shadow: 0 4px 14px rgba(34, 211, 238, 0.3); transition: all 0.2s ease;">
               Folge uns auf Instagram @cavios.de
             </a>
@@ -86,7 +85,7 @@ serve(async (req) => {
           </p>
           
           <p style="font-size: 11px; color: #64748b; margin-top: 25px; text-align: center; line-height: 1.4;">
-            Du erhältst diese E-Mail, weil du dich auf cavios.de eingetragen hast.<br>
+            Du erhältst diese E-Mail, weil du dich auf cavios.de registriert hast.<br>
             &copy; 2026 CAVIOS. Alle Rechte vorbehalten.
           </p>
         </div>
@@ -103,7 +102,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from: "CAVIOS <auth@cavios.de>",
         to: [email],
-        subject: "Willkommen im exklusiven CAVIOS-Netzwerk 🚀",
+        subject: "Willkommen im CAVIOS Scouting-Netzwerk 🚀",
         html: htmlContent,
       }),
     });

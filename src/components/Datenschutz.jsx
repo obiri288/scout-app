@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 const Datenschutz = () => {
@@ -6,7 +6,7 @@ const Datenschutz = () => {
         if (window.history.length > 1) {
             window.history.back();
         } else {
-            window.location.href = '/waitlist';
+            window.location.href = '/';
         }
     };
 
@@ -40,7 +40,7 @@ const Datenschutz = () => {
 
                 <h4 className="text-slate-100 font-medium text-base mt-3 mb-1">Wie erfassen wir Ihre Daten?</h4>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Ihre Daten werden zum einen dadurch erhoben, dass Sie uns diese mitteilen. Hierbei kann es sich z. B. um Daten handeln, die Sie in unser Registrierungs- oder Waitlist-Formular eingeben.
+                    Ihre Daten werden zum einen dadurch erhoben, dass Sie uns diese mitteilen. Hierbei kann es sich z. B. um Daten handeln, die Sie in unser Registrierungsformular eingeben.
                 </p>
                 <p className="text-slate-300 text-sm leading-relaxed">
                     Andere Daten werden automatisch oder nach Ihrer Einwilligung beim Besuch der Website durch unsere IT-Systeme erfasst. Das sind vor allem technische Daten (z. B. Internetbrowser, Betriebssystem oder Uhrzeit des Seitenaufrufs). Die Erfassung dieser Daten erfolgt automatisch, sobald Sie diese Website betreten.
@@ -48,7 +48,7 @@ const Datenschutz = () => {
 
                 <h4 className="text-slate-100 font-medium text-base mt-3 mb-1">Wofür nutzen wir Ihre Daten?</h4>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Ein Teil der Daten wird erhoben, um eine fehlerfreie Bereitstellung der Website zu gewährleisten. Andere Daten können zur Analyse Ihres Nutzerverhaltens verwendet werden. Für den Pre-Launch-Service nutzen wir Ihre E-Mail-Adresse, um Sie über Produktupdates, den Launch und Ihren Waitlist-Status zu informieren.
+                    Ein Teil der Daten wird erhoben, um eine fehlerfreie Bereitstellung der Website zu gewährleisten. Andere Daten können zur Analyse Ihres Nutzerverhaltens verwendet werden. Wir nutzen Ihre E-Mail-Adresse, um Sie über Produktupdates und den Service zu informieren.
                 </p>
 
                 <h4 className="text-slate-100 font-medium text-base mt-3 mb-1">Welche Rechte haben Sie bezüglich Ihrer Daten?</h4>
@@ -89,7 +89,7 @@ const Datenschutz = () => {
 
                 <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Allgemeine Hinweise zu den Rechtsgrundlagen der Datenverarbeitung auf dieser Website</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Sofern Sie in die Datenverarbeitung eingewilligt haben, verarbeiten wir Ihre personenbezogenen Daten auf Grundlage von Art. 6 Abs. 1 lit. a DSGVO bzw. Art. 9 Abs. 2 lit. a DSGVO, sofern besondere Datenkategorien nach Art. 9 Abs. 1 DSGVO verarbeitet werden. Im Falle einer ausdrücklichen Einwilligung in die Übertragung personenbezogener Daten in Drittstaaten erfolgt die Datenverarbeitung zudem auf Grundlage von Art. 49 Abs. 1 lit. a DSGVO. Die Registrierung auf der Waitlist und Verarbeitung Ihrer E-Mail-Adresse erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO zur Durchführung vorvertraglicher Maßnahmen. Sofern wir Daten zur Erfüllung einer rechtlichen Verpflichtung verarbeiten, erfolgt dies auf Grundlage von Art. 6 Abs. 1 lit. c DSGVO. Die Datenverarbeitung kann ferner auf Grundlage unseres berechtigten Interesses nach Art. 6 Abs. 1 lit. f DSGVO erfolgen. Über die jeweils im Einzelfall einschlägigen Rechtsgrundlagen wird in den folgenden Absätzen dieser Datenschutzerklärung informiert.
+                    Sofern Sie in die Datenverarbeitung eingewilligt haben, verarbeiten wir Ihre personenbezogenen Daten auf Grundlage von Art. 6 Abs. 1 lit. a DSGVO bzw. Art. 9 Abs. 2 lit. a DSGVO, sofern besondere Datenkategorien nach Art. 9 Abs. 1 DSGVO verarbeitet werden. Im Falle einer ausdrücklichen Einwilligung in die Übertragung personenbezogener Daten in Drittstaaten erfolgt die Datenverarbeitung zudem auf Grundlage von Art. 49 Abs. 1 lit. a DSGVO. Die Registrierung und Verarbeitung Ihrer E-Mail-Adresse erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO zur Durchführung vorvertraglicher Maßnahmen. Sofern wir Daten zur Erfüllung einer rechtlichen Verpflichtung verarbeiten, erfolgt dies auf Grundlage von Art. 6 Abs. 1 lit. c DSGVO. Die Datenverarbeitung kann ferner auf Grundlage unseres berechtigten Interesses nach Art. 6 Abs. 1 lit. f DSGVO erfolgen. Über die jeweils im Einzelfall einschlägigen Rechtsgrundlagen wird in den folgenden Absätzen dieser Datenschutzerklärung informiert.
                 </p>
 
                 <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Widerruf Ihrer Einwilligung zur Datenverarbeitung</h3>
@@ -107,9 +107,9 @@ const Datenschutz = () => {
                     Sie haben das Recht, Daten, die wir auf Grundlage Ihrer Einwilligung oder in Erfüllung eines Vertrags automatisiert verarbeiten, an sich oder an einen Dritten in einem gängigen, maschinenlesbaren Format aushändigen zu lassen. Sofern Sie die direkte Übertragung der Daten an einen anderen Verantwortlichen verlangen, erfolgt dies nur, soweit es technisch machbar is.
                 </p>
 
-                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Auskunft, Löschung und Berichtigung</h3>
+                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Rechte der Betroffenen (Account-Löschung)</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Sie haben im Rahmen der geltenden gesetzlichen Bestimmungen jederzeit das Recht auf unentgeltliche Auskunft über Ihre gespeicherten personenbezogenen Daten, deren Herkunft und Empfänger und den Zweck der Datenverarbeitung und ggf. ein Recht auf Berichtigung oder Löschung dieser Daten. Hierzu sowie zu weiteren Fragen zum Thema personenbezogene Daten können Sie sich jederzeit an uns wenden.
+                    Sie haben das Recht, jederzeit Auskunft über Ihre gespeicherten personenbezogenen Daten zu erhalten sowie ein Recht auf Berichtigung, Sperrung oder Löschung dieser Daten (Art. 17 DSGVO). Sie können Ihren Account und alle damit verbundenen Daten (inklusive Videos und Profilinformationen) jederzeit selbstständig in den App-Einstellungen löschen oder eine Löschung per E-Mail an kontakt@cavios.de beantragen.
                 </p>
 
                 <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Recht auf Einschränkung der Verarbeitung</h3>
@@ -151,18 +151,25 @@ const Datenschutz = () => {
                     Eine Zusammenführung dieser Daten mit anderen Datenquellen wird nicht vorgenommen.
                 </p>
 
-                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Registrierung auf dieser Website (Waitlist / Pre-Launch)</h3>
+                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Registrierung und Nutzerprofile</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Sie können sich auf unserer Website eintragen, um auf die Waitlist für unseren Pre-Launch gesetzt zu werden. Die eingegebenen Daten (E-Mail-Adresse und ggf. Name) verwenden wir nur zum Zwecke der Nutzung des jeweiligen Angebotes oder Dienstes, für den Sie sich registriert haben. Die Pflichtangaben bei der Registrierung müssen vollständig angegeben werden. Andernfalls müssen wir die Registrierung ablehnen.
+                    Zur Nutzung unserer Plattform ist eine Registrierung erforderlich. Die dabei eingegebenen Daten (z. B. Name, E-Mail-Adresse, sportliche Leistungsdaten, Position) werden zum Zwecke der Nutzung des Angebotes verwendet. Die Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (Erfüllung eines Vertrags). Die im Profil angegebenen Daten sind, je nach den gewählten Privatsphäre-Einstellungen, für andere registrierte Nutzer (z. B. Scouts, Vereine) sichtbar, um den Zweck der Plattform (Sport-Scouting) zu erfüllen.
                 </p>
+
+                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Nutzergenerierte Inhalte (Videos & Medien)</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Für wichtige Änderungen etwa beim Angebotsumfang oder bei technisch notwendigen Änderungen nutzen wir die bei der Registrierung angegebene E-Mail-Adresse, um Sie auf diesem Wege zu informieren.
+                    Nutzer haben die Möglichkeit, eigene Videos und Bilder (Highlights) hochzuladen. Diese Inhalte werden auf unseren Servern gespeichert und auf der Plattform veröffentlicht. Die Verarbeitung dieser Daten erfolgt auf Grundlage unseres Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO) sowie Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Sie können Ihre hochgeladenen Inhalte jederzeit in Ihren Kontoeinstellungen löschen.
                 </p>
+
+                <h2 className="text-slate-100 font-bold mt-8 mb-4 text-xl">4. Hosting und Drittanbieter-Dienste</h2>
+                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Hosting und Backend (Supabase)</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Die Verarbeitung der bei der Registrierung eingegebenen Daten erfolgt auf Grundlage Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO) und zur Durchführung vorvertraglicher Maßnahmen (Art. 6 Abs. 1 lit. b DSGVO). Sie können eine von Ihnen erteilte Einwilligung jederzeit widerrufen. Dazu reicht eine formlose Mitteilung per E-Mail an uns. Die Rechtmäßigkeit der bereits erfolgten Datenverarbeitung bleibt vom Widerruf unberührt.
+                    Wir nutzen für das Hosting unserer Datenbank und die Nutzerauthentifizierung die Dienste von Supabase. Die Datenverarbeitung erfolgt auf Grundlage unseres berechtigten Interesses an einer sicheren und effizienten Bereitstellung unserer Plattform (Art. 6 Abs. 1 lit. f DSGVO). Wir haben mit dem Anbieter einen Vertrag zur Auftragsverarbeitung (AVV) geschlossen, der sicherstellt, dass die Daten nur nach unseren Weisungen und im Einklang mit der DSGVO verarbeitet werden.
                 </p>
+
+                <h3 className="text-slate-100 font-semibold text-lg mt-4 mb-2">Kartendienste (Mapbox)</h3>
                 <p className="text-slate-300 text-sm leading-relaxed">
-                    Die bei der Registrierung erfassten Daten werden von uns gespeichert, solange Sie auf unserer Waitlist registriert sind und werden anschließend gelöscht. Gesetzliche Aufbewahrungsfristen bleiben unberührt.
+                    Für die Darstellung interaktiver Karten und die Standortzuweisung von Videos (Geotagging) nutzen wir den Dienst Mapbox (Mapbox Inc., 740 15th Street NW, 5th Floor, Washington DC 20005, USA). Beim Aufruf der Kartenkomponente wird eine Verbindung zu den Servern von Mapbox hergestellt, wobei Ihre IP-Adresse übertragen wird. Die Nutzung von Mapbox erfolgt im Interesse einer ansprechenden Darstellung unserer Online-Angebote und an einer leichten Auffindbarkeit der von den Nutzern angegebenen Orte. Dies stellt ein berechtigtes Interesse im Sinne von Art. 6 Abs. 1 lit. f DSGVO dar. Mapbox ist nach dem EU-US Data Privacy Framework zertifiziert, wodurch ein angemessenes Datenschutzniveau gewährleistet wird.
                 </p>
             </div>
         </div>

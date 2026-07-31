@@ -1,6 +1,7 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Video, Users, BarChart3, Eye, Globe, Shield, ChevronRight, Zap, Star, ArrowRight, Play } from 'lucide-react';
+import { HowItWorksModal } from './HowItWorksModal';
 
 /* ─────────────────── helpers ─────────────────── */
 const fadeUp = {
@@ -62,7 +63,10 @@ const steps = [
 ];
 
 /* ─────────────────── Component ─────────────────── */
-export const LandingPage = ({ onLogin, onRegister }) => (
+export const LandingPage = ({ onLogin, onRegister }) => {
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+
+  return (
   <div className="flex flex-col min-h-screen bg-slate-950 text-white overflow-x-hidden selection:bg-cyan-500/30">
 
     {/* ─── Ambient Background ─── */}
@@ -117,7 +121,7 @@ export const LandingPage = ({ onLogin, onRegister }) => (
         >
           <div className="absolute inset-0 w-28 h-28 sm:w-32 sm:h-32 bg-amber-400/20 rounded-full blur-[40px] landing-glow-pulse" />
           <img
-            src="/CAVIOS-floating-logo.png"
+            src="/cavios-floating-logo.png"
             alt="CAVIOS"
             className="relative w-28 h-28 sm:w-32 sm:h-32 object-contain mix-blend-screen landing-float drop-shadow-[0_0_30px_rgba(245,158,11,0.4)]"
           />
@@ -160,7 +164,7 @@ export const LandingPage = ({ onLogin, onRegister }) => (
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </button>
           <button
-            onClick={onLogin}
+            onClick={() => setShowHowItWorks(true)}
             className="px-8 py-4 text-base font-bold text-slate-300 hover:text-white border border-white/10 hover:border-white/25 rounded-2xl backdrop-blur-sm bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-300 flex items-center gap-2"
           >
             <Play size={16} />
@@ -298,12 +302,14 @@ export const LandingPage = ({ onLogin, onRegister }) => (
 
           {/* Legal links */}
           <div className="flex items-center gap-6 text-xs text-slate-500">
-            <span className="hover:text-slate-300 cursor-pointer transition-colors">Datenschutz</span>
-            <span className="hover:text-slate-300 cursor-pointer transition-colors">Impressum</span>
-            <span className="hover:text-slate-300 cursor-pointer transition-colors">AGB</span>
+            <span onClick={() => window.location.href = '/privacy'} className="hover:text-slate-300 cursor-pointer transition-colors">Datenschutz</span>
+            <span onClick={() => window.location.href = '/imprint'} className="hover:text-slate-300 cursor-pointer transition-colors">Impressum</span>
           </div>
         </div>
       </div>
     </footer>
+
+    {showHowItWorks && <HowItWorksModal onClose={() => setShowHowItWorks(false)} />}
   </div>
-);
+  );
+};

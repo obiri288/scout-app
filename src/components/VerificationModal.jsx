@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     X, BadgeCheck, FileBadge, Loader2 
 } from 'lucide-react';
 import { cardStyle } from '../lib/styles';
 import { useToast } from '../contexts/ToastContext';
+import { SafeErrorBoundary } from './SafeErrorBoundary';
 
-export const VerificationModal = ({ onClose, onUploadComplete }) => {
+export const VerificationModalContent = ({ onClose, onUploadComplete }) => {
     const [uploading, setUploading] = useState(false);
     const { addToast } = useToast();
 
@@ -15,8 +16,8 @@ export const VerificationModal = ({ onClose, onUploadComplete }) => {
             // Simulated upload for prototype
             await new Promise(r => setTimeout(r, 1500));
             addToast("Dokumente erfolgreich hochgeladen! Wir prüfen deinen Status.", 'success');
-            onUploadComplete();
-            onClose();
+            onUploadComplete?.();
+            onClose?.();
         } catch (e) {
             addToast("Fehler beim Hochladen.", 'error');
         } finally {
@@ -29,7 +30,7 @@ export const VerificationModal = ({ onClose, onUploadComplete }) => {
             <div className={`w-full max-w-md ${cardStyle} p-6 border-t border-border shadow-2xl relative`}>
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold text-foreground flex items-center gap-2"><BadgeCheck className="text-blue-500" size={24} /> Verifizierung</h3>
-                    <button onClick={onClose}><X className="text-muted-foreground hover:text-foreground" /></button>
+                    <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition"><X size={20} /></button>
                 </div>
                 <div className="space-y-6">
                     <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-sm text-blue-600 dark:text-blue-200">
@@ -47,3 +48,9 @@ export const VerificationModal = ({ onClose, onUploadComplete }) => {
         </div>
     );
 };
+
+export const VerificationModal = (props) => (
+    <SafeErrorBoundary>
+        <VerificationModalContent {...props} />
+    </SafeErrorBoundary>
+);

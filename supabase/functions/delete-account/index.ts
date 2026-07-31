@@ -31,15 +31,21 @@ serve(async (req) => {
 
         const userId = user.id
 
-        // 1. Delete user from auth.users (This will trigger ON DELETE CASCADE in many DB tables if configured, 
-        // but the app uses manual triggers or no foreign keys for some things, so we clean up manually to be safe)
+        // 1. Storage Cleanup: Remove user-owned files from buckets
+        const buckets = ['avatars', 'videos', 'player-videos', 'identity_documents'];
+        for (const bucket of buckets) {
+            try {
+                const { data: files } = await supabaseClient.storage.from(bucket).list(userId);
+                if (files && files.length > 0) {
+                    const paths = files.map(f => `${userId}/${f.name}`);
+                    await supabaseClient.storage.from(bucket).remove(paths);
+                }
+            } catch (storageErr) {
+                console.error(`Storage cleanup error for bucket ${bucket}:`, storageErr);
+            }
+        }
 
-        // Actually, usually we delete the user last.
-
-        // 1. Clean up Storage (HACK: Edge functions can list but it's easier if we pass the paths or use the DB)
-        // We already have the logic in the frontend, but migrating it here is better.
-
-        // Delete from public.players_master (cascades or triggers should handle the rest usually, but let's be thorough)
+        // 2. Delete user from auth.users (triggers ON DELETE CASCADE on players_master and related DB tables)
         const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(userId)
         if (deleteError) throw deleteError
 

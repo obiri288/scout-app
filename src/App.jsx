@@ -4,8 +4,7 @@ import { Home, Search, Plus, Mail, User, LogIn, X, MapPin, Loader2, Bell, Lock, 
 import { useAppState } from './hooks/useAppState';
 import { useToast } from './contexts/ToastContext';
 import * as api from './lib/api';
-import { SECRET_ACCESS_PATH } from './lib/config';
-import { WaitlistInjector } from './components/WaitlistInjector';
+
 
 
 // Eagerly loaded — visible on first render
@@ -52,7 +51,7 @@ const PrivacyScreen = lazy(() => import('./components/Datenschutz'));
 const ImprintScreen = lazy(() => import('./components/Impressum'));
 import { EmailConfirmedPage } from './components/EmailConfirmedPage';
 import { AuthCallbackScreen } from './components/AuthCallbackScreen';
-const AdminWaitlist = lazy(() => import('./components/AdminWaitlist').then(m => ({ default: m.AdminWaitlist })));
+
 
 const LazyFallback = () => (
     <div className="fixed inset-0 z-[10000] bg-background/80 backdrop-blur-sm flex items-center justify-center">
@@ -323,6 +322,17 @@ const App = () => {
         return () => window.removeEventListener('openUploadModal', handleOpenUpload);
     }, [session, setShowUpload, setShowLogin]);
 
+    // Auto-open LoginModal when unauthenticated user navigates to /login, /register, /signup, or ?login=true
+    useEffect(() => {
+        if (!session) {
+            const path = window.location.pathname;
+            const search = window.location.search;
+            if (path === '/login' || path === '/register' || path === '/signup' || search.includes('login=true') || search.includes('register=true')) {
+                setShowLogin(true);
+            }
+        }
+    }, [session, setShowLogin]);
+
     // If we're strictly on the email-confirmed standalone page
     if (window.location.pathname === '/auth/email-confirmed') {
         return <EmailConfirmedPage />;
@@ -342,13 +352,7 @@ const App = () => {
         );
     }
 
-    if (window.location.pathname === '/admin/waitlist') {
-        return (
-            <Suspense fallback={<SplashScreen />}>
-                <AdminWaitlist />
-            </Suspense>
-        );
-    }
+
 
     if (window.location.pathname === '/privacy') {
         return (
@@ -366,38 +370,42 @@ const App = () => {
         );
     }
 
+    if (window.location.pathname === '/onboarding') {
+        // If not logged in yet, show splash until auth state resolves
+        if (authLoading) return <SplashScreen />;
+        
+        // If logged out entirely, go to landing page
+        if (!session) {
+            window.location.href = '/';
+            return null;
+        }
 
-    // Direct SECRET_ACCESS_PATH route — used by WaitlistGuard's subtle login link
-    if (window.location.pathname === SECRET_ACCESS_PATH) {
+        // Wait until profile loads to check onboarding status
+        if (profileLoading) return <SplashScreen />;
+
+        // If they actually completed it, push them back to the main app
+        if (currentUserProfile?.onboarding_completed) {
+            window.location.href = '/';
+            return null;
+        }
+
         return (
-            <div className="min-h-screen bg-slate-950 text-foreground flex flex-col items-center justify-center p-4 py-12 gap-6 relative overflow-y-auto">
-                {/* Glow effects */}
-                <div className="absolute pointer-events-none top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[100px]" />
-
-                <div className="z-10 w-full max-w-sm flex flex-col gap-6">
-                    <Suspense fallback={<LazyFallback />}>
-                        <LoginModal
-                            isInline={true}
-                            onClose={() => {
-                                // Navigate back to root when closing login
-                                window.history.replaceState({}, document.title, '/');
-                                window.location.reload();
-                            }}
-                            onSuccess={(s) => {
-                                handleLoginSuccess(s);
-                                // Navigate to root after successful login so App re-renders and opens Onboarding/App
-                                window.location.href = '/';
-                            }}
-                            onLegalOpen={(key) => {
-                                setActiveSettingsModal(key);
-                            }}
-                        />
-                    </Suspense>
-                    <WaitlistInjector />
-                </div>
-            </div>
+            <Suspense fallback={<SplashScreen />}>
+                <OnboardingWizard
+                    session={session}
+                    onComplete={async (player) => {
+                        // Mark as completed in DB
+                        const { data } = await api.updatePlayer(player.id, { onboarding_completed: true });
+                        updateProfile(data || { ...player, onboarding_completed: true });
+                        window.location.href = '/';
+                    }}
+                />
+            </Suspense>
         );
     }
+
+
+
 
     // Block ALL rendering until auth state AND initial profile fetch are resolved
     // Also block if a reactivation is pending (force modal decision)
@@ -417,11 +425,11 @@ const App = () => {
     }
 
     // Check for onboarding: session exists but no profile yet
-    const needsOnboarding = session && !currentUserProfile;
+    const needsOnboarding = session && (!currentUserProfile || !currentUserProfile.onboarding_completed);
     const needsNamePrompt = session && currentUserProfile && (!currentUserProfile.full_name || currentUserProfile.full_name === 'Neuer Spieler');
 
-    // Show landing page for unauthenticated users
-    const isLanding = showLanding && !session;
+    // Make sure unauthenticated users go to landing
+    const isLanding = !session;
 
     // Render the landing page if the user is unauthenticated
     if (isLanding) {
@@ -432,7 +440,7 @@ const App = () => {
                     onRegister={() => setShowLogin(true)}
                 />
                 <Suspense fallback={<LazyFallback />}>
-                    {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={(s) => { handleLoginSuccess(s); setShowLanding(false); }} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
+                    {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={(s) => { handleLoginSuccess(s); }} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 </Suspense>
             </>
         );
@@ -455,22 +463,9 @@ const App = () => {
 
             {/* Celebration Animation */}
             <CelebrationAnimation active={showCelebration} onComplete={() => setShowCelebration(false)} />
-            {/* Onboarding Wizard */}
-            {(showOnboarding || needsOnboarding) && session && (
-                <Suspense fallback={<LazyFallback />}>
-                    <OnboardingWizard
-                        session={session}
-                        onComplete={(player) => {
-                            updateProfile(player);
-                            refreshProfile();
-                            setShowOnboarding(false);
-                            loadProfile(player);
-                        }}
-                    />
-                </Suspense>
-            )}
+            
             {/* Name Enforcement Prompt */}
-            {needsNamePrompt && !needsOnboarding && !showOnboarding && (
+            {needsNamePrompt && !needsOnboarding && (
                 <Suspense fallback={<LazyFallback />}>
                     <NamePromptModal />
                 </Suspense>
