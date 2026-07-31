@@ -309,7 +309,7 @@ export const LandingPage = ({ onLogin, onRegister }) => {
       </div>
     </footer>
 
-    {showHowItWorks && <HowItWorksModal onClose={() => setShowHowItWorks(false)} />}
+    {showHowItWorks && <HowItWorksModal onClose={() => setShowHowItWorks(false)} onRegister={() => { setShowHowItWorks(false); onRegister(); }} />}
   </div>
   );
 };

@@ -1,36 +1,52 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, User, MapPin, Radar } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, User, MapPin, Radar, Video, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const slides = [
   {
     id: 1,
     title: 'Dein digitales Aushängeschild',
-    desc: 'Erstelle ein tiefgehendes Profil mit deiner taktischen DNA und Leistungsdaten.',
+    desc: 'Erstelle ein tiefgehendes Profil mit deiner taktischen DNA, Position und deinen physischen Leistungsdaten.',
     icon: User
   },
   {
     id: 2,
-    title: 'Highlight-Videos & Geotagging',
-    desc: 'Lade deine besten Momente hoch und markiere deinen Standort auf der interaktiven Scouting-Map.',
-    icon: MapPin
+    title: 'Highlight-Videos',
+    desc: 'Worte sind gut, Bilder sind besser. Lade die besten Momente deiner Spiele hoch und zeige dein echtes Können.',
+    icon: Video
   },
   {
     id: 3,
-    title: 'Werde vom Radar erfasst',
-    desc: 'Lass dich von verifizierten Scouts und Vereinen direkt über die Plattform entdecken.',
+    title: 'Die interaktive Scouting-Map',
+    desc: 'Dank Geotagging bist du auf der Karte sichtbar. Werde von Scouts direkt in deiner Region oder weltweit entdeckt.',
+    icon: MapPin
+  },
+  {
+    id: 4,
+    title: 'Präzise Suchfilter',
+    desc: 'Vereine suchen gezielt nach Spielertypen. Optimiere dein Profil mit den richtigen Skills, um im Raster der Scouts ganz oben zu landen.',
+    icon: Search
+  },
+  {
+    id: 5,
+    title: 'Direktes Networking',
+    desc: 'Werde vom Radar erfasst. Verifizierte Vereine und Scouts können direkt über die Plattform mit dir in Kontakt treten.',
     icon: Radar
   }
 ];
 
-export const HowItWorksModal = ({ onClose }) => {
+export const HowItWorksModal = ({ onClose, onRegister }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
-      onClose();
+      if (onRegister) {
+        onRegister();
+      } else {
+        onClose();
+      }
     }
   };
 
@@ -111,7 +127,7 @@ export const HowItWorksModal = ({ onClose }) => {
               onClick={handleNext}
               className="px-6 py-3 font-bold bg-white text-slate-900 rounded-xl hover:bg-slate-200 transition-all duration-300 flex items-center gap-2"
             >
-              {currentIndex === slides.length - 1 ? 'Schließen' : 'Weiter'}
+              {currentIndex === slides.length - 1 ? 'Jetzt starten' : 'Weiter'}
               {currentIndex !== slides.length - 1 && <ChevronRight size={20} />}
             </button>
           </div>

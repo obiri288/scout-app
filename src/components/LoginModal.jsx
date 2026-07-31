@@ -78,9 +78,9 @@ const SavedAccountsSection = ({ onSelect, onRemove, accounts }) => {
 };
 
 
-export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false }) => {
+export const LoginModal = ({ onClose, onSuccess, onLegalOpen, isInline = false, initialMode = 'login' }) => {
     const initialUrlEmail = typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('email') || '') : '';
-    const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot' | 'registerSuccess'
+    const [view, setView] = useState(initialMode); // 'login' | 'register' | 'forgot' | 'registerSuccess'
     const [identifier, setIdentifier] = useState(initialUrlEmail); // E-Mail oder Username
     const [email, setEmail] = useState(initialUrlEmail); // Nur für Register & Forgot
     const [password, setPassword] = useState('');

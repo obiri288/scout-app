@@ -295,6 +295,7 @@ const App = () => {
     const [showLanding, setShowLanding] = useState(true);
     const [careerRefreshKey, setCareerRefreshKey] = useState(0);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [authMode, setAuthMode] = useState('login');
 
     const handleLogoutRequest = () => setShowLogoutConfirm(true);
     const handleLogoutConfirm = () => { setShowLogoutConfirm(false); logout(); switchTab('home'); };
@@ -436,11 +437,11 @@ const App = () => {
         return (
             <>
                 <LandingPage
-                    onLogin={() => setShowLogin(true)}
-                    onRegister={() => setShowLogin(true)}
+                    onLogin={() => { setAuthMode('login'); setShowLogin(true); }}
+                    onRegister={() => { setAuthMode('register'); setShowLogin(true); }}
                 />
                 <Suspense fallback={<LazyFallback />}>
-                    {showLogin && <LoginModal onClose={() => setShowLogin(false)} onSuccess={(s) => { handleLoginSuccess(s); }} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
+                    {showLogin && <LoginModal initialMode={authMode} onClose={() => setShowLogin(false)} onSuccess={(s) => { handleLoginSuccess(s); }} onLegalOpen={(key) => { setShowLogin(false); setActiveSettingsModal(key); }} />}
                 </Suspense>
             </>
         );
